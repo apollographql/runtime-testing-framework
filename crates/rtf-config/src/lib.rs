@@ -34,6 +34,9 @@ pub mod templating;
 pub use formats::{Execution, Generic};
 pub use providers::file::{CustomProviderSection, DirFile, SourceDir, StableSource};
 
+pub const LOG_COLLECTION_LABEL: &str = "rtf.io/log-collection";
+pub const FILE_PROVIDERS_LABEL: &str = "rtf.io/file-providers";
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct VariableDefinition {
     /// The templating name for this variable

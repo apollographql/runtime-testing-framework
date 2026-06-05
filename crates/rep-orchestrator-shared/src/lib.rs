@@ -9,4 +9,6 @@ pub const EXECUTION_ID_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_EXECUTION_ID";
 pub const EXECUTION_TOKEN_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN";
 
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
-pub const LOG_COLLECTION_LABEL: &str = "rtf.io/log-collection";
+
+// Re-exported so other rep crates do not need to depend directly on rtf-config
+pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL};

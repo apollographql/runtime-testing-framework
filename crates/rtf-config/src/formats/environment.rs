@@ -1,6 +1,6 @@
 //! Parsing of the environment provisioner config file format
 use crate::{
-    VariableDefinition,
+    FILE_PROVIDERS_LABEL, VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::{PathKind, ResolutionContext},
     enum_impl_check,
@@ -28,7 +28,6 @@ use std::{
     pin::Pin,
 };
 
-const FILE_PROVIDERS_LABEL: &str = "rtf.io/file-providers";
 const PROVIDERS_CONTAINER_PATH: &str = "/providers";
 
 /// # Environment Config
