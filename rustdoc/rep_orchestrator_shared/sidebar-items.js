@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["EXECUTION_ID_ENV_VAR","EXECUTION_ID_LABEL","EXECUTION_TOKEN_ENV_VAR","LOG_COLLECTION_LABEL","ORCHESTRATOR_URL_ENV_VAR"],"mod":["payload","status","summary","test_plan","upload_urls"]};
+window.SIDEBAR_ITEMS = {"constant":["EXECUTION_ID_ENV_VAR","EXECUTION_ID_LABEL","EXECUTION_TOKEN_ENV_VAR","FILE_PROVIDERS_LABEL","LOG_COLLECTION_LABEL","ORCHESTRATOR_URL_ENV_VAR"],"mod":["payload","status","summary","test_plan","upload_urls"]};
