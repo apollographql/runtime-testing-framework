@@ -1,0 +1,22 @@
+name: docker-compose-environment
+description: Setup and teardown a docker compose environment
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+project_name: docker-compose-env-label
+
+env_vars:
+  ECHO_MESSAGE: "{{ message }}"
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml
+
+file_providers:
+  - name: echo-server.py
+    env_var: ECHO_SERVER_SCRIPT
+    kind: relative_path
+    path: providers/echo-server.py

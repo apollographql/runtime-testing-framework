@@ -5,7 +5,7 @@ resources:
 patches:
   - target:
       kind: Deployment
-      annotationSelector: "rtf.io/file-providers=true"
+      annotationSelector: "__FILE_PROVIDERS_LABEL__=true"
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -33,9 +33,21 @@ patches:
                 volumeMounts:
                   - mountPath: __OUTDIR__
                     name: providers
+            volumes:
+              - name: providers
+                emptyDir: {}
   - target:
       kind: Deployment
-      annotationSelector: "rtf.io/log-collection=true"
+      annotationSelector: "__FILE_PROVIDERS_LABEL__=true"
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: providers
+            mountPath: __OUTDIR__
+  - target:
+      kind: Deployment
+      annotationSelector: "__LOG_COLLECTION_LABEL__=true"
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -45,4 +57,4 @@ patches:
         template:
           metadata:
             labels:
-              rtf.io/log-collection: "true"
+              __LOG_COLLECTION_LABEL__: "true"

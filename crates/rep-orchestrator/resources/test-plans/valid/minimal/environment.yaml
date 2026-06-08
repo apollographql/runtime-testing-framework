@@ -10,9 +10,19 @@ compose_files:
     path: providers/compose.yaml
 
 file_providers:
-  - name: file-provider.txt
-    env_var: EXAMPLE_FILE
+  - name: nginx.conf
+    env_var: NGINX_CONF_FILE
     kind: inline
-    content: I AM A FILE
+    content: |
+      pid /tmp/nginx.pid;
+      events {}
+      http {
+        server {
+          listen 80;
+          location / {
+            return 200 "ok\n";
+          }
+        }
+      }
 
 env_vars: {}
