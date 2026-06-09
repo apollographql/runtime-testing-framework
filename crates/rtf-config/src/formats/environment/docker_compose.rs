@@ -258,6 +258,8 @@ impl RunEnvironment for DockerComposeEnvironment {
         self.run_providers(&env_providers_dir, ctx).await?;
 
         let fps = self.file_provider_services(ctx)?;
+        fps.err_if_invalid()?;
+
         let mut compose_overrides = Vec::new();
 
         if fps.has_labeled_services() && !self.file_providers.is_empty() {
@@ -421,8 +423,28 @@ impl FileProviderServices {
         fps
     }
 
+    pub fn err_if_invalid(&self) -> providers::Result<()> {
+        if self.has_labeled_services() && self.has_explicit_volume_mounts() {
+            let mut labeled: Vec<String> = self.labeled.clone().into_iter().collect();
+            let mut explicit_mount: Vec<String> = self.explicit_mount.clone().into_iter().collect();
+            labeled.sort_unstable();
+            explicit_mount.sort_unstable();
+
+            return Err(providers::Error::InvalidFileProviderUsage {
+                labeled,
+                explicit_mount,
+            });
+        }
+
+        Ok(())
+    }
+
     fn has_labeled_services(&self) -> bool {
         !self.labeled.is_empty()
+    }
+
+    fn has_explicit_volume_mounts(&self) -> bool {
+        !self.explicit_mount.is_empty()
     }
 
     fn add_services_from(&mut self, yaml_content: &str) -> Option<()> {
