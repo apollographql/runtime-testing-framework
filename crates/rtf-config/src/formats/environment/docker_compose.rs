@@ -122,19 +122,19 @@ impl DockerComposeEnvironment {
         //
         // The /providers remapping is only correct in execute_setup, where a bind-mount
         // explicitly places the providers directory at PROVIDERS_CONTAINER_PATH.
-        self.build_env_vars(out_dir, output_path, &[], ctx)
+        self.build_env_vars(out_dir, output_path, false, ctx)
     }
 
     fn build_env_vars(
         &self,
         out_dir: &Path,
         output_path: &Path,
-        labeled_services: &[String],
+        has_labeled_services: bool,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<HashMap<String, String>> {
         let mut vars = self.explicit_env_vars();
 
-        vars.extend(self.file_provider_env_vars(labeled_services, ctx)?);
+        vars.extend(self.file_provider_env_vars(has_labeled_services, ctx)?);
         vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
         vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
 
@@ -150,7 +150,7 @@ impl DockerComposeEnvironment {
 
     fn file_provider_env_vars(
         &self,
-        labeled_services: &[String],
+        has_labeled_services: bool,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<HashMap<String, String>> {
         let mut vars = HashMap::new();
@@ -171,30 +171,17 @@ impl DockerComposeEnvironment {
             // This will break any services that try to volume mount to the files on the local filesystem
             // but we are ok with this since the presence of a label implies the user wants this work on REP
             // and any services attempting to mount to the local filesystem will fail
-            if labeled_services.is_empty() {
-                vars.insert(nfp.env_var.clone(), path.to_string_lossy().to_string());
-            } else {
+            if has_labeled_services {
                 vars.insert(
                     nfp.env_var.clone(),
                     format!("{}/{}", PROVIDERS_CONTAINER_PATH, nfp.name),
                 );
+            } else {
+                vars.insert(nfp.env_var.clone(), path.to_string_lossy().to_string());
             }
         }
 
         Ok(vars)
-    }
-
-    /// Return the names of docker compose services that carry the `rtf.io/file-providers: true`
-    /// label across all resolved compose files.
-    fn find_labeled_services(
-        &self,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<String>> {
-        let fps = self.file_provider_services(ctx)?;
-        let mut labeled: Vec<String> = fps.labeled.into_iter().collect();
-        labeled.sort();
-
-        Ok(labeled)
     }
 
     /// Categorise docker compose services based on how they accesses file provider output.
@@ -266,12 +253,11 @@ impl RunEnvironment for DockerComposeEnvironment {
 
         self.run_providers(&env_providers_dir, ctx).await?;
 
-        let labeled_services = self.find_labeled_services(ctx)?;
+        let fps = self.file_provider_services(ctx)?;
         let mut compose_overrides = Vec::new();
 
-        if !labeled_services.is_empty() && !self.file_providers.is_empty() {
-            let override_content =
-                generate_local_file_providers_overlay(&labeled_services, &env_providers_dir);
+        if fps.has_labeled_services() && !self.file_providers.is_empty() {
+            let override_content = fps.local_file_providers_overlay(&env_providers_dir);
             let override_path = out_dir.join("file-providers-override.yaml");
             ctx.write(&override_path, override_content)?;
 
@@ -279,7 +265,8 @@ impl RunEnvironment for DockerComposeEnvironment {
         }
 
         let project_name = self.project_name();
-        let env_vars = self.build_env_vars(out_dir, &output_path, &labeled_services, ctx)?;
+        let env_vars =
+            self.build_env_vars(out_dir, &output_path, fps.has_labeled_services(), ctx)?;
 
         let (cmd, args) = self.setup_as_command_and_args(&project_name, &compose_overrides, ctx)?;
 
@@ -405,6 +392,10 @@ pub struct FileProviderServices {
 }
 
 impl FileProviderServices {
+    fn has_labeled_services(&self) -> bool {
+        !self.labeled.is_empty()
+    }
+
     fn add_services_from(&mut self, yaml_content: &str) -> Option<()> {
         let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
         let services = value.get("services").and_then(|s| s.as_mapping())?;
@@ -439,45 +430,45 @@ impl FileProviderServices {
 
         Some(())
     }
-}
 
-/// Build a compose override that bind-mounts the resolved providers directory at
-/// `/providers` inside each labeled service and remaps file-provider env vars to
-/// their container-side paths.
-fn generate_local_file_providers_overlay(
-    labeled_services: &[String],
-    providers_host_path: &Path,
-) -> String {
-    let mut services_map = Mapping::new();
+    /// Build a compose override that bind-mounts the resolved providers directory at
+    /// `/providers` inside each labeled service and remaps file-provider env vars to
+    /// their container-side paths.
+    fn local_file_providers_overlay(&self, providers_host_path: &Path) -> String {
+        let mut labeled_services: Vec<&String> = self.labeled.iter().collect();
+        labeled_services.sort();
 
-    let volume = format!(
-        "{}:{}",
-        providers_host_path.display(),
-        PROVIDERS_CONTAINER_PATH
-    );
-
-    for service in labeled_services {
-        let mut service_override_config = Mapping::new();
-
-        service_override_config.insert(
-            Value::String("volumes".into()),
-            Value::Sequence(vec![Value::String(volume.clone())]),
+        let volume = format!(
+            "{}:{}",
+            providers_host_path.display(),
+            PROVIDERS_CONTAINER_PATH
         );
 
-        services_map.insert(
-            Value::String(service.clone()),
-            Value::Mapping(service_override_config),
+        let mut services_map = Mapping::new();
+
+        for service in labeled_services.iter() {
+            let mut service_override_config = Mapping::new();
+
+            service_override_config.insert(
+                Value::String("volumes".into()),
+                Value::Sequence(vec![Value::String(volume.clone())]),
+            );
+
+            services_map.insert(
+                Value::String(service.to_string()),
+                Value::Mapping(service_override_config),
+            );
+        }
+
+        let mut root = Mapping::new();
+        root.insert(
+            Value::String("services".into()),
+            Value::Mapping(services_map),
         );
+
+        serde_yaml::to_string(&Value::Mapping(root))
+            .expect("yaml mapping should always convert to valid string")
     }
-
-    let mut root = Mapping::new();
-    root.insert(
-        Value::String("services".into()),
-        Value::Mapping(services_map),
-    );
-
-    serde_yaml::to_string(&Value::Mapping(root))
-        .expect("yaml mapping should always convert to valid string")
 }
 
 /// Collect all YAML compose files from a directory.
@@ -1070,10 +1061,12 @@ pub(crate) mod tests {
 
     #[test]
     fn generate_local_file_providers_overlay_adds_volume() {
-        let out = generate_local_file_providers_overlay(
-            &["svc".to_string()],
-            Path::new("/out/providers/setup_providers"),
-        );
+        let fps = FileProviderServices {
+            labeled: HashSet::from(["svc".to_string()]),
+            ..Default::default()
+        };
+        let p = Path::new("/out/providers/setup_providers");
+        let out = fps.local_file_providers_overlay(p);
 
         let expected = indoc!(
             r#"
@@ -1089,10 +1082,12 @@ pub(crate) mod tests {
 
     #[test]
     fn generate_local_file_providers_overlay_adds_volume_for_multiple_services() {
-        let out = generate_local_file_providers_overlay(
-            &["svc-a".to_string(), "svc-b".to_string()],
-            Path::new("/out/providers/setup_providers"),
-        );
+        let fps = FileProviderServices {
+            labeled: HashSet::from(["svc-a".to_string(), "svc-b".to_string()]),
+            ..Default::default()
+        };
+        let p = Path::new("/out/providers/setup_providers");
+        let out = fps.local_file_providers_overlay(p);
 
         let expected = indoc!(
             r#"
@@ -1135,7 +1130,7 @@ pub(crate) mod tests {
         let out_dir = PathBuf::from("/tmp/output");
         let output_path = out_dir.join("rtf_output");
 
-        let result = docker_compose.build_env_vars(&out_dir, &output_path, &[], &ctx);
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, false, &ctx);
         assert!(result.is_ok(), "Expected env vars to be built successfully");
 
         let env_vars = result.unwrap();
@@ -1170,9 +1165,8 @@ pub(crate) mod tests {
 
         let out_dir = PathBuf::from("/tmp/output");
         let output_path = out_dir.join("rtf_output");
-        let labeled_services = vec!["my-service".to_string()];
 
-        let result = docker_compose.build_env_vars(&out_dir, &output_path, &labeled_services, &ctx);
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, true, &ctx);
         assert!(result.is_ok(), "Expected env vars to be built successfully");
 
         let env_vars = result.unwrap();
@@ -1225,9 +1219,8 @@ pub(crate) mod tests {
 
         let out_dir = PathBuf::from("/tmp/output");
         let output_path = out_dir.join("rtf_output");
-        let labeled_services = vec!["my-service".to_string()];
 
-        let result = docker_compose.build_env_vars(&out_dir, &output_path, &labeled_services, &ctx);
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, true, &ctx);
         assert!(result.is_ok(), "Expected env vars to be built successfully");
 
         let env_vars = result.unwrap();
@@ -1262,7 +1255,7 @@ pub(crate) mod tests {
         let out_dir = PathBuf::from("output_dir");
         let output_path = out_dir.join("path");
 
-        let result = docker_compose.build_env_vars(&out_dir, &output_path, &[], &ctx);
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, false, &ctx);
         assert!(
             result.is_err(),
             "Expected error when file provider path is not registered"
