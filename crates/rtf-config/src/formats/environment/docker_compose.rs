@@ -109,23 +109,7 @@ impl DockerComposeEnvironment {
         Ok(("docker", args))
     }
 
-    pub fn all_env_vars(
-        &self,
-        out_dir: &Path,
-        output_path: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<HashMap<String, String>> {
-        // Do not remap file provider paths to PROVIDERS_CONTAINER_PATH here. This method is
-        // used by `rtf resolve environment` to write setup.env, whose paths are then passed
-        // to kompose and baked into K8s manifests. The container accesses those files via the
-        // emptyDir mounted at the outdir, so the actual host paths must be preserved.
-        //
-        // The /providers remapping is only correct in execute_setup, where a bind-mount
-        // explicitly places the providers directory at PROVIDERS_CONTAINER_PATH.
-        self.build_env_vars(out_dir, output_path, false, ctx)
-    }
-
-    fn build_env_vars(
+    pub fn build_env_vars(
         &self,
         out_dir: &Path,
         output_path: &Path,
@@ -874,7 +858,7 @@ pub(crate) mod tests {
         let out_dir = PathBuf::from("/tmp/output");
         let output_path = out_dir.join("rtf_output");
 
-        let result = docker_compose.all_env_vars(&out_dir, &output_path, &ctx);
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, false, &ctx);
         assert!(result.is_ok(), "Expected env vars to be built successfully");
 
         let env_vars = result.unwrap();
