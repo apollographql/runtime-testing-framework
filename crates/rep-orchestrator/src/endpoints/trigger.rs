@@ -1,12 +1,26 @@
-use crate::{conn, db::TestRun, error::Error, event_loop::SubmitError, state::ServerState};
+use crate::{
+    config::Config, conn, context::RepContext, db::TestRun, error::Error, event_loop::SubmitError,
+    state::ServerState,
+};
 use axum::{Json, extract::State};
 use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
 use serde_json::Value;
+use tracing::debug;
 
 pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
     Json(payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
+    debug!("validating test plan file provider usage");
+    let ctx = RepContext::new(
+        Config::get(),
+        payload.relative_files.clone(),
+        payload.custom_providers.clone(),
+    );
+    ctx.validate_environment_file_provider_usage(&payload.test_plan)
+        .await?;
+
+    debug!("reserving pending executions");
     let claim = eq_state
         .try_reserve_pending_executions(&payload.test_plan)
         .await
@@ -19,6 +33,7 @@ pub async fn handler(
         .as_ref()
         .map(|v| serde_json::to_value(v).expect("variables to serialize"));
 
+    debug!("initialising run");
     let (test_run, summary) =
         match init_run_and_build_summary(&payload.test_plan.name, variables).await {
             Ok((tr, s)) => (tr, s),
@@ -28,6 +43,7 @@ pub async fn handler(
             }
         };
 
+    debug!("submitting test plan");
     match eq_state
         .try_submit_test_plan(claim, test_run, payload)
         .await
@@ -61,6 +77,27 @@ mod tests {
     use crate::{config::Config, test_helpers::TestServerState};
     use rep_orchestrator_shared::status::Status;
     use reqwest::StatusCode;
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_rejects_invalid_compose_file_provider_usage() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let payload = tss.minimal_invalid_compose_trigger_payload();
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .json(&payload)
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST);
+        assert!(
+            tss.resolver_rx.is_empty(),
+            "should not have submitted the test plan"
+        );
+
+        Ok(())
+    }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]

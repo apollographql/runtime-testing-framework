@@ -1,21 +1,26 @@
-use crate::config::Config;
-use rep_orchestrator_shared::payload::SourceKeyedArrayMap;
+use crate::{
+    config::Config,
+    resolver::{self, ResolverError},
+};
+use rep_orchestrator_shared::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
 use rtf_config::{
-    SourceDir, StableSource, checks,
+    SourceDir, StableSource,
+    checks::{self, Check},
     context::{Context, PathKind, ResolutionContext},
-    formats::{CustomProviderDefinition, Sources},
+    formats::{CustomProviderDefinition, FileProviderServices, Sources},
     inlining::InlinedProvider,
     providers,
     run::Provider,
-    templating::CustomProviderDefinitions,
+    templating::{CustomProviderDefinitions, Template, TemplateContext},
 };
 use rtf_integrations::{
     ReqwestClient, github,
     graphos::{self, supergraph::SupergraphDetails},
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io,
+    mem::take,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -51,6 +56,72 @@ impl RepContext {
 
     pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {
         self.inline_cache.clone()
+    }
+
+    /// Eagerly resolve and check all docker-compose providers within the given test plan to see if
+    /// they contain any user defined explicit volume mounts: if they do, this test plan will fail
+    /// to produce a working environment and we'll end up with a dead namespace per invalid
+    /// execution.
+    ///
+    /// This is used as part of the trigger endpoint to prevent such test plans entering the main
+    /// event loop.
+    pub async fn validate_environment_file_provider_usage(
+        &self,
+        test_plan: &RepTestPlan,
+    ) -> crate::Result<()> {
+        let mut inline_cache = HashMap::new();
+        let mut invalid = HashSet::new();
+
+        let variants = test_plan
+            .try_iter_matrix_variants()
+            .map_err(resolver::ResolverError::MatrixExpansion)?;
+
+        for (_, variant) in variants {
+            let fps = self
+                .inline_and_check_variant(variant, &mut inline_cache)
+                .await?;
+
+            if !fps.explicit_mount.is_empty() {
+                invalid.extend(fps.explicit_mount);
+            }
+        }
+
+        if invalid.is_empty() {
+            Ok(())
+        } else {
+            let mut services: Vec<String> = invalid.into_iter().collect();
+            services.sort_unstable();
+
+            Err(crate::Error::InvalidFileProviderUsage { services })
+        }
+    }
+
+    async fn inline_and_check_variant(
+        &self,
+        mut variant: RepTestPlan,
+        inline_cache: &mut HashMap<u64, InlinedProvider>,
+    ) -> resolver::Result<FileProviderServices> {
+        let variables = take(&mut variant.variables);
+        let template_ctx = TemplateContext::new(
+            variables,
+            HashMap::new(),
+            self.custom_provider_definitions(),
+        );
+
+        variant
+            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+            .map_err(ResolverError::VariantTemplating)?;
+        variant.try_check(&mut Vec::new(), self)?;
+
+        variant
+            .environment
+            .execution
+            .inline_compose_files(self, inline_cache)
+            .await?;
+
+        Ok(FileProviderServices::from_inline(
+            &variant.environment.execution,
+        ))
     }
 }
 

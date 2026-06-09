@@ -38,6 +38,9 @@ pub enum Error {
     #[error("insufficient queue capacity")]
     InsufficientCapacity,
 
+    #[error("manual file provider volume mounts are not supported. Invalid services: {services:?}")]
+    InvalidFileProviderUsage { services: Vec<String> },
+
     #[error("resolver channel closed")]
     ResolverChannelClosed,
 
@@ -57,6 +60,7 @@ impl IntoResponse for Error {
 
         let raw = match self {
             Self::FileUploadAlreadyRequested
+            | Self::InvalidFileProviderUsage { .. }
             | Self::Db(db::Error::MissingExitCode)
             | Self::Db(db::Error::InvalidFailedExitCode)
             | Self::Db(db::Error::InvalidExitCode { .. })

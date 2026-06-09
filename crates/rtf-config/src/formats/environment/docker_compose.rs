@@ -5,7 +5,10 @@ use crate::{
     inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
-        file::{NamedFileProvider, compose::NamedComposeFileProvider},
+        file::{
+            InlineDir, InlineFile, NamedFileProvider,
+            compose::{ComposeFileProvider, NamedComposeFileProvider},
+        },
     },
     run::{
         DOCKER_COMPOSE_NETWORK, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, Provider, RunEnvironment,
@@ -23,6 +26,7 @@ use std::{
     path::{Path, PathBuf},
     pin::Pin,
 };
+use tracing::warn;
 
 const PROVIDERS_CONTAINER_PATH: &str = "/providers";
 
@@ -222,6 +226,22 @@ impl DockerComposeEnvironment {
 
         Ok(paths)
     }
+
+    pub async fn inline_compose_files<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> inlining::Result<()> {
+        let mut errs = inlining::ErrorBuilder::new();
+
+        errs.append(
+            self.compose_files
+                .inline(&InlineMode::All, ctx, cache)
+                .await,
+        );
+
+        errs.into_result(())
+    }
 }
 
 impl RunEnvironment for DockerComposeEnvironment {
@@ -376,6 +396,31 @@ pub struct FileProviderServices {
 }
 
 impl FileProviderServices {
+    pub fn from_inline(dce: &DockerComposeEnvironment) -> Self {
+        let mut fps = Self::default();
+
+        for fp in dce.compose_files.iter() {
+            match &fp.provider {
+                ComposeFileProvider::Inline(InlineFile { content }) => {
+                    fps.add_services_from(content);
+                }
+
+                ComposeFileProvider::InlineDir(InlineDir { files }) => {
+                    for file in files.iter() {
+                        fps.add_services_from(&file.content);
+                    }
+                }
+
+                _ => warn!(
+                    "FileProviderServices::from_inline called on non-inline provider {}",
+                    fp.name
+                ),
+            }
+        }
+
+        fps
+    }
+
     fn has_labeled_services(&self) -> bool {
         !self.labeled.is_empty()
     }
