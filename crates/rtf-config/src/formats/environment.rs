@@ -515,16 +515,31 @@ impl DockerComposeEnvironment {
         &self,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<String>> {
-        let mut labeled = Vec::new();
-        for path in self.compose_file_paths(ctx)? {
-            if let Ok(content) = ctx.read_path_to_string(&path) {
-                labeled.extend(labeled_services_in_compose(&content));
-            }
-        }
+        let fps = self.file_provider_services(ctx)?;
+        let mut labeled: Vec<String> = fps.labeled.into_iter().collect();
         labeled.sort();
-        labeled.dedup();
 
         Ok(labeled)
+    }
+
+    /// Categorise docker compose services based on how they accesses file provider output.
+    pub fn file_provider_services(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<FileProviderServices> {
+        let mut fps = FileProviderServices::default();
+
+        if self.file_providers.is_empty() {
+            return Ok(fps);
+        }
+
+        for path in self.compose_file_paths(ctx)?.iter() {
+            if let Ok(content) = ctx.read_path_to_string(path) {
+                fps.add_services_from(&content);
+            }
+        }
+
+        Ok(fps)
     }
 
     /// Collect all compose file paths from the resolved providers.
@@ -656,34 +671,54 @@ fn slugify_compose_project_name(name: &str) -> String {
     slug
 }
 
-/// Return service names in a compose YAML that carry `rtf.io/file-providers: true`.
-fn labeled_services_in_compose(yaml_content: &str) -> Vec<String> {
-    let value = match serde_yaml::from_str::<Value>(yaml_content) {
-        Ok(value) => value,
-        Err(_) => return vec![],
-    };
+/// Categorisation of compose services based on how they access file provider output.
+///
+/// A service may appear in both `labeled` and `explicit_mount` if it carries the label AND
+/// has explicit volume mounts (statically an error state). Services that are not making
+/// use of file providers do not appear at all.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct FileProviderServices {
+    /// Services carrying the `rtf.io/file-providers: true` label.
+    pub labeled: HashSet<String>,
+    /// Services with explicit volume mounts.
+    pub explicit_mount: HashSet<String>,
+}
 
-    let services = match value.get("services").and_then(|s| s.as_mapping()) {
-        Some(services) => services,
-        None => return vec![],
-    };
+impl FileProviderServices {
+    fn add_services_from(&mut self, yaml_content: &str) -> Option<()> {
+        let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
+        let services = value.get("services").and_then(|s| s.as_mapping())?;
 
-    services
-        .into_iter()
-        .filter_map(|(name, service)| {
-            let label = service
-                .get("labels")
-                .and_then(|l| l.get(FILE_PROVIDERS_LABEL))?;
+        for (name, service) in services.into_iter() {
+            self.add_service(name, service);
+        }
 
-            let is_set = label.as_bool() == Some(true) || label.as_str() == Some("true");
+        Some(())
+    }
 
-            if is_set {
-                name.as_str().map(str::to_string)
-            } else {
-                None
-            }
-        })
-        .collect()
+    fn add_service(&mut self, name: &Value, service: &Value) -> Option<()> {
+        let name = name.as_str().map(str::to_string)?;
+        let has_explicit_volumes = service.get("volumes").is_some();
+        let label = service
+            .get("labels")
+            .and_then(|l| l.get(FILE_PROVIDERS_LABEL));
+
+        let has_label = match label {
+            Some(Value::Bool(b)) => *b,
+            Some(Value::String(s)) => s == "true",
+            _ => false,
+        };
+
+        if has_label {
+            self.labeled.insert(name.clone());
+        }
+
+        if has_explicit_volumes {
+            self.explicit_mount.insert(name);
+        }
+
+        Some(())
+    }
 }
 
 /// Build a compose override that bind-mounts the resolved providers directory at
@@ -940,7 +975,7 @@ pub(crate) mod tests {
         fixture::PathChild,
         prelude::{FileWriteStr, PathCreateDir},
     };
-    use indoc::{formatdoc, indoc};
+    use indoc::indoc;
     use simple_test_case::test_case;
     use std::{collections::HashMap, path::PathBuf};
 
@@ -1973,40 +2008,79 @@ pub(crate) mod tests {
         assert_eq!(slugify_compose_project_name(input), expected);
     }
 
-    #[test_case("true", &["svc"]; "detects bool true")]
-    #[test_case("\"true\"", &["svc"]; "detects string true")]
-    #[test_case("false", &[]; "ignores false")]
     #[test]
-    fn labeled_services_in_compose(label_value: &str, res: &[&str]) {
-        let yaml = formatdoc!(
-            r#"
-            services:
-              svc:
-                labels:
-                  rtf.io/file-providers: {label_value}"#
-        );
-
-        assert_eq!(labeled_services_in_compose(&yaml), res.to_vec());
-    }
-
-    #[test]
-    fn labeled_services_in_compose_only_returns_labeled_services() {
+    fn file_provider_services_categorises_correctly() {
         let yaml = indoc!(
             r#"
             services:
-              labeled:
+              true_bool_label:
                 labels:
                   rtf.io/file-providers: true
-              unlabeled:
-                image: nginx"#
+
+              true_str_label:
+                labels:
+                  rtf.io/file-providers: "true"
+
+              false_label:
+                labels:
+                  rtf.io/file-providers: false
+
+              explicit_mount:
+                volumes:
+                  - foo:bar
+
+              label_and_mount:
+                labels:
+                  rtf.io/file-providers: true
+                volumes:
+                  - foo:bar
+
+              no_providers:
+                image: nginx
+            "#
         );
 
-        assert_eq!(labeled_services_in_compose(yaml), vec!["labeled"]);
+        let mut fps = FileProviderServices::default();
+        fps.add_services_from(yaml);
+
+        for s in ["true_bool_label", "true_str_label", "label_and_mount"] {
+            assert!(fps.labeled.contains(s), "{s} should be marked as labeled");
+        }
+
+        for s in ["explicit_mount", "label_and_mount"] {
+            assert!(
+                fps.explicit_mount.contains(s),
+                "{s} should be marked as having a mount"
+            );
+        }
+
+        for s in ["false_label", "no_providers", "explicit_mount"] {
+            assert!(
+                !fps.labeled.contains(s),
+                "{s} should not be marked as labeled"
+            );
+        }
+
+        for s in [
+            "true_bool_label",
+            "true_str_label",
+            "false_label",
+            "no_providers",
+        ] {
+            assert!(
+                !fps.explicit_mount.contains(s),
+                "{s} should not be marked as having a mount"
+            );
+        }
     }
 
     #[test]
-    fn labeled_services_in_compose_returns_empty_for_invalid_yaml() {
-        assert!(labeled_services_in_compose("{ not: valid: yaml: [").is_empty());
+    fn file_provider_services_add_services_from_returns_none_for_invalid_yaml() {
+        assert!(
+            FileProviderServices::default()
+                .add_services_from("{ not: valid: yaml: [")
+                .is_none()
+        );
     }
 
     #[test]
