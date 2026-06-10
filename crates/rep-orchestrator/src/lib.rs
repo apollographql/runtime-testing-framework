@@ -161,5 +161,12 @@ mod test_helpers {
             serde_json::from_str(include_str!("../resources/trigger-payloads/minimal.json"))
                 .unwrap()
         }
+
+        pub fn minimal_invalid_compose_trigger_payload(&self) -> serde_json::Value {
+            serde_json::from_str(include_str!(
+                "../resources/trigger-payloads/invalid-compose.json"
+            ))
+            .unwrap()
+        }
     }
 }

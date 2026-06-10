@@ -151,7 +151,10 @@ async fn resolve_docker_compose_environment(
 
     info!("writing setup.env");
     let setup_output_path = setup_dir.join(OUTPUT_PATH);
-    let mut setup_vars = env.all_env_vars(&setup_dir, &setup_output_path, ctx)?;
+
+    // We pass 'false' here for "has_labelled_services" as we explicitly DON'T want to rewrite the
+    // environment variables being used for file provider paths.
+    let mut setup_vars = env.build_env_vars(&setup_dir, &setup_output_path, false, ctx)?;
     setup_vars.insert(
         "COMPOSE_FILES".to_string(),
         compose_files_path.to_string_lossy().to_string(),

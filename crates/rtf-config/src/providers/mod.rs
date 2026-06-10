@@ -30,6 +30,14 @@ pub enum Error {
     #[error("Unable to execute the {name} command: {err}")]
     CommandFailed { name: String, err: String },
 
+    #[error(
+        "Mixed file provider usage detected:\nwith REP compatible label: {labeled:?}\nwith explicit volume mounts: {explicit_mount:?}"
+    )]
+    InvalidFileProviderUsage {
+        labeled: Vec<String>,
+        explicit_mount: Vec<String>,
+    },
+
     #[error("Missing provider output for {name}")]
     MissingProviderOutput { name: String },
 

@@ -30,6 +30,38 @@ pub enum ResolverInput {
 
 const MSG_RUN_CHECKS: &str = "running test plan static checks";
 
+#[derive(Debug, thiserror::Error)]
+pub enum ResolverError {
+    #[error("event loop channel closed")]
+    EventChannelClosed,
+
+    #[error("inlining failed: {0}")]
+    Inlining(#[from] rtf_config::inlining::Errors),
+
+    #[error("unable to expand matrix variants: {0}")]
+    MatrixExpansion(#[from] rtf_config::formats::Error),
+
+    #[error("serialisation error: {0}")]
+    Serialisation(String),
+
+    #[error("templating pre-check failed: {0}")]
+    TemplatingCheck(rtf_config::templating::Errors),
+
+    #[error("{0} is not a known execution ID")]
+    UnknownExecution(Uuid),
+
+    #[error("{0} is not a known run ID")]
+    UnknownRun(Uuid),
+
+    #[error("static checks failed: {0}")]
+    VariantCheck(#[from] rtf_config::checks::Errors),
+
+    #[error("templating failed: {0}")]
+    VariantTemplating(rtf_config::templating::Errors),
+}
+
+pub(crate) type Result<T> = std::result::Result<T, ResolverError>;
+
 /// A long lived Tokio task that is responsible for running all RTF related logic that executes
 /// within the server.
 ///
@@ -120,38 +152,6 @@ impl ResolverQueue {
         }
     }
 }
-
-#[derive(Debug, thiserror::Error)]
-pub enum ResolverError {
-    #[error("event loop channel closed")]
-    EventChannelClosed,
-
-    #[error("inlining failed: {0}")]
-    Inlining(#[from] rtf_config::inlining::Errors),
-
-    #[error("unable to expand matrix variants: {0}")]
-    MatrixExpansion(#[from] rtf_config::formats::Error),
-
-    #[error("serialisation error: {0}")]
-    Serialisation(String),
-
-    #[error("templating pre-check failed: {0}")]
-    TemplatingCheck(rtf_config::templating::Errors),
-
-    #[error("{0} is not a known execution ID")]
-    UnknownExecution(Uuid),
-
-    #[error("{0} is not a known run ID")]
-    UnknownRun(Uuid),
-
-    #[error("static checks failed: {0}")]
-    VariantCheck(#[from] rtf_config::checks::Errors),
-
-    #[error("templating failed: {0}")]
-    VariantTemplating(rtf_config::templating::Errors),
-}
-
-pub(crate) type Result<T> = std::result::Result<T, ResolverError>;
 
 async fn resolve_test_plan<H: UpdateHandle>(
     test_run: TestRun,

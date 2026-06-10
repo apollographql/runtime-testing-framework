@@ -11,7 +11,8 @@ mod test_plan;
 
 pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::{
-    DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
+    DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, FileProviderServices,
+    ScriptEnvironment,
 };
 pub use execution::{Execution, Generic};
 pub use matrix::Matrix;
