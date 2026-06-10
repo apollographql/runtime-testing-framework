@@ -151,27 +151,30 @@
 <a href=#151 id=151 data-nosnippet>151</a>
 <a href=#152 id=152 data-nosnippet>152</a>    <span class="macro">info!</span>(<span class="string">"writing setup.env"</span>);
 <a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">let </span>setup_output_path = setup_dir.join(OUTPUT_PATH);
-<a href=#154 id=154 data-nosnippet>154</a>    <span class="kw">let </span><span class="kw-2">mut </span>setup_vars = env.all_env_vars(<span class="kw-2">&amp;</span>setup_dir, <span class="kw-2">&amp;</span>setup_output_path, ctx)<span class="question-mark">?</span>;
-<a href=#155 id=155 data-nosnippet>155</a>    setup_vars.insert(
-<a href=#156 id=156 data-nosnippet>156</a>        <span class="string">"COMPOSE_FILES"</span>.to_string(),
-<a href=#157 id=157 data-nosnippet>157</a>        compose_files_path.to_string_lossy().to_string(),
-<a href=#158 id=158 data-nosnippet>158</a>    );
-<a href=#159 id=159 data-nosnippet>159</a>
-<a href=#160 id=160 data-nosnippet>160</a>    <span class="kw">let </span>setup_env_content = generate_env_file(setup_vars);
-<a href=#161 id=161 data-nosnippet>161</a>    ctx.write(setup_dir.join(SETUP_ENV_FILE), setup_env_content)<span class="question-mark">?</span>;
+<a href=#154 id=154 data-nosnippet>154</a>
+<a href=#155 id=155 data-nosnippet>155</a>    <span class="comment">// We pass 'false' here for "has_labelled_services" as we explicitly DON'T want to rewrite the
+<a href=#156 id=156 data-nosnippet>156</a>    // environment variables being used for file provider paths.
+<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>setup_vars = env.build_env_vars(<span class="kw-2">&amp;</span>setup_dir, <span class="kw-2">&amp;</span>setup_output_path, <span class="bool-val">false</span>, ctx)<span class="question-mark">?</span>;
+<a href=#158 id=158 data-nosnippet>158</a>    setup_vars.insert(
+<a href=#159 id=159 data-nosnippet>159</a>        <span class="string">"COMPOSE_FILES"</span>.to_string(),
+<a href=#160 id=160 data-nosnippet>160</a>        compose_files_path.to_string_lossy().to_string(),
+<a href=#161 id=161 data-nosnippet>161</a>    );
 <a href=#162 id=162 data-nosnippet>162</a>
-<a href=#163 id=163 data-nosnippet>163</a>    <span class="macro">info!</span>(<span class="string">"writing teardown.env"</span>);
-<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">let </span>teardown_dir = out_dir.join(<span class="string">"teardown"</span>);
-<a href=#165 id=165 data-nosnippet>165</a>    ctx.create_dir_all(<span class="kw-2">&amp;</span>teardown_dir)<span class="question-mark">?</span>;
-<a href=#166 id=166 data-nosnippet>166</a>    <span class="comment">// Create empty providers dir for consistency
-<a href=#167 id=167 data-nosnippet>167</a>    </span>ctx.create_dir_all(teardown_dir.join(PROVIDER_DIR))<span class="question-mark">?</span>;
-<a href=#168 id=168 data-nosnippet>168</a>
-<a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">let </span>project_name = env.project_name.as_deref().unwrap_or(name);
-<a href=#170 id=170 data-nosnippet>170</a>    <span class="kw">let </span>teardown_vars =
-<a href=#171 id=171 data-nosnippet>171</a>        HashMap::from([(<span class="string">"COMPOSE_PROJECT_NAME"</span>.to_string(), project_name.to_string())]);
-<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">let </span>teardown_env_content = generate_env_file(teardown_vars);
-<a href=#173 id=173 data-nosnippet>173</a>    ctx.write(teardown_dir.join(TEARDOWN_ENV_FILE), teardown_env_content)<span class="question-mark">?</span>;
-<a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>    <span class="prelude-val">Ok</span>(())
-<a href=#176 id=176 data-nosnippet>176</a>}
+<a href=#163 id=163 data-nosnippet>163</a>    <span class="kw">let </span>setup_env_content = generate_env_file(setup_vars);
+<a href=#164 id=164 data-nosnippet>164</a>    ctx.write(setup_dir.join(SETUP_ENV_FILE), setup_env_content)<span class="question-mark">?</span>;
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="macro">info!</span>(<span class="string">"writing teardown.env"</span>);
+<a href=#167 id=167 data-nosnippet>167</a>    <span class="kw">let </span>teardown_dir = out_dir.join(<span class="string">"teardown"</span>);
+<a href=#168 id=168 data-nosnippet>168</a>    ctx.create_dir_all(<span class="kw-2">&amp;</span>teardown_dir)<span class="question-mark">?</span>;
+<a href=#169 id=169 data-nosnippet>169</a>    <span class="comment">// Create empty providers dir for consistency
+<a href=#170 id=170 data-nosnippet>170</a>    </span>ctx.create_dir_all(teardown_dir.join(PROVIDER_DIR))<span class="question-mark">?</span>;
+<a href=#171 id=171 data-nosnippet>171</a>
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">let </span>project_name = env.project_name.as_deref().unwrap_or(name);
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">let </span>teardown_vars =
+<a href=#174 id=174 data-nosnippet>174</a>        HashMap::from([(<span class="string">"COMPOSE_PROJECT_NAME"</span>.to_string(), project_name.to_string())]);
+<a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">let </span>teardown_env_content = generate_env_file(teardown_vars);
+<a href=#176 id=176 data-nosnippet>176</a>    ctx.write(teardown_dir.join(TEARDOWN_ENV_FILE), teardown_env_content)<span class="question-mark">?</span>;
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="prelude-val">Ok</span>(())
+<a href=#179 id=179 data-nosnippet>179</a>}
 </code></pre></div></section></main></body></html>
