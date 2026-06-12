@@ -30,7 +30,7 @@ The following keys apply to both execution models.
 
 ## Docker compose environment
 
-A docker compose environment brings the test infrastructure up and down using `docker compose`. RTF
+A docker compose Environment brings the test infrastructure up and down using `docker compose`. RTF
 writes the declared compose files and any additional file providers to a temporary directory before
 invoking `docker compose up`, and runs `docker compose down` during teardown.
 
@@ -50,12 +50,13 @@ invoking `docker compose up`, and runs `docker compose down` during teardown.
 ### Service labels
 
 Services in the compose files can carry RTF-specific labels that control behaviour when the test
-runs inside the [REP cluster][4]. These labels have no effect when running locally with the RTF CLI.
+runs inside the [REP cluster][3]. These labels have no effect when running locally with the RTF CLI.
 
-| Label                   | Value  | Effect                                                                                                        |
-| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------- |
-| `rtf.io/file-providers` | `true` | Mounts file provider output into the container. Required for services that read provider files at runtime.    |
-| `rtf.io/log-collection` | `true` | Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in. |
+| Label                   | Value  | Effect                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rtf.io/file-providers` | `true` | Mounts file provider output into the container. Required for services that read provider files at runtime.                                                                                                                                                                                                                                                                      |
+| `rtf.io/log-collection` | `true` | Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.                                                                                                                                                                                                                                                                   |
+| `rtf.io/otel`           | `true` | Injects OpenTelemetry SDK environment variables into the container via the [OpenTelemetry Operator][4]. The following variables are set automatically: `OTEL_EXPORTER_OTLP_ENDPOINT` (pointed at the cluster's collector), `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_PROPAGATORS`, and `OTEL_SERVICE_NAME`. The service must bring its own OTel SDK — no language agent is injected. |
 
 ```yaml
 services:
@@ -64,6 +65,7 @@ services:
     labels:
       rtf.io/file-providers: true
       rtf.io/log-collection: true
+      rtf.io/otel: true
 ```
 
 ### Full example
@@ -95,15 +97,15 @@ file_providers:
 
 ## Script environment
 
-A script environment defines setup and teardown commands that bracket a Scenario's execution. Each
-phase is a [Command Provider][3]. This model is intended as a fallback for cases that cannot be
-achieved using a docker compose environment.
+A script Environment defines setup and teardown commands that bracket a Scenario's execution. Each
+phase is a [Command Provider][5]. This model is intended as a fallback for cases that cannot be
+achieved using a docker compose Environment.
 
 ### Script keys
 
-- `setup`: A [Command Provider][3] that defines how the environment should be set up before the
+- `setup`: A [Command Provider][5] that defines how the environment should be set up before the
   scenario is run.
-- `teardown`: A [Command Provider][3] that defines how the environment should be torn down after the
+- `teardown`: A [Command Provider][5] that defines how the environment should be torn down after the
   scenario is run.
 
 ### Full example
@@ -148,5 +150,6 @@ teardown:
 [0]: ./test-plans.md
 [1]: ./custom-providers.md
 [2]: ./file-providers.md
-[3]: ./command-providers.md
-[4]: ../../developer/explanation/concepts-and-architecture.md#rtf-and-rep
+[3]: ../../developer/explanation/concepts-and-architecture.md#rtf-and-rep
+[4]: https://opentelemetry.io/docs/kubernetes/operator/automatic/
+[5]: ./command-providers.md
