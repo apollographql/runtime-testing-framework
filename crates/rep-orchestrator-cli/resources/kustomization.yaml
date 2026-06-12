@@ -58,3 +58,16 @@ patches:
           metadata:
             labels:
               __LOG_COLLECTION_LABEL__: "true"
+  - target:
+      kind: Deployment
+      annotationSelector: "__OTEL_LABEL__=true"
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: placeholder  # overridden by target selector
+      spec:
+        template:
+          metadata:
+            annotations:
+              instrumentation.opentelemetry.io/inject-sdk: "__OTEL_INJECT_SDK__"

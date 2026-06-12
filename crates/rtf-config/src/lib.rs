@@ -36,6 +36,7 @@ pub use providers::file::{CustomProviderSection, DirFile, SourceDir, StableSourc
 
 pub const LOG_COLLECTION_LABEL: &str = "rtf.io/log-collection";
 pub const FILE_PROVIDERS_LABEL: &str = "rtf.io/file-providers";
+pub const OTEL_LABEL: &str = "rtf.io/otel";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct VariableDefinition {
