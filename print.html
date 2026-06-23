@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-a8e12da3.js";
+            window.path_to_searchindex_js = "searchindex-5b49c636.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-d472d1c8.js"></script>
@@ -4211,7 +4211,7 @@ runs inside the <a href="#rtf-and-rep">REP cluster</a>. These labels have no eff
 <tbody>
 <tr><td><code>rtf.io/file-providers</code></td><td><code>true</code></td><td>Mounts file provider output into the container. Required for services that read provider files at runtime.</td></tr>
 <tr><td><code>rtf.io/log-collection</code></td><td><code>true</code></td><td>Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.</td></tr>
-<tr><td><code>rtf.io/otel</code></td><td><code>true</code></td><td>Injects OpenTelemetry SDK environment variables into the container via the <a href="https://opentelemetry.io/docs/kubernetes/operator/automatic/">OpenTelemetry Operator</a>. The following variables are set automatically: <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> (pointed at the cluster’s collector), <code>OTEL_EXPORTER_OTLP_PROTOCOL</code>, <code>OTEL_PROPAGATORS</code>, and <code>OTEL_SERVICE_NAME</code>. The service must bring its own OTel SDK — no language agent is injected.</td></tr>
+<tr><td><code>rtf.io/otel</code></td><td><code>true</code></td><td>Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: <code>RTF_OTEL_COLLECTOR_GRPC</code> (gRPC endpoint, port 4317) and <code>RTF_OTEL_COLLECTOR_HTTP</code> (HTTP/protobuf endpoint, port 4318). Use these in your service’s config instead of the standard <code>OTEL_*</code> variables.</td></tr>
 </tbody>
 </table>
 </div>
