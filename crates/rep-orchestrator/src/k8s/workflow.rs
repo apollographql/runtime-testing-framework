@@ -4,6 +4,7 @@ use crate::{
 };
 use k8s_openapi::api::core::v1::{Container, EnvVar, SecretVolumeSource, Volume, VolumeMount};
 use kube::CustomResource;
+use rep_orchestrator_shared::OtelConfig;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +57,7 @@ impl WorkflowSpec {
         ex: &TestExecution,
         orchestrator_url: &str,
         toolbox_pull_policy: &str,
+        otel: &OtelConfig,
         kubeconfig_secret_name: &str,
     ) -> Self {
         let execution_id = ex.uuid();
@@ -80,6 +82,7 @@ impl WorkflowSpec {
                 TemplateDef::Task(deploy_environment(
                     &namespace,
                     toolbox_pull_policy,
+                    otel,
                     env_vars.clone(),
                 )),
             ],
@@ -241,6 +244,7 @@ fn create_service_account(
 fn deploy_environment(
     namespace: &str,
     toolbox_pull_policy: &str,
+    otel: &OtelConfig,
     env: Vec<EnvVar>,
 ) -> TaskTemplate {
     TaskTemplate::new(
@@ -256,6 +260,10 @@ fn deploy_environment(
             toolbox_pull_policy.into(),
             "--provider-dir".into(),
             "/providers".into(),
+            "--otel-collector-grpc".into(),
+            otel.grpc.clone(),
+            "--otel-collector-http".into(),
+            otel.http.clone(),
         ],
         vec![kubeconfig_volume_mount()],
         None,

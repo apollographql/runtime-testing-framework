@@ -33,6 +33,8 @@ pub struct Config {
     pub workload_context: String,
     pub orchestrator_url: String,
     pub toolbox_pull_policy: String,
+    pub otel_collector_grpc: String,
+    pub otel_collector_http: String,
     pub gcs_bucket: String,
     #[serde(default = "default_gcs_url_ttl_secs")]
     pub gcs_url_ttl_secs: u64,

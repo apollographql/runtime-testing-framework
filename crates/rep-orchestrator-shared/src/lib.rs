@@ -10,7 +10,15 @@ pub const EXECUTION_TOKEN_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_EXECUTION_TOK
 
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 
-pub const OTEL_INJECT_SDK_VALUE: &str = "monitoring/default";
+pub const RTF_OTEL_COLLECTOR_GRPC_VAR: &str = "RTF_OTEL_COLLECTOR_GRPC";
+pub const RTF_OTEL_COLLECTOR_HTTP_VAR: &str = "RTF_OTEL_COLLECTOR_HTTP";
+
+/// OTEL collector endpoints injected into workload pods by the orchestrator.
+#[derive(Clone, Debug)]
+pub struct OtelConfig {
+    pub grpc: String,
+    pub http: String,
+}
 
 // Re-exported so other rep crates do not need to depend directly on rtf-config
 pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};

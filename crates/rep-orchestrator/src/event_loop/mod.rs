@@ -16,6 +16,7 @@ use crate::{
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
 };
+use rep_orchestrator_shared::OtelConfig;
 use serde::Serialize;
 use std::time::Duration;
 use tokio::{spawn, time::sleep};
@@ -36,6 +37,7 @@ pub use run_scenario::MSG_JOB_WAIT;
 struct EventLoopConfig<'a> {
     orchestrator_url: &'a str,
     toolbox_pull_policy: &'a str,
+    otel: &'a OtelConfig,
     kubeconfig_secret_name: &'a str,
     failed_execution_ttl_seconds: u64,
     kubeconfig_path: &'a str,
@@ -50,6 +52,8 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         workload_context,
         orchestrator_url,
         toolbox_pull_policy,
+        otel_collector_grpc,
+        otel_collector_http,
         kubeconfig_secret_name,
         failed_execution_ttl_secs,
         ..
@@ -58,6 +62,10 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
     let cfg = EventLoopConfig {
         orchestrator_url,
         toolbox_pull_policy,
+        otel: &OtelConfig {
+            grpc: otel_collector_grpc.to_string(),
+            http: otel_collector_http.to_string(),
+        },
         kubeconfig_secret_name,
         failed_execution_ttl_seconds: *failed_execution_ttl_secs,
         kubeconfig_path,
@@ -192,6 +200,7 @@ impl Event {
                     self.test_execution.clone(),
                     cfg.orchestrator_url,
                     cfg.toolbox_pull_policy,
+                    cfg.otel,
                     cfg.kubeconfig_secret_name,
                     clients,
                     conn,

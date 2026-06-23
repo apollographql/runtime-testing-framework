@@ -6,7 +6,7 @@ use crate::{
     orchestrator::Client as OrchestratorClient,
 };
 use anyhow::anyhow;
-use rep_orchestrator_shared::status::Status;
+use rep_orchestrator_shared::{OtelConfig, status::Status};
 use std::{
     collections::HashMap, env::temp_dir, fs, io, path::Path, process::Command, time::Duration,
 };
@@ -23,6 +23,7 @@ pub async fn deploy_environment(
     kubeconfig_path: &Path,
     provider_dir_path: &Path,
     toolbox_pull_policy: &str,
+    otel: &OtelConfig,
     timeout: u64,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
@@ -59,7 +60,14 @@ pub async fn deploy_environment(
     ]))
     .await?;
 
-    setup_env(&k8s_dir_path, provider_dir_path, toolbox_pull_policy, ctx).await?;
+    setup_env(
+        &k8s_dir_path,
+        provider_dir_path,
+        toolbox_pull_policy,
+        otel,
+        ctx,
+    )
+    .await?;
 
     info!("applying manifests to namespace '{namespace}'");
     ctx.run_shell(Command::new("kubectl").args([
@@ -88,6 +96,7 @@ async fn setup_env(
     k8s_dir_path: &Path,
     provider_dir_path: &Path,
     toolbox_pull_policy: &str,
+    otel: &OtelConfig,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
     let setup_env = provider_dir_path.join("setup/setup.env");
@@ -131,7 +140,7 @@ async fn setup_env(
     ctx.write_file(
         &k8s_dir_path.join("kustomization.yaml"),
         ctx.orchestrator_client()
-            .kustomize_patch_for_execution(provider_dir_path, toolbox_pull_policy)
+            .kustomize_patch_for_execution(provider_dir_path, toolbox_pull_policy, otel)
             .as_bytes(),
     )?;
 

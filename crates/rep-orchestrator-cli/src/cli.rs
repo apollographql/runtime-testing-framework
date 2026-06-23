@@ -62,6 +62,14 @@ pub enum Command {
         /// The image pull policy to set for toolbox init containers
         #[arg(long, default_value = "Always")]
         toolbox_pull_policy: String,
+
+        /// gRPC endpoint for the OTEL collector
+        #[arg(long)]
+        otel_collector_grpc: String,
+
+        /// HTTP endpoint for the OTEL collector
+        #[arg(long)]
+        otel_collector_http: String,
     },
 
     /// Resolve an RTF environment

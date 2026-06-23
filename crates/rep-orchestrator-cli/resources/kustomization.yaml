@@ -62,12 +62,15 @@ patches:
       kind: Deployment
       annotationSelector: "__OTEL_LABEL__=true"
     patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: placeholder  # overridden by target selector
-      spec:
-        template:
-          metadata:
-            annotations:
-              instrumentation.opentelemetry.io/inject-sdk: "__OTEL_INJECT_SDK__"
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom
+        value:
+          - configMapRef:
+              name: rep-otel-config
+configMapGenerator:
+  - name: rep-otel-config
+    literals:
+      - __RTF_OTEL_COLLECTOR_GRPC_VAR__=__RTF_OTEL_COLLECTOR_GRPC__
+      - __RTF_OTEL_COLLECTOR_HTTP_VAR__=__RTF_OTEL_COLLECTOR_HTTP__
+    options:
+      disableNameSuffixHash: true

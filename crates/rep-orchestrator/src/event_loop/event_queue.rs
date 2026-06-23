@@ -878,6 +878,8 @@ mod tests {
             workload_context: "dummy".to_string(),
             orchestrator_url: "http://localhost:8035".to_string(),
             toolbox_pull_policy: "IfNotPresent".to_string(),
+            otel_collector_grpc: "http://otel:4317".to_string(),
+            otel_collector_http: "http://otel:4318".to_string(),
             gcs_bucket: "test-bucket".to_string(),
             gcs_url_ttl_secs: 300,
             mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),
