@@ -10,8 +10,8 @@ pub const EXECUTION_TOKEN_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_EXECUTION_TOK
 
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 
-pub const REP_OTEL_COLLECTOR_GRPC_VAR: &str = "REP_OTEL_COLLECTOR_GRPC";
-pub const REP_OTEL_COLLECTOR_HTTP_VAR: &str = "REP_OTEL_COLLECTOR_HTTP";
+pub const RTF_OTEL_COLLECTOR_GRPC_VAR: &str = "RTF_OTEL_COLLECTOR_GRPC";
+pub const RTF_OTEL_COLLECTOR_HTTP_VAR: &str = "RTF_OTEL_COLLECTOR_HTTP";
 
 /// OTEL collector endpoints injected into workload pods by the orchestrator.
 #[derive(Clone, Debug)]

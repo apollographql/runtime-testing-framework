@@ -70,7 +70,7 @@ patches:
 configMapGenerator:
   - name: rep-otel-config
     literals:
-      - REP_OTEL_COLLECTOR_GRPC=__REP_OTEL_COLLECTOR_GRPC__
-      - REP_OTEL_COLLECTOR_HTTP=__REP_OTEL_COLLECTOR_HTTP__
+      - __RTF_OTEL_COLLECTOR_GRPC_VAR__=__RTF_OTEL_COLLECTOR_GRPC__
+      - __RTF_OTEL_COLLECTOR_HTTP_VAR__=__RTF_OTEL_COLLECTOR_HTTP__
     options:
       disableNameSuffixHash: true

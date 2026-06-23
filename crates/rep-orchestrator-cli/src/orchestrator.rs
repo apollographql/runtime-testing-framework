@@ -1,5 +1,6 @@
 use rep_orchestrator_shared::{
     FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, OtelConfig,
+    RTF_OTEL_COLLECTOR_GRPC_VAR, RTF_OTEL_COLLECTOR_HTTP_VAR,
     payload::{GenerateUploadUrlsPayload, SetStatusPayload},
     status::Status,
     upload_urls::UploadUrls,
@@ -146,8 +147,16 @@ impl Client for HttpClient {
             .replace("__FILE_PROVIDERS_LABEL__", FILE_PROVIDERS_LABEL)
             .replace("__LOG_COLLECTION_LABEL__", LOG_COLLECTION_LABEL)
             .replace("__OTEL_LABEL__", OTEL_LABEL)
-            .replace("__REP_OTEL_COLLECTOR_GRPC__", &otel.grpc)
-            .replace("__REP_OTEL_COLLECTOR_HTTP__", &otel.http)
+            .replace(
+                "__RTF_OTEL_COLLECTOR_GRPC_VAR__",
+                RTF_OTEL_COLLECTOR_GRPC_VAR,
+            )
+            .replace(
+                "__RTF_OTEL_COLLECTOR_HTTP_VAR__",
+                RTF_OTEL_COLLECTOR_HTTP_VAR,
+            )
+            .replace("__RTF_OTEL_COLLECTOR_GRPC__", &otel.grpc)
+            .replace("__RTF_OTEL_COLLECTOR_HTTP__", &otel.http)
     }
 
     async fn update_status(
