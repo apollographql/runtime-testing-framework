@@ -1,5 +1,5 @@
 use rep_orchestrator_shared::{
-    FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL,
+    FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_INJECT_SDK_VALUE, OTEL_LABEL,
     payload::{GenerateUploadUrlsPayload, SetStatusPayload},
     status::Status,
     upload_urls::UploadUrls,
@@ -143,6 +143,8 @@ impl Client for HttpClient {
             .replace("__IMAGE_PULL_POLICY__", toolbox_image_pull_policy)
             .replace("__FILE_PROVIDERS_LABEL__", FILE_PROVIDERS_LABEL)
             .replace("__LOG_COLLECTION_LABEL__", LOG_COLLECTION_LABEL)
+            .replace("__OTEL_LABEL__", OTEL_LABEL)
+            .replace("__OTEL_INJECT_SDK__", OTEL_INJECT_SDK_VALUE)
     }
 
     async fn update_status(
