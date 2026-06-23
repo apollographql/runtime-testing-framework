@@ -10,7 +10,11 @@ pub const EXECUTION_TOKEN_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_EXECUTION_TOK
 
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 
-pub const OTEL_INJECT_SDK_VALUE: &str = "monitoring/default";
+pub const REP_OTEL_COLLECTOR_GRPC_VAR: &str = "REP_OTEL_COLLECTOR_GRPC";
+pub const REP_OTEL_COLLECTOR_HTTP_VAR: &str = "REP_OTEL_COLLECTOR_HTTP";
+
+pub const REP_OTEL_COLLECTOR_GRPC_VALUE: &str = "http://otel-collector.monitoring:4317";
+pub const REP_OTEL_COLLECTOR_HTTP_VALUE: &str = "http://otel-collector.monitoring:4318";
 
 // Re-exported so other rep crates do not need to depend directly on rtf-config
 pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
