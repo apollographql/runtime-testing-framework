@@ -10,6 +10,13 @@ cloudSqlProxy:
 # -- Override the container command
 command: []
 
+# -- OpenTelemetry collector configuration for REP workload pods
+otel:
+  # -- gRPC endpoint for the OTEL collector, passed to workload pods as REP_OTEL_COLLECTOR_GRPC
+  collectorGrpc: "http://otel-collector.monitoring:4317"
+  # -- HTTP endpoint for the OTEL collector, passed to workload pods as REP_OTEL_COLLECTOR_HTTP
+  collectorHttp: "http://otel-collector.monitoring:4318"
+
 # -- Application configuration
 config:
   # -- Host address the server listens on

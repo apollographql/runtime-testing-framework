@@ -13,8 +13,12 @@ pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 pub const REP_OTEL_COLLECTOR_GRPC_VAR: &str = "REP_OTEL_COLLECTOR_GRPC";
 pub const REP_OTEL_COLLECTOR_HTTP_VAR: &str = "REP_OTEL_COLLECTOR_HTTP";
 
-pub const REP_OTEL_COLLECTOR_GRPC_VALUE: &str = "http://otel-collector.monitoring:4317";
-pub const REP_OTEL_COLLECTOR_HTTP_VALUE: &str = "http://otel-collector.monitoring:4318";
+/// OTEL collector endpoints injected into workload pods by the orchestrator.
+#[derive(Clone, Debug)]
+pub struct OtelConfig {
+    pub grpc: String,
+    pub http: String,
+}
 
 // Re-exported so other rep crates do not need to depend directly on rtf-config
 pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};

@@ -1,6 +1,6 @@
 use crate::{cli::Command, context::CliContext, orchestrator::Client};
 use anyhow::anyhow;
-use rep_orchestrator_shared::status::Status;
+use rep_orchestrator_shared::{OtelConfig, status::Status};
 use tracing::error;
 
 mod cli;
@@ -31,12 +31,18 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
             timeout,
             provider_dir,
             toolbox_pull_policy,
+            otel_collector_grpc,
+            otel_collector_http,
         } => {
             commands::deploy_environment(
                 &namespace,
                 &kubeconfig_path,
                 &provider_dir,
                 &toolbox_pull_policy,
+                &OtelConfig {
+                    grpc: otel_collector_grpc.clone(),
+                    http: otel_collector_http.clone(),
+                },
                 timeout,
                 ctx,
             )

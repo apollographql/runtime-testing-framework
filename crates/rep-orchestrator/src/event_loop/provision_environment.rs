@@ -3,6 +3,7 @@ use crate::{
     event_loop::{Error, Event, EventData, Result},
     k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec},
 };
+use rep_orchestrator_shared::OtelConfig;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
@@ -15,6 +16,7 @@ pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
     orchestrator_url: &str,
     toolbox_pull_policy: &str,
+    otel: &OtelConfig,
     kubeconfig_secret_name: &str,
     clients: K,
     conn: &mut H,
@@ -36,6 +38,7 @@ where
                 &test_execution,
                 orchestrator_url,
                 toolbox_pull_policy,
+                otel,
                 kubeconfig_secret_name,
             ),
         )
@@ -158,6 +161,10 @@ mod tests {
             ex.clone(),
             "http://localhost:8035",
             "IfNotPresent",
+            &OtelConfig {
+                grpc: "http://otel:4317".to_string(),
+                http: "http://otel:4318".to_string(),
+            },
             "workload-kubeconfig",
             clients.clone(),
             &mut handle,
@@ -192,6 +199,10 @@ mod tests {
             ex,
             "http://localhost:8035",
             "IfNotPresent",
+            &OtelConfig {
+                grpc: "http://otel:4317".to_string(),
+                http: "http://otel:4318".to_string(),
+            },
             "workload-kubeconfig",
             clients,
             &mut handle,

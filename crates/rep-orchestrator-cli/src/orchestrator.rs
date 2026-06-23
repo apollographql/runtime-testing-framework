@@ -1,6 +1,5 @@
 use rep_orchestrator_shared::{
-    FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, REP_OTEL_COLLECTOR_GRPC_VALUE,
-    REP_OTEL_COLLECTOR_HTTP_VALUE,
+    FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, OtelConfig,
     payload::{GenerateUploadUrlsPayload, SetStatusPayload},
     status::Status,
     upload_urls::UploadUrls,
@@ -34,6 +33,7 @@ pub trait Client: Send + Sync {
         &self,
         outdir: &Path,
         toolbox_image_pull_policy: &str,
+        otel: &OtelConfig,
     ) -> String;
 
     /// Update the [Status] of the current test execution, with an optional `message` to write to the database.
@@ -135,6 +135,7 @@ impl Client for HttpClient {
         &self,
         outdir: &Path,
         toolbox_image_pull_policy: &str,
+        otel: &OtelConfig,
     ) -> String {
         KUSTOMIZE_PATCH
             .replace("__ORCHESTRATOR_URL__", self.orchestrator_url.as_str())
@@ -145,8 +146,8 @@ impl Client for HttpClient {
             .replace("__FILE_PROVIDERS_LABEL__", FILE_PROVIDERS_LABEL)
             .replace("__LOG_COLLECTION_LABEL__", LOG_COLLECTION_LABEL)
             .replace("__OTEL_LABEL__", OTEL_LABEL)
-            .replace("__REP_OTEL_COLLECTOR_GRPC__", REP_OTEL_COLLECTOR_GRPC_VALUE)
-            .replace("__REP_OTEL_COLLECTOR_HTTP__", REP_OTEL_COLLECTOR_HTTP_VALUE)
+            .replace("__REP_OTEL_COLLECTOR_GRPC__", &otel.grpc)
+            .replace("__REP_OTEL_COLLECTOR_HTTP__", &otel.http)
     }
 
     async fn update_status(
@@ -328,7 +329,12 @@ pub(crate) mod mocks {
     }
 
     impl Client for MockClient {
-        fn kustomize_patch_for_execution(&self, _outdir: &Path, _pull_policy: &str) -> String {
+        fn kustomize_patch_for_execution(
+            &self,
+            _outdir: &Path,
+            _pull_policy: &str,
+            _otel: &OtelConfig,
+        ) -> String {
             KUSTOMIZE_PATCH.to_string()
         }
 

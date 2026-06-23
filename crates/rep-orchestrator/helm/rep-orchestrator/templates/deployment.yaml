@@ -101,6 +101,10 @@ spec:
               value: {{ required "config.toolboxPullPolicy is required" .Values.config.toolboxPullPolicy | quote }}
             - name: RTF_FAILED_EXECUTION_TTL_SECS
               value: {{ .Values.config.failedExecutionTtlSecs | quote }}
+            - name: RTF_OTEL_COLLECTOR_GRPC
+              value: {{ .Values.otel.collectorGrpc | quote }}
+            - name: RTF_OTEL_COLLECTOR_HTTP
+              value: {{ .Values.otel.collectorHttp | quote }}
             {{- if .Values.gcs.mockInternalUrl }}
             - name: RTF_MOCK_INTERNAL_GCS_URL
               value: {{ .Values.gcs.mockInternalUrl | quote }}
