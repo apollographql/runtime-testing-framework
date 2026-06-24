@@ -50,7 +50,8 @@ invoking `docker compose up`, and runs `docker compose down` during teardown.
 ### Service labels
 
 Services in the compose files can carry RTF-specific labels that control behaviour when the test
-runs inside the [REP cluster][3]. These labels have no effect when running locally with the RTF CLI.
+runs under the [RTF Orchestrator][3]. These labels have no effect when running locally with the
+`rtf` CLI.
 
 | Label                   | Value  | Effect                                                                                                                                                                                                                                                                                                                             |
 | ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -150,6 +151,6 @@ teardown:
 [0]: ./test-plans.md
 [1]: ./custom-providers.md
 [2]: ./file-providers.md
-[3]: ../../developer/explanation/concepts-and-architecture.md#rtf-and-rep
+[3]: ../../tutorials/running-with-the-orchestrator/index.md
 [4]: https://opentelemetry.io/docs/kubernetes/operator/automatic/
 [5]: ./command-providers.md
