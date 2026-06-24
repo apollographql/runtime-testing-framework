@@ -33,7 +33,8 @@ rtf rep prepare test-plan.yaml
 ```
 
 `rtf rep prepare` writes its output as a single JSON object to stdout, allowing you to pipe it
-directly to other tools or inspect it with `jq`.
+directly to other tools or inspect it with `jq`. You should not edit this payload by hand before
+submitting to the Orchestrator as this is likely to result in broken test runs.
 
 ### Triggering a run with `rtf rep request`
 

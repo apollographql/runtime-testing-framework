@@ -3,10 +3,10 @@
 # Running test plans with the RTF Orchestrator
 
 This section guides you through running RTF test plans using the RTF Orchestrator: a managed, remote
-execution service for running RTF Test Plans at Apollo. Instead of running your [Test Plan][0] locally
-with `rtf run`, you submit it to the Orchestrator which provisions an isolated Kubernetes namespace
-for deploying your [Environment][1] before then executing your [Scenario][2] and storing the results in GCS
-for you to retrieve.
+execution service for running RTF Test Plans at Apollo. Instead of running your [Test Plan][0]
+locally with `rtf run`, you submit it to the Orchestrator which provisions an isolated Kubernetes
+namespace for deploying your [Environment][1] before then executing your [Scenario][2] and storing
+the results in GCS for you to retrieve.
 
 ## Why use the Orchestrator?
 
@@ -14,8 +14,8 @@ When you run a Test Plan with `rtf run`, RTF handles spinning up your test envir
 your scenario on your local machine. When using scripted environments and scenarios this is
 incredibly flexible but also highly susceptible to being affected by how that local machine is
 configured. Running locally using a `docker compose` based environment and `docker` based scenario
-helps with making things more reproducible, but you are still subject to the constraints of the local
-machine you are running on.
+helps with making things more reproducible, but you are still subject to the constraints of the
+local machine you are running on.
 
 In contrast, the RTF Orchestrator provides a dedicated execution environment that handles running
 your test plan in an isolated Kubernetes namespace. This provides several advantages:
