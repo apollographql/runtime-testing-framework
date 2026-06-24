@@ -68,7 +68,7 @@ details being pulled fresh each time we make the request. Using this we can chec
 `current_status` field to see how our run is progressing (see "The execution lifecycle" below).
 
 Once our run enters a terminal state we are able to try pulling the results for analysis. But before
-we take a look at that, lets introduce the `rtf rep ci-run` subcommand that automates the process
+we take a look at that, let's introduce the `rtf rep ci-run` subcommand that automates the process
 we've just implemented by hand.
 
 ## Triggering a run with `rtf rep ci-run`
@@ -84,7 +84,7 @@ rtf rep ci-run test-plan.yaml
 The command prints a status table that updates at each poll interval (default: 10 seconds) showing
 the most recent activity associated with your run:
 
-```
+```text
  status        latest_message                                                running  successful  failed  unrunnable
  INITIALISING  run created                                                   1        0           0       0
  RESOLVING     resolving environment config                                  1        0           0       0
@@ -152,7 +152,7 @@ rtf rep execution-output <execution-id>
 
 This writes the following to a newly created `output/` directory by default:
 
-```
+```text
 output/
   execution-summary.json   # JSON summary of the execution status and history
   log.txt                  # Orchestrator log for the execution
@@ -189,7 +189,7 @@ rtf rep run-output <run-id>
 
 This produces:
 
-```
+```text
 output/
   run-summary.json         # JSON summary of the full run status
   <execution-name>/
@@ -205,7 +205,7 @@ The same `--outdir` and `--force` flags are available as with `rtf rep execution
 
 ## Making raw API requests
 
-As covered above, the `rtf rep request` allows you make arbitrary authenticated request to the
+As covered above, the `rtf rep request` allows you to make arbitrary authenticated request to the
 Orchestrator directly in situations where higher level commands such as `rtf rep ci-run` are not
 providing the functionality you need:
 

@@ -3,9 +3,9 @@
 # Running test plans with the RTF Orchestrator
 
 This section guides you through running RTF test plans using the RTF Orchestrator: a managed, remote
-execution service for running RTF Test Plans at Apollo. Instead of running your Test Plan locally
+execution service for running RTF Test Plans at Apollo. Instead of running your [Test Plan][0] locally
 with `rtf run`, you submit it to the Orchestrator which provisions an isolated Kubernetes namespace
-for deploying your environment before then executing your Scenario and storing the results in GCS
+for deploying your [Environment][1] before then executing your [Scenario][2] and storing the results in GCS
 for you to retrieve.
 
 ## Why use the Orchestrator?
@@ -14,7 +14,7 @@ When you run a Test Plan with `rtf run`, RTF handles spinning up your test envir
 your scenario on your local machine. When using scripted environments and scenarios this is
 incredibly flexible but also highly susceptible to being affected by how that local machine is
 configured. Running locally using a `docker compose` based environment and `docker` based scenario
-helps with making things more reproducible, but you are still subject to the constrains of the local
+helps with making things more reproducible, but you are still subject to the constraints of the local
 machine you are running on.
 
 In contrast, the RTF Orchestrator provides a dedicated execution environment that handles running
@@ -34,6 +34,12 @@ your test plan in an isolated Kubernetes namespace. This provides several advant
 The orchestrator is deployed at `https://api.rtf.apollographql.com` and is protected by Google Cloud
 IAP. Access is managed in GCP by the Runtime Readiness team.
 
+Once access is granted, you can authenticate with GCP using the following command:
+
+```bash
+gcloud auth application-default login
+```
+
 You can check whether or not you have access by attempting to hit the healthcheck endpoint on the
 Orchestrator using the `rtf` CLI like so:
 
@@ -42,20 +48,14 @@ rtf rep request health
 ```
 
 If you see `{"ok":true}` in your terminal then you are correctly authenticated. If you are unable to
-reach the orchestrator, reach out to the Runtime Readiness team in Slack and we will set up access
+reach the Orchestrator, reach out to the Runtime Readiness team in Slack and we will set up access
 for you and your team.
-
-Once access is granted, you can authenticate with GCP using the following command:
-
-```bash
-gcloud auth application-default login
-```
 
 > **Before going further**
 >
 > Please ensure that:
 >
-> - you have completed the ["Writing test plans"][0] tutorial series
+> - you have completed the ["Writing test plans"][3] tutorial series
 > - the `rtf` CLI installed
 > - the `gcloud` CLI installed
 > - you have authenticated with `gcloud auth application-default login`
@@ -63,7 +63,10 @@ gcloud auth application-default login
 
 ---
 
-**Next:** [Making your test plan Orchestrator-ready][1]
+**Next:** [Making your test plan Orchestrator-ready][4]
 
-[0]: ../test-plans/index.md
-[1]: making-your-test-plan-orchestrator-ready.md
+[0]: ../../reference/framework/test-plans.md
+[1]: ../../reference/framework/environments.md
+[2]: ../../reference/framework/scenarios.md
+[3]: ../test-plans/index.md
+[4]: making-your-test-plan-orchestrator-ready.md

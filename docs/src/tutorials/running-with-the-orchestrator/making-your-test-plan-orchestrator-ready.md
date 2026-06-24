@@ -3,8 +3,8 @@
 # Making your test plan Orchestrator-ready
 
 In this guide, we'll take the Test Plan from the ["Writing test plans"][0] tutorial series and
-updated it so it can be run under the RTF Orchestrator. To do this we will be adding `rtf.io` docker
-compose labels that tell the Orchestrator how to handle deploying and interactingh with your
+update it so it can be run under the RTF Orchestrator. To do this we will be adding `rtf.io` docker
+compose labels that tell the Orchestrator how to handle deploying and interacting with your
 services.
 
 > **Prerequisites**
@@ -15,7 +15,7 @@ services.
 ## Restrictions on Orchestrator Test Plans
 
 The Orchestrator requires that Test Plans submitted to it are written using `docker compose` based
-Environments and `docker` based scenarios: script based Test Plans are not supported. Enforcing this
+Environments and `docker` based Scenarios: script based Test Plans are not supported. Enforcing this
 allows the Orchestrator to convert your docker compose based environment into Kubernetes resources
 using [kompose][1] which are then patched with [kustomize][2] according to the labels detailed
 below.
@@ -87,7 +87,7 @@ services:
     labels:
       rtf.io/log-collection: "true"
       rtf.io/file-providers: "true"
-    # The SUPERGRAPH_SCHEMA and ROUTER_CONFIG environmment variables here
+    # The SUPERGRAPH_SCHEMA and ROUTER_CONFIG environment variables here
     # are set according to the file providers that have been added using
     # the label.
     command: -s ${SUPERGRAPH_SCHEMA} -c ${ROUTER_CONFIG}
@@ -124,7 +124,7 @@ environment:
   ...
 ```
 
-Your test plan is now ready to submit to the orchestrator.
+Your test plan is now ready to submit to the Orchestrator.
 
 ## Next steps
 
