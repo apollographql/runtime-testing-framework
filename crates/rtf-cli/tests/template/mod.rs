@@ -247,6 +247,16 @@ fn duplicate_variant_names_fails() {
     "(scenario.output_collection.prometheus) The provided query is invalid PromQL\nThe \"query\" query is invalid";
     "invalid promql"
 )]
+#[test_case(
+    "duplicate-prometheus-names.yaml",
+    "(scenario.prometheus) Non-unique variable names found\nmy-query";
+    "duplicate prometheus names"
+)]
+#[test_case(
+    "reserved-namespace-label.yaml",
+    "(scenario.output_collection.prometheus) The 'namespace' label is reserved and must not appear in PromQL selectors\nselector 'metric{namespace=\"abc\"}' in `namespace-query` contains a reserved 'namespace' label matcher";
+    "reserved namespace label"
+)]
 #[test]
 fn check_fails(file: &str, err_contains: &str) {
     let mut cmd = cargo_bin_cmd!("rtf");
