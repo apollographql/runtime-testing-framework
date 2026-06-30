@@ -242,6 +242,11 @@ fn duplicate_variant_names_fails() {
     "(scenario) Non-unique environment variables found\nFOO";
     "duplicate env vars"
 )]
+#[test_case(
+    "invalid-promql.yaml",
+    "(scenario.output_collection.prometheus) The provided query is invalid PromQL\nThe \"query\" query is invalid";
+    "invalid promql"
+)]
 #[test]
 fn check_fails(file: &str, err_contains: &str) {
     let mut cmd = cargo_bin_cmd!("rtf");

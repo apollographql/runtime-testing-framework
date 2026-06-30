@@ -1,0 +1,39 @@
+name: duplicate-env-vars
+description: |
+  Check the error shown when a test plan defines invalid promql
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+    output_collection:
+      prometheus:
+        - name: query
+          step: 15m
+          query: |
+            not a valid query
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
