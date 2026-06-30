@@ -1,0 +1,48 @@
+name: output-collection
+description: |
+  This test plan checks that output collection parses and displays warnings during rtf run.
+
+scenario:
+  inline:
+    name: scenario
+    description: "minimal scenario with output collection"
+
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/bin/sh
+        echo "scenario"
+
+    output_collection:
+      prometheus:
+        - name: scenario_query
+          step: 15m
+          query: sum(rate(metric[1m]))
+
+environment:
+  inline:
+    name: environment
+    description: "minimal environment with output collection"
+
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/bin/sh
+          echo "setup"
+
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/bin/sh
+          echo "teardown"
+
+    output_collection:
+      prometheus:
+        - name: scenario_query
+          step: 15m
+          query: sum(rate(metric[1m]))

@@ -22,6 +22,7 @@ fn is_executable() {
 #[test_case("custom-provider-templated-variable"; "custom provider templated variable")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
+#[test_case("output-collection"; "output collection")]
 #[test_case("sanity-check"; "sanity check")]
 #[test_case("variable-overrides"; "variable overrides")]
 // Template and check all valid test plans except the github and graphos test plans which are tested
