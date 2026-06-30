@@ -1,5 +1,5 @@
 use crate::{
-    checks::{self, Check},
+    checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
 };
 use promql_parser::{
@@ -33,6 +33,14 @@ impl Check for OutputCollection {
         }
 
         errs.into_result(())
+    }
+}
+
+impl CheckArrayDuplicates for OutputCollection {
+    const BASE_PATH: &str = "output-collection";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, checks::DedupArray<'a>)> {
+        vec![("prometheus", DedupArray::Prometheus(&mut self.prometheus))]
     }
 }
 
@@ -170,6 +178,40 @@ mod tests {
         let ctx = Context::new();
 
         assert_check_errors(prom_collection, &ctx, errors);
+    }
+
+    #[test]
+    fn output_collection_duplicate_prometheus_names_error() {
+        let mut output = OutputCollection {
+            prometheus: vec![
+                prom_collection("sum(rate(metric[1m]))"),
+                prom_collection("sum(rate(metric[1m]))"),
+            ],
+        };
+
+        let res = output.ensure_no_duplicate_keys();
+        assert!(
+            res.is_err(),
+            "expected error for duplicate prometheus names"
+        );
+    }
+
+    #[test]
+    fn output_collection_dedup_prometheus_keeps_second() {
+        let original = PrometheusQuery {
+            name: "name".to_string(),
+            step: "5m".to_string(),
+            query: "sum(rate(metric[1m]))".to_string(),
+        };
+        let override_query = prom_collection("sum(rate(other_metric[1m]))");
+
+        let mut output = OutputCollection {
+            prometheus: vec![original, override_query.clone()],
+        };
+
+        let res = output.try_dedup_and_sort();
+        assert!(res.is_ok(), "expected OK, got {res:?}");
+        assert_eq!(output.prometheus, vec![override_query]);
     }
 
     #[test]

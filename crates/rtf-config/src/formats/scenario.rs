@@ -152,6 +152,7 @@ impl<R: RunScenario> CheckArrayDuplicates for ScenarioConfig<R> {
             DedupArray::VariableDef(&mut self.variable_definitions),
         )];
         arrays.extend(self.execution.deduplicated_arrays());
+        arrays.extend(self.output_collection.deduplicated_arrays());
         arrays
     }
 }
