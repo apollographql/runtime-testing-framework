@@ -286,7 +286,7 @@ pub(crate) fn duplicate_keys<'a, T: 'a>(
 mod tests {
     use super::*;
     use crate::{
-        providers::file::{FileProvider, InlineFile},
+        providers::file::{FileProvider, InlineFile, compose::ComposeFileProvider},
         templating::Scalar,
     };
     use simple_test_case::test_case;
@@ -361,6 +361,15 @@ mod tests {
         }
     }
 
+    fn ncfp(name: &str) -> NamedComposeFileProvider {
+        NamedComposeFileProvider {
+            name: name.to_string(),
+            provider: ComposeFileProvider::Inline(InlineFile {
+                content: format!("# {name}\nservices: {{}}"),
+            }),
+        }
+    }
+
     fn pq(name: &str) -> PrometheusQuery {
         PrometheusQuery {
             name: name.to_string(),
@@ -400,6 +409,21 @@ mod tests {
         "nfp multiple duplicates"
     )]
     #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b")]),
+        false;
+        "ncfp no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a")]),
+        true;
+        "ncfp single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a"), ncfp("a")]),
+        true;
+        "ncfp multiple duplicates"
+    )]
+    #[test_case(
         DedupArray::Prometheus(&mut vec![pq("a"), pq("b")]),
         false;
         "prometheus no duplicates"
@@ -434,6 +458,11 @@ mod tests {
         DedupArray::Nfp(&mut vec![nfp("z", "B", ""), nfp("x", "C", ""), nfp("y", "A", "")]),
         DedupArray::Nfp(&mut vec![nfp("y", "A", ""), nfp("z", "B", ""), nfp("x", "C", "")]);
         "named file providers"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("c"), ncfp("a"), ncfp("b")]),
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b"), ncfp("c")]);
+        "named compose file providers"
     )]
     #[test_case(
         DedupArray::Prometheus(&mut vec![pq("c"), pq("a"), pq("b")]),
@@ -477,6 +506,21 @@ mod tests {
         "nfp multiple duplicates"
     )]
     #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b")]),
+        false;
+        "ncfp no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a")]),
+        false;
+        "ncfp single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a"), ncfp("a")]),
+        true;
+        "ncfp multiple duplicates"
+    )]
+    #[test_case(
         DedupArray::Prometheus(&mut vec![pq("a"), pq("b")]),
         false;
         "prometheus no duplicates"
@@ -511,6 +555,15 @@ mod tests {
         DedupArray::Nfp(&mut vec![nfp("a", "A", "original"), nfp("b", "B", ""), nfp("a", "A", "override")]),
         DedupArray::Nfp(&mut vec![nfp("a", "A", "override"), nfp("b", "B", "")]);
         "named file providers"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![
+            NamedComposeFileProvider { name: "a".to_string(), provider: ComposeFileProvider::Inline(InlineFile { content: "original".to_string() }) },
+            ncfp("b"),
+            ncfp("a"),
+        ]),
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b")]);
+        "named compose file providers"
     )]
     #[test_case(
         DedupArray::Prometheus(&mut vec![
