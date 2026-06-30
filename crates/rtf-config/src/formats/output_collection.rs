@@ -4,7 +4,10 @@ use crate::{
 };
 use promql_parser::{
     parser::{self, Expr, MatrixSelector, VectorSelector},
-    util::visitor::{ExprVisitor, walk_expr},
+    util::{
+        parse_duration,
+        visitor::{ExprVisitor, walk_expr},
+    },
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -48,7 +51,8 @@ impl CheckArrayDuplicates for OutputCollection {
 pub struct PrometheusQuery {
     /// The name of the .json file this prometheus query is saved to
     pub name: String,
-    /// The query resolution step width
+    /// The query resolution step width. Must be a valid PromQL duration (e.g. `15s`, `1m`, `2h`)
+    /// or a float number of seconds (e.g. `15`, `0.5`).
     pub step: String,
     /// The PromQL query to execute
     pub query: String,
@@ -64,6 +68,17 @@ impl Check for PrometheusQuery {
         err_path.push("prometheus".to_string());
 
         let mut errs = checks::ErrorBuilder::new();
+
+        if parse_duration(&self.step).is_err() {
+            errs.push(
+                checks::ErrorKind::InvalidDuration,
+                format!(
+                    "\"{}\" step must be a valid Prometheus duration (e.g. `15s`, `1m`, `2h`) or float seconds (e.g. `15`, `0.5`), got {:?}",
+                    self.name, self.step
+                ),
+                &err_path,
+            );
+        }
 
         let promql = match parser::parse(&self.query) {
             Ok(s) => s,
@@ -138,11 +153,45 @@ mod tests {
         }
     }
 
+    fn prom_collection_with_step(step: &str) -> PrometheusQuery {
+        PrometheusQuery {
+            name: "name".to_string(),
+            step: step.to_string(),
+            query: "sum(rate(metric[1m]))".to_string(),
+        }
+    }
+
+    #[test_case("15s"; "seconds")]
+    #[test_case("1m"; "minutes")]
+    #[test_case("2h"; "hours")]
+    #[test_case("1d"; "days")]
+    #[test_case("15"; "float seconds")]
+    #[test_case("0.5"; "sub-second float")]
+    #[test]
+    fn prometheus_collection_step_valid(step: &str) {
+        let ctx = Context::new();
+        let res = prom_collection_with_step(step).try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test_case(""; "empty string")]
+    #[test_case("1.5m"; "float with unit")]
+    #[test_case("15 seconds"; "prose duration")]
+    #[test]
+    fn prometheus_collection_step_invalid(step: &str) {
+        let ctx = Context::new();
+        assert_check_errors(
+            prom_collection_with_step(step),
+            &ctx,
+            &[checks::ErrorKind::InvalidDuration],
+        );
+    }
+
     #[test_case("sum(rate(metric[1m]))"; "one metric no labels")]
     #[test_case("sum(rate(metric{label=\"value\"}[1m]))"; "vector selector with one label")]
     #[test_case("sum(rate(metric{label1=\"value\",label2=\"value\",label3=\"value\"}[1m]))"; "vector selector with multiple labels")]
     #[test]
-    fn prometheus_collection_check_success(query: &str) {
+    fn prometheus_collection_query_valid(query: &str) {
         let prom_collection = prom_collection(query);
 
         let ctx = Context::new();
@@ -172,7 +221,7 @@ mod tests {
         "multiple errors"
     )]
     #[test]
-    fn prometheus_collection_check_error(query: &str, errors: &[checks::ErrorKind]) {
+    fn prometheus_collection_query_invalid(query: &str, errors: &[checks::ErrorKind]) {
         let prom_collection = prom_collection(query);
 
         let ctx = Context::new();
