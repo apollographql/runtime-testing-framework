@@ -303,7 +303,7 @@ mod tests {
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
-            ScenarioConfig,
+            OutputCollection, ScenarioConfig,
         },
         providers::file::compose::NamedComposeFileProvider,
         templating::{Field, Scalar},
@@ -360,6 +360,7 @@ mod tests {
                     env_vars: HashMap::new(),
                     file_providers: vec![],
                 },
+                output_collection: OutputCollection { prometheus: vec![] },
             },
             environment: EnvironmentConfig {
                 name: "test environment".to_string(),
@@ -372,6 +373,7 @@ mod tests {
                     file_providers: vec![],
                     env_vars: HashMap::new(),
                 },
+                output_collection: OutputCollection { prometheus: vec![] },
             },
         }
     }

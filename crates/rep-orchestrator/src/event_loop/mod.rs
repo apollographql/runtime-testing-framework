@@ -376,7 +376,7 @@ mod tests {
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
-            ScenarioConfig,
+            OutputCollection, ScenarioConfig,
         },
         templating::Field,
     };
@@ -441,6 +441,7 @@ mod tests {
                 variable_definitions: vec![],
                 custom_providers: vec![],
                 execution: stub_scenario(),
+                output_collection: OutputCollection { prometheus: vec![] },
             },
             environment: EnvironmentConfig {
                 name: String::new(),
@@ -448,6 +449,7 @@ mod tests {
                 variable_definitions: vec![],
                 custom_providers: vec![],
                 execution: stub_environment(),
+                output_collection: OutputCollection { prometheus: vec![] },
             },
         }
     }

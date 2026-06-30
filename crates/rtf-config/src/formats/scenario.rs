@@ -2,7 +2,7 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
-    formats::{CustomProviderDeclaration, Result},
+    formats::{CustomProviderDeclaration, Result, output_collection::OutputCollection},
     inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
@@ -44,6 +44,9 @@ pub struct ScenarioConfig<R: RunScenario> {
     /// The command to execute as this scenario
     #[serde(flatten)]
     pub execution: R,
+    /// The data to be collected during scenario
+    #[serde(default)]
+    pub output_collection: OutputCollection,
 }
 
 impl ScenarioConfig<ScenarioExecution> {
@@ -71,6 +74,7 @@ impl ScenarioConfig<ScenarioExecution> {
             variable_definitions: Default::default(),
             custom_providers: Default::default(),
             execution: ScenarioExecution::Script(CommandSection::empty()),
+            output_collection: Default::default(),
         }
     }
 }
@@ -130,7 +134,12 @@ impl<R: RunScenario> Check for ScenarioConfig<R> {
             path.push("scenario".to_string());
         }
 
-        self.execution.try_check(path, ctx)
+        let mut errs = checks::ErrorBuilder::new();
+
+        errs.append(self.execution.try_check(path, ctx));
+        errs.append(self.output_collection.try_check(path, ctx));
+
+        errs.into_result(())
     }
 }
 
@@ -539,6 +548,7 @@ mod tests {
         context::Context,
         formats::{
             Sources,
+            output_collection::PrometheusQuery,
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
@@ -599,7 +609,12 @@ mod tests {
             env_var: FILE
             kind: relative_path
             path: "{{ bar }}"
-    "#
+        output_collection:
+          prometheus:
+            - name: prometheus_query
+              step: 15m
+              query: |
+                sum(rate(metric[1m]))"#
     );
 
     // An example scenario config to check parsing and templating
@@ -637,7 +652,12 @@ mod tests {
             env_var: FILE
             kind: relative_path
             path: "{{ bar }}"
-    "#
+        output_collection:
+          prometheus:
+            - name: prometheus_query
+              step: 15m
+              query: |
+                sum(rate(metric[1m]))"#
     );
 
     const CUSTOM_PROVIDER_WITH_NESTED: &str = indoc!(
@@ -698,6 +718,18 @@ mod tests {
             cp.using.get("another_provider").unwrap(),
             "another_provider.yaml"
         );
+
+        let output = &config.output_collection;
+        assert_eq!(
+            output,
+            &OutputCollection {
+                prometheus: vec![PrometheusQuery {
+                    name: "prometheus_query".to_string(),
+                    step: "15m".to_string(),
+                    query: "sum(rate(metric[1m]))".to_string()
+                }]
+            }
+        )
     }
 
     #[test_case(&[p("foo")], &["foo"]; "single field is required")]
@@ -763,6 +795,13 @@ mod tests {
     fn check_success() {
         let scenario = ScenarioConfig {
             execution: ScenarioExecution::Script(cmd_with_inline_file()),
+            output_collection: OutputCollection {
+                prometheus: vec![PrometheusQuery {
+                    name: "name".to_string(),
+                    step: "15m".to_string(),
+                    query: "sum(rate(metric[1m]))".to_string(),
+                }],
+            },
             ..ScenarioConfig::empty()
         };
 
@@ -782,6 +821,24 @@ mod tests {
         let ctx = Context::new();
 
         assert_check_errors(scenario, &ctx, &[checks::ErrorKind::RequiredFileMissing]);
+    }
+
+    #[test]
+    fn check_output_errors() {
+        let scenario = ScenarioConfig {
+            output_collection: OutputCollection {
+                prometheus: vec![PrometheusQuery {
+                    name: "name".to_string(),
+                    step: "15m".to_string(),
+                    query: "not a valid query".to_string(),
+                }],
+            },
+            ..ScenarioConfig::empty()
+        };
+
+        let ctx = Context::new();
+
+        assert_check_errors(scenario, &ctx, &[checks::ErrorKind::InvalidPromQl]);
     }
 
     #[tokio::test]

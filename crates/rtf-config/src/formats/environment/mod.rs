@@ -4,7 +4,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     enum_impl_check,
-    formats::{CustomProviderDeclaration, Result},
+    formats::{CustomProviderDeclaration, Result, output_collection::OutputCollection},
     inlining::{self, InlineMode, InlinedProvider},
     providers::{self, file::StableSource},
     run::{Provider, RunEnvironment, RunProviders},
@@ -44,6 +44,8 @@ pub struct EnvironmentConfig<R: RunEnvironment> {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     #[serde(flatten)]
     pub execution: R,
+    #[serde(default)]
+    pub output_collection: OutputCollection,
 }
 
 impl EnvironmentConfig<EnvironmentExecution> {
@@ -67,6 +69,7 @@ impl EnvironmentConfig<EnvironmentExecution> {
                 setup: CommandSection::empty(),
                 teardown: CommandSection::empty(),
             }),
+            output_collection: Default::default(),
         }
     }
 }
@@ -168,6 +171,7 @@ impl<R: RunEnvironment> Check for EnvironmentConfig<R> {
         // We call try_check here instead of try_check_nested to avoid appending
         // an unnecessary entry to the path
         errs.append(self.execution.try_check(path, ctx));
+        errs.append(self.output_collection.try_check(path, ctx));
 
         errs.into_result(())
     }
@@ -391,6 +395,7 @@ pub(crate) mod tests {
         context::Context,
         formats::{
             environment::test_helpers::environment_with_fields,
+            output_collection::PrometheusQuery,
             tests::{assert_check_errors, p, r, variable_definitions},
         },
         providers::{
@@ -473,6 +478,24 @@ pub(crate) mod tests {
         let ctx = Context::new();
 
         assert_check_errors(environment, &ctx, expected_err_kinds);
+    }
+
+    #[test]
+    fn try_check_errors_invalid_prometheus_query() {
+        let environment = EnvironmentConfig {
+            output_collection: OutputCollection {
+                prometheus: vec![PrometheusQuery {
+                    name: "name".to_string(),
+                    step: "15m".to_string(),
+                    query: "not a valid query".to_string(),
+                }],
+            },
+            ..EnvironmentConfig::empty()
+        };
+
+        let ctx = Context::new();
+
+        assert_check_errors(environment, &ctx, &[checks::ErrorKind::InvalidPromQl]);
     }
 
     #[tokio::test]

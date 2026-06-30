@@ -35,6 +35,9 @@ pub enum ErrorKind {
     #[strum(to_string = "Invalid path specifiers")]
     InvalidPathSpecifiers,
 
+    #[strum(to_string = "The provided query is invalid PromQL")]
+    InvalidPromQl,
+
     #[strum(to_string = "The given relative path was not a valid path")]
     InvalidRelativePath,
 
@@ -52,6 +55,11 @@ pub enum ErrorKind {
 
     #[strum(to_string = "A required file has not been defined")]
     RequiredFileMissing,
+
+    #[strum(
+        to_string = "The 'namespace' label is reserved and must not appear in PromQL selectors"
+    )]
+    ReservedNamespaceLabel,
 }
 
 impl crate::error::ErrorKind for ErrorKind {
