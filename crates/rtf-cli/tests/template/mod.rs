@@ -250,7 +250,7 @@ fn duplicate_variant_names_fails() {
 )]
 #[test_case(
     "duplicate-prometheus-names.yaml",
-    "(scenario.prometheus) Non-unique variable names found\nmy-query";
+    "(scenario.prometheus) Non-unique Prometheus query names found\nmy-query";
     "duplicate prometheus names"
 )]
 #[test_case(

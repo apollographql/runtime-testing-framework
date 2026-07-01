@@ -18,6 +18,9 @@ pub enum ErrorKind {
     #[strum(to_string = "Non-unique file provider names found")]
     DuplicateFileProviderNames,
 
+    #[strum(to_string = "Non-unique Prometheus query names found")]
+    DuplicatePrometheusQueryNames,
+
     #[strum(to_string = "Non-unique variable names found")]
     DuplicateVariableNames,
 
@@ -177,20 +180,28 @@ pub enum DedupArray<'a> {
 
 impl<'a> DedupArray<'a> {
     fn ensure_no_duplicate_keys(&self, base_path: &str, p: &str) -> Result<()> {
-        let duplicates = match self {
-            DedupArray::VariableDef(vds) => duplicate_keys(vds.iter(), |vd| &vd.name),
-            DedupArray::Nfp(nfps) => duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
-            DedupArray::Ncfp(ncfps) => duplicate_keys(ncfps.iter(), |ncfp| &ncfp.name),
-            DedupArray::Prometheus(pqs) => duplicate_keys(pqs.iter(), |pq| &pq.name),
+        let (duplicates, kind) = match self {
+            DedupArray::VariableDef(vds) => (
+                duplicate_keys(vds.iter(), |vd| &vd.name),
+                ErrorKind::DuplicateVariableNames,
+            ),
+            DedupArray::Nfp(nfps) => (
+                duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
+                ErrorKind::DuplicateEnvironmentVariables,
+            ),
+            DedupArray::Ncfp(ncfps) => (
+                duplicate_keys(ncfps.iter(), |ncfp| &ncfp.name),
+                ErrorKind::DuplicateFileProviderNames,
+            ),
+            DedupArray::Prometheus(pqs) => (
+                duplicate_keys(pqs.iter(), |pq| &pq.name),
+                ErrorKind::DuplicatePrometheusQueryNames,
+            ),
         };
 
         if !duplicates.is_empty() {
             let path = vec![base_path.to_string(), p.to_string()];
-            return Err(Errors::new(
-                ErrorKind::DuplicateVariableNames,
-                duplicates.join("\n"),
-                &path,
-            ));
+            return Err(Errors::new(kind, duplicates.join("\n"), &path));
         }
 
         Ok(())
@@ -206,25 +217,51 @@ impl<'a> DedupArray<'a> {
     }
 
     fn at_most_two_duplicates(&self, base_path: &str, p: &str) -> Result<()> {
-        fn inner<T>(v: &[T], key_fn: fn(&T) -> String, base_path: &str, p: &str) -> Result<()> {
+        fn inner<T>(
+            v: &[T],
+            key_fn: fn(&T) -> String,
+            kind: ErrorKind,
+            base_path: &str,
+            p: &str,
+        ) -> Result<()> {
             let duplicates = duplicate_keys_with_threshold(v.iter(), key_fn, 2);
             if !duplicates.is_empty() {
                 let path = vec![base_path.to_string(), p.to_string()];
-                return Err(Errors::new(
-                    ErrorKind::DuplicateVariableNames,
-                    duplicates.join("\n"),
-                    &path,
-                ));
+                return Err(Errors::new(kind, duplicates.join("\n"), &path));
             }
 
             Ok(())
         }
 
         match self {
-            DedupArray::VariableDef(vds) => inner(vds, |vd| vd.name.clone(), base_path, p),
-            DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone(), base_path, p),
-            DedupArray::Ncfp(ncfps) => inner(ncfps, |nfp| nfp.name.clone(), base_path, p),
-            DedupArray::Prometheus(pqs) => inner(pqs, |pq| pq.name.clone(), base_path, p),
+            DedupArray::VariableDef(vds) => inner(
+                vds,
+                |vd| vd.name.clone(),
+                ErrorKind::DuplicateVariableNames,
+                base_path,
+                p,
+            ),
+            DedupArray::Nfp(nfps) => inner(
+                nfps,
+                |nfp| nfp.env_var.clone(),
+                ErrorKind::DuplicateEnvironmentVariables,
+                base_path,
+                p,
+            ),
+            DedupArray::Ncfp(ncfps) => inner(
+                ncfps,
+                |nfp| nfp.name.clone(),
+                ErrorKind::DuplicateFileProviderNames,
+                base_path,
+                p,
+            ),
+            DedupArray::Prometheus(pqs) => inner(
+                pqs,
+                |pq| pq.name.clone(),
+                ErrorKind::DuplicatePrometheusQueryNames,
+                base_path,
+                p,
+            ),
         }
     }
 

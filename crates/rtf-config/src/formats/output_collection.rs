@@ -97,7 +97,7 @@ impl Check for PrometheusQuery {
         let mut visitor = NamespaceLabelVisitor::default();
         let _ = walk_expr(&mut visitor, &promql);
 
-        for label in visitor.violations {
+        for label in visitor.violations.into_iter() {
             errs.push(
                 checks::ErrorKind::ReservedNamespaceLabel,
                 format!(
