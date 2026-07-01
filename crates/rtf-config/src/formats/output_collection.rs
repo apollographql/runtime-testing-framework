@@ -3,10 +3,11 @@ use crate::{
     context::ResolutionContext,
 };
 use promql_parser::{
+    label::{MatchOp, Matcher},
     parser::{self, Expr, MatrixSelector, VectorSelector},
     util::{
         parse_duration,
-        visitor::{ExprVisitor, walk_expr},
+        visitor::{ExprVisitor, ExprVisitorMut, walk_expr, walk_expr_mut},
     },
 };
 use schemars::JsonSchema;
@@ -56,6 +57,22 @@ pub struct PrometheusQuery {
     pub step: String,
     /// The PromQL query to execute
     pub query: String,
+}
+
+impl PrometheusQuery {
+    /// Returns the PrometheusQuery with a namespace label filter applied to each metric
+    pub fn with_namespace_label_filter(&self, namespace: &str) -> Self {
+        let mut expr = parser::parse(&self.query).expect("query already validated by try_check");
+        let _ = walk_expr_mut(
+            &mut NamespaceLabelInjector(namespace.to_string()),
+            &mut expr,
+        );
+        Self {
+            name: self.name.clone(),
+            step: self.step.clone(),
+            query: expr.to_string(),
+        }
+    }
 }
 
 impl Check for PrometheusQuery {
@@ -139,13 +156,32 @@ impl ExprVisitor for NamespaceLabelVisitor {
     }
 }
 
+struct NamespaceLabelInjector(String);
+
+impl ExprVisitorMut for NamespaceLabelInjector {
+    type Error = std::convert::Infallible;
+
+    fn pre_visit(&mut self, expr: &mut Expr) -> Result<bool, Self::Error> {
+        let matchers = match expr {
+            Expr::VectorSelector(VectorSelector { matchers, .. }) => matchers,
+            Expr::MatrixSelector(MatrixSelector { vs, .. }) => &mut vs.matchers,
+            _ => return Ok(true),
+        };
+        matchers
+            .matchers
+            .push(Matcher::new(MatchOp::Equal, "namespace", &self.0));
+
+        Ok(true)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{context::Context, formats::tests::assert_check_errors};
     use simple_test_case::test_case;
 
-    fn prom_collection(query: &str) -> PrometheusQuery {
+    fn prometheus_query(query: &str) -> PrometheusQuery {
         PrometheusQuery {
             name: "name".to_string(),
             step: "15m".to_string(),
@@ -153,7 +189,7 @@ mod tests {
         }
     }
 
-    fn prom_collection_with_step(step: &str) -> PrometheusQuery {
+    fn prometheus_query_with_step(step: &str) -> PrometheusQuery {
         PrometheusQuery {
             name: "name".to_string(),
             step: step.to_string(),
@@ -168,9 +204,9 @@ mod tests {
     #[test_case("15"; "float seconds")]
     #[test_case("0.5"; "sub-second float")]
     #[test]
-    fn prometheus_collection_step_valid(step: &str) {
+    fn prometheus_metric_step_valid(step: &str) {
         let ctx = Context::new();
-        let res = prom_collection_with_step(step).try_check(&mut Vec::new(), &ctx);
+        let res = prometheus_query_with_step(step).try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -178,25 +214,27 @@ mod tests {
     #[test_case("1.5m"; "float with unit")]
     #[test_case("15 seconds"; "prose duration")]
     #[test]
-    fn prometheus_collection_step_invalid(step: &str) {
+    fn prometheus_metric_step_invalid(step: &str) {
         let ctx = Context::new();
         assert_check_errors(
-            prom_collection_with_step(step),
+            prometheus_query_with_step(step),
             &ctx,
             &[checks::ErrorKind::InvalidDuration],
         );
     }
 
-    #[test_case("sum(rate(metric[1m]))"; "one metric no labels")]
-    #[test_case("sum(rate(metric{label=\"value\"}[1m]))"; "vector selector with one label")]
-    #[test_case("sum(rate(metric{label1=\"value\",label2=\"value\",label3=\"value\"}[1m]))"; "vector selector with multiple labels")]
+    #[test_case("sum(rate(metric[1m]))"; "matrix selector no labels")]
+    #[test_case("sum(rate(metric{label=\"value\"}[1m]))"; "matrix selector with one label")]
+    #[test_case("sum(rate(metric{label1=\"value\",label2=\"value\",label3=\"value\"}[1m]))"; "matrix selector with multiple labels")]
+    #[test_case("sum(metric)"; "bare vector selector no labels")]
+    #[test_case("sum(metric{label=\"value\"})"; "vector selector with one label")]
     #[test]
-    fn prometheus_collection_query_valid(query: &str) {
-        let prom_collection = prom_collection(query);
+    fn prometheus_metric_query_valid(query: &str) {
+        let prometheus_query = prometheus_query(query);
 
         let ctx = Context::new();
 
-        let res = prom_collection.try_check(&mut Vec::new(), &ctx);
+        let res = prometheus_query.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -208,12 +246,17 @@ mod tests {
     #[test_case(
         "sum(rate(apollo_router_http_requests_total{namespace=\"abc\"}[1m]))",
         &[checks::ErrorKind::ReservedNamespaceLabel];
-        "namespace in vector selector"
+        "namespace equals in matrix selector"
     )]
     #[test_case(
         "sum(rate(my_metric{namespace=~\"ns-.*\"}[5m]))",
         &[checks::ErrorKind::ReservedNamespaceLabel];
-        "namespace in matrix selector"
+        "namespace regex in matrix selector"
+    )]
+    #[test_case(
+        "sum(apollo_router_http_requests_total{namespace=\"abc\"})",
+        &[checks::ErrorKind::ReservedNamespaceLabel];
+        "namespace in vector selector"
     )]
     #[test_case(
         "sum(rate(metric_a{namespace=\"x\"}[1m])) / sum(rate(metric_b{namespace=\"x\"}[1m]))",
@@ -221,20 +264,48 @@ mod tests {
         "multiple errors"
     )]
     #[test]
-    fn prometheus_collection_query_invalid(query: &str, errors: &[checks::ErrorKind]) {
-        let prom_collection = prom_collection(query);
+    fn prometheus_metric_query_invalid(query: &str, errors: &[checks::ErrorKind]) {
+        let prometheus_query = prometheus_query(query);
 
         let ctx = Context::new();
 
-        assert_check_errors(prom_collection, &ctx, errors);
+        assert_check_errors(prometheus_query, &ctx, errors);
+    }
+
+    #[test_case(
+        "sum(metric)",
+        "sum(metric{namespace=\"namespace\"})";
+        "bare vector selector no range"
+    )]
+    #[test_case(
+        "sum(metric{label1=\"value\"})",
+        "sum(metric{label1=\"value\",namespace=\"namespace\"})";
+        "vector selector one label"
+    )]
+    #[test_case(
+        "sum(rate(metric[1m]))",
+        "sum(rate(metric{namespace=\"namespace\"}[1m]))";
+        "matrix selector no labels"
+    )]
+    #[test_case(
+        "sum(rate(metric{label1=\"value\",label2=\"value\"}[1m]))",
+        "sum(rate(metric{label1=\"value\",label2=\"value\",namespace=\"namespace\"}[1m]))";
+        "matrix selector with labels"
+    )]
+    #[test]
+    fn prometheus_query_with_namespace_label_filter_success(query: &str, expected_query: &str) {
+        let prometheus_query = prometheus_query(query);
+
+        let res = prometheus_query.with_namespace_label_filter("namespace");
+        assert_eq!(res.query, expected_query)
     }
 
     #[test]
     fn output_collection_duplicate_prometheus_names_error() {
         let mut output = OutputCollection {
             prometheus: vec![
-                prom_collection("sum(rate(metric[1m]))"),
-                prom_collection("sum(rate(metric[1m]))"),
+                prometheus_query("sum(rate(metric[1m]))"),
+                prometheus_query("sum(rate(metric[1m]))"),
             ],
         };
 
@@ -252,7 +323,7 @@ mod tests {
             step: "5m".to_string(),
             query: "sum(rate(metric[1m]))".to_string(),
         };
-        let override_query = prom_collection("sum(rate(other_metric[1m]))");
+        let override_query = prometheus_query("sum(rate(other_metric[1m]))");
 
         let mut output = OutputCollection {
             prometheus: vec![original, override_query.clone()],
@@ -266,7 +337,7 @@ mod tests {
     #[test]
     fn output_collection_check_success() {
         let output = OutputCollection {
-            prometheus: vec![prom_collection("sum(rate(metric[1m]))")],
+            prometheus: vec![prometheus_query("sum(rate(metric[1m]))")],
         };
 
         let ctx = Context::new();
@@ -279,8 +350,8 @@ mod tests {
     fn output_collection_check_errors() {
         let output = OutputCollection {
             prometheus: vec![
-                prom_collection("sum(rate(metric[1m]))"),
-                prom_collection("not a query"),
+                prometheus_query("sum(rate(metric[1m]))"),
+                prometheus_query("not a query"),
             ],
         };
 
