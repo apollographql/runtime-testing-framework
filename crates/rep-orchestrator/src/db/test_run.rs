@@ -591,8 +591,8 @@ mod tests {
                         },
                         env_vars: Default::default(),
                         file_providers: vec![],
+                        output_collection: OutputCollection { prometheus: vec![] },
                     },
-                    output_collection: OutputCollection { prometheus: vec![] },
                 },
                 environment: EnvironmentConfig {
                     name: String::new(),

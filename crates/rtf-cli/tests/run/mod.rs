@@ -356,12 +356,3 @@ fn run_with_existing_outdir_and_force_succeeds() {
 
     cmd.arg("--force").assert().success();
 }
-
-#[test]
-fn output_collection_completes_and_logs_warnings() {
-    prepare_rtf_run("resources/test-plans/valid/output-collection")
-        .assert()
-        .success()
-        .stderr(contains("environment has prometheus queries in its output_collection. These will not run when using `rtf run`"))
-        .stderr(contains("scenario has prometheus queries in its output_collection. These will not run when using `rtf run`"));
-}

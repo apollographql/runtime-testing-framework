@@ -359,8 +359,8 @@ mod tests {
                     },
                     env_vars: HashMap::new(),
                     file_providers: vec![],
+                    output_collection: OutputCollection { prometheus: vec![] },
                 },
-                output_collection: OutputCollection { prometheus: vec![] },
             },
             environment: EnvironmentConfig {
                 name: "test environment".to_string(),

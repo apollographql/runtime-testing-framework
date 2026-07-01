@@ -7,10 +7,10 @@ scenario:
     name: scenario
     description: "minimal scenario with output collection"
 
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
+    docker:
+      image: alpine
+      tag: latest
+      command: |
         #!/bin/sh
         echo "scenario"
 

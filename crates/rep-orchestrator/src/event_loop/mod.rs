@@ -399,6 +399,7 @@ mod tests {
             },
             env_vars: Default::default(),
             file_providers: vec![],
+            output_collection: OutputCollection { prometheus: vec![] },
         }
     }
 
@@ -441,7 +442,6 @@ mod tests {
                 variable_definitions: vec![],
                 custom_providers: vec![],
                 execution: stub_scenario(),
-                output_collection: OutputCollection { prometheus: vec![] },
             },
             environment: EnvironmentConfig {
                 name: String::new(),

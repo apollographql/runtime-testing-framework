@@ -6,12 +6,10 @@ scenario:
   inline:
     name: inline-scenario
     description: an inline scenario
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-        echo "Hello, World!"
+    docker:
+      image: alpine
+      tag: latest
+      command: "sh $CURL_SERVER"
     output_collection:
       prometheus:
         - name: my-query

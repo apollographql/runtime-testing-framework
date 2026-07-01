@@ -70,10 +70,8 @@ async fn check_and_run_test_plan_with_context(
         )
     }
 
-    if !test_plan.scenario.output_collection.prometheus.is_empty() {
-        warn!(
-            "scenario has prometheus queries in its output_collection. These will not run when using `rtf run`"
-        )
+    if test_plan.scenario.output_collection().is_some() {
+        warn!("scenario has output_collection defined. This will execute run when using `rtf run`")
     }
 
     if test_plan.matrix.is_empty() {
