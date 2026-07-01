@@ -1,0 +1,36 @@
+name: reserved-namespace-label
+description: |
+  Check the error shown when a prometheus query uses the reserved namespace label
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    docker:
+      image: alpine
+      tag: latest
+      command: "sh $CURL_SERVER"
+    output_collection:
+      prometheus:
+        - name: namespace-query
+          step: 15m
+          query: metric{namespace="abc"}
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

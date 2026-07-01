@@ -2,6 +2,7 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
+    formats::PrometheusQuery,
     providers::file::{NamedFileProvider, compose::NamedComposeFileProvider},
 };
 use std::{collections::HashMap, hash::Hash, mem};
@@ -16,6 +17,9 @@ pub enum ErrorKind {
 
     #[strum(to_string = "Non-unique file provider names found")]
     DuplicateFileProviderNames,
+
+    #[strum(to_string = "Non-unique Prometheus query names found")]
+    DuplicatePrometheusQueryNames,
 
     #[strum(to_string = "Non-unique variable names found")]
     DuplicateVariableNames,
@@ -35,6 +39,9 @@ pub enum ErrorKind {
     #[strum(to_string = "Invalid path specifiers")]
     InvalidPathSpecifiers,
 
+    #[strum(to_string = "The provided query is invalid PromQL")]
+    InvalidPromQl,
+
     #[strum(to_string = "The given relative path was not a valid path")]
     InvalidRelativePath,
 
@@ -52,6 +59,11 @@ pub enum ErrorKind {
 
     #[strum(to_string = "A required file has not been defined")]
     RequiredFileMissing,
+
+    #[strum(
+        to_string = "The 'namespace' label is reserved and must not appear in PromQL selectors"
+    )]
+    ReservedNamespaceLabel,
 }
 
 impl crate::error::ErrorKind for ErrorKind {
@@ -163,23 +175,33 @@ pub enum DedupArray<'a> {
     VariableDef(&'a mut Vec<VariableDefinition>),
     Nfp(&'a mut Vec<NamedFileProvider>),
     Ncfp(&'a mut Vec<NamedComposeFileProvider>),
+    Prometheus(&'a mut Vec<PrometheusQuery>),
 }
 
 impl<'a> DedupArray<'a> {
     fn ensure_no_duplicate_keys(&self, base_path: &str, p: &str) -> Result<()> {
-        let duplicates = match self {
-            DedupArray::VariableDef(vds) => duplicate_keys(vds.iter(), |vd| &vd.name),
-            DedupArray::Nfp(nfps) => duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
-            DedupArray::Ncfp(ncfps) => duplicate_keys(ncfps.iter(), |ncfp| &ncfp.name),
+        let (duplicates, kind) = match self {
+            DedupArray::VariableDef(vds) => (
+                duplicate_keys(vds.iter(), |vd| &vd.name),
+                ErrorKind::DuplicateVariableNames,
+            ),
+            DedupArray::Nfp(nfps) => (
+                duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
+                ErrorKind::DuplicateEnvironmentVariables,
+            ),
+            DedupArray::Ncfp(ncfps) => (
+                duplicate_keys(ncfps.iter(), |ncfp| &ncfp.name),
+                ErrorKind::DuplicateFileProviderNames,
+            ),
+            DedupArray::Prometheus(pqs) => (
+                duplicate_keys(pqs.iter(), |pq| &pq.name),
+                ErrorKind::DuplicatePrometheusQueryNames,
+            ),
         };
 
         if !duplicates.is_empty() {
             let path = vec![base_path.to_string(), p.to_string()];
-            return Err(Errors::new(
-                ErrorKind::DuplicateVariableNames,
-                duplicates.join("\n"),
-                &path,
-            ));
+            return Err(Errors::new(kind, duplicates.join("\n"), &path));
         }
 
         Ok(())
@@ -190,28 +212,56 @@ impl<'a> DedupArray<'a> {
             DedupArray::VariableDef(vds) => vds.sort_by_key(|vd| vd.name.clone()),
             DedupArray::Nfp(nfps) => nfps.sort_by_key(|nfp| nfp.env_var.clone()),
             DedupArray::Ncfp(ncfps) => ncfps.sort_by_key(|nfp| nfp.name.clone()),
+            DedupArray::Prometheus(pqs) => pqs.sort_by_key(|pq| pq.name.clone()),
         }
     }
 
     fn at_most_two_duplicates(&self, base_path: &str, p: &str) -> Result<()> {
-        fn inner<T>(v: &[T], key_fn: fn(&T) -> String, base_path: &str, p: &str) -> Result<()> {
+        fn inner<T>(
+            v: &[T],
+            key_fn: fn(&T) -> String,
+            kind: ErrorKind,
+            base_path: &str,
+            p: &str,
+        ) -> Result<()> {
             let duplicates = duplicate_keys_with_threshold(v.iter(), key_fn, 2);
             if !duplicates.is_empty() {
                 let path = vec![base_path.to_string(), p.to_string()];
-                return Err(Errors::new(
-                    ErrorKind::DuplicateVariableNames,
-                    duplicates.join("\n"),
-                    &path,
-                ));
+                return Err(Errors::new(kind, duplicates.join("\n"), &path));
             }
 
             Ok(())
         }
 
         match self {
-            DedupArray::VariableDef(vds) => inner(vds, |vd| vd.name.clone(), base_path, p),
-            DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone(), base_path, p),
-            DedupArray::Ncfp(ncfps) => inner(ncfps, |nfp| nfp.name.clone(), base_path, p),
+            DedupArray::VariableDef(vds) => inner(
+                vds,
+                |vd| vd.name.clone(),
+                ErrorKind::DuplicateVariableNames,
+                base_path,
+                p,
+            ),
+            DedupArray::Nfp(nfps) => inner(
+                nfps,
+                |nfp| nfp.env_var.clone(),
+                ErrorKind::DuplicateEnvironmentVariables,
+                base_path,
+                p,
+            ),
+            DedupArray::Ncfp(ncfps) => inner(
+                ncfps,
+                |nfp| nfp.name.clone(),
+                ErrorKind::DuplicateFileProviderNames,
+                base_path,
+                p,
+            ),
+            DedupArray::Prometheus(pqs) => inner(
+                pqs,
+                |pq| pq.name.clone(),
+                ErrorKind::DuplicatePrometheusQueryNames,
+                base_path,
+                p,
+            ),
         }
     }
 
@@ -233,6 +283,7 @@ impl<'a> DedupArray<'a> {
             DedupArray::VariableDef(vds) => inner(vds, |vd| vd.name.clone()),
             DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone()),
             DedupArray::Ncfp(ncfps) => inner(ncfps, |nfp| nfp.name.clone()),
+            DedupArray::Prometheus(pqs) => inner(pqs, |pq| pq.name.clone()),
         }
     }
 }
@@ -272,7 +323,7 @@ pub(crate) fn duplicate_keys<'a, T: 'a>(
 mod tests {
     use super::*;
     use crate::{
-        providers::file::{FileProvider, InlineFile},
+        providers::file::{FileProvider, InlineFile, compose::ComposeFileProvider},
         templating::Scalar,
     };
     use simple_test_case::test_case;
@@ -347,6 +398,23 @@ mod tests {
         }
     }
 
+    fn ncfp(name: &str) -> NamedComposeFileProvider {
+        NamedComposeFileProvider {
+            name: name.to_string(),
+            provider: ComposeFileProvider::Inline(InlineFile {
+                content: format!("# {name}\nservices: {{}}"),
+            }),
+        }
+    }
+
+    fn pq(name: &str) -> PrometheusQuery {
+        PrometheusQuery {
+            name: name.to_string(),
+            step: "15m".to_string(),
+            query: "sum(rate(metric[1m]))".to_string(),
+        }
+    }
+
     #[test_case(
         DedupArray::VariableDef(&mut vec![vd("a", None), vd("b", None)]),
         false;
@@ -377,6 +445,36 @@ mod tests {
         true;
         "nfp multiple duplicates"
     )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b")]),
+        false;
+        "ncfp no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a")]),
+        true;
+        "ncfp single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a"), ncfp("a")]),
+        true;
+        "ncfp multiple duplicates"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("b")]),
+        false;
+        "prometheus no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("a")]),
+        true;
+        "prometheus single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("a"), pq("a")]),
+        true;
+        "prometheus multiple duplicates"
+    )]
     #[test]
     fn ensure_no_duplicate_keys_errors_correctly(arr: DedupArray<'_>, is_err: bool) {
         let res = arr.ensure_no_duplicate_keys("BASE", "path");
@@ -397,6 +495,16 @@ mod tests {
         DedupArray::Nfp(&mut vec![nfp("z", "B", ""), nfp("x", "C", ""), nfp("y", "A", "")]),
         DedupArray::Nfp(&mut vec![nfp("y", "A", ""), nfp("z", "B", ""), nfp("x", "C", "")]);
         "named file providers"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("c"), ncfp("a"), ncfp("b")]),
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b"), ncfp("c")]);
+        "named compose file providers"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![pq("c"), pq("a"), pq("b")]),
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("b"), pq("c")]);
+        "prometheus queries"
     )]
     #[test]
     fn dedup_array_sorts_by_the_correct_key(mut arr: DedupArray<'_>, expected: DedupArray<'_>) {
@@ -434,6 +542,36 @@ mod tests {
         true;
         "nfp multiple duplicates"
     )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b")]),
+        false;
+        "ncfp no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a")]),
+        false;
+        "ncfp single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("a"), ncfp("a")]),
+        true;
+        "ncfp multiple duplicates"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("b")]),
+        false;
+        "prometheus no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("a")]),
+        false;
+        "prometheus single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("a"), pq("a")]),
+        true;
+        "prometheus multiple duplicates"
+    )]
     #[test]
     fn at_most_two_duplicates_errors_correctly(arr: DedupArray<'_>, is_err: bool) {
         let res = arr.at_most_two_duplicates("BASE", "path");
@@ -454,6 +592,24 @@ mod tests {
         DedupArray::Nfp(&mut vec![nfp("a", "A", "original"), nfp("b", "B", ""), nfp("a", "A", "override")]),
         DedupArray::Nfp(&mut vec![nfp("a", "A", "override"), nfp("b", "B", "")]);
         "named file providers"
+    )]
+    #[test_case(
+        DedupArray::Ncfp(&mut vec![
+            NamedComposeFileProvider { name: "a".to_string(), provider: ComposeFileProvider::Inline(InlineFile { content: "original".to_string() }) },
+            ncfp("b"),
+            ncfp("a"),
+        ]),
+        DedupArray::Ncfp(&mut vec![ncfp("a"), ncfp("b")]);
+        "named compose file providers"
+    )]
+    #[test_case(
+        DedupArray::Prometheus(&mut vec![
+            PrometheusQuery { name: "a".to_string(), step: "5m".to_string(), query: "sum(rate(metric[1m]))".to_string() },
+            pq("b"),
+            pq("a"),
+        ]),
+        DedupArray::Prometheus(&mut vec![pq("a"), pq("b")]);
+        "prometheus queries"
     )]
     #[test]
     fn dedup_and_sort_keeps_the_second_element_with_a_given_key(

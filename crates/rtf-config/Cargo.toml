@@ -8,8 +8,12 @@ bytes.workspace = true
 humantime.workspace = true
 indoc.workspace = true
 itertools.workspace = true
+promql-parser.workspace = true
+regex = "1.12.3"
+reqwest.workspace = true
 rtf-derive = { path = "../rtf-derive" }
 rtf-integrations = { path = "../rtf-integrations" }
+schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
@@ -17,9 +21,6 @@ strum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-reqwest.workspace = true
-schemars.workspace = true
-regex = "1.12.3"
 
 [dev-dependencies]
 assert_fs.workspace = true

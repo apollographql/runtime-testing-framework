@@ -2,6 +2,7 @@ use crate::{
     FILE_PROVIDERS_LABEL,
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::{PathKind, ResolutionContext},
+    formats::OutputCollection,
     inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
@@ -44,6 +45,9 @@ pub struct DockerComposeEnvironment {
     // Environment variables to set
     #[serde(default)]
     pub env_vars: HashMap<String, Field<Scalar>>,
+    #[serde(default)]
+    #[template(skip)]
+    pub output_collection: OutputCollection,
 }
 
 impl DockerComposeEnvironment {
@@ -310,10 +314,13 @@ impl CheckArrayDuplicates for DockerComposeEnvironment {
     const BASE_PATH: &str = "docker_compose_environment";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        vec![
+        let mut arrays = vec![
             ("compose_files", DedupArray::Ncfp(&mut self.compose_files)),
             ("file_providers", DedupArray::Nfp(&mut self.file_providers)),
-        ]
+        ];
+        arrays.extend(self.output_collection.deduplicated_arrays());
+
+        arrays
     }
 }
 
@@ -331,6 +338,7 @@ impl Check for DockerComposeEnvironment {
         for nfp in self.file_providers.iter() {
             errs.append(nfp.try_check_nested(path, "file_providers", ctx));
         }
+        errs.append(self.output_collection.try_check(path, ctx));
 
         errs.into_result(())
     }
@@ -634,6 +642,9 @@ pub(crate) mod tests {
                 }],
                 file_providers: templatable_file_providers(&["file"]),
                 env_vars,
+                output_collection: OutputCollection {
+                    prometheus: Vec::new(),
+                },
             }),
             ..EnvironmentConfig::empty()
         };
@@ -683,6 +694,9 @@ pub(crate) mod tests {
                     provider: relative_file,
                 }],
                 env_vars: HashMap::new(),
+                output_collection: OutputCollection {
+                    prometheus: Vec::new(),
+                },
             }),
             ..EnvironmentConfig::empty()
         };
@@ -741,6 +755,9 @@ pub(crate) mod tests {
                     }),
                 }],
                 env_vars: HashMap::new(),
+                output_collection: OutputCollection {
+                    prometheus: Vec::new(),
+                },
             }),
             ..EnvironmentConfig::empty()
         };
@@ -766,6 +783,9 @@ pub(crate) mod tests {
                 }],
                 file_providers: Vec::new(),
                 env_vars: HashMap::new(),
+                output_collection: OutputCollection {
+                    prometheus: Vec::new(),
+                },
             }),
             ..EnvironmentConfig::empty()
         };
@@ -793,6 +813,9 @@ pub(crate) mod tests {
                     }),
                 }],
                 env_vars: HashMap::new(),
+                output_collection: OutputCollection {
+                    prometheus: Vec::new(),
+                },
             }),
             ..EnvironmentConfig::empty()
         };
@@ -914,6 +937,9 @@ pub(crate) mod tests {
                 provider: file_provider.clone(),
             }],
             env_vars: explicit_env_vars,
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         let mut ctx = Context::new();
@@ -989,6 +1015,9 @@ pub(crate) mod tests {
             }],
             file_providers: Vec::new(),
             env_vars: HashMap::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         // Register the directory path (not individual files)
@@ -1170,6 +1199,9 @@ pub(crate) mod tests {
                 provider: file_provider.clone(),
             }],
             env_vars: HashMap::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         let mut ctx = Context::new();
@@ -1206,6 +1238,9 @@ pub(crate) mod tests {
                 provider: file_provider.clone(),
             }],
             env_vars: HashMap::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         let mut ctx = Context::new();
@@ -1252,6 +1287,9 @@ pub(crate) mod tests {
                 },
             ],
             env_vars: HashMap::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         let mut ctx = Context::new();
@@ -1300,6 +1338,9 @@ pub(crate) mod tests {
                 provider: file_provider,
             }],
             env_vars: HashMap::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         let ctx = Context::new();

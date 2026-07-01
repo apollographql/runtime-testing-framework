@@ -1,0 +1,39 @@
+name: duplicate-prometheus-names
+description: |
+  Check the error shown when a test plan defines duplicate prometheus query names
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    docker:
+      image: alpine
+      tag: latest
+      command: "sh $CURL_SERVER"
+    output_collection:
+      prometheus:
+        - name: my-query
+          step: 15m
+          query: sum(rate(metric[1m]))
+        - name: my-query
+          step: 15m
+          query: sum(rate(other_metric[1m]))
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

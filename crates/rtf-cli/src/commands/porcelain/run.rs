@@ -14,7 +14,7 @@ use rtf_config::{
 };
 use rtf_core::variables::Variables;
 use std::{collections::HashMap, mem::take, path::Path};
-use tracing::info;
+use tracing::{info, warn};
 
 const VARIABLES_PATH: &str = "test-plan-variables.json";
 const RESOLVED_TP_PATH: &str = "resolved-test-plan.yaml";
@@ -58,6 +58,18 @@ async fn check_and_run_test_plan_with_context(
     ctx.create_dir_all(out_dir)?;
     let out_dir = ctx.canonicalize_path(out_dir)?;
     ctx.set_output_path(&out_dir);
+
+    if test_plan.environment.output_collection().is_some() {
+        warn!(
+            "environment has output_collection defined - this will only execute when using the orchestrator"
+        )
+    }
+
+    if test_plan.scenario.output_collection().is_some() {
+        warn!(
+            "scenario has output_collection defined - this will only execute when using the orchestrator"
+        )
+    }
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");

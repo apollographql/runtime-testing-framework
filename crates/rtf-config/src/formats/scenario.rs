@@ -2,7 +2,7 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
-    formats::{CustomProviderDeclaration, Result},
+    formats::{CustomProviderDeclaration, Result, output_collection::OutputCollection},
     inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
@@ -60,6 +60,13 @@ impl ScenarioConfig<ScenarioExecution> {
         cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
         self.execution.inline(mode, ctx, cache).await
+    }
+
+    pub fn output_collection(&self) -> Option<&OutputCollection> {
+        match &self.execution {
+            ScenarioExecution::Docker(ex) => Some(&ex.output_collection),
+            ScenarioExecution::Script(_) => None,
+        }
     }
 
     /// Create an empty [ScenarioConfig] for tests
@@ -130,7 +137,11 @@ impl<R: RunScenario> Check for ScenarioConfig<R> {
             path.push("scenario".to_string());
         }
 
-        self.execution.try_check(path, ctx)
+        let mut errs = checks::ErrorBuilder::new();
+
+        errs.append(self.execution.try_check(path, ctx));
+
+        errs.into_result(())
     }
 }
 
@@ -143,6 +154,7 @@ impl<R: RunScenario> CheckArrayDuplicates for ScenarioConfig<R> {
             DedupArray::VariableDef(&mut self.variable_definitions),
         )];
         arrays.extend(self.execution.deduplicated_arrays());
+
         arrays
     }
 }
@@ -265,6 +277,10 @@ pub struct DockerScenario {
     /// File providers to run and make available prior to execution
     #[serde(default)]
     pub file_providers: Vec<NamedFileProvider>,
+    /// The data to be collected during a docker scenario
+    #[serde(default)]
+    #[template(skip)]
+    pub output_collection: OutputCollection,
 }
 
 impl DockerScenario {
@@ -426,6 +442,7 @@ impl Check for DockerScenario {
         for nfp in self.file_providers.iter() {
             errs.append(nfp.try_check(path, ctx));
         }
+        errs.append(self.output_collection.try_check(path, ctx));
 
         // We are checking whether the env vars in the command are duplicates of any env vars
         // defined in the file providers. Each individual list has been checks for duplicates
@@ -466,7 +483,10 @@ impl CheckArrayDuplicates for DockerScenario {
     const BASE_PATH: &str = "docker_scenario";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        vec![("file_providers", DedupArray::Nfp(&mut self.file_providers))]
+        let mut arrays = vec![("file_providers", DedupArray::Nfp(&mut self.file_providers))];
+        arrays.extend(self.output_collection.deduplicated_arrays());
+
+        arrays
     }
 }
 
@@ -539,6 +559,7 @@ mod tests {
         context::Context,
         formats::{
             Sources,
+            output_collection::PrometheusQuery,
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
@@ -548,8 +569,7 @@ mod tests {
         providers::{
             self,
             command::{
-                CommandProvider, CommandSection, CommandSpec,
-                test_helpers::{cmd_with_inline_file, cmd_with_required_file},
+                CommandProvider, CommandSection, CommandSpec, test_helpers::cmd_with_required_file,
             },
             file::{
                 FileProvider, InlineFile, NamedFileProvider, RawSource, RelativeFile, SourceDir,
@@ -598,8 +618,7 @@ mod tests {
           - name: file.txt
             env_var: FILE
             kind: relative_path
-            path: "{{ bar }}"
-    "#
+            path: "{{ bar }}""#
     );
 
     // An example scenario config to check parsing and templating
@@ -637,7 +656,12 @@ mod tests {
             env_var: FILE
             kind: relative_path
             path: "{{ bar }}"
-    "#
+        output_collection:
+          prometheus:
+            - name: prometheus_query
+              step: 15m
+              query: |
+                sum(rate(metric[1m]))"#
     );
 
     const CUSTOM_PROVIDER_WITH_NESTED: &str = indoc!(
@@ -762,7 +786,22 @@ mod tests {
     #[test]
     fn check_success() {
         let scenario = ScenarioConfig {
-            execution: ScenarioExecution::Script(cmd_with_inline_file()),
+            execution: ScenarioExecution::Docker(DockerScenario {
+                docker: DockerCommand {
+                    image: Field::Resolved("alpine".to_string()),
+                    tag: Some(Field::Resolved("latest".to_string())),
+                    command: Field::Resolved("echo hello".to_string()),
+                },
+                env_vars: HashMap::new(),
+                file_providers: Vec::new(),
+                output_collection: OutputCollection {
+                    prometheus: vec![PrometheusQuery {
+                        name: "name".to_string(),
+                        step: "15m".to_string(),
+                        query: "sum(rate(metric[1m]))".to_string(),
+                    }],
+                },
+            }),
             ..ScenarioConfig::empty()
         };
 
@@ -782,6 +821,33 @@ mod tests {
         let ctx = Context::new();
 
         assert_check_errors(scenario, &ctx, &[checks::ErrorKind::RequiredFileMissing]);
+    }
+
+    #[test]
+    fn check_output_errors() {
+        let scenario = ScenarioConfig {
+            execution: ScenarioExecution::Docker(DockerScenario {
+                docker: DockerCommand {
+                    image: Field::Resolved("alpine".to_string()),
+                    tag: Some(Field::Resolved("latest".to_string())),
+                    command: Field::Resolved("echo hello".to_string()),
+                },
+                env_vars: HashMap::new(),
+                file_providers: Vec::new(),
+                output_collection: OutputCollection {
+                    prometheus: vec![PrometheusQuery {
+                        name: "name".to_string(),
+                        step: "15m".to_string(),
+                        query: "not a valid query".to_string(),
+                    }],
+                },
+            }),
+            ..ScenarioConfig::empty()
+        };
+
+        let ctx = Context::new();
+
+        assert_check_errors(scenario, &ctx, &[checks::ErrorKind::InvalidPromQl]);
     }
 
     #[tokio::test]
@@ -1087,6 +1153,9 @@ mod tests {
             },
             env_vars: HashMap::new(),
             file_providers: Vec::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         let mut ctx = Context::new();
@@ -1117,6 +1186,9 @@ mod tests {
             },
             env_vars: HashMap::new(),
             file_providers: Vec::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         };
 
         let mut ctx = Context::new();
@@ -1151,6 +1223,9 @@ mod tests {
                     content: "content".to_string(),
                 }),
             }],
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         });
 
         let ctx = Context::new();
@@ -1177,6 +1252,9 @@ mod tests {
                     content: "content".to_string(),
                 }),
             }],
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         });
 
         let ctx = Context::new();
@@ -1212,6 +1290,9 @@ mod tests {
                     }),
                 },
             ],
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         });
 
         let ctx = Context::new();

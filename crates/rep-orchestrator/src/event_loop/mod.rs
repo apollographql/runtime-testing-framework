@@ -376,7 +376,7 @@ mod tests {
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
-            ScenarioConfig,
+            OutputCollection, ScenarioConfig,
         },
         templating::Field,
     };
@@ -387,6 +387,7 @@ mod tests {
             compose_files: vec![],
             file_providers: vec![],
             env_vars: Default::default(),
+            output_collection: OutputCollection { prometheus: vec![] },
         }
     }
 
@@ -399,6 +400,7 @@ mod tests {
             },
             env_vars: Default::default(),
             file_providers: vec![],
+            output_collection: OutputCollection { prometheus: vec![] },
         }
     }
 

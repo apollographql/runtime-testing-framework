@@ -22,6 +22,7 @@ fn is_executable() {
 #[test_case("custom-provider-templated-variable"; "custom provider templated variable")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
+#[test_case("output-collection"; "output collection")]
 #[test_case("sanity-check"; "sanity check")]
 #[test_case("variable-overrides"; "variable overrides")]
 // Template and check all valid test plans except the github and graphos test plans which are tested
@@ -241,6 +242,21 @@ fn duplicate_variant_names_fails() {
     "duplicate-env-vars.yaml",
     "(scenario) Non-unique environment variables found\nFOO";
     "duplicate env vars"
+)]
+#[test_case(
+    "invalid-promql.yaml",
+    "(scenario.output_collection.prometheus) The provided query is invalid PromQL\nThe \"query\" query is invalid";
+    "invalid promql"
+)]
+#[test_case(
+    "duplicate-prometheus-names.yaml",
+    "(scenario.prometheus) Non-unique Prometheus query names found\nmy-query";
+    "duplicate prometheus names"
+)]
+#[test_case(
+    "reserved-namespace-label.yaml",
+    "(scenario.output_collection.prometheus) The 'namespace' label is reserved and must not appear in PromQL selectors\nselector 'metric{namespace=\"abc\"}' in `namespace-query` contains a reserved 'namespace' label matcher";
+    "reserved namespace label"
 )]
 #[test]
 fn check_fails(file: &str, err_contains: &str) {

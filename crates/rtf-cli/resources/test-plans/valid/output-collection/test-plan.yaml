@@ -1,0 +1,53 @@
+name: output-collection
+description: |
+  This test plan checks that output collection parses and displays warnings during rtf run.
+
+scenario:
+  inline:
+    name: scenario
+    description: "minimal scenario with output collection"
+
+    docker:
+      image: alpine
+      tag: latest
+      command: |
+        #!/bin/sh
+        echo "scenario"
+
+    output_collection:
+      prometheus:
+        - name: scenario_query
+          step: 15m
+          query: sum(rate(metric[1m]))
+
+environment:
+  inline:
+    name: environment
+    description: "minimal environment with output collection"
+
+    variable_definitions:
+      - name: message
+        description: "A message to echo out"
+        default: "hello, world!"
+
+    project_name: docker-compose-env-label
+
+    env_vars:
+      ECHO_MESSAGE: "{{ message }}"
+
+    compose_files:
+      - name: compose.yaml
+        kind: relative_path
+        path: providers/compose.yaml
+
+    file_providers:
+      - name: echo-server.py
+        env_var: ECHO_SERVER_SCRIPT
+        kind: relative_path
+        path: providers/echo-server.py
+
+    output_collection:
+      prometheus:
+        - name: scenario_query
+          step: 15m
+          query: sum(rate(metric[1m]))

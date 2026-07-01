@@ -6,6 +6,7 @@ mod custom_provider;
 mod environment;
 mod execution;
 mod matrix;
+mod output_collection;
 mod scenario;
 mod test_plan;
 
@@ -16,6 +17,7 @@ pub use environment::{
 };
 pub use execution::{Execution, Generic};
 pub use matrix::Matrix;
+pub use output_collection::{OutputCollection, PrometheusQuery};
 use rtf_integrations::github;
 pub use scenario::{DockerCommand, DockerScenario, ScenarioConfig, ScenarioExecution};
 pub use test_plan::{RawTestPlanConfig, Sources, TestPlan, TestPlanConfig};

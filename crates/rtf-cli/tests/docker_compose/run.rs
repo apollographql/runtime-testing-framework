@@ -70,3 +70,13 @@ fn docker_compose_service_exits_fails() {
         .stderr(contains("Unable to execute the docker compose up command"))
         .stderr(contains("exited (1)"));
 }
+
+#[test]
+#[ignore = "requires docker on the PATH"]
+fn output_collection_completes_and_logs_warnings() {
+    prepare_rtf_run("resources/test-plans/valid/output-collection")
+        .assert()
+        .success()
+        .stderr(contains("environment has output_collection defined - this will only execute when using the orchestrator"))
+        .stderr(contains("scenario has output_collection defined - this will only execute when using the orchestrator"));
+}

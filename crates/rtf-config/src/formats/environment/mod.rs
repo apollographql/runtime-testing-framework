@@ -4,7 +4,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     enum_impl_check,
-    formats::{CustomProviderDeclaration, Result},
+    formats::{CustomProviderDeclaration, OutputCollection, Result},
     inlining::{self, InlineMode, InlinedProvider},
     providers::{self, file::StableSource},
     run::{Provider, RunEnvironment, RunProviders},
@@ -51,6 +51,13 @@ impl EnvironmentConfig<EnvironmentExecution> {
         let content = fs::read_to_string(p)?;
 
         Ok(serde_yaml::from_str(&content)?)
+    }
+
+    pub fn output_collection(&self) -> Option<&OutputCollection> {
+        match &self.execution {
+            EnvironmentExecution::DockerCompose(ex) => Some(&ex.output_collection),
+            EnvironmentExecution::Script(_) => None,
+        }
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -267,8 +274,11 @@ pub(crate) mod test_helpers {
     use super::*;
     use crate::{
         context::Context,
-        formats::tests::{
-            named_file_providers_with_fields, templatable_file_providers, variable_definitions,
+        formats::{
+            OutputCollection,
+            tests::{
+                named_file_providers_with_fields, templatable_file_providers, variable_definitions,
+            },
         },
         providers::{
             command::CommandSection,
@@ -354,6 +364,9 @@ pub(crate) mod test_helpers {
                 .collect(),
             file_providers: Vec::new(),
             env_vars: HashMap::new(),
+            output_collection: OutputCollection {
+                prometheus: Vec::new(),
+            },
         }
     }
 
@@ -390,7 +403,9 @@ pub(crate) mod tests {
         checks::ErrorKind,
         context::Context,
         formats::{
-            environment::test_helpers::environment_with_fields,
+            OutputCollection,
+            environment::test_helpers::{docker_compose_env, environment_with_fields},
+            output_collection::PrometheusQuery,
             tests::{assert_check_errors, p, r, variable_definitions},
         },
         providers::{
@@ -473,6 +488,28 @@ pub(crate) mod tests {
         let ctx = Context::new();
 
         assert_check_errors(environment, &ctx, expected_err_kinds);
+    }
+
+    #[test]
+    fn try_check_errors_invalid_prometheus_query() {
+        let environment = EnvironmentConfig {
+            execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
+                output_collection: OutputCollection {
+                    prometheus: vec![PrometheusQuery {
+                        name: "name".to_string(),
+                        step: "15m".to_string(),
+                        query: "not a valid query".to_string(),
+                    }],
+                },
+                ..docker_compose_env(Some("project"), &["file"])
+            }),
+
+            ..EnvironmentConfig::empty()
+        };
+
+        let ctx = Context::new();
+
+        assert_check_errors(environment, &ctx, &[checks::ErrorKind::InvalidPromQl]);
     }
 
     #[tokio::test]
