@@ -372,8 +372,8 @@ mod tests {
                     compose_files: vec![],
                     file_providers: vec![],
                     env_vars: HashMap::new(),
+                    output_collection: OutputCollection { prometheus: vec![] },
                 },
-                output_collection: OutputCollection { prometheus: vec![] },
             },
         }
     }

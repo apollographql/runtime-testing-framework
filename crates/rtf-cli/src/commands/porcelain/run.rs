@@ -59,19 +59,16 @@ async fn check_and_run_test_plan_with_context(
     let out_dir = ctx.canonicalize_path(out_dir)?;
     ctx.set_output_path(&out_dir);
 
-    if !test_plan
-        .environment
-        .output_collection
-        .prometheus
-        .is_empty()
-    {
+    if test_plan.environment.output_collection().is_some() {
         warn!(
-            "environment has prometheus queries in its output_collection. These will not run when using `rtf run`"
+            "environment has output_collection defined - this will only execute when using the orchestrator"
         )
     }
 
     if test_plan.scenario.output_collection().is_some() {
-        warn!("scenario has output_collection defined. This will execute run when using `rtf run`")
+        warn!(
+            "scenario has output_collection defined - this will only execute when using the orchestrator"
+        )
     }
 
     if test_plan.matrix.is_empty() {

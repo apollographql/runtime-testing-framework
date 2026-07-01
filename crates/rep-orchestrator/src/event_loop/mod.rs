@@ -387,6 +387,7 @@ mod tests {
             compose_files: vec![],
             file_providers: vec![],
             env_vars: Default::default(),
+            output_collection: OutputCollection { prometheus: vec![] },
         }
     }
 
@@ -449,7 +450,6 @@ mod tests {
                 variable_definitions: vec![],
                 custom_providers: vec![],
                 execution: stub_environment(),
-                output_collection: OutputCollection { prometheus: vec![] },
             },
         }
     }
