@@ -1,3 +1,6 @@
+use rtf_config::formats::PrometheusQuery;
+use serde::{Deserialize, Serialize};
+
 pub mod payload;
 pub mod status;
 pub mod summary;
@@ -13,6 +16,9 @@ pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 pub const RTF_OTEL_COLLECTOR_GRPC_VAR: &str = "RTF_OTEL_COLLECTOR_GRPC";
 pub const RTF_OTEL_COLLECTOR_HTTP_VAR: &str = "RTF_OTEL_COLLECTOR_HTTP";
 
+// Re-exported so other rep crates do not need to depend directly on rtf-config
+pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
+
 /// OTEL collector endpoints injected into workload pods by the orchestrator.
 #[derive(Clone, Debug)]
 pub struct OtelConfig {
@@ -20,5 +26,9 @@ pub struct OtelConfig {
     pub http: String,
 }
 
-// Re-exported so other rep crates do not need to depend directly on rtf-config
-pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
+/// Response for the prometheus queries output collection config endpoint
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PrometheusQueriesResponse {
+    pub environment: Vec<PrometheusQuery>,
+    pub scenario: Vec<PrometheusQuery>,
+}
