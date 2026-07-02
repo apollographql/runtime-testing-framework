@@ -29,6 +29,7 @@ db-tests:
 		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
 		RTF_OTEL_COLLECTOR_GRPC=dummy \
 		RTF_OTEL_COLLECTOR_HTTP=dummy \
+		RTF_PROMETHEUS_ENDPOINT=dummy \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
@@ -49,6 +50,7 @@ integration-tests: clear-db-data
 		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
 		RTF_OTEL_COLLECTOR_GRPC=dummy \
 		RTF_OTEL_COLLECTOR_HTTP=dummy \
+		RTF_PROMETHEUS_ENDPOINT=dummy \
 		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all

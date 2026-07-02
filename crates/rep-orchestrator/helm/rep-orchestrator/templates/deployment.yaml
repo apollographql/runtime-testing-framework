@@ -105,6 +105,8 @@ spec:
               value: {{ .Values.otel.collectorGrpc | quote }}
             - name: RTF_OTEL_COLLECTOR_HTTP
               value: {{ .Values.otel.collectorHttp | quote }}
+            - name: RTF_PROMETHEUS_ENDPOINT
+              value: {{ .Values.prometheus.endpoint | quote }}
             {{- if .Values.gcs.mockInternalUrl }}
             - name: RTF_MOCK_INTERNAL_GCS_URL
               value: {{ .Values.gcs.mockInternalUrl | quote }}

@@ -10,13 +10,6 @@ cloudSqlProxy:
 # -- Override the container command
 command: []
 
-# -- OpenTelemetry collector configuration for REP workload pods
-otel:
-  # -- gRPC endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_GRPC
-  collectorGrpc: "http://otel-collector.monitoring:4317"
-  # -- HTTP endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_HTTP
-  collectorHttp: "http://otel-collector.monitoring:4318"
-
 # -- Application configuration
 config:
   # -- Host address the server listens on
@@ -89,8 +82,20 @@ k8s:
 # -- Overrides the chart name
 nameOverride: ""
 
+# -- OpenTelemetry collector configuration for REP workload pods
+otel:
+  # -- gRPC endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_GRPC
+  collectorGrpc: "http://otel-collector.monitoring:4317"
+  # -- HTTP endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_HTTP
+  collectorHttp: "http://otel-collector.monitoring:4318"
+
 # -- Annotations to add to the pod template
 podAnnotations: {}
+
+# -- Prometheus endpoint configuration for REP workload pods
+prometheus:
+  # -- Endpoint for retrieving prometheus metrics during output collection
+  endpoint: "http://observability-kube-prometh-prometheus.monitoring.svc.cluster.local:9090"
 
 # -- Resource requests and limits for the rep-orchestrator container
 resources: {}
