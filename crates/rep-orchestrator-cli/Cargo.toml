@@ -8,6 +8,7 @@ rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
 rtf-cli-shared = { path = "../rtf-cli-shared" }
 
 anyhow.workspace = true
+chrono.workspace = true
 clap.workspace = true
 reqwest.workspace = true
 k8s-openapi.workspace = true

@@ -3,10 +3,10 @@ use crate::{
     event_loop::{Error, Event, EventData, Result},
     k8s::{WatchOutcome, WorkloadClient, scenario_job},
 };
+use rep_orchestrator_shared::SCENARIO_JOB_NAME;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
-pub(crate) const SCENARIO_JOB_NAME: &str = "scenario-execution";
 pub(crate) const MSG_CREATE_JOB: &str = "creating scenario job";
 pub(crate) const MSG_JOB_CREATED: &str = "scenario job created";
 pub const MSG_JOB_WAIT: &str = "waiting for scenario job to complete";

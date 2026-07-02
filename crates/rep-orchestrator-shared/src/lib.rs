@@ -13,6 +13,10 @@ pub const EXECUTION_TOKEN_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_EXECUTION_TOK
 
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 
+/// Name of the Job the orchestrator creates to run the scenario container. `rep-orchestrator-cli`
+/// looks up this same Job by name to read its `.status.startTime`/`.status.completionTime`.
+pub const SCENARIO_JOB_NAME: &str = "scenario-execution";
+
 pub const RTF_OTEL_COLLECTOR_GRPC_VAR: &str = "RTF_OTEL_COLLECTOR_GRPC";
 pub const RTF_OTEL_COLLECTOR_HTTP_VAR: &str = "RTF_OTEL_COLLECTOR_HTTP";
 
