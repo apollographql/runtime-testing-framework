@@ -9,8 +9,9 @@ service:
 
 gcs:
   bucket: "rtf-local"
-  mockPublicUrl: "http://localhost:8080"
-  # mockInternalUrl and config.orchestratorUrl are set by the Tiltfile using the mgmt cluster container IP
+  mockPublicUrl: "http://localhost:8080/gcs"
+  # mockInternalUrl, config.orchestratorUrl, and prometheus.endpoint are set by the Tiltfile using
+  # the mgmt cluster container IP
 
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"

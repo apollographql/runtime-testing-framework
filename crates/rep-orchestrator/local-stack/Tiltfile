@@ -222,8 +222,8 @@ k8s_resource(
 )
 
 # Helm deploy — DB connection wired to local postgres service.
-# orchestratorUrl and gcs.mockUrl use the mgmt cluster container IP so they are
-# reachable from workload cluster pods as well as from within the mgmt cluster.
+# orchestratorUrl, gcs.mockInternalUrl, and prometheus.endpoint use the mgmt cluster container IP
+# so they are reachable from workload cluster pods as well as from within the mgmt cluster.
 k8s_yaml(helm(
     "../helm/rep-orchestrator",
     name="rep-orchestrator",
@@ -235,7 +235,8 @@ k8s_yaml(helm(
     set=[
         "db.host=postgres",
         "config.orchestratorUrl=http://%s:%s" % (mgmt_ip, ORCH_NODEPORT),
-        "gcs.mockInternalUrl=http://%s:%s" % (mgmt_ip, MOCK_BACKEND_NODEPORT),
+        "gcs.mockInternalUrl=http://%s:%s/gcs" % (mgmt_ip, MOCK_BACKEND_NODEPORT),
+        "prometheus.endpoint=http://%s:%s" % (mgmt_ip, MOCK_BACKEND_NODEPORT),
     ],
 ))
 
