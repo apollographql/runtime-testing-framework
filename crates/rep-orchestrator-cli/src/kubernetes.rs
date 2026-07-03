@@ -533,6 +533,7 @@ pub(crate) mod mocks {
         ApplyNamespace { name: String },
         ApplyResultsWriterServiceAccount { namespace: String },
         CheckDeploymentsAvailable { namespace: String },
+        GetScenarioJobWindow { namespace: String },
     }
 
     struct MockState {
@@ -651,13 +652,16 @@ pub(crate) mod mocks {
 
         async fn get_scenario_job_window(
             &self,
-            _namespace: &str,
+            namespace: &str,
         ) -> Result<(DateTime<Utc>, DateTime<Utc>), Error> {
             if self.should_fail() {
                 return Err(Error::MissingJobStartTime {
                     name: SCENARIO_JOB_NAME,
                 });
             }
+            self.record_call(KubeCall::GetScenarioJobWindow {
+                namespace: namespace.to_owned(),
+            });
 
             let end = Utc::now();
             Ok((end, end))

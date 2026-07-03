@@ -32,6 +32,7 @@ pub fn scenario_job(
     scenario_image: String,
     scenario_command: String,
     orchestrator_url: &str,
+    prometheus_endpoint: &str,
     toolbox_pull_policy: &str,
 ) -> JobSpec {
     let env = ex.toolbox_env_vars(orchestrator_url);
@@ -56,7 +57,7 @@ pub fn scenario_job(
                 )]),
                 containers: vec![
                     scenario_run_container_spec(scenario_image),
-                    output_collector_container_spec(toolbox_pull_policy, &env),
+                    output_collector_container_spec(toolbox_pull_policy, prometheus_endpoint, &env),
                 ],
                 volumes: Some(scenario_volumes()),
                 service_account_name: Some(OUTPUT_COLLECTOR.to_owned()),
@@ -128,7 +129,11 @@ fn scenario_run_container_spec(scenario_image: String) -> Container {
     }
 }
 
-fn output_collector_container_spec(toolbox_pull_policy: &str, env: &[EnvVar]) -> Container {
+fn output_collector_container_spec(
+    toolbox_pull_policy: &str,
+    prometheus_endpoint: &str,
+    env: &[EnvVar],
+) -> Container {
     Container {
         name: OUTPUT_COLLECTOR.to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
@@ -138,6 +143,8 @@ fn output_collector_container_spec(toolbox_pull_policy: &str, env: &[EnvVar]) ->
             "collect-output".into(),
             "--shared-dir".into(),
             SHARED_DIR_PATH.into(),
+            "--prometheus-endpoint".into(),
+            prometheus_endpoint.into(),
         ]),
         env: Some(env.to_vec()),
         volume_mounts: Some(vec![VolumeMount {

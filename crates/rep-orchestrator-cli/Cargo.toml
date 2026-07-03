@@ -6,6 +6,8 @@ edition.workspace = true
 [dependencies]
 rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
 rtf-cli-shared = { path = "../rtf-cli-shared" }
+rtf-config = { path = "../rtf-config" }
+rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true
 chrono.workspace = true
@@ -23,4 +25,6 @@ uuid.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
+assert_fs.workspace = true
+predicates.workspace = true
 simple_test_case.workspace = true

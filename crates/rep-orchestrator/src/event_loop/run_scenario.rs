@@ -11,12 +11,17 @@ pub(crate) const MSG_CREATE_JOB: &str = "creating scenario job";
 pub(crate) const MSG_JOB_CREATED: &str = "scenario job created";
 pub const MSG_JOB_WAIT: &str = "waiting for scenario job to complete";
 
+pub(crate) struct CreateJobConfig<'a> {
+    pub(crate) orchestrator_url: &'a str,
+    pub(crate) prometheus_endpoint: &'a str,
+    pub(crate) toolbox_pull_policy: &'a str,
+}
+
 pub(super) async fn create_job<K, H>(
     test_execution: TestExecution,
     scenario_image: String,
     scenario_command: String,
-    orchestrator_url: &str,
-    toolbox_pull_policy: &str,
+    config: &CreateJobConfig<'_>,
     clients: K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
@@ -40,8 +45,9 @@ where
                 &test_execution,
                 scenario_image,
                 scenario_command,
-                orchestrator_url,
-                toolbox_pull_policy,
+                config.orchestrator_url,
+                config.prometheus_endpoint,
+                config.toolbox_pull_policy,
             ),
         )
         .await
@@ -175,8 +181,11 @@ mod tests {
             ex.clone(),
             "image".into(),
             "cmd".into(),
-            "http://localhost:8035",
-            "IfNotPresent",
+            &CreateJobConfig {
+                orchestrator_url: "http://localhost:8035",
+                prometheus_endpoint: "http://prometheus:9090",
+                toolbox_pull_policy: "IfNotPresent",
+            },
             clients.clone(),
             &mut handle,
         )
@@ -212,8 +221,11 @@ mod tests {
             ex.clone(),
             "image".into(),
             "cmd".into(),
-            "http://localhost:8035",
-            "IfNotPresent",
+            &CreateJobConfig {
+                orchestrator_url: "http://localhost:8035",
+                prometheus_endpoint: "http://prometheus:9090",
+                toolbox_pull_policy: "IfNotPresent",
+            },
             clients.clone(),
             &mut handle,
         )

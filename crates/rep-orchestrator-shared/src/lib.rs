@@ -31,7 +31,7 @@ pub struct OtelConfig {
 }
 
 /// Response for the prometheus queries output collection config endpoint
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrometheusQueriesResponse {
     pub environment: Vec<PrometheusQuery>,
     pub scenario: Vec<PrometheusQuery>,
