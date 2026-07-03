@@ -10,9 +10,9 @@ config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests 
 cfg = config.parse()
 run_orchestrator_tests = cfg.get("orchestrator-tests", False)
 
-# NodePort values — must match the values in values-local.yaml and k8s/mock-gcs.yaml
+# NodePort values — must match the values in values-local.yaml and k8s/mock-backend.yaml
 ORCH_NODEPORT = 30035
-MOCK_GCS_NODEPORT = 30080
+MOCK_BACKEND_NODEPORT = 30080
 
 # Extract container IPs for both clusters on the kind network.
 # These are reachable from pods in the management cluster since both kind clusters
@@ -204,17 +204,18 @@ custom_build(
     ],
 )
 
-# Mock GCS server — in-memory store used in place of real GCS for local integration tests
+# Mock backend server — in-memory GCS store plus a fake Prometheus query_range endpoint, used in
+# place of the real services for local integration tests
 custom_build(
-    "mock-gcs",
-    "docker build --file ../../../mock-gcs/Dockerfile --tag $EXPECTED_REF ../../../mock-gcs",
+    "mock-backend",
+    "docker build --file ../../../mock-backend/Dockerfile --tag $EXPECTED_REF ../../../mock-backend",
     deps=[
-        "../../../mock-gcs/",
+        "../../../mock-backend/",
     ],
 )
-k8s_yaml("k8s/mock-gcs.yaml")
+k8s_yaml("k8s/mock-backend.yaml")
 k8s_resource(
-    "mock-gcs",
+    "mock-backend",
     port_forwards=["8080:8080"],
     resource_deps=["cluster-setup"],
     labels=["rep-orchestrator"]
@@ -234,7 +235,7 @@ k8s_yaml(helm(
     set=[
         "db.host=postgres",
         "config.orchestratorUrl=http://%s:%s" % (mgmt_ip, ORCH_NODEPORT),
-        "gcs.mockInternalUrl=http://%s:%s" % (mgmt_ip, MOCK_GCS_NODEPORT),
+        "gcs.mockInternalUrl=http://%s:%s" % (mgmt_ip, MOCK_BACKEND_NODEPORT),
     ],
 ))
 

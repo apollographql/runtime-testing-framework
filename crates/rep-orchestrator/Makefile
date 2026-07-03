@@ -24,7 +24,7 @@ db-tests:
 		RTF_KUBECONFIG_PATH=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
 		RTF_GCS_BUCKET=dummy \
-		RTF_MOCK_GCS_URL="mock-gcs" \
+		RTF_MOCK_GCS_URL="mock-backend" \
 		RTF_ORCHESTRATOR_URL="http://localhost:8035" \
 		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
 		RTF_OTEL_COLLECTOR_GRPC=dummy \

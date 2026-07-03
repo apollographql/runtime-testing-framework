@@ -42,5 +42,5 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     server = http.server.ThreadingHTTPServer(("", 8080), Handler)
-    print("mock-gcs listening on :8080", file=sys.stderr, flush=True)
+    print("mock-backend listening on :8080", file=sys.stderr, flush=True)
     server.serve_forever()
