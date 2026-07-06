@@ -279,8 +279,7 @@ mod tests {
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 
-            provision_with_output_collection(ex.clone(), tr.uuid(), output_collection, &tss)
-                .await;
+            provision_with_output_collection(ex.clone(), tr.uuid(), output_collection, &tss).await;
             populate_resolved_caches(&ex, &tss).await;
 
             uuids
