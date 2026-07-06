@@ -1,5 +1,5 @@
 use rep_orchestrator_shared::{
-    FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, OtelConfig, PrometheusQueriesResponse,
+    FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, OtelConfig, OutputCollectionResponse,
     RTF_OTEL_COLLECTOR_GRPC_VAR, RTF_OTEL_COLLECTOR_HTTP_VAR,
     payload::{GenerateUploadUrlsPayload, SetStatusPayload},
     status::Status,
@@ -67,10 +67,10 @@ pub trait Client: Send + Sync {
     /// Fetch the resolved scenario YAML for the current test execution.
     fn fetch_scenario_config(&self) -> impl Future<Output = Result<Vec<u8>, Error>> + Send;
 
-    /// Fetch the prometheus queries for the current test execution.
-    fn fetch_prometheus_queries(
+    /// Fetch the output collection for the current test execution.
+    fn fetch_output_collection(
         &self,
-    ) -> impl Future<Output = Result<PrometheusQueriesResponse, Error>> + Send;
+    ) -> impl Future<Output = Result<OutputCollectionResponse, Error>> + Send;
 }
 
 pub struct HttpClient {
@@ -285,11 +285,11 @@ impl Client for HttpClient {
         self.fetch_config("scenario").await
     }
 
-    async fn fetch_prometheus_queries(&self) -> Result<PrometheusQueriesResponse, Error> {
+    async fn fetch_output_collection(&self) -> Result<OutputCollectionResponse, Error> {
         let url = self
             .orchestrator_url
             .join(&format!(
-                "test-execution/{}/prometheus-queries",
+                "test-execution/{}/output-config",
                 self.execution_id
             ))
             .map_err(|e| Error::FetchPrometheusQueries {
@@ -328,7 +328,7 @@ impl Client for HttpClient {
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
-    use rep_orchestrator_shared::status::Status;
+    use rep_orchestrator_shared::{PrometheusQueries, status::Status};
     use std::{
         process::ExitStatus,
         sync::{RwLock, RwLockReadGuard},
@@ -346,7 +346,7 @@ pub(crate) mod mocks {
         prometheus_queries_should_fail: bool,
         log_file_url: String,
         output_zip_url: String,
-        prometheus_queries: PrometheusQueriesResponse,
+        output: OutputCollectionResponse,
     }
 
     impl Default for MockClient {
@@ -358,9 +358,11 @@ pub(crate) mod mocks {
                 prometheus_queries_should_fail: false,
                 log_file_url: "http://mock/log".to_owned(),
                 output_zip_url: "http://mock/zip".to_owned(),
-                prometheus_queries: PrometheusQueriesResponse {
-                    environment: Vec::new(),
-                    scenario: Vec::new(),
+                output: OutputCollectionResponse {
+                    prometheus: PrometheusQueries {
+                        environment: Vec::new(),
+                        scenario: Vec::new(),
+                    },
                 },
             }
         }
@@ -374,16 +376,11 @@ pub(crate) mod mocks {
             }
         }
 
-        pub fn with_prometheus_queries(queries: PrometheusQueriesResponse) -> Self {
+        pub fn with_prometheus_queries(queries: PrometheusQueries) -> Self {
             Self {
-                prometheus_queries: queries,
-                ..Default::default()
-            }
-        }
-
-        pub fn failing_prometheus_queries() -> Self {
-            Self {
-                prometheus_queries_should_fail: true,
+                output: OutputCollectionResponse {
+                    prometheus: queries,
+                },
                 ..Default::default()
             }
         }
@@ -480,14 +477,14 @@ pub(crate) mod mocks {
             Ok(Vec::new())
         }
 
-        async fn fetch_prometheus_queries(&self) -> Result<PrometheusQueriesResponse, Error> {
+        async fn fetch_output_collection(&self) -> Result<OutputCollectionResponse, Error> {
             if self.update_should_fail || self.prometheus_queries_should_fail {
                 return Err(Error::FetchPrometheusQueries {
                     message: "mock fetch prometheus queries failure".to_owned(),
                 });
             }
 
-            Ok(self.prometheus_queries.clone())
+            Ok(self.output.clone())
         }
     }
 }
@@ -537,6 +534,6 @@ mod tests {
         let client = MockClient::failing();
         assert!(client.fetch_environment_config().await.is_err());
         assert!(client.fetch_scenario_config().await.is_err());
-        assert!(client.fetch_prometheus_queries().await.is_err());
+        assert!(client.fetch_output_collection().await.is_err());
     }
 }

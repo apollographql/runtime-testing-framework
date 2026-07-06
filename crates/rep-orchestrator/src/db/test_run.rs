@@ -255,27 +255,6 @@ impl TestRun {
 
         Ok(())
     }
-
-    /// Fetch the cached [TriggerPayload] for a run by its id, if still present.
-    pub async fn cached_payload_for_run_id(
-        run_id: i32,
-        conn: &mut PgConnection,
-    ) -> Result<Option<TriggerPayload>> {
-        let Some(CachedPayload { payload, .. }) =
-            CachedPayload::load_for_run_id(run_id, conn).await?
-        else {
-            return Ok(None);
-        };
-
-        match serde_json::from_value(payload) {
-            Ok(tp) => Ok(Some(tp)),
-            Err(err) => {
-                error!(%err, run_id, "malformed cached test plan");
-
-                Ok(None)
-            }
-        }
-    }
 }
 
 async fn status_after_execution_update<F, Fut>(
@@ -341,15 +320,6 @@ impl CachedPayload {
         Ok(sqlx::query_as("SELECT run_id, payload FROM payload_cache;")
             .fetch_all(conn)
             .await?)
-    }
-
-    async fn load_for_run_id(run_id: i32, conn: &mut PgConnection) -> Result<Option<Self>> {
-        Ok(
-            sqlx::query_as("SELECT run_id, payload FROM payload_cache WHERE run_id = $1;")
-                .bind(run_id)
-                .fetch_optional(conn)
-                .await?,
-        )
     }
 }
 
@@ -714,88 +684,6 @@ mod tests {
             cache.iter().all(|elem| elem.run_id != run_id),
             "should not be cached"
         );
-
-        Ok(())
-    }
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
-    async fn cached_payload_for_run_id_returns_cached_payload() -> Result<()> {
-        let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
-        tr.cache_payload(&stub_payload(), c).await?;
-
-        let payload = TestRun::cached_payload_for_run_id(tr.id(), c).await?;
-        assert!(payload.is_some(), "expected a cached payload");
-        assert_eq!(
-            serde_json::to_value(payload.unwrap()).unwrap(),
-            serde_json::to_value(stub_payload()).unwrap()
-        );
-
-        Ok(())
-    }
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
-    async fn cached_payload_for_run_id_returns_none_when_uncached() -> Result<()> {
-        let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
-
-        let payload = TestRun::cached_payload_for_run_id(tr.id(), c).await?;
-        assert!(payload.is_none());
-
-        Ok(())
-    }
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
-    async fn cached_payload_for_run_id_returns_none_after_clear() -> Result<()> {
-        let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
-        tr.cache_payload(&stub_payload(), c).await?;
-
-        TestRun::clear_cached_payload(tr.uuid(), c).await?;
-
-        let payload = TestRun::cached_payload_for_run_id(tr.id(), c).await?;
-        assert!(payload.is_none());
-
-        Ok(())
-    }
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
-    async fn cached_payload_for_run_id_only_returns_matching_run() -> Result<()> {
-        let c = conn!();
-        let tr1 = TestRun::init("run-a", None, c).await?;
-        let tr2 = TestRun::init("run-b", None, c).await?;
-        tr1.cache_payload(&stub_payload(), c).await?;
-        tr2.cache_payload(&stub_payload(), c).await?;
-
-        // Deleting run-b's cache entry should not affect run-a's.
-        TestRun::clear_cached_payload(tr2.uuid(), c).await?;
-
-        let payload1 = TestRun::cached_payload_for_run_id(tr1.id(), c).await?;
-        let payload2 = TestRun::cached_payload_for_run_id(tr2.id(), c).await?;
-        assert!(payload1.is_some(), "run-a should still be cached");
-        assert!(payload2.is_none(), "run-b should have been cleared");
-
-        Ok(())
-    }
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
-    async fn cached_payload_for_run_id_returns_none_for_malformed_json() -> Result<()> {
-        let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
-
-        sqlx::query("INSERT INTO payload_cache (run_id, payload) VALUES ($1, $2::jsonb)")
-            .bind(tr.id())
-            .bind(json!({"not": "a trigger payload"}))
-            .execute(&mut *c)
-            .await?;
-
-        let payload = TestRun::cached_payload_for_run_id(tr.id(), c).await?;
-        assert!(payload.is_none());
 
         Ok(())
     }

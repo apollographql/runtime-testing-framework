@@ -30,9 +30,14 @@ pub struct OtelConfig {
     pub http: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutputCollectionResponse {
+    pub prometheus: PrometheusQueries,
+}
+
 /// Response for the prometheus queries output collection config endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrometheusQueriesResponse {
+pub struct PrometheusQueries {
     pub environment: Vec<PrometheusQuery>,
     pub scenario: Vec<PrometheusQuery>,
 }

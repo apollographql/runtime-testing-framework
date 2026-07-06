@@ -5,7 +5,7 @@ use crate::{
     orchestrator::Client as _,
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::status::Status;
+use rep_orchestrator_shared::{PrometheusQueries, status::Status};
 use rtf_config::formats::PrometheusQuery;
 use rtf_integrations::prometheus::{Client as PrometheusClientTrait, PrometheusClient};
 use std::{
@@ -90,8 +90,22 @@ async fn collect_output_inner(
     let ns = ctx.execution_namespace();
     let output_dir = paths.base.join("output");
 
-    let prometheus_client = PrometheusClient::new(prometheus_endpoint);
-    collect_prometheus_metrics(ctx, &prometheus_client, ns, &output_dir).await;
+    match ctx.orchestrator_client().fetch_output_collection().await {
+        Ok(output) => {
+            let prometheus_client = PrometheusClient::new(prometheus_endpoint);
+            collect_prometheus_metrics(
+                &output.prometheus,
+                ns,
+                &output_dir,
+                &prometheus_client,
+                ctx,
+            )
+            .await;
+        }
+        Err(e) => {
+            warn!("failed to fetch output collection config, skipping metric collection: {e}");
+        }
+    };
 
     info!("collecting execution namespace artifacts");
     ctx.kube_client()
@@ -148,20 +162,13 @@ async fn wait_for_sentinel(ctx: &impl CliContext, sentinel: &Path, poll_interval
 /// must not fail the scenario execution — the scenario runner's exit code is what determines
 /// the execution's outcome, never metric collection.
 async fn collect_prometheus_metrics(
-    ctx: &impl CliContext,
-    prometheus_client: &impl PrometheusClientTrait,
+    prometheus_queries: &PrometheusQueries,
     namespace: &str,
     output_dir: &Path,
+    prometheus_client: &impl PrometheusClientTrait,
+    ctx: &impl CliContext,
 ) {
-    let prom_queries = match ctx.orchestrator_client().fetch_prometheus_queries().await {
-        Ok(queries) => queries,
-        Err(e) => {
-            warn!("failed to fetch prometheus queries, skipping metric collection: {e}");
-            return;
-        }
-    };
-
-    if prom_queries.environment.is_empty() && prom_queries.scenario.is_empty() {
+    if prometheus_queries.environment.is_empty() && prometheus_queries.scenario.is_empty() {
         return;
     }
 
@@ -175,7 +182,7 @@ async fn collect_prometheus_metrics(
     };
 
     execute_prometheus_queries(
-        &prom_queries.environment,
+        &prometheus_queries.environment,
         "environment",
         start,
         end,
@@ -184,7 +191,7 @@ async fn collect_prometheus_metrics(
     )
     .await;
     execute_prometheus_queries(
-        &prom_queries.scenario,
+        &prometheus_queries.scenario,
         "scenario",
         start,
         end,
@@ -352,7 +359,6 @@ mod tests {
     };
     use assert_fs::{TempDir, prelude::*};
     use predicates::path::{exists, missing};
-    use rep_orchestrator_shared::PrometheusQueriesResponse;
     use reqwest::StatusCode;
     use rtf_integrations::prometheus;
     use serde_json::Value;
@@ -461,8 +467,8 @@ mod tests {
         }
     }
 
-    fn queries_response(environment: &[&str], scenario: &[&str]) -> PrometheusQueriesResponse {
-        PrometheusQueriesResponse {
+    fn prometheus_queries(environment: &[&str], scenario: &[&str]) -> PrometheusQueries {
+        PrometheusQueries {
             environment: environment.iter().map(|n| prometheus_query(n)).collect(),
             scenario: scenario.iter().map(|n| prometheus_query(n)).collect(),
         }
@@ -609,59 +615,60 @@ mod tests {
     }
 
     #[test_case(
-        queries_response(&[], &[]),
+        prometheus_queries(&[], &[]),
         &[],
         false;
         "no queries means no metrics written"
     )]
     #[test_case(
-        queries_response(&["up"], &[]),
+        prometheus_queries(&["up"], &[]),
         &["prometheus/environment/up.json"],
         true;
         "single environment query"
     )]
     #[test_case(
-        queries_response(&["up", "latency"], &[]),
+        prometheus_queries(&["up", "latency"], &[]),
         &["prometheus/environment/up.json", "prometheus/environment/latency.json"],
         true;
         "multiple environment queries"
     )]
     #[test_case(
-        queries_response(&[], &["up"]),
+        prometheus_queries(&[], &["up"]),
         &["prometheus/scenario/up.json"],
         true;
         "single scenario query"
     )]
     #[test_case(
-        queries_response(&[], &["up", "latency"]),
+        prometheus_queries(&[], &["up", "latency"]),
         &["prometheus/scenario/up.json", "prometheus/scenario/latency.json"],
         true;
         "multiple scenario queries"
     )]
     #[test_case(
-        queries_response(&["up"], &["latency"]),
+        prometheus_queries(&["up"], &["latency"]),
         &["prometheus/environment/up.json", "prometheus/scenario/latency.json"],
         true;
         "mixture of environment and scenario queries"
     )]
     #[tokio::test]
     async fn collect_prometheus_metrics_writes_expected_files(
-        prom_queries: PrometheusQueriesResponse,
+        prom_queries: PrometheusQueries,
         expected_paths: &[&str],
         expect_window_call: bool,
     ) {
         let ctx = MockContext {
-            orchestrator_client: MockOrchestrator::with_prometheus_queries(prom_queries),
+            orchestrator_client: MockOrchestrator::with_prometheus_queries(prom_queries.clone()),
             ..Default::default()
         };
         let output_dir = TempDir::new().unwrap();
         let prometheus_client = MockPrometheus::default();
 
         collect_prometheus_metrics(
-            &ctx,
-            &prometheus_client,
+            &prom_queries,
             "test-namespace",
             output_dir.path(),
+            &prometheus_client,
+            &ctx,
         )
         .await;
 
@@ -706,11 +713,9 @@ mod tests {
 
     #[tokio::test]
     async fn collect_prometheus_metrics_still_writes_file_when_query_fails() {
+        let queries = prometheus_queries(&["up"], &[]);
         let ctx = MockContext {
-            orchestrator_client: MockOrchestrator::with_prometheus_queries(queries_response(
-                &["up"],
-                &[],
-            )),
+            orchestrator_client: MockOrchestrator::with_prometheus_queries(queries.clone()),
             ..Default::default()
         };
         let output_dir = TempDir::new().unwrap();
@@ -718,10 +723,11 @@ mod tests {
         // A failing prometheus client is captured as a per-query error, not something
         // collect_prometheus_metrics needs to handle specially — the file is still written.
         collect_prometheus_metrics(
-            &ctx,
-            &MockPrometheus::failing(),
+            &queries,
             "test-namespace",
             output_dir.path(),
+            &MockPrometheus::failing(),
+            &ctx,
         )
         .await;
 
@@ -731,46 +737,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn collect_prometheus_metrics_skips_job_window_when_fetching_queries_fails() {
-        let ctx = MockContext {
-            orchestrator_client: MockOrchestrator::failing_prometheus_queries(),
-            ..Default::default()
-        };
-
-        // Never touches the filesystem — it returns before output_dir is used at all.
-        collect_prometheus_metrics(
-            &ctx,
-            &MockPrometheus::default(),
-            "test-namespace",
-            Path::new("/unused"),
-        )
-        .await;
-
-        ctx.kube_client.read_calls(|calls| {
-            assert!(
-                calls.is_empty(),
-                "expected no kube calls when fetching queries fails, got: {calls:?}"
-            );
-        });
-    }
-
-    #[tokio::test]
     async fn collect_prometheus_metrics_skips_query_execution_when_job_window_fails() {
+        let queries = prometheus_queries(&["up"], &[]);
         let ctx = MockContext {
-            orchestrator_client: MockOrchestrator::with_prometheus_queries(queries_response(
-                &["up"],
-                &[],
-            )),
+            orchestrator_client: MockOrchestrator::with_prometheus_queries(queries.clone()),
             kube_client: crate::kubernetes::mocks::MockClient::failing(),
             ..Default::default()
         };
         let output_dir = TempDir::new().unwrap();
 
         collect_prometheus_metrics(
-            &ctx,
-            &MockPrometheus::default(),
+            &queries,
             "test-namespace",
             output_dir.path(),
+            &MockPrometheus::default(),
+            &ctx,
         )
         .await;
 
