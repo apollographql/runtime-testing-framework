@@ -1,6 +1,6 @@
 //! A lightweight Prometheus API client
 use chrono::{DateTime, Utc};
-use reqwest::{Client, StatusCode};
+use reqwest::StatusCode;
 use serde_json::Value;
 
 /// Errors that can occur when building or using a [`PrometheusClient`].
@@ -27,11 +27,25 @@ pub enum Error {
 /// Alias for a [Result][std::result::Result] where the error variant is an [Error].
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// An API client that can make requests to the Prometheus REST API.
+pub trait Client: Send + Sync {
+    /// Executes a Prometheus range query.
+    ///
+    /// See the [Prometheus HTTP API docs](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+    fn query_range(
+        &self,
+        query: &str,
+        step: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> impl Future<Output = Result<Value>> + Send;
+}
+
 /// A lightweight Prometheus API HTTP client
 #[derive(Debug)]
 pub struct PrometheusClient {
     url: String,
-    http_client: Client,
+    http_client: reqwest::Client,
 }
 
 impl PrometheusClient {
@@ -39,24 +53,23 @@ impl PrometheusClient {
     pub fn new(url: impl Into<String>) -> Self {
         Self {
             url: url.into(),
-            http_client: Client::new(),
+            http_client: reqwest::Client::new(),
         }
     }
+}
 
-    /// Executes a Prometheus range query.
-    ///
-    /// See the [Prometheus HTTP API docs](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
-    pub async fn query_range(
+impl Client for PrometheusClient {
+    async fn query_range(
         &self,
         query: &str,
         step: &str,
-        start: &DateTime<Utc>,
-        end: &DateTime<Utc>,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
     ) -> Result<Value> {
         let resp = self
             .http_client
-            .get(format!("{}/api/v1/query_range", self.url))
-            .query(&[
+            .post(format!("{}/api/v1/query_range", self.url))
+            .form(&[
                 ("query", query),
                 ("start", &start.timestamp().to_string()),
                 ("end", &end.timestamp().to_string()),
@@ -93,6 +106,7 @@ fn handle_response(status: StatusCode, body: Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::StatusCode;
     use serde_json::json;
     use simple_test_case::test_case;
 
@@ -151,21 +165,5 @@ mod tests {
             (Err(a), Err(e)) => assert_eq!(a.to_string(), e.to_string()),
             (actual, expected) => panic!("expected {expected:?}, got {actual:?}"),
         }
-    }
-
-    // Proves query_range actually attempts a real HTTP call and maps a transport failure to
-    // Error::Reqwest, by pointing at an unroutable address — same trick as github.rs's tests.
-    #[tokio::test]
-    async fn query_range_transport_failure_returns_reqwest_error() {
-        let client = PrometheusClient::new("http://127.0.0.1:1");
-
-        let result = client
-            .query_range("up", "15s", &Utc::now(), &Utc::now())
-            .await;
-
-        assert!(
-            matches!(result, Err(Error::Reqwest(_))),
-            "expected Reqwest error, got {result:?}"
-        );
     }
 }

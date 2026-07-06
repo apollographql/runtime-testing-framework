@@ -9,7 +9,6 @@ mod context;
 mod error;
 mod kubernetes;
 mod orchestrator;
-mod prometheus;
 mod status;
 
 pub use cli::Args;

@@ -28,10 +28,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
 
-        if parsed.path == QUERY_RANGE_PATH:
-            self._handle_query_range(parsed.query)
-            return
-
         if parsed.path.startswith(GCS_PREFIX):
             with _lock:
                 data = _store.get(parsed.path)
@@ -41,13 +37,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         self._respond(404, b"not found")
 
-    def _handle_query_range(self, raw_query: str):
-        params = urllib.parse.parse_qs(raw_query)
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+
+        if parsed.path == QUERY_RANGE_PATH:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length).decode()
+            self._handle_query_range(body)
+            return
+
+        self._respond(404, b"not found")
+
+    def _handle_query_range(self, raw_body: str):
+        params = urllib.parse.parse_qs(raw_body)
         query = params.get("query", [""])[0]
         start = params.get("start", ["0"])[0]
         end = params.get("end", ["0"])[0]
 
-        print(f"GET {QUERY_RANGE_PATH} query={query!r}", file=sys.stderr, flush=True)
+        print(f"POST {QUERY_RANGE_PATH} query={query!r}", file=sys.stderr, flush=True)
 
         body = json.dumps(
             {

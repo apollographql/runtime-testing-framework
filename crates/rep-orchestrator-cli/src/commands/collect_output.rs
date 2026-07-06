@@ -3,11 +3,11 @@ use crate::{
     info_status,
     kubernetes::Client as KubeClient,
     orchestrator::Client as _,
-    prometheus,
 };
 use chrono::{DateTime, Utc};
 use rep_orchestrator_shared::status::Status;
 use rtf_config::formats::PrometheusQuery;
+use rtf_integrations::prometheus::{Client as PrometheusClientTrait, PrometheusClient};
 use std::{
     io::{self, Cursor, Write},
     os::unix::process::ExitStatusExt,
@@ -90,7 +90,7 @@ async fn collect_output_inner(
     let ns = ctx.execution_namespace();
     let output_dir = paths.base.join("output");
 
-    let prometheus_client = prometheus::HttpClient::new(prometheus_endpoint);
+    let prometheus_client = PrometheusClient::new(prometheus_endpoint);
     collect_prometheus_metrics(ctx, &prometheus_client, ns, &output_dir).await;
 
     info!("collecting execution namespace artifacts");
@@ -149,7 +149,7 @@ async fn wait_for_sentinel(ctx: &impl CliContext, sentinel: &Path, poll_interval
 /// the execution's outcome, never metric collection.
 async fn collect_prometheus_metrics(
     ctx: &impl CliContext,
-    prometheus_client: &impl prometheus::Client,
+    prometheus_client: &impl PrometheusClientTrait,
     namespace: &str,
     output_dir: &Path,
 ) {
@@ -177,8 +177,8 @@ async fn collect_prometheus_metrics(
     execute_prometheus_queries(
         &prom_queries.environment,
         "environment",
-        &start,
-        &end,
+        start,
+        end,
         output_dir,
         prometheus_client,
     )
@@ -186,8 +186,8 @@ async fn collect_prometheus_metrics(
     execute_prometheus_queries(
         &prom_queries.scenario,
         "scenario",
-        &start,
-        &end,
+        start,
+        end,
         output_dir,
         prometheus_client,
     )
@@ -218,10 +218,10 @@ fn read_exit_code(ctx: &impl CliContext, exit_status_file: &Path) -> crate::Resu
 async fn execute_prometheus_queries(
     queries: &[PrometheusQuery],
     source: &str,
-    start: &DateTime<Utc>,
-    end: &DateTime<Utc>,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
     output_dir: &Path,
-    client: &impl prometheus::Client,
+    client: &impl PrometheusClientTrait,
 ) {
     if !queries.is_empty() {
         info!("executing {source} prometheus queries");
@@ -246,8 +246,8 @@ async fn execute_prometheus_queries(
 /// Builds the JSON written for a single prometheus query's result: the time window it was
 /// queried over, plus either the raw `result` data or an `error` message.
 fn prometheus_result_envelope(
-    start: &DateTime<Utc>,
-    end: &DateTime<Utc>,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
     outcome: Result<&serde_json::Value, &str>,
 ) -> serde_json::Value {
     let window = serde_json::json!({ "start": start, "end": end });
@@ -349,18 +349,103 @@ mod tests {
     use crate::{
         context::mocks::MockContext, kubernetes::mocks::KubeCall,
         orchestrator::mocks::MockClient as MockOrchestrator,
-        prometheus::mocks::MockClient as MockPrometheus,
     };
     use assert_fs::{TempDir, prelude::*};
     use predicates::path::{exists, missing};
     use rep_orchestrator_shared::PrometheusQueriesResponse;
+    use reqwest::StatusCode;
+    use rtf_integrations::prometheus;
+    use serde_json::Value;
     use simple_test_case::test_case;
-    use std::io::Read;
+    use std::{
+        io::Read,
+        sync::{Arc, RwLock},
+    };
     use zip::ZipArchive;
 
     const SHARED_DIR: &str = "/shared";
     const EXIT_STATUS_FILE: &str = "/shared/scenario_exit_status";
     const SENTINEL: &str = "/shared/scenario-exited";
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct QueryRangeCall {
+        pub query: String,
+        pub step: String,
+    }
+
+    struct MockState {
+        calls: Vec<QueryRangeCall>,
+        should_fail: bool,
+        result: Value,
+    }
+
+    impl Default for MockState {
+        fn default() -> Self {
+            Self {
+                calls: Vec::new(),
+                should_fail: false,
+                result: Value::Array(Vec::new()),
+            }
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct MockPrometheus {
+        state: Arc<RwLock<MockState>>,
+    }
+
+    impl MockPrometheus {
+        pub fn failing() -> Self {
+            Self {
+                state: Arc::new(RwLock::new(MockState {
+                    should_fail: true,
+                    ..Default::default()
+                })),
+            }
+        }
+
+        fn record_call(&self, call: QueryRangeCall) {
+            self.state.write().unwrap().calls.push(call);
+        }
+
+        pub fn read_calls<F>(&self, closure: F)
+        where
+            F: FnOnce(&[QueryRangeCall]),
+        {
+            let state = self.state.read().unwrap();
+            closure(&state.calls)
+        }
+    }
+
+    impl PrometheusClientTrait for MockPrometheus {
+        async fn query_range(
+            &self,
+            query: &str,
+            step: &str,
+            _start: DateTime<Utc>,
+            _end: DateTime<Utc>,
+        ) -> prometheus::Result<Value> {
+            let (should_fail, result) = {
+                let state = self.state.read().unwrap();
+                (state.should_fail, state.result.clone())
+            };
+
+            if should_fail {
+                return Err(prometheus::Error::Api {
+                    status: StatusCode::INTERNAL_SERVER_ERROR,
+                    error_type: "mock_failure".to_owned(),
+                    message: "mock prometheus failure".to_owned(),
+                });
+            }
+
+            self.record_call(QueryRangeCall {
+                query: query.to_owned(),
+                step: step.to_owned(),
+            });
+
+            Ok(result)
+        }
+    }
 
     fn write_sentinel_and_log(ctx: &MockContext) {
         ctx.write_file(Path::new(SENTINEL), b"").unwrap();
@@ -497,7 +582,7 @@ mod tests {
         let (start, end) = window();
         let result = serde_json::json!(["ok"]);
 
-        let envelope = prometheus_result_envelope(&start, &end, Ok(&result));
+        let envelope = prometheus_result_envelope(start, end, Ok(&result));
 
         assert_eq!(
             envelope,
@@ -512,7 +597,7 @@ mod tests {
     fn prometheus_result_envelope_captures_an_error_message() {
         let (start, end) = window();
 
-        let envelope = prometheus_result_envelope(&start, &end, Err("query timed out"));
+        let envelope = prometheus_result_envelope(start, end, Err("query timed out"));
 
         assert_eq!(
             envelope,

@@ -17,7 +17,7 @@
 //!   into a single match group; this errors as soon as `up` has 2+ series, which holds for
 //!   any Prometheus scraping more than one target
 use chrono::{Duration, Utc};
-use rtf_integrations::prometheus::{Error, PrometheusClient};
+use rtf_integrations::prometheus::{Client, Error, PrometheusClient};
 
 #[tokio::main]
 async fn main() {
@@ -46,7 +46,7 @@ async fn run_query(client: &PrometheusClient, label: &str, query: &str) {
     println!("--- {label} ---");
     println!("query: {query}");
 
-    match client.query_range(query, "15s", &start, &end).await {
+    match client.query_range(query, "15s", start, end).await {
         Ok(result) => println!("ok: {result}"),
         Err(Error::Api {
             status,
