@@ -160,6 +160,7 @@ async fn full_test_run_happy_path_completes_successfully() {
             query: raw_query.to_string(),
         }
         .with_namespace_label_filter(&ex_id.to_string())
+        .unwrap()
         .query;
 
         let actual_query = value["result"][0]["metric"]["query"]

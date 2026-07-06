@@ -1,6 +1,7 @@
 use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
+    formats,
 };
 use promql_parser::{
     label::{MatchOp, Matcher},
@@ -61,17 +62,18 @@ pub struct PrometheusQuery {
 
 impl PrometheusQuery {
     /// Returns the PrometheusQuery with a namespace label filter applied to each metric
-    pub fn with_namespace_label_filter(&self, namespace: &str) -> Self {
-        let mut expr = parser::parse(&self.query).expect("query already validated by try_check");
-        let _ = walk_expr_mut(
+    pub fn with_namespace_label_filter(&self, namespace: &str) -> formats::Result<Self> {
+        let mut expr = parser::parse(&self.query).map_err(|_| formats::Error::InvalidPromQl)?;
+        walk_expr_mut(
             &mut NamespaceLabelInjector(namespace.to_string()),
             &mut expr,
-        );
-        Self {
+        )?;
+
+        Ok(Self {
             name: self.name.clone(),
             step: self.step.clone(),
             query: expr.to_string(),
-        }
+        })
     }
 }
 
@@ -159,7 +161,7 @@ impl ExprVisitor for NamespaceLabelVisitor {
 struct NamespaceLabelInjector(String);
 
 impl ExprVisitorMut for NamespaceLabelInjector {
-    type Error = std::convert::Infallible;
+    type Error = formats::Error;
 
     fn pre_visit(&mut self, expr: &mut Expr) -> Result<bool, Self::Error> {
         let matchers = match expr {
@@ -167,6 +169,11 @@ impl ExprVisitorMut for NamespaceLabelInjector {
             Expr::MatrixSelector(MatrixSelector { vs, .. }) => &mut vs.matchers,
             _ => return Ok(true),
         };
+
+        if !matchers.find_matchers("namespace").is_empty() {
+            return Err(formats::Error::ReservedNamespaceLabel);
+        }
+
         matchers
             .matchers
             .push(Matcher::new(MatchOp::Equal, "namespace", &self.0));
@@ -297,7 +304,41 @@ mod tests {
         let prometheus_query = prometheus_query(query);
 
         let res = prometheus_query.with_namespace_label_filter("namespace");
-        assert_eq!(res.query, expected_query)
+        assert!(
+            res.is_ok(),
+            "expected with_namespace_label_filter to succeed, got {res:?}",
+        );
+        assert_eq!(res.unwrap().query, expected_query)
+    }
+
+    #[test_case(
+        "not a query",
+        formats::Error::InvalidPromQl;
+        "invalid promql"
+    )]
+    #[test_case(
+        "sum(metric{namespace=\"value\"})",
+        formats::Error::ReservedNamespaceLabel;
+        "vector selector with namespace label"
+    )]
+    #[test_case(
+        "sum(rate(metric{namespace=\"value\"}[1m]))",
+        formats::Error::ReservedNamespaceLabel;
+        "matrix selector with namespace label"
+    )]
+    #[test]
+    fn prometheus_query_with_namespace_label_filter_error(
+        query: &str,
+        expected_err: formats::Error,
+    ) {
+        let prometheus_query = prometheus_query(query);
+
+        let res = prometheus_query.with_namespace_label_filter("namespace");
+        assert!(
+            res.is_err(),
+            "expected with_namespace_label_filter to error, got {res:?}",
+        );
+        assert_eq!(res.unwrap_err().to_string(), expected_err.to_string())
     }
 
     #[test]

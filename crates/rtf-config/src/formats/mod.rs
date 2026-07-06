@@ -34,8 +34,14 @@ pub enum Error {
     #[error("Custom provider declarations can not be specified as part of overrides.")]
     InvalidCustomProviderOverride,
 
+    #[error("The provided query is invalid PromQL")]
+    InvalidPromQl,
+
     #[error("The provided variant_names template produced duplicate names: {duplicates:?}")]
     NonUniqueMatrixVariantNames { duplicates: Vec<String> },
+
+    #[error("The 'namespace' label is reserved and must not appear in PromQL selectors")]
+    ReservedNamespaceLabel,
 
     #[error(
         "The provided matrix.variant_names template references unknown matrix variables: {variables:?}"

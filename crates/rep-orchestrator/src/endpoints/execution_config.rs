@@ -72,7 +72,10 @@ pub async fn prometheus_handler(
         .output_collection
         .prometheus
         .iter()
-        .map(|q| q.with_namespace_label_filter(&namespace))
+        .map(|q| {
+            q.with_namespace_label_filter(&namespace)
+                .expect("promql query should have been validated by try_check")
+        })
         .collect();
     let scenario = payload
         .test_plan
@@ -81,7 +84,10 @@ pub async fn prometheus_handler(
         .output_collection
         .prometheus
         .iter()
-        .map(|q| q.with_namespace_label_filter(&namespace))
+        .map(|q| {
+            q.with_namespace_label_filter(&namespace)
+                .expect("promql query should have been validated by try_check")
+        })
         .collect();
 
     Ok(Json(PrometheusQueriesResponse {
