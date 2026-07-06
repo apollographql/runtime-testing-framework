@@ -385,6 +385,13 @@ pub(crate) mod mocks {
             }
         }
 
+        pub fn with_failing_output_collection() -> Self {
+            Self {
+                prometheus_queries_should_fail: true,
+                ..Default::default()
+            }
+        }
+
         pub fn read_updates<F>(&self, closure: F)
         where
             F: FnOnce(RwLockReadGuard<Vec<Status>>),

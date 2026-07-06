@@ -103,7 +103,15 @@ async fn collect_output_inner(
             .await;
         }
         Err(e) => {
-            warn!("failed to fetch output collection config, skipping metric collection: {e}");
+            let path = output_dir.join("prometheus.txt");
+            let err_str = format!(
+                "failed to fetch output collection config, skipping metric collection: {e}"
+            );
+            warn!("{err_str}");
+
+            if let Err(e) = fs::write(&path, &err_str).await {
+                warn!("failed to write {}: {e}", path.display());
+            }
         }
     };
 
@@ -176,7 +184,16 @@ async fn collect_prometheus_metrics(
     let (start, end) = match ctx.kube_client().get_scenario_job_window(namespace).await {
         Ok(window) => window,
         Err(e) => {
-            warn!("failed to get scenario job window, skipping metric collection: {e}");
+            let path = output_dir.join("prometheus.txt");
+            let err_str = format!(
+                "failed to get scenario job window, skipping prometheus metric collection: {e}"
+            );
+            warn!("{err_str}");
+
+            if let Err(e) = fs::write(&path, &err_str).await {
+                warn!("failed to write {}: {e}", path.display());
+            }
+
             return;
         }
     };
@@ -453,10 +470,14 @@ mod tests {
         }
     }
 
-    fn write_sentinel_and_log(ctx: &MockContext) {
-        ctx.write_file(Path::new(SENTINEL), b"").unwrap();
-        ctx.write_file(Path::new("/shared/output/output.log"), b"log contents")
+    fn write_sentinel_and_log(ctx: &MockContext, shared_dir: &Path) {
+        ctx.write_file(&shared_dir.join("scenario-exited"), b"")
             .unwrap();
+        ctx.write_file(
+            &shared_dir.join("output").join("output.log"),
+            b"log contents",
+        )
+        .unwrap();
     }
 
     fn prometheus_query(name: &str) -> PrometheusQuery {
@@ -575,12 +596,46 @@ mod tests {
     #[tokio::test]
     async fn collect_output_inner_succeeds_with_clean_kube_client() {
         let ctx = MockContext::default();
-        write_sentinel_and_log(&ctx);
+        write_sentinel_and_log(&ctx, Path::new(SHARED_DIR));
 
         let paths = SharedPaths::new(Path::new(SHARED_DIR));
         collect_output_inner(&paths, "dummy endpoint", &ctx)
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn collect_output_inner_writes_error_file_when_output_collection_fetch_fails() {
+        let shared_dir = TempDir::new().unwrap();
+        fs::create_dir_all(shared_dir.child("output").path())
+            .await
+            .unwrap();
+
+        let ctx = MockContext {
+            orchestrator_client: MockOrchestrator::with_failing_output_collection(),
+            ..Default::default()
+        };
+        write_sentinel_and_log(&ctx, shared_dir.path());
+
+        let paths = SharedPaths::new(shared_dir.path());
+
+        // Fetching the output collection config is a soft failure: it must not fail the
+        // scenario, only skip metric collection and leave a record of why.
+        let res = collect_output_inner(&paths, "dummy endpoint", &ctx).await;
+        assert!(
+            res.is_ok(),
+            "expected collect_output_inner to succeed, got {res:?}"
+        );
+
+        let error_file = shared_dir.child("output/prometheus.txt");
+        error_file.assert(exists());
+
+        let contents = fs::read_to_string(error_file.path()).await.unwrap();
+        assert!(
+            contents
+                .contains("failed to fetch output collection config, skipping metric collection"),
+            "unexpected contents: {contents}"
+        );
     }
 
     #[test]
@@ -756,5 +811,16 @@ mod tests {
         .await;
 
         output_dir.child("prometheus").assert(missing());
+
+        let error_file = output_dir.child("prometheus.txt");
+        error_file.assert(exists());
+
+        let contents = fs::read_to_string(error_file.path()).await.unwrap();
+        assert!(
+            contents.contains(
+                "failed to get scenario job window, skipping prometheus metric collection"
+            ),
+            "unexpected contents: {contents}"
+        );
     }
 }
