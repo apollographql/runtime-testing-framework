@@ -24,11 +24,12 @@ db-tests:
 		RTF_KUBECONFIG_PATH=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
 		RTF_GCS_BUCKET=dummy \
-		RTF_MOCK_GCS_URL="mock-gcs" \
+		RTF_MOCK_GCS_URL="mock-backend" \
 		RTF_ORCHESTRATOR_URL="http://localhost:8035" \
 		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
 		RTF_OTEL_COLLECTOR_GRPC=dummy \
 		RTF_OTEL_COLLECTOR_HTTP=dummy \
+		RTF_PROMETHEUS_ENDPOINT=dummy \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
@@ -49,6 +50,7 @@ integration-tests: clear-db-data
 		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
 		RTF_OTEL_COLLECTOR_GRPC=dummy \
 		RTF_OTEL_COLLECTOR_HTTP=dummy \
+		RTF_PROMETHEUS_ENDPOINT=dummy \
 		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all

@@ -12,7 +12,7 @@ use crate::{
     config::Config,
     conn,
     db::{TestExecution, UpdateHandle},
-    event_loop::provision_environment::MSG_ARGO_COMPLETE,
+    event_loop::{provision_environment::MSG_ARGO_COMPLETE, run_scenario::CreateJobConfig},
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
 };
@@ -36,6 +36,7 @@ pub use run_scenario::MSG_JOB_WAIT;
 /// Static configuration shared across all event handler arms in the event loop.
 struct EventLoopConfig<'a> {
     orchestrator_url: &'a str,
+    prometheus_endpoint: &'a str,
     toolbox_pull_policy: &'a str,
     otel: &'a OtelConfig,
     kubeconfig_secret_name: &'a str,
@@ -51,6 +52,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         kubeconfig_path,
         workload_context,
         orchestrator_url,
+        prometheus_endpoint,
         toolbox_pull_policy,
         otel_collector_grpc,
         otel_collector_http,
@@ -61,6 +63,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
 
     let cfg = EventLoopConfig {
         orchestrator_url,
+        prometheus_endpoint,
         toolbox_pull_policy,
         otel: &OtelConfig {
             grpc: otel_collector_grpc.to_string(),
@@ -261,8 +264,11 @@ impl Event {
                             self.test_execution.clone(),
                             image,
                             command,
-                            cfg.orchestrator_url,
-                            cfg.toolbox_pull_policy,
+                            &CreateJobConfig {
+                                orchestrator_url: cfg.orchestrator_url,
+                                prometheus_endpoint: cfg.prometheus_endpoint,
+                                toolbox_pull_policy: cfg.toolbox_pull_policy,
+                            },
                             clients,
                             conn,
                         )
@@ -417,8 +423,11 @@ mod tests {
             ex,
             "nginx".to_string(),
             "echo test".to_string(),
-            "http://localhost:8035",
-            "IfNotPresent",
+            &CreateJobConfig {
+                orchestrator_url: "http://localhost:8035",
+                prometheus_endpoint: "http://prometheus:9090",
+                toolbox_pull_policy: "IfNotPresent",
+            },
             clients,
             &mut handle,
         )

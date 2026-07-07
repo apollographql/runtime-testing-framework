@@ -103,7 +103,6 @@ impl TestExecution {
         ]
     }
 
-    #[cfg(test)]
     pub fn test_run_id(&self) -> i32 {
         self.test_run_id
     }

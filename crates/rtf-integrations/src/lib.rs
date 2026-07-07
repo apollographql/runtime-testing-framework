@@ -19,6 +19,7 @@ use std::future::Future;
 pub mod github;
 pub mod graphos;
 pub mod orchestrator;
+pub mod prometheus;
 
 use graphos::{
     PlatformClient,

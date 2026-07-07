@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mock-gcs
+  name: mock-backend
   namespace: orchestrator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mock-gcs
+      app: mock-backend
   template:
     metadata:
       labels:
-        app: mock-gcs
+        app: mock-backend
     spec:
       containers:
-        - name: mock-gcs
-          image: mock-gcs
+        - name: mock-backend
+          image: mock-backend
           imagePullPolicy: Never
           ports:
             - containerPort: 8080
@@ -27,12 +27,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mock-gcs
+  name: mock-backend
   namespace: orchestrator
 spec:
   type: NodePort
   selector:
-    app: mock-gcs
+    app: mock-backend
   ports:
     - port: 8080
       targetPort: 8080

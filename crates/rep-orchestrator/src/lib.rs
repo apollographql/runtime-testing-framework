@@ -88,6 +88,10 @@ fn build_routes(state: ServerState, reload_handle: Option<Handle<EnvFilter, Regi
             get(execution_config::scenario_handler),
         )
         .route(
+            "/test-execution/{id}/output-config",
+            get(execution_config::output_handler),
+        )
+        .route(
             "/test-execution/{id}/status",
             get(execution_status::get_handler).post(execution_status::post_handler),
         )

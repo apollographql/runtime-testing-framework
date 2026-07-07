@@ -4,6 +4,7 @@ use anyhow::Context;
 use common::TestHelper;
 use rep_orchestrator::event_loop::{MSG_ARGO_WAIT, MSG_JOB_WAIT};
 use rep_orchestrator_shared::{status::Status::*, summary::TestRunSummary};
+use rtf_config::formats::PrometheusQuery;
 use serial_test::serial;
 use std::{
     io::{self, Read},
@@ -127,6 +128,50 @@ async fn full_test_run_happy_path_completes_successfully() {
     serde_json::from_str::<serde_json::Value>(&metrics_buf)
         .context("resource-metrics.json must be valid JSON")
         .unwrap();
+
+    // Verify prometheus query collection: the fixture's environment.yaml/scenario.yaml each
+    // declare one query, so both output/prometheus/{source}/{name}.json files must be present,
+    // valid JSON, and must carry the exact query the mock Prometheus backend received - proving
+    // the orchestrator's namespace label injection (with_namespace_label_filter) reached it.
+    for (source, name, raw_query) in [
+        ("environment", "environment_up", "up"),
+        ("scenario", "scenario_up", "up"),
+    ] {
+        let path = format!("output/prometheus/{source}/{name}.json");
+        assert!(
+            file_names.iter().any(|n| n == &path),
+            "expected {path} in output.zip; got: {file_names:#?}",
+        );
+
+        let mut buf = String::new();
+        zip.by_name(&path)
+            .unwrap()
+            .read_to_string(&mut buf)
+            .context(format!("unable to read {path}"))
+            .unwrap();
+
+        let value: serde_json::Value = serde_json::from_str(&buf)
+            .context(format!("{path} must be valid JSON"))
+            .unwrap();
+
+        let expected_query = PrometheusQuery {
+            name: name.to_string(),
+            step: "15s".to_string(),
+            query: raw_query.to_string(),
+        }
+        .with_namespace_label_filter(&ex_id.to_string())
+        .unwrap()
+        .query;
+
+        let actual_query = value["result"][0]["metric"]["query"]
+            .as_str()
+            .unwrap_or_else(|| panic!("expected result[0].metric.query in {path}: {value:#?}"));
+
+        assert_eq!(
+            actual_query, expected_query,
+            "{path}: prometheus query did not have the namespace label injected"
+        );
+    }
 }
 
 #[tokio::test]

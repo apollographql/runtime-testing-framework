@@ -97,6 +97,9 @@ pub enum Command {
         /// Path to the shared volume containing the scenario's artifacts
         #[arg(long)]
         shared_dir: PathBuf,
+        /// Prometheus endpoint used to pull prometheus metrics
+        #[arg(long)]
+        prometheus_endpoint: String,
     },
 }
 

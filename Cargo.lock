@@ -3698,12 +3698,17 @@ name = "rep-orchestrator-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "assert_fs",
+ "chrono",
  "clap",
  "k8s-openapi",
  "kube",
+ "predicates",
  "rep-orchestrator-shared",
  "reqwest 0.13.3",
  "rtf-cli-shared",
+ "rtf-config",
+ "rtf-integrations",
  "rustls",
  "serde",
  "serde_json",

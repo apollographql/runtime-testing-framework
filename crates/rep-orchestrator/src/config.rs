@@ -35,6 +35,7 @@ pub struct Config {
     pub toolbox_pull_policy: String,
     pub otel_collector_grpc: String,
     pub otel_collector_http: String,
+    pub prometheus_endpoint: String,
     pub gcs_bucket: String,
     #[serde(default = "default_gcs_url_ttl_secs")]
     pub gcs_url_ttl_secs: u64,

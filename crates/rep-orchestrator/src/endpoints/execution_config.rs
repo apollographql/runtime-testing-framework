@@ -1,6 +1,10 @@
 //! Fetch RTF config sections required for running a given [TestExecution] by its UUID.
 use crate::{Error, Result, conn, db::TestExecution, endpoints::BearerToken, state::ServerState};
-use axum::extract::{Path, State};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use rep_orchestrator_shared::OutputCollectionResponse;
 use uuid::Uuid;
 
 pub async fn env_handler(
@@ -39,6 +43,25 @@ pub async fn scenario_handler(
     Ok(yaml)
 }
 
+pub async fn output_handler(
+    auth: BearerToken,
+    Path(id): Path<Uuid>,
+    State(ServerState { eq_state, .. }): State<ServerState>,
+) -> Result<Json<OutputCollectionResponse>> {
+    let conn = conn!();
+    let ex = match TestExecution::get_by_uuid(&id, conn).await? {
+        Some(ex) => ex,
+        None => return Err(Error::Unauthorized),
+    };
+    auth.verify(ex.token())?;
+
+    let payload = eq_state
+        .resolve_output_collection_for_execution(&ex)
+        .await?;
+
+    Ok(Json(payload))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -46,6 +69,7 @@ mod tests {
     use axum::http::{HeaderValue, header::AUTHORIZATION};
     use rep_orchestrator_shared::payload::TriggerPayload;
     use reqwest::StatusCode;
+    use rtf_config::formats::{OutputCollection, PrometheusQuery};
     use simple_test_case::test_case;
 
     fn bearer(token: Uuid) -> HeaderValue {
@@ -53,12 +77,35 @@ mod tests {
     }
 
     async fn provision(ex: TestExecution, run_uuid: Uuid, tss: &TestServerState) {
+        provision_payload(ex, run_uuid, tss.minimal_trigger_payload(), tss).await;
+    }
+
+    async fn provision_with_output_collection(
+        ex: TestExecution,
+        run_uuid: Uuid,
+        output_collection: OutputCollection,
+        tss: &TestServerState,
+    ) {
+        let mut payload = tss.minimal_trigger_payload();
+        let oc_json = serde_json::to_value(&output_collection).unwrap();
+        payload["test_plan"]["scenario"]["output_collection"] = oc_json.clone();
+        payload["test_plan"]["environment"]["output_collection"] = oc_json;
+
+        provision_payload(ex, run_uuid, payload, tss).await;
+    }
+
+    async fn provision_payload(
+        ex: TestExecution,
+        run_uuid: Uuid,
+        payload: serde_json::Value,
+        tss: &TestServerState,
+    ) {
         let TriggerPayload {
             test_plan,
             relative_files,
             custom_providers,
             ..
-        } = serde_json::from_value(tss.minimal_trigger_payload()).unwrap();
+        } = serde_json::from_value(payload).unwrap();
 
         let ctx = RepContext::new(Config::get(), relative_files, custom_providers);
 
@@ -112,6 +159,7 @@ mod tests {
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case("environment-config"; "env")]
     #[test_case("scenario-config"; "scenario")]
+    #[test_case("output-config"; "output")]
     #[tokio::test]
     async fn handlers_returns_403_without_token(endpoint: &str) -> anyhow::Result<()> {
         let tss = TestServerState::new();
@@ -132,6 +180,7 @@ mod tests {
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case("environment-config"; "env")]
     #[test_case("scenario-config"; "scenario")]
+    #[test_case("output-config"; "output")]
     #[tokio::test]
     async fn handlers_returns_403_for_unknown_execution(endpoint: &str) -> anyhow::Result<()> {
         let tss = TestServerState::new();
@@ -149,6 +198,7 @@ mod tests {
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case("environment-config"; "env")]
     #[test_case("scenario-config"; "scenario")]
+    #[test_case("output-config"; "output")]
     #[tokio::test]
     async fn handlers_returns_403_with_wrong_token(endpoint: &str) -> anyhow::Result<()> {
         let tss = TestServerState::new();
@@ -170,6 +220,92 @@ mod tests {
             .await;
 
         assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn output_handler_returns_empty_lists_when_no_queries_configured() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let (ex_uuid, token) = {
+            let conn = conn!();
+            let tr = TestRun::init("test", None, conn).await?;
+            let ex = tr.init_execution("test", 0, conn).await?;
+            let uuids = (ex.uuid(), ex.token());
+
+            provision_with_output_collection(
+                ex.clone(),
+                tr.uuid(),
+                OutputCollection::default(),
+                &tss,
+            )
+            .await;
+            populate_resolved_caches(&ex, &tss).await;
+
+            uuids
+        };
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-execution/{ex_uuid}/output-config"))
+            .add_header(AUTHORIZATION, bearer(token))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let body: OutputCollectionResponse = resp.json();
+        assert!(body.prometheus.environment.is_empty(), "{body:?}");
+        assert!(body.prometheus.scenario.is_empty(), "{body:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn output_handler_returns_namespace_injected_queries() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let output_collection = OutputCollection {
+            prometheus: vec![PrometheusQuery {
+                name: "up_metric".to_owned(),
+                step: "15s".to_owned(),
+                query: "sum(up)".to_owned(),
+            }],
+        };
+
+        let (ex_uuid, token) = {
+            let conn = conn!();
+            let tr = TestRun::init("test", None, conn).await?;
+            let ex = tr.init_execution("test", 0, conn).await?;
+            let uuids = (ex.uuid(), ex.token());
+
+            provision_with_output_collection(ex.clone(), tr.uuid(), output_collection, &tss).await;
+            populate_resolved_caches(&ex, &tss).await;
+
+            uuids
+        };
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-execution/{ex_uuid}/output-config"))
+            .add_header(AUTHORIZATION, bearer(token))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let body: OutputCollectionResponse = resp.json();
+        let expected_query = format!(r#"sum(up{{namespace="{ex_uuid}"}})"#);
+
+        assert_eq!(body.prometheus.environment.len(), 1, "{body:?}");
+        assert_eq!(
+            body.prometheus.environment[0].query, expected_query,
+            "{body:?}"
+        );
+        assert_eq!(body.prometheus.scenario.len(), 1, "{body:?}");
+        assert_eq!(
+            body.prometheus.scenario[0].query, expected_query,
+            "{body:?}"
+        );
 
         Ok(())
     }

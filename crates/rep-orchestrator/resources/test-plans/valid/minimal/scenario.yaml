@@ -5,3 +5,9 @@ docker:
   image: nginx
   tag: alpine
   command: "echo 'hello, world!' | tee $RTF_OUTPUT"
+
+output_collection:
+  prometheus:
+    - name: scenario_up
+      step: 15s
+      query: up

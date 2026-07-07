@@ -26,3 +26,9 @@ file_providers:
       }
 
 env_vars: {}
+
+output_collection:
+  prometheus:
+    - name: environment_up
+      step: 15s
+      query: up

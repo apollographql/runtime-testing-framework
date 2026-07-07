@@ -6,7 +6,9 @@ use crate::{
     resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
 };
-use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
+use rep_orchestrator_shared::{
+    OutputCollectionResponse, PrometheusQueries, payload::TriggerPayload, test_plan::RepTestPlan,
+};
 use rtf_config::{
     StableSource,
     checks::Check,
@@ -70,6 +72,7 @@ impl EventQueue {
             active_run_executions: HashMap::new(),
             resolved_env_cache: HashMap::new(),
             resolved_scenario_cache: HashMap::new(),
+            resolved_output_collection_cache: HashMap::new(),
             scenario_docker_cache: HashMap::new(),
             max_queued_executions,
             n_queued: 0,
@@ -566,11 +569,43 @@ impl ProvisioningHandle {
         let scenario_yaml = serde_yaml::to_string(&test_plan.scenario)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
 
+        let env_prom_queries = test_plan
+            .environment
+            .execution
+            .output_collection
+            .prometheus
+            .iter()
+            .map(|q| {
+                q.with_namespace_label_filter(&ex.uuid().to_string())
+                    .expect("promql query should have been validated by try_check")
+            })
+            .collect();
+        let scenario_prom_queries = test_plan
+            .scenario
+            .execution
+            .output_collection
+            .prometheus
+            .iter()
+            .map(|q| {
+                q.with_namespace_label_filter(&ex.uuid().to_string())
+                    .expect("promql query should have been validated by try_check")
+            })
+            .collect();
+        let output_collection = OutputCollectionResponse {
+            prometheus: PrometheusQueries {
+                environment: env_prom_queries,
+                scenario: scenario_prom_queries,
+            },
+        };
+
         self.with_shared(|shared| {
             shared.resolved_env_cache.insert(ex.uuid(), env_yaml);
             shared
                 .resolved_scenario_cache
                 .insert(ex.uuid(), scenario_yaml);
+            shared
+                .resolved_output_collection_cache
+                .insert(ex.uuid(), output_collection);
             shared
                 .scenario_docker_cache
                 .insert(ex.uuid(), (image, command));
@@ -767,6 +802,20 @@ impl EventQueueState {
         })
         .await
     }
+
+    pub(crate) async fn resolve_output_collection_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<OutputCollectionResponse> {
+        self.with_shared(|shared| {
+            shared
+                .resolved_output_collection_cache
+                .get(&ex.uuid())
+                .cloned()
+                .ok_or(ResolverError::UnknownExecution(ex.uuid()))
+        })
+        .await
+    }
 }
 
 #[derive(Debug)]
@@ -781,6 +830,8 @@ struct Shared {
     resolved_env_cache: HashMap<Uuid, String>,
     /// Pre-resolved scenario config YAML keyed by execution UUID
     resolved_scenario_cache: HashMap<Uuid, String>,
+    /// Pre-resolved output collection config
+    resolved_output_collection_cache: HashMap<Uuid, OutputCollectionResponse>,
     /// Pre-resolved docker image and command keyed by execution UUID
     scenario_docker_cache: HashMap<Uuid, (String, String)>,
     /// Maximum number of pending executions waiting for a namespace
@@ -880,6 +931,7 @@ mod tests {
             toolbox_pull_policy: "IfNotPresent".to_string(),
             otel_collector_grpc: "http://otel:4317".to_string(),
             otel_collector_http: "http://otel:4318".to_string(),
+            prometheus_endpoint: "http://prometheus:9090".to_string(),
             gcs_bucket: "test-bucket".to_string(),
             gcs_url_ttl_secs: 300,
             mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),
@@ -1231,6 +1283,13 @@ mod tests {
             );
 
             assert!(
+                shared
+                    .resolved_output_collection_cache
+                    .contains_key(&ex_uuid),
+                "output collection should be cached"
+            );
+
+            assert!(
                 shared.scenario_docker_cache.contains_key(&ex_uuid),
                 "scenario docker image and command should be cached"
             );
@@ -1283,6 +1342,19 @@ mod tests {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_scenario_for_execution(&ex).await;
+
+        assert!(
+            matches!(res, Err(ResolverError::UnknownExecution(_))),
+            "expected UnknownExecution, got: {res:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_output_collection_for_execution_returns_error_when_cache_empty() {
+        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let res = eqs.resolve_output_collection_for_execution(&ex).await;
 
         assert!(
             matches!(res, Err(ResolverError::UnknownExecution(_))),

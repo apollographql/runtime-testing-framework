@@ -58,8 +58,11 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
 
         // Collect output is unique in the fact that it can set a Failed status where all other CLI
         // fatal errors result in Unrunnable.
-        Command::CollectOutput { shared_dir } => {
-            let e = match commands::collect_output(&shared_dir, ctx).await {
+        Command::CollectOutput {
+            shared_dir,
+            prometheus_endpoint,
+        } => {
+            let e = match commands::collect_output(&shared_dir, &prometheus_endpoint, ctx).await {
                 Ok(()) => return Ok(()),
                 Err(e) => e,
             };

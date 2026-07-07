@@ -171,6 +171,12 @@ impl<M> ClusterClients<M, Available> {
                             verbs: vec!["list".to_owned()],
                             ..Default::default()
                         },
+                        PolicyRule {
+                            api_groups: Some(vec!["batch".to_owned()]),
+                            resources: Some(vec!["jobs".to_owned()]),
+                            verbs: vec!["get".to_owned()],
+                            ..Default::default()
+                        },
                     ]),
                 }),
             )

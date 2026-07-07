@@ -1,13 +1,18 @@
-use k8s_openapi::api::{
-    apps::v1::Deployment,
-    core::v1::{Event, Namespace, Pod, ServiceAccount},
+use chrono::{DateTime, Utc};
+use k8s_openapi::{
+    api::{
+        apps::v1::Deployment,
+        batch::v1::{Job, JobStatus},
+        core::v1::{Event, Namespace, Pod, ServiceAccount},
+    },
+    apimachinery::pkg::apis::meta::v1::Time,
 };
 use kube::{
     Api, Config,
     api::{ListParams, LogParams, ObjectMeta, Patch, PatchParams, Request},
     config::{KubeConfigOptions, Kubeconfig, KubeconfigError},
 };
-use rep_orchestrator_shared::LOG_COLLECTION_LABEL;
+use rep_orchestrator_shared::{LOG_COLLECTION_LABEL, SCENARIO_JOB_NAME};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -48,6 +53,16 @@ pub enum Error {
 
     #[error("timed out after {timeout_secs}s waiting for deployments: {names}")]
     DeploymentTimeout { timeout_secs: u64, names: String },
+
+    #[error("failed to read scenario job {name}: {source}")]
+    GetScenarioJob {
+        name: &'static str,
+        #[source]
+        source: kube::Error,
+    },
+
+    #[error("scenario job {name} has no status.startTime")]
+    MissingJobStartTime { name: &'static str },
 }
 
 pub struct DeploymentStatus {
@@ -90,6 +105,11 @@ pub trait Client: Send + Sync + Clone {
         namespace: &str,
         output_dir: &Path,
     ) -> impl Future<Output = ()> + Send;
+
+    fn get_scenario_job_window(
+        &self,
+        namespace: &str,
+    ) -> impl Future<Output = Result<(DateTime<Utc>, DateTime<Utc>), Error>> + Send;
 }
 
 #[derive(Clone)]
@@ -390,6 +410,56 @@ impl Client for HttpClient {
             errors.push(msg);
         }
     }
+
+    async fn get_scenario_job_window(
+        &self,
+        namespace: &str,
+    ) -> Result<(DateTime<Utc>, DateTime<Utc>), Error> {
+        let job_api: Api<Job> = Api::namespaced(self.client.clone(), namespace);
+
+        let job = job_api
+            .get(SCENARIO_JOB_NAME)
+            .await
+            .map_err(|source| Error::GetScenarioJob {
+                name: SCENARIO_JOB_NAME,
+                source,
+            })?;
+
+        window_from_job_status(job.status.as_ref())
+    }
+}
+
+/// Derives the query window from a scenario Job's status. Errors if `startTime` isn't set yet;
+/// defaults `completionTime` to now (with a warning) if the job hasn't finished.
+fn window_from_job_status(
+    status: Option<&JobStatus>,
+) -> Result<(DateTime<Utc>, DateTime<Utc>), Error> {
+    let start = status
+        .and_then(|s| s.start_time.as_ref())
+        .and_then(to_chrono_utc)
+        .ok_or(Error::MissingJobStartTime {
+            name: SCENARIO_JOB_NAME,
+        })?;
+
+    let end = status
+        .and_then(|s| s.completion_time.as_ref())
+        .and_then(to_chrono_utc)
+        .unwrap_or_else(|| {
+            warn!(
+                "scenario job {SCENARIO_JOB_NAME} has no completionTime yet, \
+                 defaulting end of window to now"
+            );
+            Utc::now()
+        });
+
+    Ok((start, end))
+}
+
+/// Converts a Kubernetes `Time` (a [`jiff::Timestamp`] wrapper) to a [`chrono::DateTime<Utc>`],
+/// since `rtf_integrations::prometheus::PrometheusClient` (and the rest of this codebase) uses
+/// `chrono` for timestamps.
+fn to_chrono_utc(t: &Time) -> Option<DateTime<Utc>> {
+    DateTime::from_timestamp(t.0.as_second(), t.0.subsec_nanosecond() as u32)
 }
 
 /// Returns `(pod_name, container_names)` for every pod in the slice.
@@ -463,6 +533,7 @@ pub(crate) mod mocks {
         ApplyNamespace { name: String },
         ApplyResultsWriterServiceAccount { namespace: String },
         CheckDeploymentsAvailable { namespace: String },
+        GetScenarioJobWindow { namespace: String },
     }
 
     struct MockState {
@@ -578,6 +649,23 @@ pub(crate) mod mocks {
         async fn collect_namespace_events(&self, _namespace: &str, _output_dir: &Path) {}
 
         async fn collect_resource_metrics(&self, _namespace: &str, _output_dir: &Path) {}
+
+        async fn get_scenario_job_window(
+            &self,
+            namespace: &str,
+        ) -> Result<(DateTime<Utc>, DateTime<Utc>), Error> {
+            if self.should_fail() {
+                return Err(Error::MissingJobStartTime {
+                    name: SCENARIO_JOB_NAME,
+                });
+            }
+            self.record_call(KubeCall::GetScenarioJobWindow {
+                namespace: namespace.to_owned(),
+            });
+
+            let end = Utc::now();
+            Ok((end, end))
+        }
     }
 }
 
@@ -587,7 +675,9 @@ mod tests {
     use k8s_openapi::{
         api::core::v1::{Container, PodSpec},
         apimachinery::pkg::apis::meta::v1::ObjectMeta,
+        jiff,
     };
+    use simple_test_case::test_case;
 
     fn make_pod(name: &str, containers: &[&str]) -> Pod {
         Pod {
@@ -652,5 +742,43 @@ mod tests {
         let pods = [pod];
         let result = pods_to_collect(&pods);
         assert_eq!(result, vec![("mypod", vec!["main".to_owned()])]);
+    }
+
+    fn job_status(start: Option<jiff::Timestamp>, end: Option<jiff::Timestamp>) -> JobStatus {
+        JobStatus {
+            start_time: start.map(Time),
+            completion_time: end.map(Time),
+            ..Default::default()
+        }
+    }
+
+    #[test_case(None, Err(()); "errors when status is missing")]
+    #[test_case(Some((None, Some(200))), Err(()); "errors when start time is missing")]
+    #[test_case(Some((Some(100), None)), Ok((100, None)); "defaults end to now when completion time is missing")]
+    #[test_case(Some((Some(100), Some(200))), Ok((100, Some(200))); "uses start and completion time when both present")]
+    #[test]
+    fn window_from_job_status_cases(
+        status: Option<(Option<i64>, Option<i64>)>,
+        expected: Result<(i64, Option<i64>), ()>,
+    ) {
+        let to_ts = |secs: i64| k8s_openapi::jiff::Timestamp::from_second(secs).unwrap();
+        let status = status.map(|(start, end)| job_status(start.map(to_ts), end.map(to_ts)));
+
+        let actual = window_from_job_status(status.as_ref());
+
+        match (actual, expected) {
+            (Err(Error::MissingJobStartTime { .. }), Err(())) => {}
+            (Ok((actual_start, actual_end)), Ok((expected_start, expected_end))) => {
+                assert_eq!(actual_start.timestamp(), expected_start);
+                match expected_end {
+                    Some(expected_end) => assert_eq!(actual_end.timestamp(), expected_end),
+                    None => assert!(
+                        (Utc::now() - actual_end).num_seconds().abs() < 5,
+                        "expected end to default to ~now, got {actual_end}"
+                    ),
+                }
+            }
+            (actual, expected) => panic!("expected {expected:?}, got {actual:?}"),
+        }
     }
 }
