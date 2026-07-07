@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["APOLLO_KEY_ENV_VAR","APOLLO_SUDO_ENV_VAR","GITHUB_TOKEN_ENV_VAR","GRAPH_OS_STAGING_ENV_VAR","N_PARALLEL_FETCH"],"mod":["github","graphos","orchestrator"],"struct":["HttpResponse","ReqwestClient"],"trait":["HttpClient"]};
+window.SIDEBAR_ITEMS = {"constant":["APOLLO_KEY_ENV_VAR","APOLLO_SUDO_ENV_VAR","GITHUB_TOKEN_ENV_VAR","GRAPH_OS_STAGING_ENV_VAR","N_PARALLEL_FETCH"],"mod":["github","graphos","orchestrator","prometheus"],"struct":["HttpResponse","ReqwestClient"],"trait":["HttpClient"]};

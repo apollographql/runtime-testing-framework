@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Error"],"struct":["PrometheusClient"],"trait":["Client"],"type":["Result"]};

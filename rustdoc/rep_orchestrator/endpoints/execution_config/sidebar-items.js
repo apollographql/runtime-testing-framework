@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["env_handler","scenario_handler"]};
+window.SIDEBAR_ITEMS = {"fn":["env_handler","output_handler","scenario_handler"]};
