@@ -60,6 +60,12 @@ impl EnvironmentConfig<EnvironmentExecution> {
         }
     }
 
+    /// Returns `true` if this environment actually has output configured to collect
+    pub fn output_collection_defined(&self) -> bool {
+        self.output_collection()
+            .is_some_and(OutputCollection::is_defined)
+    }
+
     /// Create an empty [EnvironmentConfig] for tests
     #[cfg(test)]
     pub(crate) fn empty() -> EnvironmentConfig<EnvironmentExecution> {
@@ -510,6 +516,45 @@ pub(crate) mod tests {
         let ctx = Context::new();
 
         assert_check_errors(environment, &ctx, &[checks::ErrorKind::InvalidPromQl]);
+    }
+
+    #[test]
+    fn output_collection_defined_false_for_docker_compose_environment_without_prometheus_queries() {
+        let environment = EnvironmentConfig {
+            execution: EnvironmentExecution::DockerCompose(docker_compose_env(
+                Some("project"),
+                &["file"],
+            )),
+            ..EnvironmentConfig::empty()
+        };
+
+        assert!(!environment.output_collection_defined());
+    }
+
+    #[test]
+    fn output_collection_defined_true_for_docker_compose_environment_with_prometheus_queries() {
+        let environment = EnvironmentConfig {
+            execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
+                output_collection: OutputCollection {
+                    prometheus: vec![PrometheusQuery {
+                        name: "name".to_string(),
+                        step: "15m".to_string(),
+                        query: "sum(rate(metric[1m]))".to_string(),
+                    }],
+                },
+                ..docker_compose_env(Some("project"), &["file"])
+            }),
+            ..EnvironmentConfig::empty()
+        };
+
+        assert!(environment.output_collection_defined());
+    }
+
+    #[test]
+    fn output_collection_defined_false_for_script_environment() {
+        let environment = EnvironmentConfig::empty();
+
+        assert!(!environment.output_collection_defined());
     }
 
     #[tokio::test]

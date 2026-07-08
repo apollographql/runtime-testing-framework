@@ -22,6 +22,13 @@ pub struct OutputCollection {
     pub prometheus: Vec<PrometheusQuery>,
 }
 
+impl OutputCollection {
+    /// Returns `true` if there is any actual output configured to collect
+    pub fn is_defined(&self) -> bool {
+        !self.prometheus.is_empty()
+    }
+}
+
 impl Check for OutputCollection {
     fn try_check(
         &self,
@@ -385,6 +392,22 @@ mod tests {
 
         let res = output.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn output_collection_is_defined_false_when_empty() {
+        let output = OutputCollection { prometheus: vec![] };
+
+        assert!(!output.is_defined());
+    }
+
+    #[test]
+    fn output_collection_is_defined_true_when_prometheus_queries_present() {
+        let output = OutputCollection {
+            prometheus: vec![prometheus_query("sum(rate(metric[1m]))")],
+        };
+
+        assert!(output.is_defined());
     }
 
     #[test]

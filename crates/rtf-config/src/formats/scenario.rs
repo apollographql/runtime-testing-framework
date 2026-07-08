@@ -69,6 +69,12 @@ impl ScenarioConfig<ScenarioExecution> {
         }
     }
 
+    /// Returns `true` if this scenario actually has output configured to collect
+    pub fn output_collection_defined(&self) -> bool {
+        self.output_collection()
+            .is_some_and(OutputCollection::is_defined)
+    }
+
     /// Create an empty [ScenarioConfig] for tests
     #[cfg(test)]
     pub(crate) fn empty() -> ScenarioConfig<ScenarioExecution> {
@@ -848,6 +854,57 @@ mod tests {
         let ctx = Context::new();
 
         assert_check_errors(scenario, &ctx, &[checks::ErrorKind::InvalidPromQl]);
+    }
+
+    #[test]
+    fn output_collection_defined_false_for_docker_scenario_without_prometheus_queries() {
+        let scenario = ScenarioConfig {
+            execution: ScenarioExecution::Docker(DockerScenario {
+                docker: DockerCommand {
+                    image: Field::Resolved("alpine".to_string()),
+                    tag: Some(Field::Resolved("latest".to_string())),
+                    command: Field::Resolved("echo hello".to_string()),
+                },
+                env_vars: HashMap::new(),
+                file_providers: Vec::new(),
+                output_collection: OutputCollection::default(),
+            }),
+            ..ScenarioConfig::empty()
+        };
+
+        assert!(!scenario.output_collection_defined());
+    }
+
+    #[test]
+    fn output_collection_defined_true_for_docker_scenario_with_prometheus_queries() {
+        let scenario = ScenarioConfig {
+            execution: ScenarioExecution::Docker(DockerScenario {
+                docker: DockerCommand {
+                    image: Field::Resolved("alpine".to_string()),
+                    tag: Some(Field::Resolved("latest".to_string())),
+                    command: Field::Resolved("echo hello".to_string()),
+                },
+                env_vars: HashMap::new(),
+                file_providers: Vec::new(),
+                output_collection: OutputCollection {
+                    prometheus: vec![PrometheusQuery {
+                        name: "name".to_string(),
+                        step: "15m".to_string(),
+                        query: "sum(rate(metric[1m]))".to_string(),
+                    }],
+                },
+            }),
+            ..ScenarioConfig::empty()
+        };
+
+        assert!(scenario.output_collection_defined());
+    }
+
+    #[test]
+    fn output_collection_defined_false_for_script_scenario() {
+        let scenario = ScenarioConfig::empty();
+
+        assert!(!scenario.output_collection_defined());
     }
 
     #[tokio::test]
