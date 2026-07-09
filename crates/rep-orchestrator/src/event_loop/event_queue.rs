@@ -70,10 +70,7 @@ impl EventQueue {
             execution_map: HashMap::new(),
             payload_cache: HashMap::new(),
             active_run_executions: HashMap::new(),
-            resolved_env_cache: HashMap::new(),
-            resolved_scenario_cache: HashMap::new(),
-            resolved_output_collection_cache: HashMap::new(),
-            scenario_docker_cache: HashMap::new(),
+            resolved_execution_cache: HashMap::new(),
             max_queued_executions,
             n_queued: 0,
         }));
@@ -199,8 +196,7 @@ impl EventQueue {
             let run_uuid = shared.execution_map.remove(&ex_id)?;
             let active = shared.active_run_executions.get_mut(&run_uuid)?;
             active.remove(&ex_id);
-            shared.resolved_scenario_cache.remove(&ex_id);
-            shared.scenario_docker_cache.remove(&ex_id);
+            shared.resolved_execution_cache.remove(&ex_id);
 
             if active.is_empty() {
                 shared.active_run_executions.remove(&run_uuid);
@@ -217,8 +213,13 @@ impl EventQueue {
         &self,
         ex_id: Uuid,
     ) -> Option<(String, String)> {
-        self.with_shared(|shared| shared.scenario_docker_cache.get(&ex_id).cloned())
-            .await
+        self.with_shared(|shared| {
+            shared
+                .resolved_execution_cache
+                .get(&ex_id)
+                .map(|c| (c.docker_image.clone(), c.docker_command.clone()))
+        })
+        .await
     }
 
     /// Send a [ResolverInput] to the resolver_task channel.
@@ -226,12 +227,6 @@ impl EventQueue {
         self.tx_resolve
             .send(input)
             .map_err(|_| ResolverError::EventChannelClosed)
-    }
-
-    /// Evict the resolved env config cache entry for the given execution.
-    pub(crate) async fn evict_resolved_env_config(&self, ex_id: Uuid) {
-        self.with_shared(|shared| shared.resolved_env_cache.remove(&ex_id))
-            .await;
     }
 
     /// Initialise the in-memory queue state based on current DB cache data.
@@ -527,8 +522,8 @@ impl ProvisioningHandle {
         Ok((test_plan, ctx))
     }
 
-    /// Resolve the environment config for `ex`, serialise to YAML, and store in
-    /// `resolved_env_cache` keyed by execution UUID.
+    /// Resolve the environment and scenario config for `ex` and store it in
+    /// `resolved_execution_cache` keyed by execution UUID.
     pub(crate) async fn resolve_and_cache_config(
         &self,
         ex: &TestExecution,
@@ -599,16 +594,16 @@ impl ProvisioningHandle {
         };
 
         self.with_shared(|shared| {
-            shared.resolved_env_cache.insert(ex.uuid(), env_yaml);
-            shared
-                .resolved_scenario_cache
-                .insert(ex.uuid(), scenario_yaml);
-            shared
-                .resolved_output_collection_cache
-                .insert(ex.uuid(), output_collection);
-            shared
-                .scenario_docker_cache
-                .insert(ex.uuid(), (image, command));
+            shared.resolved_execution_cache.insert(
+                ex.uuid(),
+                ResolvedExecutionConfig {
+                    env_yaml,
+                    scenario_yaml,
+                    output_collection,
+                    docker_image: image,
+                    docker_command: command,
+                },
+            );
 
             Ok(())
         })
@@ -714,9 +709,9 @@ impl EventQueueState {
                 running_executions,
                 cached_run_payloads: shared.payload_cache.keys().cloned().collect(),
                 active_run_executions: shared.active_run_executions.clone(),
-                resolved_env_cache: shared.resolved_env_cache.keys().cloned().collect(),
-                resolved_scenario_cache: shared.resolved_env_cache.keys().cloned().collect(),
-                resolved_docker_cache: shared.resolved_env_cache.keys().cloned().collect(),
+                resolved_env_cache: shared.resolved_execution_cache.keys().cloned().collect(),
+                resolved_scenario_cache: shared.resolved_execution_cache.keys().cloned().collect(),
+                resolved_docker_cache: shared.resolved_execution_cache.keys().cloned().collect(),
             }
         })
         .await
@@ -781,9 +776,9 @@ impl EventQueueState {
     ) -> resolver::Result<String> {
         self.with_shared(|shared| {
             shared
-                .resolved_env_cache
+                .resolved_execution_cache
                 .get(&ex.uuid())
-                .cloned()
+                .map(|c| c.env_yaml.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
         .await
@@ -795,9 +790,9 @@ impl EventQueueState {
     ) -> resolver::Result<String> {
         self.with_shared(|shared| {
             shared
-                .resolved_scenario_cache
+                .resolved_execution_cache
                 .get(&ex.uuid())
-                .cloned()
+                .map(|c| c.scenario_yaml.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
         .await
@@ -809,13 +804,24 @@ impl EventQueueState {
     ) -> resolver::Result<OutputCollectionResponse> {
         self.with_shared(|shared| {
             shared
-                .resolved_output_collection_cache
+                .resolved_execution_cache
                 .get(&ex.uuid())
-                .cloned()
+                .map(|c| c.output_collection.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
         .await
     }
+}
+
+/// All config resolved for a single execution ahead of time, kept together since it's always
+/// inserted and evicted as a unit.
+#[derive(Debug, Clone)]
+struct ResolvedExecutionConfig {
+    env_yaml: String,
+    scenario_yaml: String,
+    output_collection: OutputCollectionResponse,
+    docker_image: String,
+    docker_command: String,
 }
 
 #[derive(Debug)]
@@ -826,14 +832,8 @@ struct Shared {
     payload_cache: HashMap<Uuid, (Arc<RepContext>, RepTestPlan)>,
     /// Executions active for each run.
     active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
-    /// Pre-resolved env config YAML keyed by execution UUID
-    resolved_env_cache: HashMap<Uuid, String>,
-    /// Pre-resolved scenario config YAML keyed by execution UUID
-    resolved_scenario_cache: HashMap<Uuid, String>,
-    /// Pre-resolved output collection config
-    resolved_output_collection_cache: HashMap<Uuid, OutputCollectionResponse>,
-    /// Pre-resolved docker image and command keyed by execution UUID
-    scenario_docker_cache: HashMap<Uuid, (String, String)>,
+    /// Pre-resolved config keyed by execution UUID
+    resolved_execution_cache: HashMap<Uuid, ResolvedExecutionConfig>,
     /// Maximum number of pending executions waiting for a namespace
     max_queued_executions: usize,
     /// The number of currently queued executions
@@ -1272,42 +1272,51 @@ mod tests {
 
         assert!(res.is_ok(), "{res:?}");
         ph.with_shared(|shared| {
-            assert!(
-                shared.resolved_env_cache.contains_key(&ex_uuid),
-                "env YAML should be cached"
-            );
+            let cached = shared
+                .resolved_execution_cache
+                .get(&ex_uuid)
+                .expect("execution config should be cached");
 
+            assert!(!cached.env_yaml.is_empty(), "env YAML should be cached");
             assert!(
-                shared.resolved_scenario_cache.contains_key(&ex_uuid),
+                !cached.scenario_yaml.is_empty(),
                 "scenario YAML should be cached"
             );
-
             assert!(
-                shared
-                    .resolved_output_collection_cache
-                    .contains_key(&ex_uuid),
-                "output collection should be cached"
+                !cached.docker_image.is_empty(),
+                "scenario docker image should be cached"
             );
-
             assert!(
-                shared.scenario_docker_cache.contains_key(&ex_uuid),
-                "scenario docker image and command should be cached"
+                !cached.docker_command.is_empty(),
+                "scenario docker command should be cached"
             );
         })
         .await;
     }
 
     #[tokio::test]
-    async fn mark_execution_complete_evicts_resolved_scenario_cache() {
+    async fn mark_execution_complete_evicts_resolved_execution_cache() {
         let (mut eq, h, _, _) = EventQueue::new(1, 5);
         let run_uuid = Uuid::new_v4();
         let ex_id = Uuid::new_v4();
 
         h.with_shared(|shared| {
             shared.register_execution(ex_id, run_uuid);
-            shared
-                .resolved_scenario_cache
-                .insert(ex_id, "yaml".to_string());
+            shared.resolved_execution_cache.insert(
+                ex_id,
+                ResolvedExecutionConfig {
+                    env_yaml: "yaml".to_string(),
+                    scenario_yaml: "yaml".to_string(),
+                    output_collection: OutputCollectionResponse {
+                        prometheus: PrometheusQueries {
+                            environment: Vec::new(),
+                            scenario: Vec::new(),
+                        },
+                    },
+                    docker_image: "image".to_string(),
+                    docker_command: "command".to_string(),
+                },
+            );
         })
         .await;
         eq.inner.lock().await.running_executions.insert(ex_id);
@@ -1316,8 +1325,8 @@ mod tests {
 
         h.with_shared(|shared| {
             assert!(
-                !shared.resolved_scenario_cache.contains_key(&ex_id),
-                "scenario cache entry should be evicted"
+                !shared.resolved_execution_cache.contains_key(&ex_id),
+                "resolved execution cache entry should be evicted"
             );
         })
         .await;
@@ -1375,27 +1384,6 @@ mod tests {
             matches!(input, ResolverInput::ResolveConfig(ref e) if e.uuid() == ex.uuid()),
             "wrong input forwarded: {input:?}"
         );
-    }
-
-    #[tokio::test]
-    async fn evict_resolved_env_config_removes_cache_entry() {
-        let (eq, h, _, _) = EventQueue::new(1, 5);
-        let ex_id = Uuid::new_v4();
-
-        h.with_shared(|shared| {
-            shared.resolved_env_cache.insert(ex_id, "yaml".to_string());
-        })
-        .await;
-
-        eq.evict_resolved_env_config(ex_id).await;
-
-        h.with_shared(|shared| {
-            assert!(
-                !shared.resolved_env_cache.contains_key(&ex_id),
-                "env cache entry should be evicted"
-            );
-        })
-        .await;
     }
 
     fn stub_trigger_payload() -> TriggerPayload {
@@ -1477,19 +1465,9 @@ mod tests {
             }
 
             assert_eq!(
-                shared.resolved_env_cache.contains_key(&ex_uuid),
+                shared.resolved_execution_cache.contains_key(&ex_uuid),
                 cached,
-                "incorrect cached env state"
-            );
-            assert_eq!(
-                shared.resolved_scenario_cache.contains_key(&ex_uuid),
-                cached,
-                "incorrect cached scenario state"
-            );
-            assert_eq!(
-                shared.scenario_docker_cache.contains_key(&ex_uuid),
-                cached,
-                "incorrect cached docker state"
+                "incorrect cached execution config state"
             );
         })
         .await;
