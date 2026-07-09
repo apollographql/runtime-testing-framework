@@ -20,7 +20,7 @@ use rep_orchestrator_shared::OtelConfig;
 use serde::Serialize;
 use std::time::Duration;
 use tokio::{spawn, time::sleep};
-use tracing::{error, info_span, warn};
+use tracing::{Instrument, error, info_span, warn};
 
 mod cleanup_namespace;
 mod event_queue;
@@ -76,13 +76,15 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
     };
 
     while let Some(evt) = event_queue.next_event().await {
-        let ty_name = evt.data.name();
+        let execution_id = evt.test_execution.uuid();
+        let ty = evt.data.name();
 
-        let span = info_span!("event", execution_id = %evt.test_execution.uuid(), ty=ty_name);
-        let _guard = span.enter();
+        let fut = evt
+            .handle(&mut event_queue, &cfg)
+            .instrument(info_span!("event", %execution_id, %ty));
 
-        if let Err(err) = evt.handle(&mut event_queue, &cfg).await {
-            error!(%err, ty=%ty_name, "Error handling event");
+        if let Err(err) = fut.await {
+            error!(%err, %ty, "Error handling event");
         }
     }
 

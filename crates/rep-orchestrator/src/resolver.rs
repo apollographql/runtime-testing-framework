@@ -19,7 +19,7 @@ use std::{
     ops::ControlFlow,
 };
 use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::{error, info_span, warn};
+use tracing::{error, warn};
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -153,6 +153,7 @@ impl ResolverQueue {
     }
 }
 
+#[tracing::instrument(skip_all, fields(test_run_id = %test_run.uuid(), name = %test_run.name()))]
 async fn resolve_test_plan<H: UpdateHandle>(
     test_run: TestRun,
     payload: TriggerPayload,
@@ -160,9 +161,6 @@ async fn resolve_test_plan<H: UpdateHandle>(
     update_handle: &mut H,
     prov_handle: &ProvisioningHandle,
 ) -> ControlFlow<()> {
-    let span = info_span!("resolve", test_run_id = %test_run.uuid(), name = %test_run.name());
-    let _guard = span.enter();
-
     if let Err(e) = try_resolve(&test_run, payload, update_handle, cfg, prov_handle).await {
         match e {
             ResolverError::EventChannelClosed => {
