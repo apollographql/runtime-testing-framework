@@ -709,9 +709,7 @@ impl EventQueueState {
                 running_executions,
                 cached_run_payloads: shared.payload_cache.keys().cloned().collect(),
                 active_run_executions: shared.active_run_executions.clone(),
-                resolved_env_cache: shared.resolved_execution_cache.keys().cloned().collect(),
-                resolved_scenario_cache: shared.resolved_execution_cache.keys().cloned().collect(),
-                resolved_docker_cache: shared.resolved_execution_cache.keys().cloned().collect(),
+                resolved_execution_cache: shared.resolved_execution_cache.keys().cloned().collect(),
             }
         })
         .await
@@ -877,9 +875,7 @@ pub struct Snapshot {
     running_executions: Vec<Uuid>,
     cached_run_payloads: Vec<Uuid>,
     active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
-    resolved_env_cache: Vec<Uuid>,
-    resolved_scenario_cache: Vec<Uuid>,
-    resolved_docker_cache: Vec<Uuid>,
+    resolved_execution_cache: Vec<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
