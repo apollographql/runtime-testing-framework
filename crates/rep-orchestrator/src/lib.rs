@@ -99,7 +99,7 @@ fn build_routes(state: ServerState, reload_handle: Option<Handle<EnvFilter, Regi
         .route("/test-run/{id}/status", get(run_status::handler))
         .route("/test-run/trigger", post(trigger::handler))
         .with_state(state)
-        .layer(DefaultBodyLimit::max(50 * 1024));
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024));
 
     if let Some(reload_handle) = reload_handle {
         router = router.route(
