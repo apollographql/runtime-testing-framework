@@ -234,9 +234,6 @@ impl Event {
             }
 
             EventData::ArgoWorkflowComplete => {
-                event_queue
-                    .evict_resolved_env_config(self.test_execution.uuid())
-                    .await;
                 conn.mark_execution_as_environment_ready(
                     &self.test_execution,
                     MSG_ARGO_COMPLETE.into(),
