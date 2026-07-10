@@ -22,6 +22,8 @@ config:
   maxConcurrentExecutions: "10"
   # -- Maximum number of queued test executions
   maxQueuedExecutions: "100"
+  # -- Maximum accepted request body size, in megabytes. The axum default is 2; this should never be set lower
+  bodyLimitMb: "50"
   # -- URL for this orchestrator instance, reachable from both management and workload cluster pods. Required
   orchestratorUrl: ""
   # -- Image pull policy for toolbox images

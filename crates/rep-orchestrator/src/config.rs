@@ -27,6 +27,8 @@ pub struct Config {
     pub max_concurrent_executions: usize,
     #[serde(default = "default_max_queued")]
     pub max_queued_executions: usize,
+    #[serde(default = "default_body_limit_mb")]
+    pub body_limit_mb: usize,
     pub kubeconfig_path: String,
     #[serde(default = "default_kubeconfig_secret_name")]
     pub kubeconfig_secret_name: String,
@@ -74,6 +76,10 @@ fn default_max_concurrent() -> usize {
 
 fn default_max_queued() -> usize {
     100
+}
+
+fn default_body_limit_mb() -> usize {
+    50
 }
 
 fn default_gcs_url_ttl_secs() -> u64 {

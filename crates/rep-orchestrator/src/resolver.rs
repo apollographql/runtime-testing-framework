@@ -322,6 +322,7 @@ mod tests {
             port: 8035,
             max_concurrent_executions: 10,
             max_queued_executions: 100,
+            body_limit_mb: 50,
             kubeconfig_path: "dummy".to_string(),
             kubeconfig_secret_name: "workload-kubeconfig".to_string(),
             workload_context: "dummy".to_string(),
