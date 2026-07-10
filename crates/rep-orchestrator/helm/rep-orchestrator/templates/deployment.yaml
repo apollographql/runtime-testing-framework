@@ -95,6 +95,8 @@ spec:
               value: {{ .Values.config.maxConcurrentExecutions | quote }}
             - name: RTF_MAX_QUEUED_EXECUTIONS
               value: {{ .Values.config.maxQueuedExecutions | quote }}
+            - name: RTF_BODY_LIMIT_MB
+              value: {{ .Values.config.bodyLimitMb | quote }}
             - name: RTF_ORCHESTRATOR_URL
               value: {{ required "config.orchestratorUrl is required" .Values.config.orchestratorUrl | quote }}
             - name: RTF_TOOLBOX_PULL_POLICY

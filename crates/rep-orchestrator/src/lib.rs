@@ -48,7 +48,7 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     tokio::spawn(event_loop::event_loop_task(event_queue));
 
     info!("starting axum server");
-    let routes = build_routes(state, Some(reload_handle));
+    let routes = build_routes(cfg, state, Some(reload_handle));
     let listener = TcpListener::bind(cfg.socket_addr()).await.unwrap();
 
     serve(listener, routes).await?;
@@ -56,7 +56,11 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     Ok(())
 }
 
-fn build_routes(state: ServerState, reload_handle: Option<Handle<EnvFilter, Registry>>) -> Router {
+fn build_routes(
+    cfg: &Config,
+    state: ServerState,
+    reload_handle: Option<Handle<EnvFilter, Registry>>,
+) -> Router {
     use endpoints::{
         admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
         health, run_status, trigger,
@@ -99,7 +103,7 @@ fn build_routes(state: ServerState, reload_handle: Option<Handle<EnvFilter, Regi
         .route("/test-run/{id}/status", get(run_status::handler))
         .route("/test-run/trigger", post(trigger::handler))
         .with_state(state)
-        .layer(DefaultBodyLimit::max(50 * 1024 * 1024));
+        .layer(DefaultBodyLimit::max(cfg.body_limit_mb * 1024 * 1024));
 
     if let Some(reload_handle) = reload_handle {
         router = router.route(
@@ -153,7 +157,7 @@ mod test_helpers {
                 EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
             let state = ServerState::new(eq_state, gcs_client);
-            let test_server = TestServer::new(build_routes(state.clone(), None));
+            let test_server = TestServer::new(build_routes(cfg, state.clone(), None));
 
             Self {
                 test_server,
