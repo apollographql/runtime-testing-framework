@@ -53,6 +53,12 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 
+# jemalloc returns freed pages to the OS on a decay timer via background threads,
+# which glibc malloc does not do. Linux-only so local (macOS) dev builds keep the
+# system allocator and gain no C-build dependency.
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator.workspace = true
+
 [dev-dependencies]
 anyhow.workspace = true 
 axum-test = "20.0.0"
