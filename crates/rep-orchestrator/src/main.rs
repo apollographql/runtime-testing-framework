@@ -1,5 +1,13 @@
 use rep_orchestrator::run_server;
 use rustls::crypto::aws_lc_rs;
+
+// glibc malloc (prod runtime is debian/glibc) does not return freed memory to the
+// OS after large transient allocation spikes, so RSS sticks at peak. jemalloc with
+// background purging returns dirty pages on a decay timer.
+#[cfg(target_os = "linux")]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 use std::{io::stdout, process};
 use tracing::{error, info, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, registry, reload};
