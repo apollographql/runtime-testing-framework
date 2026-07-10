@@ -3,10 +3,10 @@
     prov_handle: <a class="struct" href="../event_loop/struct.ProvisioningHandle.html" title="struct rep_orchestrator::event_loop::ProvisioningHandle">ProvisioningHandle</a>,
 ) -&gt; <a class="type" href="../error/type.Result.html" title="type rep_orchestrator::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.96.1/std/primitive.unit.html">()</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A long lived Tokio task that is responsible for running all RTF related logic that executes
 within the server.</p>
-<p>See <code>resolve_variant</code> below for the specific [rtf_config] logic that is run on the server.</p>
+<p>See <code>resolve_variant</code> below for the specific <a href="../../rtf_config/index.html" title="mod rtf_config">rtf_config</a> logic that is run on the server.</p>
 <h2 id="differences-compared-to-rtf_cli"><a class="doc-anchor" href="#differences-compared-to-rtf_cli">§</a>Differences compared to <code>rtf_cli</code></h2>
-<p>The resolution logic used here only supports processing a [RepTestPlan] that has been submitted
-as part of a [TriggerPayload] (prepared using <code>rtf rep prepare</code> on the command line). That
+<p>The resolution logic used here only supports processing a <a href="../../rep_orchestrator_shared/test_plan/type.RepTestPlan.html" title="type rep_orchestrator_shared::test_plan::RepTestPlan">RepTestPlan</a> that has been submitted
+as part of a <a href="../../rep_orchestrator_shared/payload/trigger/struct.TriggerPayload.html" title="struct rep_orchestrator_shared::payload::trigger::TriggerPayload">TriggerPayload</a> (prepared using <code>rtf rep prepare</code> on the command line). That
 preparation logic handles all filesystem operations on the client side and provides the
 required local file data for us to construct a <a href="../context/struct.RepContext.html" title="struct rep_orchestrator::context::RepContext">RepContext</a> that can then handle resolving
 what’s left.</p>
