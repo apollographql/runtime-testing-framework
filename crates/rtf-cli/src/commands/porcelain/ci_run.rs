@@ -34,6 +34,7 @@ pub async fn ci_run(
     println!("Triggering test run...\n");
     let mut summary: TestRunSummary = client.post_json("test-run/trigger", &payload).await?;
     let id = summary.id;
+    println!("Test run id: {id}\n");
 
     // Print the table headers and initial line
     let mut lines = vec![UpdateLine::from_summary(&mut summary)];
