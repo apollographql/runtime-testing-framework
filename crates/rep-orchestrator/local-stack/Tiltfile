@@ -214,8 +214,8 @@ custom_build(
 # (8080 is taken by the mock-backend port-forward).
 if run_ui:
     custom_build(
-        "orchestrator-ui",
-        "docker build --file ../../orchestrator-ui/docker/Dockerfile --tag $EXPECTED_REF ../../../",
+        "rtf-orchestrator-ui",
+        "docker build --file ../../rtf-orchestrator-ui/docker/Dockerfile --tag $EXPECTED_REF ../../../",
         deps=[
             "../../../Cargo.lock",
             "../../../Cargo.toml",
@@ -273,17 +273,17 @@ k8s_resource(
 # Orchestrator status UI deploy — gated on the same `--ui` flag as its image build above.
 if run_ui:
     k8s_yaml(helm(
-        "../../orchestrator-ui/helm/orchestrator-ui",
-        name="orchestrator-ui",
+        "../../rtf-orchestrator-ui/helm/rtf-orchestrator-ui",
+        name="rtf-orchestrator-ui",
         namespace="orchestrator",
         values=[
-            "../../orchestrator-ui/helm/orchestrator-ui/values.yaml",
-            "../../orchestrator-ui/helm/orchestrator-ui/values-local.yaml",
+            "../../rtf-orchestrator-ui/helm/rtf-orchestrator-ui/values.yaml",
+            "../../rtf-orchestrator-ui/helm/rtf-orchestrator-ui/values-local.yaml",
         ],
     ))
 
     k8s_resource(
-        "orchestrator-ui",
+        "rtf-orchestrator-ui",
         port_forwards=["8081:8080"],
         resource_deps=["cluster-setup"],
         labels=["rep-orchestrator"],

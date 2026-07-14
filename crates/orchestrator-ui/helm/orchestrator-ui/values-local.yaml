@@ -1,7 +1,0 @@
-image:
-  repository: orchestrator-ui
-  tag: latest
-  pullPolicy: Never
-
-config:
-  logLevel: "info,orchestrator_ui=debug"

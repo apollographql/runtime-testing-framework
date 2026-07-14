@@ -1,5 +1,5 @@
 apiVersion: v2
-name: orchestrator-ui
+name: rtf-orchestrator-ui
 description: Helm chart for the orchestrator status UI
 type: application
 version: 0.1.0

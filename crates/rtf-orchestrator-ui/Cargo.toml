@@ -1,5 +1,5 @@
 [package]
-name = "orchestrator-ui"
+name = "rtf-orchestrator-ui"
 version.workspace = true
 edition.workspace = true
 

@@ -1,0 +1,7 @@
+image:
+  repository: rtf-orchestrator-ui
+  tag: latest
+  pullPolicy: Never
+
+config:
+  logLevel: "info,rtf_orchestrator_ui=debug"

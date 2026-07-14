@@ -13,7 +13,7 @@ fullnameOverride: ""
 # -- Container image configuration
 image:
   # -- Image repository
-  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/orchestrator-ui"
+  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-orchestrator-ui"
   # -- Image tag. Defaults to the chart appVersion when not set
   tag: null
   # -- Image pull policy
@@ -28,7 +28,7 @@ nameOverride: ""
 # -- Annotations to add to the pod template
 podAnnotations: {}
 
-# -- Resource requests and limits for the orchestrator-ui container
+# -- Resource requests and limits for the rtf-orchestrator-ui container
 resources: {}
 
 # -- Kubernetes Service configuration

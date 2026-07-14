@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "orchestrator-ui.fullname" . }}
+  name: {{ include "rtf-orchestrator-ui.fullname" . }}
   labels:
-    {{- include "orchestrator-ui.labels" . | nindent 4 }}
+    {{- include "rtf-orchestrator-ui.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "orchestrator-ui.selectorLabels" . | nindent 6 }}
+      {{- include "rtf-orchestrator-ui.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "orchestrator-ui.selectorLabels" . | nindent 8 }}
+        {{- include "rtf-orchestrator-ui.selectorLabels" . | nindent 8 }}
       {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
@@ -23,7 +23,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: orchestrator-ui
+        - name: rtf-orchestrator-ui
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:

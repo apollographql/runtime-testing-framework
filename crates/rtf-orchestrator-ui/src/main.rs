@@ -1,4 +1,4 @@
-use orchestrator_ui::run_server;
+use rtf_orchestrator_ui::run_server;
 use std::process;
 use tracing::error;
 use tracing_subscriber::EnvFilter;

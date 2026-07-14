@@ -3131,27 +3131,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "orchestrator-ui"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "askama",
- "axum",
- "chrono",
- "envy",
- "rep-orchestrator-shared",
- "reqwest 0.13.3",
- "rust-embed",
- "rustls",
- "serde",
- "tikv-jemallocator",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "ordered-float"
 version = "2.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4104,6 +4083,27 @@ dependencies = [
  "tokio",
  "tracing",
  "xdg",
+]
+
+[[package]]
+name = "rtf-orchestrator-ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "askama",
+ "axum",
+ "chrono",
+ "envy",
+ "rep-orchestrator-shared",
+ "reqwest 0.13.3",
+ "rust-embed",
+ "rustls",
+ "serde",
+ "tikv-jemallocator",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
