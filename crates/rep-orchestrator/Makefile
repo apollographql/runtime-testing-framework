@@ -69,6 +69,12 @@ ci-tests: cluster-setup cluster-ci
 cluster-up:
 	@cd local-stack && tilt up --context kind-rtf-mgmt
 
+# As cluster-up, but also builds and deploys the opt-in orchestrator status UI
+# (browse it on http://localhost:8081/ui).
+.PHONY: cluster-up-with-ui
+cluster-up-with-ui:
+	@cd local-stack && tilt up --context kind-rtf-mgmt -- --ui
+
 .PHONY: cluster-ci
 cluster-ci:
 	@cd local-stack && tilt ci --context kind-rtf-mgmt -- --orchestrator-tests=true

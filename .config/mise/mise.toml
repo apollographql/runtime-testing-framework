@@ -14,9 +14,11 @@ run = "$(git rev-parse --show-toplevel)/scripts/generate-docs.sh"
 run = [
     "helm-docs -c crates/rep-orchestrator/helm/rep-orchestrator",
     "dprint fmt crates/rep-orchestrator/helm/rep-orchestrator/README.md",
+    "helm-docs -c crates/orchestrator-ui/helm/orchestrator-ui",
+    "dprint fmt crates/orchestrator-ui/helm/orchestrator-ui/README.md",
 ]
 dir = "../../"
-description = "Generate rep-orchestrator helm chart README.md and format with dprint"
+description = "Generate helm chart README.md files and format with dprint"
 
 [tasks.pr-all]
 run = [

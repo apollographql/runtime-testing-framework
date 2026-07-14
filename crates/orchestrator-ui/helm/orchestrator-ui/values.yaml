@@ -1,0 +1,41 @@
+# -- Application configuration
+config:
+  # -- Host address the server listens on
+  host: "0.0.0.0"
+  # -- Port the server listens on
+  port: "8080"
+  # -- Log level for the RUST_LOG environment variable
+  logLevel: "warn"
+
+# -- Overrides the fully qualified app name
+fullnameOverride: ""
+
+# -- Container image configuration
+image:
+  # -- Image repository
+  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/orchestrator-ui"
+  # -- Image tag. Defaults to the chart appVersion when not set
+  tag: null
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- List of image pull secrets
+imagePullSecrets: []
+
+# -- Overrides the chart name
+nameOverride: ""
+
+# -- Annotations to add to the pod template
+podAnnotations: {}
+
+# -- Resource requests and limits for the orchestrator-ui container
+resources: {}
+
+# -- Kubernetes Service configuration
+service:
+  # -- Whether to create a Service resource
+  create: true
+  # -- Service port
+  port: 8080
+  # -- Service type
+  type: ClusterIP

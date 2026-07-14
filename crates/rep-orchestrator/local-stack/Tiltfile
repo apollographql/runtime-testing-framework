@@ -7,8 +7,10 @@ update_settings(max_parallel_updates=6)
 allow_k8s_contexts("kind-rtf-mgmt")
 
 config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests for the orchestrator crate (off by default)")
+config.define_bool("ui", args=False, usage="Build and deploy the orchestrator status UI (off by default; not part of CI/integration tests)")
 cfg = config.parse()
 run_orchestrator_tests = cfg.get("orchestrator-tests", False)
+run_ui = cfg.get("ui", False)
 
 # NodePort values — must match the values in values-local.yaml and k8s/mock-backend.yaml
 ORCH_NODEPORT = 30035
@@ -204,6 +206,27 @@ custom_build(
     ],
 )
 
+# Orchestrator status UI — a standalone service that reaches the orchestrator in-cluster via its
+# ClusterIP service (values-local.yaml sets RTF_UI_ORCHESTRATOR_URL to http://rep-orchestrator:8035),
+# mirroring production. Templates and htmx are embedded in the binary, so no assets are mounted.
+# Opt-in via `tilt up -- --ui` (or set "ui" in tilt_config.json); off by default so it is not built
+# or deployed in CI, where it is not exercised. Browse it on http://localhost:8081/ui when enabled
+# (8080 is taken by the mock-backend port-forward).
+if run_ui:
+    custom_build(
+        "orchestrator-ui",
+        "docker build --file ../../orchestrator-ui/docker/Dockerfile --tag $EXPECTED_REF ../../../",
+        deps=[
+            "../../../Cargo.lock",
+            "../../../Cargo.toml",
+            "../../../crates/",
+        ],
+        ignore=[
+            "../../../crates/rtf-cli/resources/",  # test fixtures only — reading these during integration tests triggers spurious rebuilds via MacOS FSEvents atime updates
+            "../../../crates/rep-orchestrator/tests/",  # integration tests are not compiled into the release binary
+        ],
+    )
+
 # Mock backend server — in-memory GCS store plus a fake Prometheus query_range endpoint, used in
 # place of the real services for local integration tests
 custom_build(
@@ -246,6 +269,25 @@ k8s_resource(
     resource_deps=["cluster-setup"],
     labels=["rep-orchestrator"],
 )
+
+# Orchestrator status UI deploy — gated on the same `--ui` flag as its image build above.
+if run_ui:
+    k8s_yaml(helm(
+        "../../orchestrator-ui/helm/orchestrator-ui",
+        name="orchestrator-ui",
+        namespace="orchestrator",
+        values=[
+            "../../orchestrator-ui/helm/orchestrator-ui/values.yaml",
+            "../../orchestrator-ui/helm/orchestrator-ui/values-local.yaml",
+        ],
+    ))
+
+    k8s_resource(
+        "orchestrator-ui",
+        port_forwards=["8081:8080"],
+        resource_deps=["cluster-setup"],
+        labels=["rep-orchestrator"],
+    )
 
 if run_orchestrator_tests:
     local_resource(
