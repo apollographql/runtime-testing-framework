@@ -8,6 +8,7 @@ use tracing::info;
 
 pub mod config;
 
+mod assets;
 mod endpoints;
 mod templates;
 
@@ -32,4 +33,5 @@ fn router() -> Router {
     Router::new()
         .route("/ui", get(index))
         .route("/ui/health", get(health))
+        .route("/ui/static/{*path}", get(assets::serve))
 }

@@ -12,7 +12,7 @@ axum.workspace = true
 chrono.workspace = true
 envy.workspace = true
 reqwest.workspace = true
-rust-embed = "8.12.0"
+rust-embed = { version = "8.12.0", features = ["mime-guess"] }
 rustls.workspace = true
 serde.workspace = true
 tokio.workspace = true
