@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}RTF Status{% endblock %}</title>
+    <script src="/ui/static/htmx.min.js"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            color: #1a1a1a;
+            background: #f6f7f9;
+        }
+
+        header {
+            background: #14181f;
+            color: #fff;
+            padding: 1rem 1.5rem;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        main {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status--pending {
+            background: #e2e5ea;
+            color: #33383f;
+        }
+
+        .status--active {
+            background: #cfe3ff;
+            color: #0b4a80;
+        }
+
+        .status--success {
+            background: #d6f5d6;
+            color: #1a6b1a;
+        }
+
+        .status--failed {
+            background: #ffd6d6;
+            color: #8a1f1f;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 0.4rem 0.6rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        dt {
+            font-weight: 600;
+        }
+
+        .timeline {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .timeline li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .timeline time {
+            color: #666;
+            margin-left: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .timeline p {
+            margin: 0.35rem 0 0;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .muted button {
+            margin-left: 0.5rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>RTF Test Run Status</h1>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+</body>
+
+</html>

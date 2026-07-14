@@ -1,0 +1,26 @@
+[package]
+name = "orchestrator-ui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
+
+anyhow.workspace = true
+askama = "0.16.0"
+axum.workspace = true
+chrono.workspace = true
+envy.workspace = true
+reqwest.workspace = true
+rust-embed = "8.12.0"
+rustls.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+
+# See the note in `main.rs`: jemalloc returns freed pages to the OS on a decay
+# timer, which the glibc allocator used by the Linux runtime image does not.
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator.workspace = true
