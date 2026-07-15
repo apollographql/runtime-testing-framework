@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rtf-orchestrator-ui.fullname" . }}
+  labels:
+    {{- include "rtf-orchestrator-ui.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "rtf-orchestrator-ui.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rtf-orchestrator-ui.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: rtf-orchestrator-ui
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: RUST_LOG
+              value: {{ .Values.config.logLevel | quote }}
+            - name: RTF_UI_HOST
+              value: {{ .Values.config.host | quote }}
+            - name: RTF_UI_PORT
+              value: {{ .Values.config.port | quote }}
+          startupProbe:
+            httpGet:
+              path: /ui/health
+              port: {{ .Values.service.port }}
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ui/health
+              port: {{ .Values.service.port }}
+            periodSeconds: 5
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

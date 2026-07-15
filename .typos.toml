@@ -1,6 +1,8 @@
 [files]
 # Ignore GraphQL schema files that contain generated content and API names
 # that may appear as typos but are intentional
+# Ignore vendored/minified third-party JS, whose identifiers aren't real words
 extend-exclude = [
-    "crates/rtf-integrations/resources/engine-prod-schema.graphql"
+    "crates/rtf-integrations/resources/engine-prod-schema.graphql",
+    "crates/rtf-orchestrator-ui/static/htmx.min.js"
 ]
