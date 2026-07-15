@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Run not found{% endblock %}
+
+{% block content %}
+<h2>Run not found</h2>
+<p>No test run with ID <code>{{ id }}</code> was found.</p>
+<p><a href="/ui">&larr; Try another run</a></p>
+{% endblock %}

@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    endpoints::{health, index},
+    endpoints::{health, index, run_status},
 };
 use axum::{Router, routing::get};
 use tokio::net::TcpListener;
@@ -11,7 +11,9 @@ pub mod config;
 mod assets;
 mod endpoints;
 mod orchestrator;
+mod status;
 mod templates;
+mod view;
 
 pub async fn run_server() -> anyhow::Result<()> {
     let cfg = Config::get();
@@ -38,6 +40,7 @@ where
     Router::new()
         .route("/ui", get(index))
         .route("/ui/health", get(health))
+        .route("/ui/run/{id}", get(run_status::<C>))
         .route("/ui/static/{*path}", get(assets::serve))
         .with_state(orchestrator_client)
 }
