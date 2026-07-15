@@ -36,6 +36,8 @@ spec:
               value: {{ .Values.config.host | quote }}
             - name: RTF_UI_PORT
               value: {{ .Values.config.port | quote }}
+            - name: RTF_UI_ORCHESTRATOR_URL
+              value: {{ required "config.orchestratorUrl is required" .Values.config.orchestratorUrl | quote }}
           startupProbe:
             httpGet:
               path: /ui/health

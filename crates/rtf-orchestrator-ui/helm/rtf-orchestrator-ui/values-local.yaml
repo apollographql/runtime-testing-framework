@@ -5,3 +5,4 @@ image:
 
 config:
   logLevel: "info,rtf_orchestrator_ui=debug"
+  orchestratorUrl: "http://rep-orchestrator:8035"
