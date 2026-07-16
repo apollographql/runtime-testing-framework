@@ -179,6 +179,11 @@ fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        orchestrator::mocks::{sample_execution, sample_summary},
+        templates::{ExecutionTemplate, RunTemplate},
+    };
+    use askama::Template;
     use chrono::Duration;
 
     #[test]
@@ -226,5 +231,128 @@ mod tests {
         };
 
         assert_eq!(RunView::new(run, now).completed_at, Some(now.to_rfc3339()));
+    }
+
+    #[test]
+    fn run_template_carries_the_poll_trigger_while_non_terminal() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(body.contains(&format!("hx-get=\"/ui/run/{run_id}\"")));
+        assert!(body.contains("hx-select=\"#run\""));
+    }
+
+    #[test]
+    fn run_template_omits_the_poll_trigger_once_terminal() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let run = RunView::new(
+            sample_summary(run_id, ex_id, Status::Successful),
+            Utc::now(),
+        );
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        // The manual "Refresh now" button always carries `hx-get`/`hx-select`; `hx-trigger` only
+        // ever appears on the auto-poll attributes, so its absence is what proves polling stopped.
+        assert!(!body.contains("hx-trigger"));
+    }
+
+    #[test]
+    fn run_template_renders_run_and_execution_details() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(body.contains("my-test-run"), "run name should render");
+        assert!(body.contains("RUNNING"), "run status label should render");
+        assert!(body.contains("exec-alpha"), "execution name should render");
+        assert!(
+            body.contains("SUCCESSFUL"),
+            "execution status label should render"
+        );
+    }
+
+    #[test]
+    fn run_template_links_each_execution_to_its_gcp_logs_and_grafana_dashboard() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(
+            body.contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
+            "execution row should link to logs scoped to its own namespace"
+        );
+        assert!(
+            body.contains(&format!("var-namespace={ex_id}")),
+            "execution row should link to a Grafana dashboard scoped to its own namespace"
+        );
+    }
+
+    #[test]
+    fn run_template_shows_polish_indicators() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(
+            body.contains("last updated"),
+            "last-updated indicator present"
+        );
+        assert!(
+            body.contains("Refresh now"),
+            "manual refresh control present"
+        );
+        assert!(body.contains("Elapsed"), "elapsed time shown on the banner");
+    }
+
+    #[test]
+    fn execution_template_renders_status_history_and_metadata() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let view = ExecutionDetailView::new(sample_execution(run_id, ex_id));
+        let body = ExecutionTemplate { execution: view }
+            .render()
+            .expect("template renders");
+
+        assert!(body.contains("exec-alpha"), "execution name should render");
+        assert!(
+            body.contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
+            "execution detail page should link to logs scoped to its own namespace"
+        );
+        assert!(
+            body.contains(&format!("var-namespace={ex_id}")),
+            "execution detail page should link to a Grafana dashboard scoped to its own namespace"
+        );
+        assert!(
+            body.contains("Status history"),
+            "history section should render"
+        );
+        assert!(
+            body.contains("execution finished"),
+            "history entry messages should render"
+        );
+        // Both history entries' statuses appear.
+        assert!(body.contains("RUNNING") && body.contains("SUCCESSFUL"));
+        assert!(
+            body.contains(&format!("/ui/run/{run_id}")),
+            "execution detail page should link back to its parent run"
+        );
+    }
+
+    #[test]
+    fn execution_template_omits_the_back_link_when_the_run_id_is_unknown() {
+        let mut execution = sample_execution(Uuid::from_u128(1), Uuid::from_u128(2));
+        execution.test_run_id = None;
+        let view = ExecutionDetailView::new(execution);
+        let body = ExecutionTemplate { execution: view }
+            .render()
+            .expect("template renders");
+
+        assert!(!body.contains("Back to run"));
     }
 }

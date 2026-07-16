@@ -91,7 +91,7 @@ pub(crate) mod mocks {
     };
 
     /// A single execution, carrying a status history so the detail view has something to render.
-    fn sample_execution(run_id: Uuid, ex_id: Uuid) -> TestExecutionSummary {
+    pub(crate) fn sample_execution(run_id: Uuid, ex_id: Uuid) -> TestExecutionSummary {
         TestExecutionSummary {
             id: ex_id,
             test_run_id: Some(run_id),
@@ -118,7 +118,7 @@ pub(crate) mod mocks {
     /// terminal (not on the stuck-run age guard, which is unit-tested in `view`). Its single
     /// execution carries a status history so the detail view has something to render, but (as with
     /// the real orchestrator) does not carry a `test_run_id`.
-    fn sample_summary(run_id: Uuid, ex_id: Uuid, status: Status) -> TestRunSummary {
+    pub(crate) fn sample_summary(run_id: Uuid, ex_id: Uuid, status: Status) -> TestRunSummary {
         TestRunSummary {
             id: run_id,
             name: "my-test-run".to_owned(),
@@ -132,59 +132,35 @@ pub(crate) mod mocks {
         }
     }
 
+    /// A client that always succeeds with a canned run/execution summary. Since the not-found and
+    /// error branches are now covered directly by `endpoints::run_status_body` and
+    /// `execution_detail_body` (no client involved), this only needs to prove that a handler calls
+    /// its client and renders whatever comes back.
     #[derive(Debug, Clone)]
     pub struct MockClient {
-        test_run_summary: Option<TestRunSummary>,
-        test_execution_summary: Option<TestExecutionSummary>,
-        status_code: StatusCode,
-    }
-
-    impl Default for MockClient {
-        fn default() -> Self {
-            Self {
-                test_run_summary: None,
-                test_execution_summary: None,
-                status_code: StatusCode::OK,
-            }
-        }
+        test_run_summary: TestRunSummary,
+        test_execution_summary: TestExecutionSummary,
     }
 
     impl MockClient {
         pub fn with_test_run(run_id: Uuid, ex_id: Uuid, status: Status) -> Self {
             Self {
-                test_run_summary: Some(sample_summary(run_id, ex_id, status)),
-                test_execution_summary: Some(sample_execution(run_id, ex_id)),
-                ..Default::default()
-            }
-        }
-
-        pub fn with_status_code(status_code: StatusCode) -> Self {
-            Self {
-                status_code,
-                ..Default::default()
+                test_run_summary: sample_summary(run_id, ex_id, status),
+                test_execution_summary: sample_execution(run_id, ex_id),
             }
         }
     }
 
     impl Client for MockClient {
-        async fn run_summary(&self, id: Uuid) -> Result<Option<TestRunSummary>, Error> {
-            match self.status_code {
-                StatusCode::OK => Ok(self.test_run_summary.clone()),
-                _ => Err(Error::TestRunStatus {
-                    status: self.status_code,
-                    id,
-                }),
-            }
+        async fn run_summary(&self, _id: Uuid) -> Result<Option<TestRunSummary>, Error> {
+            Ok(Some(self.test_run_summary.clone()))
         }
 
-        async fn execution_summary(&self, id: Uuid) -> Result<Option<TestExecutionSummary>, Error> {
-            match self.status_code {
-                StatusCode::OK => Ok(self.test_execution_summary.clone()),
-                _ => Err(Error::TestExecutionStatus {
-                    status: self.status_code,
-                    id,
-                }),
-            }
+        async fn execution_summary(
+            &self,
+            _id: Uuid,
+        ) -> Result<Option<TestExecutionSummary>, Error> {
+            Ok(Some(self.test_execution_summary.clone()))
         }
     }
 }
