@@ -211,7 +211,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn page_links_each_execution_to_its_gcp_logs() {
+    async fn page_links_each_execution_to_its_gcp_logs_and_grafana_dashboard() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let resp = run_status(
@@ -224,6 +224,10 @@ mod tests {
         assert!(
             body.contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
             "execution row should link to logs scoped to its own namespace"
+        );
+        assert!(
+            body.contains(&format!("var-namespace={ex_id}")),
+            "execution row should link to a Grafana dashboard scoped to its own namespace"
         );
     }
 
@@ -332,6 +336,10 @@ mod tests {
         assert!(
             body.contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
             "execution detail page should link to logs scoped to its own namespace"
+        );
+        assert!(
+            body.contains(&format!("var-namespace={ex_id}")),
+            "execution detail page should link to a Grafana dashboard scoped to its own namespace"
         );
         assert!(
             body.contains("Status history"),

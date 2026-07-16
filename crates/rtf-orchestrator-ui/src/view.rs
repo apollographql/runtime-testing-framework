@@ -1,4 +1,4 @@
-use crate::links::gcp_logs;
+use crate::links::{gcp_logs, grafana};
 use crate::status;
 use chrono::{DateTime, Utc};
 use rep_orchestrator_shared::status::{Status, StatusUpdate};
@@ -73,15 +73,16 @@ pub struct ExecutionView {
     pub updated_at: String,
     /// Cloud Logging deep link scoped to this execution's workload namespace and time window.
     pub logs_url: String,
+    /// Grafana deep link scoped to this execution's workload namespace and time window.
+    pub grafana_url: String,
 }
 
 impl From<TestExecutionSummary> for ExecutionView {
     fn from(execution: TestExecutionSummary) -> Self {
-        let logs_url = gcp_logs(
-            &execution.id.to_string(),
-            execution.started_at,
-            logs_end(&execution),
-        );
+        let namespace = execution.id.to_string();
+        let window_end = window_end(&execution);
+        let logs_url = gcp_logs(&namespace, execution.started_at, window_end);
+        let grafana_url = grafana(&namespace, execution.started_at, window_end);
 
         Self {
             id: execution.id,
@@ -92,14 +93,15 @@ impl From<TestExecutionSummary> for ExecutionView {
             started_at: execution.started_at.to_rfc3339(),
             updated_at: execution.updated_at.to_rfc3339(),
             logs_url,
+            grafana_url,
         }
     }
 }
 
-/// The end of an execution's logs time window: `completed_at` once the execution is actually
-/// terminal (trusting `current_status` over the mere presence of `completed_at`, as elsewhere in
-/// this module), or the current time while it is still running.
-fn logs_end(execution: &TestExecutionSummary) -> DateTime<Utc> {
+/// The end of an execution's observability links' time window: `completed_at` once the execution
+/// is actually terminal (trusting `current_status` over the mere presence of `completed_at`, as
+/// elsewhere in this module), or the current time while it is still running.
+fn window_end(execution: &TestExecutionSummary) -> DateTime<Utc> {
     execution
         .completed_at
         .filter(|_| execution.current_status.is_terminal())
@@ -120,15 +122,16 @@ pub struct ExecutionDetailView {
     pub history: Vec<StatusEntryView>,
     /// Cloud Logging deep link scoped to this execution's workload namespace and time window.
     pub logs_url: String,
+    /// Grafana deep link scoped to this execution's workload namespace and time window.
+    pub grafana_url: String,
 }
 
 impl ExecutionDetailView {
     pub fn new(run_id: Uuid, execution: TestExecutionSummary) -> Self {
-        let logs_url = gcp_logs(
-            &execution.id.to_string(),
-            execution.started_at,
-            logs_end(&execution),
-        );
+        let namespace = execution.id.to_string();
+        let end = window_end(&execution);
+        let logs_url = gcp_logs(&namespace, execution.started_at, end);
+        let grafana_url = grafana(&namespace, execution.started_at, end);
 
         Self {
             run_id,
@@ -145,6 +148,7 @@ impl ExecutionDetailView {
                 .map(StatusEntryView::from)
                 .collect(),
             logs_url,
+            grafana_url,
         }
     }
 }

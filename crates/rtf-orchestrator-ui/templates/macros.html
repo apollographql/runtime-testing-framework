@@ -38,6 +38,7 @@
                 <th>Started</th>
                 <th>Updated</th>
                 <th>Logs</th>
+                <th>Dashboard</th>
             </tr>
         </thead>
         <tbody>
@@ -54,11 +55,12 @@
                 <td>{{ execution.started_at }}</td>
                 <td>{{ execution.updated_at }}</td>
                 <td><a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">GCP &#8599;</a></td>
+                <td><a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">Grafana &#8599;</a></td>
             </tr>
             {% endfor %}
             {% if run.executions.is_empty() %}
             <tr>
-                <td colspan="6">No executions yet.</td>
+                <td colspan="7">No executions yet.</td>
             </tr>
             {% endif %}
         </tbody>
