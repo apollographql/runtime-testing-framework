@@ -36,6 +36,28 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
+    async fn handler_leaves_execution_test_run_id_unset() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let tr = TestRun::init("test", None, conn).await?;
+        let run_id = tr.uuid();
+        tr.init_execution("test", 0, conn).await?;
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-run/{run_id}/status"))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+        let summary: TestRunSummary = resp.json();
+        assert_eq!(summary.executions.len(), 1);
+        assert_eq!(summary.executions[0].test_run_id, None);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
     async fn handler_returns_404_for_unknown_run() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let run_id = Uuid::new_v4();

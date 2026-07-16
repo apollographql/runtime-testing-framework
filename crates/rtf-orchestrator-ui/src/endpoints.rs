@@ -78,41 +78,28 @@ pub async fn run_status<C: Client>(
     }
 }
 
-/// `GET /ui/run/{run_id}/execution/{ex_id}` — one execution's detail: its status-history timeline
-/// (newest-first), exit code, and timestamps.
+/// `GET /ui/execution/{eid}` — one execution's detail: its status-history timeline (newest-first),
+/// exit code, and timestamps.
 ///
-/// The execution is located within the run summary fetched from the orchestrator. An unknown run
-/// renders the run "not found" page; a known run without that execution renders an execution
-/// "not found" page; both use 404.
+/// Fetches the execution status directly from the orchestrator rather than pulling the whole
+/// parent run, so an unknown execution renders an execution "not found" page (404) and a fetch
+/// failure renders an error page rather than a raw 500.
 pub async fn execution_detail<C: Client>(
     State(orchestrator_client): State<C>,
-    Path((run_id, execution_id)): Path<(Uuid, Uuid)>,
+    Path(execution_id): Path<Uuid>,
 ) -> Response {
-    match orchestrator_client.run_summary(run_id).await {
-        Ok(Some(summary)) => match summary
-            .executions
-            .into_iter()
-            .find(|execution| execution.id == execution_id)
-        {
-            Some(execution) => render(ExecutionTemplate {
-                execution: ExecutionDetailView::new(run_id, execution),
-            }),
-            None => render_with_status(
-                ExecutionNotFoundTemplate {
-                    run_id: run_id.to_string(),
-                    execution_id: execution_id.to_string(),
-                },
-                StatusCode::NOT_FOUND,
-            ),
-        },
+    match orchestrator_client.execution_summary(execution_id).await {
+        Ok(Some(execution)) => render(ExecutionTemplate {
+            execution: ExecutionDetailView::new(execution),
+        }),
         Ok(None) => render_with_status(
-            RunNotFoundTemplate {
-                id: run_id.to_string(),
+            ExecutionNotFoundTemplate {
+                execution_id: execution_id.to_string(),
             },
             StatusCode::NOT_FOUND,
         ),
         Err(error) => {
-            tracing::error!(%error, %run_id, %execution_id, "failed to fetch run summary for execution detail");
+            tracing::error!(%error, %execution_id, "failed to fetch execution summary from orchestrator");
             render_with_status(
                 ErrorTemplate {
                     message: "Could not load this execution from the orchestrator.".to_owned(),
@@ -326,7 +313,7 @@ mod tests {
         let ex_id = Uuid::from_u128(2);
         let resp = execution_detail(
             State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
-            Path((run_id, ex_id)),
+            Path(ex_id),
         )
         .await;
 
@@ -351,43 +338,27 @@ mod tests {
         );
         // Both history entries' statuses appear.
         assert!(body.contains("RUNNING") && body.contains("SUCCESSFUL"));
+        assert!(
+            body.contains(&format!("/ui/run/{run_id}")),
+            "execution detail page should link back to its parent run"
+        );
     }
 
     #[tokio::test]
     async fn detail_renders_not_found_for_an_unknown_execution() {
-        let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let resp = execution_detail(
-            State(MockClient::with_test_run(
-                run_id,
-                Uuid::from_u128(3),
-                Status::Running,
-            )),
-            Path((run_id, ex_id)),
-        )
-        .await;
+        let resp = execution_detail(State(MockClient::default()), Path(ex_id)).await;
 
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         assert!(body_text(resp).await.contains("Execution not found"));
     }
 
     #[tokio::test]
-    async fn detail_renders_not_found_for_an_unknown_run() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let resp = execution_detail(State(MockClient::default()), Path((run_id, ex_id))).await;
-
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-        assert!(body_text(resp).await.contains("not found"));
-    }
-
-    #[tokio::test]
     async fn detail_renders_error_when_the_fetch_fails() {
-        let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let resp = execution_detail(
             State(MockClient::with_status_code(StatusCode::BAD_GATEWAY)),
-            Path((run_id, ex_id)),
+            Path(ex_id),
         )
         .await;
 

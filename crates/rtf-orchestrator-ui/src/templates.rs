@@ -27,11 +27,10 @@ pub struct ExecutionTemplate {
     pub execution: ExecutionDetailView,
 }
 
-/// Shown when a run exists but has no execution with the requested id.
+/// Shown when no execution with the requested id exists.
 #[derive(Template)]
 #[template(path = "execution_not_found.html")]
 pub struct ExecutionNotFoundTemplate {
-    pub run_id: String,
     pub execution_id: String,
 }
 

@@ -1,6 +1,9 @@
+use std::time::Duration;
+
 use crate::links::{gcp_logs, grafana};
 use crate::status;
 use chrono::{DateTime, Utc};
+use humantime::format_duration;
 use rep_orchestrator_shared::status::{Status, StatusUpdate};
 use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
 use uuid::Uuid;
@@ -42,6 +45,7 @@ impl RunView {
             .completed_at
             .filter(|_| run.current_status.is_terminal());
         let end = completed_at.unwrap_or(now);
+
         Self {
             id: run.id,
             name: run.name,
@@ -50,7 +54,10 @@ impl RunView {
             started_at: run.started_at.to_rfc3339(),
             updated_at: run.updated_at.to_rfc3339(),
             completed_at: completed_at.map(|ts| ts.to_rfc3339()),
-            elapsed: format_elapsed(end.timestamp() - run.started_at.timestamp()),
+            elapsed: format_duration(Duration::from_secs(
+                (end.timestamp() - run.started_at.timestamp()).max(0) as u64,
+            ))
+            .to_string(),
             last_updated: now.format("%H:%M:%S UTC").to_string(),
             should_poll: should_poll(run.current_status, run.started_at, now),
             executions: run
@@ -80,7 +87,7 @@ pub struct ExecutionView {
 impl From<TestExecutionSummary> for ExecutionView {
     fn from(execution: TestExecutionSummary) -> Self {
         let namespace = execution.id.to_string();
-        let window_end = window_end(&execution);
+        let window_end = execution.completed_at.unwrap_or_else(Utc::now);
         let logs_url = gcp_logs(&namespace, execution.started_at, window_end);
         let grafana_url = grafana(&namespace, execution.started_at, window_end);
 
@@ -98,19 +105,10 @@ impl From<TestExecutionSummary> for ExecutionView {
     }
 }
 
-/// The end of an execution's observability links' time window: `completed_at` once the execution
-/// is actually terminal (trusting `current_status` over the mere presence of `completed_at`, as
-/// elsewhere in this module), or the current time while it is still running.
-fn window_end(execution: &TestExecutionSummary) -> DateTime<Utc> {
-    execution
-        .completed_at
-        .filter(|_| execution.current_status.is_terminal())
-        .unwrap_or_else(Utc::now)
-}
-
 /// The execution detail page: the execution's status-history timeline plus its metadata.
 pub struct ExecutionDetailView {
-    pub run_id: Uuid,
+    /// The parent test run's id, used for the "back to run" link.
+    pub run_id: Option<Uuid>,
     pub name: String,
     pub status_label: &'static str,
     pub status_class: &'static str,
@@ -127,14 +125,14 @@ pub struct ExecutionDetailView {
 }
 
 impl ExecutionDetailView {
-    pub fn new(run_id: Uuid, execution: TestExecutionSummary) -> Self {
+    pub fn new(execution: TestExecutionSummary) -> Self {
         let namespace = execution.id.to_string();
-        let end = window_end(&execution);
+        let end = execution.completed_at.unwrap_or_else(Utc::now);
         let logs_url = gcp_logs(&namespace, execution.started_at, end);
         let grafana_url = grafana(&namespace, execution.started_at, end);
 
         Self {
-            run_id,
+            run_id: execution.test_run_id,
             name: execution.name,
             status_label: status::label(execution.current_status),
             status_class: status::css_class(execution.current_status),
@@ -178,19 +176,6 @@ fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) ->
     !status.is_terminal() && (now.timestamp() - started_at.timestamp()) < MAX_POLL_AGE_SECS
 }
 
-/// Format a duration in seconds as a compact `1h 2m 3s`, dropping leading zero units.
-fn format_elapsed(seconds: i64) -> String {
-    let seconds = seconds.max(0);
-    let (hours, minutes, secs) = (seconds / 3600, (seconds % 3600) / 60, seconds % 60);
-    if hours > 0 {
-        format!("{hours}h {minutes}m {secs}s")
-    } else if minutes > 0 {
-        format!("{minutes}m {secs}s")
-    } else {
-        format!("{secs}s")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,14 +200,6 @@ mod tests {
         let now = Utc::now();
         let started = now - Duration::seconds(MAX_POLL_AGE_SECS + 1);
         assert!(!should_poll(Status::Running, started, now));
-    }
-
-    #[test]
-    fn format_elapsed_drops_leading_zero_units() {
-        assert_eq!(format_elapsed(5), "5s");
-        assert_eq!(format_elapsed(65), "1m 5s");
-        assert_eq!(format_elapsed(3_665), "1h 1m 5s");
-        assert_eq!(format_elapsed(-10), "0s");
     }
 
     #[test]

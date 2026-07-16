@@ -44,7 +44,7 @@
         <tbody>
             {% for execution in run.executions %}
             <tr>
-                <td><a href="/ui/run/{{ run.id }}/execution/{{ execution.id }}">{{ execution.name }}</a></td>
+                <td><a href="/ui/execution/{{ execution.id }}">{{ execution.name }}</a></td>
                 <td><span class="status {{ execution.status_class }}">{{ execution.status_label }}</span></td>
                 <td>
                     {% match execution.exit_code %}

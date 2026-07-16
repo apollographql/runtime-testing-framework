@@ -42,7 +42,7 @@ where
         .route("/ui", get(index))
         .route("/ui/health", get(health))
         .route("/ui/run/{id}", get(run_status::<C>))
-        .route("/ui/run/{id}/execution/{eid}", get(execution_detail::<C>))
+        .route("/ui/execution/{eid}", get(execution_detail::<C>))
         .route("/ui/static/{*path}", get(assets::serve))
         .with_state(orchestrator_client)
 }
