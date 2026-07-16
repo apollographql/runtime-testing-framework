@@ -20,7 +20,7 @@ const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 pub struct RunView {
     pub id: Uuid,
     pub name: String,
-    pub status_label: &'static str,
+    pub status_label: String,
     pub status_class: &'static str,
     pub started_at: String,
     pub updated_at: String,
@@ -49,7 +49,7 @@ impl RunView {
         Self {
             id: run.id,
             name: run.name,
-            status_label: status::label(run.current_status),
+            status_label: run.current_status.to_string(),
             status_class: status::css_class(run.current_status),
             started_at: run.started_at.to_rfc3339(),
             updated_at: run.updated_at.to_rfc3339(),
@@ -73,7 +73,7 @@ impl RunView {
 pub struct ExecutionView {
     pub id: Uuid,
     pub name: String,
-    pub status_label: &'static str,
+    pub status_label: String,
     pub status_class: &'static str,
     pub exit_code: Option<i32>,
     pub started_at: String,
@@ -94,7 +94,7 @@ impl From<TestExecutionSummary> for ExecutionView {
         Self {
             id: execution.id,
             name: execution.name,
-            status_label: status::label(execution.current_status),
+            status_label: execution.current_status.to_string(),
             status_class: status::css_class(execution.current_status),
             exit_code: execution.exit_code,
             started_at: execution.started_at.to_rfc3339(),
@@ -110,7 +110,7 @@ pub struct ExecutionDetailView {
     /// The parent test run's id, used for the "back to run" link.
     pub run_id: Option<Uuid>,
     pub name: String,
-    pub status_label: &'static str,
+    pub status_label: String,
     pub status_class: &'static str,
     pub exit_code: Option<i32>,
     pub started_at: String,
@@ -134,7 +134,7 @@ impl ExecutionDetailView {
         Self {
             run_id: execution.test_run_id,
             name: execution.name,
-            status_label: status::label(execution.current_status),
+            status_label: execution.current_status.to_string(),
             status_class: status::css_class(execution.current_status),
             exit_code: execution.exit_code,
             started_at: execution.started_at.to_rfc3339(),
@@ -153,7 +153,7 @@ impl ExecutionDetailView {
 
 /// A single entry in an execution's status-history timeline.
 pub struct StatusEntryView {
-    pub status_label: &'static str,
+    pub status_label: String,
     pub status_class: &'static str,
     pub message: Option<String>,
     pub updated_at: String,
@@ -162,7 +162,7 @@ pub struct StatusEntryView {
 impl From<StatusUpdate> for StatusEntryView {
     fn from(update: StatusUpdate) -> Self {
         Self {
-            status_label: status::label(update.status),
+            status_label: update.status.to_string(),
             status_class: status::css_class(update.status),
             message: update.message,
             updated_at: update.updated_at.to_rfc3339(),

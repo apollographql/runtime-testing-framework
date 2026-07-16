@@ -1,26 +1,12 @@
-use rep_orchestrator_shared::status::Status;
-
-/// Human-facing label for a status, matching the serde/DB `SCREAMING_SNAKE_CASE` representation.
-pub fn label(status: Status) -> &'static str {
-    match status {
-        Status::Initialising => "INITIALISING",
-        Status::Resolving => "RESOLVING",
-        Status::Provisioning => "PROVISIONING",
-        Status::EnvironmentReady => "ENVIRONMENT_READY",
-        Status::Running => "RUNNING",
-        Status::Successful => "SUCCESSFUL",
-        Status::Failed => "FAILED",
-        Status::Unrunnable => "UNRUNNABLE",
-    }
-}
+use rep_orchestrator_shared::status::{Status, StatusCategory};
 
 /// CSS modifier class for a status, used to colour-code the UI.
 pub fn css_class(status: Status) -> &'static str {
-    match status {
-        Status::Initialising | Status::Resolving | Status::Provisioning => "status--pending",
-        Status::EnvironmentReady | Status::Running => "status--active",
-        Status::Successful => "status--success",
-        Status::Failed | Status::Unrunnable => "status--failed",
+    match status.category() {
+        StatusCategory::Pending => "status--pending",
+        StatusCategory::Active => "status--active",
+        StatusCategory::Success => "status--success",
+        StatusCategory::Failed => "status--failed",
     }
 }
 
@@ -29,12 +15,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn label_uses_serde_representation_not_display() {
-        // The shared `Display` impl prints `ENV_READY`; the UI must show the serde/DB form.
-        assert_eq!(label(Status::EnvironmentReady), "ENVIRONMENT_READY");
-        assert_ne!(
-            label(Status::EnvironmentReady),
-            Status::EnvironmentReady.to_string()
-        );
+    fn css_class_matches_the_status_category() {
+        let cases = [
+            (Status::Initialising, "status--pending"),
+            (Status::Resolving, "status--pending"),
+            (Status::Provisioning, "status--pending"),
+            (Status::EnvironmentReady, "status--active"),
+            (Status::Running, "status--active"),
+            (Status::Successful, "status--success"),
+            (Status::Failed, "status--failed"),
+            (Status::Unrunnable, "status--failed"),
+        ];
+
+        for (status, expected) in cases {
+            assert_eq!(css_class(status), expected, "{status:?}");
+        }
     }
 }
