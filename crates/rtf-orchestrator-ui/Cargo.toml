@@ -20,6 +20,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+url.workspace = true
 uuid.workspace = true
 
 # See the note in `main.rs`: jemalloc returns freed pages to the OS on a decay

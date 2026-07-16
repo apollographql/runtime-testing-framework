@@ -1,4 +1,5 @@
 use chrono::{DateTime, SecondsFormat, Utc};
+use url::form_urlencoded::byte_serialize;
 
 // The orchestrator's workload cluster/project. Hardcoded rather than configured since the orchestrator
 // can only target a single cluster (for now)
@@ -37,20 +38,9 @@ pub fn grafana(namespace: &str, start: DateTime<Utc>, end: DateTime<Utc>) -> Str
     )
 }
 
-/// Percent-encode everything outside the URL-unreserved set (`A-Za-z0-9-_.~`). Good enough for the
-/// small inputs this module builds URLs from (cluster name, namespace/execution id) — no need for
-/// a full `url`-crate dependency just for this.
+/// Percent-encode `input` for embedding in a URL.
 fn percent_encode(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    for byte in input.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(byte as char);
-            }
-            _ => out.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    out
+    byte_serialize(input.as_bytes()).collect()
 }
 
 #[cfg(test)]
