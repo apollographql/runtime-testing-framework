@@ -5,19 +5,20 @@ use rep_orchestrator_shared::payload::TriggerPayload;
 use rtf_core::variables::Variables;
 use tracing::info;
 
-pub async fn write_rep_trigger_payload_to_stdout(
+pub async fn write_remote_trigger_payload_to_stdout(
     test_plan_path: &str,
     github: bool,
     git_ref: Option<String>,
     variables: Variables,
 ) -> anyhow::Result<()> {
-    let payload = prepare_rep_trigger_payload(test_plan_path, github, git_ref, variables).await?;
+    let payload =
+        prepare_remote_trigger_payload(test_plan_path, github, git_ref, variables).await?;
     print!("{}", serde_json::to_string_pretty(&payload)?);
 
     Ok(())
 }
 
-pub async fn prepare_rep_trigger_payload(
+pub async fn prepare_remote_trigger_payload(
     test_plan_path: &str,
     github: bool,
     git_ref: Option<String>,

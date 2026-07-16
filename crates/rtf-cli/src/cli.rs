@@ -139,10 +139,17 @@ pub enum Command {
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
 
-    /// Interactions with the REP Orchestrator
+    /// Interactions with remote RTF service
+    Remote {
+        #[clap(subcommand)]
+        subcommand: RemoteSubcommand,
+    },
+
+    /// Deprecated alias for `remote`, kept working for backwards compatibility.
+    #[command(hide = true)]
     Rep {
         #[clap(subcommand)]
-        subcommand: RepSubcommand,
+        subcommand: RemoteSubcommand,
     },
 
     /// Display CLI version and exit
@@ -294,9 +301,9 @@ pub enum ResolveSubcommand {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum RepSubcommand {
-    /// Prepare a test plan for execution by the REP service.
-    /// Outputs a RepTestPlan JSON with inlined relative files and custom providers.
+pub enum RemoteSubcommand {
+    /// Prepare a test plan for remote execution by the RTF service.
+    /// Outputs an RTF service compatible JSON payload with inlined relative files and custom providers.
     Prepare {
         /// Relative path to the test plan file. When using --github this must be in the
         /// format ORG/REPO/PATH
@@ -311,7 +318,7 @@ pub enum RepSubcommand {
         git_ref: Option<String>,
     },
 
-    /// Send an IAP-authenticated HTTP request to the REP orchestrator.
+    /// Send an IAP-authenticated HTTP request to the RTF service.
     ///
     /// The response body is written to stdout on success.
     Request {
@@ -326,12 +333,12 @@ pub enum RepSubcommand {
         #[arg(short, long)]
         body: Option<String>,
 
-        /// Override the REP orchestrator base URL
+        /// Override the RTF service base URL
         #[arg(long)]
         orchestrator_url: Option<Url>,
     },
 
-    /// Trigger a test run using the REP orchestrator and poll for the result.
+    /// Trigger a test run using the RTF service and poll for the result.
     ///
     /// The output of this command is aimed at being usable in CI runs and is non-interactive.
     CiRun {

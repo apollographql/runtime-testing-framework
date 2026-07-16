@@ -1,4 +1,4 @@
-use crate::commands::plumbing::prepare_rep_trigger_payload;
+use crate::commands::plumbing::prepare_remote_trigger_payload;
 use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
@@ -27,7 +27,8 @@ pub async fn ci_run(
         _ => (),
     }
 
-    let payload = prepare_rep_trigger_payload(test_plan_path, github, git_ref, variables).await?;
+    let payload =
+        prepare_remote_trigger_payload(test_plan_path, github, git_ref, variables).await?;
     let client = OrchestratorClient::new().await?;
     let poll_interval = Duration::from_secs(poll_interval_seconds);
 
@@ -72,11 +73,11 @@ pub async fn ci_run(
     };
 
     println!("\n\nTest run complete. Final status: {s}\n");
-    println!("Run 'rtf rep request test-run/{id}/status' to view the summary for this run\n");
+    println!("Run 'rtf remote request test-run/{id}/status' to view the summary for this run\n");
     println!("Run the following to fetch the status, log or output.zip for an execution:");
-    println!("   rtf rep request test-execution/$ID/status");
-    println!("   rtf rep request test-execution/$ID/log.txt");
-    println!("   rtf rep request test-execution/$ID/output.zip > output.zip");
+    println!("   rtf remote request test-execution/$ID/status");
+    println!("   rtf remote request test-execution/$ID/log.txt");
+    println!("   rtf remote request test-execution/$ID/output.zip > output.zip");
 
     if exit_code != 0 {
         println!(

@@ -1,0 +1,7 @@
+name: remote-prepare-scenario
+description: Minimal DockerScenario for remote prepare tests
+
+docker:
+  image: alpine
+  tag: latest
+  command: echo hello

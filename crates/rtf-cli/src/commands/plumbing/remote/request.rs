@@ -2,7 +2,7 @@ use reqwest::{Method, Url};
 use rtf_integrations::orchestrator::OrchestratorClient;
 use std::io::{Write, stdout};
 
-pub async fn execute_rep_request(
+pub async fn execute_remote_request(
     path: &str,
     method: Method,
     data: Option<&str>,
