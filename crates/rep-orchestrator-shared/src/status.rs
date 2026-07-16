@@ -33,6 +33,19 @@ impl Status {
     pub fn is_terminal(&self) -> bool {
         matches!(self, Self::Successful | Self::Failed | Self::Unrunnable)
     }
+
+    /// The coarse lifecycle bucket this status falls into, e.g. for presenting a handful of visual
+    /// states (colours, icons) instead of every individual status.
+    pub fn category(&self) -> StatusCategory {
+        use Status::*;
+
+        match self {
+            Initialising | Resolving | Provisioning => StatusCategory::Pending,
+            EnvironmentReady | Running => StatusCategory::Active,
+            Successful => StatusCategory::Success,
+            Failed | Unrunnable => StatusCategory::Failed,
+        }
+    }
 }
 
 impl fmt::Display for Status {
@@ -50,4 +63,14 @@ impl fmt::Display for Status {
             Unrunnable => write!(f, "UNRUNNABLE"),
         }
     }
+}
+
+/// A coarse grouping of [Status] values, for presentation contexts that distinguish only a handful
+/// of visual states rather than every individual status.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum StatusCategory {
+    Pending,
+    Active,
+    Success,
+    Failed,
 }

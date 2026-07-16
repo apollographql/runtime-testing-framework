@@ -16,7 +16,13 @@ pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSumma
     let conn = conn!();
 
     match TestExecution::get_by_uuid(&id, conn).await? {
-        Some(ex) => Ok(Json(ex.try_into_summary(conn).await?)),
+        Some(ex) => {
+            let test_run_id = ex.test_run(conn).await?.uuid();
+            let mut summary = ex.try_into_summary(conn).await?;
+            summary.test_run_id = Some(test_run_id);
+
+            Ok(Json(summary))
+        }
         None => Err(Error::UnknownTestExecution { id }),
     }
 }
@@ -77,6 +83,27 @@ mod tests {
             .get(&format!("/test-execution/{ex_id}/status"))
             .await;
         assert_eq!(resp.status_code(), StatusCode::OK);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn get_handler_populates_test_run_id() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let tr = TestRun::init("test", None, conn).await?;
+        let run_id = tr.uuid();
+        let ex_id = tr.init_execution("test", 0, conn).await?.uuid();
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-execution/{ex_id}/status"))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+        let summary: TestExecutionSummary = resp.json();
+        assert_eq!(summary.test_run_id, Some(run_id));
 
         Ok(())
     }

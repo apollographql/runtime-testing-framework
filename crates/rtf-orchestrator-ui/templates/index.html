@@ -3,5 +3,12 @@
 {% block title %}RTF Status &middot; Find a run{% endblock %}
 
 {% block content %}
-<h2>Orchestrator UI Home</h2>
+<h2>View a test run</h2>
+<p>Paste a test-run ID to see its status and executions.</p>
+<form
+    onsubmit="event.preventDefault(); const id = this.runId.value.trim(); if (id) { window.location.href = '/ui/run/' + encodeURIComponent(id); }">
+    <input name="runId" type="text" placeholder="Test run ID (UUID)" aria-label="Test run ID" required autofocus
+        size="40" />
+    <button type="submit">View status</button>
+</form>
 {% endblock %}

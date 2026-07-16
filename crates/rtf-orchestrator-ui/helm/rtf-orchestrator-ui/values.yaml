@@ -6,6 +6,30 @@ config:
   port: "8080"
   # -- Log level for the RUST_LOG environment variable
   logLevel: "warn"
+  # -- Base URL of the orchestrator API the UI reads
+  # (e.g. http://rep-orchestrator:8035). Required
+  orchestratorUrl: ""
+
+# -- GCP Cloud Logging deep-link configuration, for the "View logs in GCP" links on each
+# execution. No default: every environment must supply real values.
+gcpLinks:
+  # -- GCP project the workload cluster runs in. Required
+  project: ""
+  # -- GKE cluster name the workload runs in. Required
+  clusterName: ""
+
+# -- Grafana deep-link configuration, for the "View dashboard in Grafana" links on each
+# execution. No default: every environment must supply real values.
+grafana:
+  # -- Base URL of the Grafana instance, no trailing slash (e.g. https://grafana.example.com).
+  # Required
+  baseUrl: ""
+  # -- UID of the dashboard deep links point to. Required
+  dashboardUid: ""
+  # -- URL slug of the dashboard deep links point to. Required
+  dashboardSlug: ""
+  # -- UID of the datasource backing the dashboard. Required
+  datasourceUid: ""
 
 # -- Overrides the fully qualified app name
 fullnameOverride: ""

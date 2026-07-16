@@ -11,13 +11,16 @@ askama = "0.16.0"
 axum.workspace = true
 chrono.workspace = true
 envy.workspace = true
+humantime.workspace = true
 reqwest.workspace = true
 rust-embed = { version = "8.12.0", features = ["mime-guess"] }
 rustls.workspace = true
 serde.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+url.workspace = true
 uuid.workspace = true
 
 # See the note in `main.rs`: jemalloc returns freed pages to the OS on a decay

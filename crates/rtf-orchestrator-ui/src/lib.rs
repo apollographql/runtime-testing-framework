@@ -1,8 +1,9 @@
 use crate::{
     config::Config,
-    endpoints::{health, index},
+    endpoints::{execution_detail, health, index, run_status},
+    links::LinksConfig,
 };
-use axum::{Router, routing::get};
+use axum::{Extension, Router, routing::get};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -10,7 +11,11 @@ pub mod config;
 
 mod assets;
 mod endpoints;
+mod links;
+mod orchestrator;
+mod status;
 mod templates;
+mod view;
 
 pub async fn run_server() -> anyhow::Result<()> {
     let cfg = Config::get();
@@ -22,16 +27,27 @@ pub async fn run_server() -> anyhow::Result<()> {
         "starting rep-orchestrator-ui"
     );
 
+    let client = orchestrator::HttpClient::try_new(cfg.orchestrator_url.clone())?;
+    let links_cfg = LinksConfig::from(cfg);
     let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, router()).await?;
+    axum::serve(listener, router(client, links_cfg)).await?;
 
     Ok(())
 }
 
 /// Build the UI router, backed by `provider` for run data. All routes live under the `/ui` prefix.
-fn router() -> Router {
+/// `links_cfg` is shared across handlers via an [Extension] rather than `State`, since `State` is
+/// reserved for the generic orchestrator [`orchestrator::Client`].
+fn router<C>(orchestrator_client: C, links_cfg: LinksConfig) -> Router
+where
+    C: orchestrator::Client + Clone,
+{
     Router::new()
         .route("/ui", get(index))
         .route("/ui/health", get(health))
+        .route("/ui/run/{id}", get(run_status::<C>))
+        .route("/ui/execution/{eid}", get(execution_detail::<C>))
         .route("/ui/static/{*path}", get(assets::serve))
+        .layer(Extension(links_cfg))
+        .with_state(orchestrator_client)
 }

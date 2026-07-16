@@ -4094,15 +4094,18 @@ dependencies = [
  "axum",
  "chrono",
  "envy",
+ "humantime",
  "rep-orchestrator-shared",
  "reqwest 0.13.3",
  "rust-embed",
  "rustls",
  "serde",
+ "thiserror 2.0.18",
  "tikv-jemallocator",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
  "uuid",
 ]
 

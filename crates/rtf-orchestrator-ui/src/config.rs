@@ -13,6 +13,19 @@ pub struct Config {
     pub host: String,
     #[serde(default = "default_port")]
     pub port: u16,
+    pub orchestrator_url: String,
+    /// GCP project the workload cluster runs in, for Cloud Logging deep links.
+    pub gcp_project: String,
+    /// GKE cluster name the workload runs in, for Cloud Logging deep links.
+    pub gcp_cluster_name: String,
+    /// Base URL of the Grafana instance, for dashboard deep links.
+    pub grafana_base_url: String,
+    /// UID of the Grafana dashboard deep links point to.
+    pub grafana_dashboard_uid: String,
+    /// URL slug of the Grafana dashboard deep links point to.
+    pub grafana_dashboard_slug: String,
+    /// UID of the datasource backing the Grafana dashboard.
+    pub grafana_datasource_uid: String,
 }
 
 impl Config {

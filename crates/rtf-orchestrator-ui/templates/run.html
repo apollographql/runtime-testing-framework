@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+
+{% block title %}Run {{ run.id }}{% endblock %}
+
+{% block content %}
+<p><a href="/ui">&larr; Find another run</a></p>
+{% call macros::run_content(run) %}{% endcall %}
+{% endblock %}

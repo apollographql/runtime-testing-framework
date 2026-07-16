@@ -1,0 +1,69 @@
+{% macro run_content(run) %}
+<div id="run" {% if run.should_poll %} hx-get="/ui/run/{{ run.id }}" hx-select="#run" hx-trigger="every 10s"
+    hx-swap="outerHTML" {% endif %}>
+    <section class="banner">
+        <h2>{{ run.name }}</h2>
+        <p><span class="status {{ run.status_class }}">{{ run.status_label }}</span></p>
+        <p class="muted">
+            {% if run.should_poll %}Auto-refreshing every 10s{% else %}Auto-refresh stopped{% endif %}
+            &middot; last updated {{ run.last_updated }}
+            <button type="button" hx-get="/ui/run/{{ run.id }}" hx-select="#run" hx-target="#run" hx-swap="outerHTML">
+                Refresh now</button>
+        </p>
+        <dl>
+            <dt>Run ID</dt>
+            <dd><code>{{ run.id }}</code></dd>
+            <dt>Started</dt>
+            <dd>{{ run.started_at }}</dd>
+            <dt>Updated</dt>
+            <dd>{{ run.updated_at }}</dd>
+            <dt>Elapsed</dt>
+            <dd>{{ run.elapsed }}</dd>
+            {% match run.completed_at %}
+            {% when Some with (completed) %}
+            <dt>Completed</dt>
+            <dd>{{ completed }}</dd>
+            {% when None %}
+            {% endmatch %}
+        </dl>
+    </section>
+
+    <h3>Executions</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Exit code</th>
+                <th>Started</th>
+                <th>Updated</th>
+                <th>Logs</th>
+                <th>Dashboard</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for execution in run.executions %}
+            <tr>
+                <td><a href="/ui/execution/{{ execution.id }}">{{ execution.name }}</a></td>
+                <td><span class="status {{ execution.status_class }}">{{ execution.status_label }}</span></td>
+                <td>
+                    {% match execution.exit_code %}
+                    {% when Some with (code) %}{{ code }}
+                    {% when None %}&mdash;
+                    {% endmatch %}
+                </td>
+                <td>{{ execution.started_at }}</td>
+                <td>{{ execution.updated_at }}</td>
+                <td><a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">GCP &#8599;</a></td>
+                <td><a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">Grafana &#8599;</a></td>
+            </tr>
+            {% endfor %}
+            {% if run.executions.is_empty() %}
+            <tr>
+                <td colspan="7">No executions yet.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %}
