@@ -211,6 +211,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn page_links_each_execution_to_its_gcp_logs() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = run_status(
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path(run_id),
+        )
+        .await;
+
+        let body = body_text(resp).await;
+        assert!(
+            body.contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
+            "execution row should link to logs scoped to its own namespace"
+        );
+    }
+
+    #[tokio::test]
     async fn page_polls_while_the_run_is_non_terminal() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
@@ -312,6 +329,10 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let body = body_text(resp).await;
         assert!(body.contains("exec-alpha"), "execution name should render");
+        assert!(
+            body.contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
+            "execution detail page should link to logs scoped to its own namespace"
+        );
         assert!(
             body.contains("Status history"),
             "history section should render"

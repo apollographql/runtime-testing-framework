@@ -1,3 +1,4 @@
+use crate::links::gcp_logs;
 use crate::status;
 use chrono::{DateTime, Utc};
 use rep_orchestrator_shared::status::{Status, StatusUpdate};
@@ -70,10 +71,18 @@ pub struct ExecutionView {
     pub exit_code: Option<i32>,
     pub started_at: String,
     pub updated_at: String,
+    /// Cloud Logging deep link scoped to this execution's workload namespace and time window.
+    pub logs_url: String,
 }
 
 impl From<TestExecutionSummary> for ExecutionView {
     fn from(execution: TestExecutionSummary) -> Self {
+        let logs_url = gcp_logs(
+            &execution.id.to_string(),
+            execution.started_at,
+            logs_end(&execution),
+        );
+
         Self {
             id: execution.id,
             name: execution.name,
@@ -82,8 +91,19 @@ impl From<TestExecutionSummary> for ExecutionView {
             exit_code: execution.exit_code,
             started_at: execution.started_at.to_rfc3339(),
             updated_at: execution.updated_at.to_rfc3339(),
+            logs_url,
         }
     }
+}
+
+/// The end of an execution's logs time window: `completed_at` once the execution is actually
+/// terminal (trusting `current_status` over the mere presence of `completed_at`, as elsewhere in
+/// this module), or the current time while it is still running.
+fn logs_end(execution: &TestExecutionSummary) -> DateTime<Utc> {
+    execution
+        .completed_at
+        .filter(|_| execution.current_status.is_terminal())
+        .unwrap_or_else(Utc::now)
 }
 
 /// The execution detail page: the execution's status-history timeline plus its metadata.
@@ -98,10 +118,18 @@ pub struct ExecutionDetailView {
     pub completed_at: Option<String>,
     /// Status updates, newest-first (as returned by the orchestrator).
     pub history: Vec<StatusEntryView>,
+    /// Cloud Logging deep link scoped to this execution's workload namespace and time window.
+    pub logs_url: String,
 }
 
 impl ExecutionDetailView {
     pub fn new(run_id: Uuid, execution: TestExecutionSummary) -> Self {
+        let logs_url = gcp_logs(
+            &execution.id.to_string(),
+            execution.started_at,
+            logs_end(&execution),
+        );
+
         Self {
             run_id,
             name: execution.name,
@@ -116,6 +144,7 @@ impl ExecutionDetailView {
                 .into_iter()
                 .map(StatusEntryView::from)
                 .collect(),
+            logs_url,
         }
     }
 }

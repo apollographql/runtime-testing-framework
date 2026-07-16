@@ -10,6 +10,7 @@ pub mod config;
 
 mod assets;
 mod endpoints;
+mod links;
 mod orchestrator;
 mod status;
 mod templates;
