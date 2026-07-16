@@ -65,22 +65,17 @@ pub(crate) mod mocks {
         summary::TestExecutionSummary,
     };
 
-    /// Stable id of the single execution in `sample_summary`, so detail tests can request it.
-    fn execution_id() -> Uuid {
-        Uuid::from_u128(42)
-    }
-
     /// A run that started "now", so whether it polls depends only on whether its status is
     /// terminal (not on the stuck-run age guard, which is unit-tested in `view`). Its single
     /// execution carries a status history so the detail view has something to render.
-    fn sample_summary(id: Uuid, status: Status) -> TestRunSummary {
+    fn sample_summary(run_id: Uuid, ex_id: Uuid, status: Status) -> TestRunSummary {
         TestRunSummary {
-            id,
+            id: run_id,
             name: "my-test-run".to_owned(),
             current_status: status,
             started_at: Utc::now(),
             executions: vec![TestExecutionSummary {
-                id: execution_id(),
+                id: ex_id,
                 name: "exec-alpha".to_owned(),
                 current_status: Status::Successful,
                 exit_code: Some(0),
@@ -118,9 +113,9 @@ pub(crate) mod mocks {
     }
 
     impl MockClient {
-        pub fn with_test_run(id: Uuid, status: Status) -> Self {
+        pub fn with_test_run(run_id: Uuid, ex_id: Uuid, status: Status) -> Self {
             Self {
-                test_run_summary: Some(sample_summary(id, status)),
+                test_run_summary: Some(sample_summary(run_id, ex_id, status)),
                 ..Default::default()
             }
         }

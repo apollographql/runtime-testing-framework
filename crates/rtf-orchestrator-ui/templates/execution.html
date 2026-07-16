@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Execution {{ execution.name }}{% endblock %}
+
+{% block content %}
+<p><a href="/ui/run/{{ execution.run_id }}">&larr; Back to run</a></p>
+
+<section class="banner">
+    <h2>{{ execution.name }}</h2>
+    <p><span class="status {{ execution.status_class }}">{{ execution.status_label }}</span></p>
+    <dl>
+        <dt>Exit code</dt>
+        <dd>
+            {% match execution.exit_code %}
+            {% when Some with (code) %}{{ code }}
+            {% when None %}&mdash;
+            {% endmatch %}
+        </dd>
+        <dt>Started</dt>
+        <dd>{{ execution.started_at }}</dd>
+        <dt>Updated</dt>
+        <dd>{{ execution.updated_at }}</dd>
+        {% match execution.completed_at %}
+        {% when Some with (completed) %}
+        <dt>Completed</dt>
+        <dd>{{ completed }}</dd>
+        {% when None %}
+        {% endmatch %}
+    </dl>
+</section>
+
+<h3>Status history</h3>
+{% if execution.history.is_empty() %}
+<p>No status history yet.</p>
+{% else %}
+<ol class="timeline">
+    {% for entry in execution.history %}
+    <li>
+        <span class="status {{ entry.status_class }}">{{ entry.status_label }}</span>
+        <time>{{ entry.updated_at }}</time>
+        {% match entry.message %}
+        {% when Some with (message) %}<p>{{ message }}</p>
+        {% when None %}
+        {% endmatch %}
+    </li>
+    {% endfor %}
+</ol>
+{% endif %}
+{% endblock %}

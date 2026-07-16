@@ -1,6 +1,6 @@
 use crate::status;
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::status::Status;
+use rep_orchestrator_shared::status::{Status, StatusUpdate};
 use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
 use uuid::Uuid;
 
@@ -61,6 +61,7 @@ impl RunView {
     }
 }
 
+/// The execution view within a test run summary
 pub struct ExecutionView {
     pub id: Uuid,
     pub name: String,
@@ -81,6 +82,59 @@ impl From<TestExecutionSummary> for ExecutionView {
             exit_code: execution.exit_code,
             started_at: execution.started_at.to_rfc3339(),
             updated_at: execution.updated_at.to_rfc3339(),
+        }
+    }
+}
+
+/// The execution detail page: the execution's status-history timeline plus its metadata.
+pub struct ExecutionDetailView {
+    pub run_id: Uuid,
+    pub name: String,
+    pub status_label: &'static str,
+    pub status_class: &'static str,
+    pub exit_code: Option<i32>,
+    pub started_at: String,
+    pub updated_at: String,
+    pub completed_at: Option<String>,
+    /// Status updates, newest-first (as returned by the orchestrator).
+    pub history: Vec<StatusEntryView>,
+}
+
+impl ExecutionDetailView {
+    pub fn new(run_id: Uuid, execution: TestExecutionSummary) -> Self {
+        Self {
+            run_id,
+            name: execution.name,
+            status_label: status::label(execution.current_status),
+            status_class: status::css_class(execution.current_status),
+            exit_code: execution.exit_code,
+            started_at: execution.started_at.to_rfc3339(),
+            updated_at: execution.updated_at.to_rfc3339(),
+            completed_at: execution.completed_at.map(|ts| ts.to_rfc3339()),
+            history: execution
+                .status_history
+                .into_iter()
+                .map(StatusEntryView::from)
+                .collect(),
+        }
+    }
+}
+
+/// A single entry in an execution's status-history timeline.
+pub struct StatusEntryView {
+    pub status_label: &'static str,
+    pub status_class: &'static str,
+    pub message: Option<String>,
+    pub updated_at: String,
+}
+
+impl From<StatusUpdate> for StatusEntryView {
+    fn from(update: StatusUpdate) -> Self {
+        Self {
+            status_label: status::label(update.status),
+            status_class: status::css_class(update.status),
+            message: update.message,
+            updated_at: update.updated_at.to_rfc3339(),
         }
     }
 }

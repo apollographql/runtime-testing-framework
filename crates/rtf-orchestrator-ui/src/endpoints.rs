@@ -1,7 +1,10 @@
 use crate::{
     orchestrator::Client,
-    templates::{ErrorTemplate, IndexTemplate, RunNotFoundTemplate, RunTemplate},
-    view::RunView,
+    templates::{
+        ErrorTemplate, ExecutionNotFoundTemplate, ExecutionTemplate, IndexTemplate,
+        RunNotFoundTemplate, RunTemplate,
+    },
+    view::{ExecutionDetailView, RunView},
 };
 use askama::Template;
 use axum::{
@@ -75,11 +78,55 @@ pub async fn run_status<C: Client>(
     }
 }
 
+/// `GET /ui/run/{run_id}/execution/{ex_id}` — one execution's detail: its status-history timeline
+/// (newest-first), exit code, and timestamps.
+///
+/// The execution is located within the run summary fetched from the orchestrator. An unknown run
+/// renders the run "not found" page; a known run without that execution renders an execution
+/// "not found" page; both use 404.
+pub async fn execution_detail<C: Client>(
+    State(orchestrator_client): State<C>,
+    Path((run_id, execution_id)): Path<(Uuid, Uuid)>,
+) -> Response {
+    match orchestrator_client.run_summary(run_id).await {
+        Ok(Some(summary)) => match summary
+            .executions
+            .into_iter()
+            .find(|execution| execution.id == execution_id)
+        {
+            Some(execution) => render(ExecutionTemplate {
+                execution: ExecutionDetailView::new(run_id, execution),
+            }),
+            None => render_with_status(
+                ExecutionNotFoundTemplate {
+                    run_id: run_id.to_string(),
+                    execution_id: execution_id.to_string(),
+                },
+                StatusCode::NOT_FOUND,
+            ),
+        },
+        Ok(None) => render_with_status(
+            RunNotFoundTemplate {
+                id: run_id.to_string(),
+            },
+            StatusCode::NOT_FOUND,
+        ),
+        Err(error) => {
+            tracing::error!(%error, %run_id, %execution_id, "failed to fetch run summary for execution detail");
+            render_with_status(
+                ErrorTemplate {
+                    message: "Could not load this execution from the orchestrator.".to_owned(),
+                },
+                StatusCode::BAD_GATEWAY,
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::orchestrator::mocks::MockClient;
-
     use super::*;
+    use crate::orchestrator::mocks::MockClient;
     use axum::body::to_bytes;
     use rep_orchestrator_shared::{status::Status, summary::TestRunSummary};
 
@@ -144,10 +191,11 @@ mod tests {
 
     #[tokio::test]
     async fn page_renders_banner_and_executions_for_a_known_run() {
-        let id = Uuid::from_u128(1);
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
         let resp = run_status(
-            State(MockClient::with_test_run(id, Status::Running)),
-            Path(id),
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path(run_id),
         )
         .await;
 
@@ -164,9 +212,10 @@ mod tests {
 
     #[tokio::test]
     async fn page_polls_while_the_run_is_non_terminal() {
-        let id = Uuid::from_u128(1);
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
         let resp = run_status(
-            State(MockClient::with_test_run(id, Status::Running)),
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Path(Uuid::nil()),
         )
         .await;
@@ -176,7 +225,7 @@ mod tests {
             body.contains("hx-trigger=\"every 10s\""),
             "a running run should carry the poll trigger"
         );
-        assert!(body.contains(&format!("hx-get=\"/ui/run/{id}\"")));
+        assert!(body.contains(&format!("hx-get=\"/ui/run/{run_id}\"")));
         assert!(
             body.contains("Auto-refreshing every 10s"),
             "a running run should show the auto-refresh indicator"
@@ -185,10 +234,11 @@ mod tests {
 
     #[tokio::test]
     async fn page_stops_polling_once_the_run_is_terminal() {
-        let id = Uuid::from_u128(1);
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
         let resp = run_status(
-            State(MockClient::with_test_run(id, Status::Successful)),
-            Path(id),
+            State(MockClient::with_test_run(run_id, ex_id, Status::Successful)),
+            Path(run_id),
         )
         .await;
 
@@ -205,10 +255,11 @@ mod tests {
 
     #[tokio::test]
     async fn page_shows_polish_indicators() {
-        let id = Uuid::from_u128(1);
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
         let resp = run_status(
-            State(MockClient::with_test_run(id, Status::Running)),
-            Path(id),
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path(run_id),
         )
         .await;
 
@@ -241,6 +292,73 @@ mod tests {
         let resp = run_status(
             State(MockClient::with_status_code(StatusCode::BAD_GATEWAY)),
             Path(id),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
+        assert!(body_text(resp).await.contains("went wrong"));
+    }
+
+    #[tokio::test]
+    async fn detail_renders_status_history_for_a_known_execution() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_detail(
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path((run_id, ex_id)),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = body_text(resp).await;
+        assert!(body.contains("exec-alpha"), "execution name should render");
+        assert!(
+            body.contains("Status history"),
+            "history section should render"
+        );
+        assert!(
+            body.contains("execution finished"),
+            "history entry messages should render"
+        );
+        // Both history entries' statuses appear.
+        assert!(body.contains("RUNNING") && body.contains("SUCCESSFUL"));
+    }
+
+    #[tokio::test]
+    async fn detail_renders_not_found_for_an_unknown_execution() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_detail(
+            State(MockClient::with_test_run(
+                run_id,
+                Uuid::from_u128(3),
+                Status::Running,
+            )),
+            Path((run_id, ex_id)),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        assert!(body_text(resp).await.contains("Execution not found"));
+    }
+
+    #[tokio::test]
+    async fn detail_renders_not_found_for_an_unknown_run() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_detail(State(MockClient::default()), Path((run_id, ex_id))).await;
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        assert!(body_text(resp).await.contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn detail_renders_error_when_the_fetch_fails() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_detail(
+            State(MockClient::with_status_code(StatusCode::BAD_GATEWAY)),
+            Path((run_id, ex_id)),
         )
         .await;
 
