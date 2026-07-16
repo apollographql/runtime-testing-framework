@@ -46,12 +46,19 @@ jobs:
       - name: "Checkout Code"
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      # Publishes the chart to apollo-private-helm as `0.0.0+<sha>` (the action's default version).
-      # app_version is set to the SHA because the deployment template resolves the image tag from
-      # `.Chart.AppVersion` (values.yaml image.tag is null) — it must match the image published by
-      # the build_and_publish job above.
+      # Chart version uses a short SHA so `0.0.0+<sha>` stays well under the 63-byte
+      # Kubernetes label limit once it's folded into the chart's helm.sh/chart label.
+      - name: Compute short SHA
+        id: short_sha
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Publishes the chart to apollo-private-helm as `0.0.0+<short-sha>`.
+      # app_version is set to the full SHA because the deployment template resolves the image tag
+      # from `.Chart.AppVersion` (values.yaml image.tag is null) — it must match the image published
+      # by the build_and_publish job above, which tags with the full SHA.
       - name: "Publish Helm Chart"
         uses: apollographql/release-tooling/release-helm-internal@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
         with:
           chart_path: crates/rtf-orchestrator-ui/helm/rtf-orchestrator-ui
+          commit_sha: ${{ steps.short_sha.outputs.sha }}
           app_version: ${{ github.sha }}
