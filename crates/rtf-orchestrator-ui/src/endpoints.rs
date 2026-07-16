@@ -1,4 +1,5 @@
 use crate::{
+    links::LinksConfig,
     orchestrator::{self, Client},
     templates::{
         ErrorTemplate, ExecutionNotFoundTemplate, ExecutionTemplate, IndexTemplate,
@@ -8,6 +9,7 @@ use crate::{
 };
 use askama::Template;
 use axum::{
+    Extension,
     extract::{Path, State},
     response::{Html, IntoResponse, Response},
 };
@@ -52,12 +54,13 @@ fn run_status_body(
     id: Uuid,
     result: Result<Option<TestRunSummary>, orchestrator::Error>,
     now: DateTime<Utc>,
+    links_cfg: &LinksConfig,
 ) -> (StatusCode, String) {
     match result {
         Ok(Some(summary)) => render_body(
             StatusCode::OK,
             RunTemplate {
-                run: RunView::new(summary, now),
+                run: RunView::new(summary, now, links_cfg),
             },
         ),
         Ok(None) => render_body(
@@ -87,11 +90,12 @@ fn run_status_body(
 /// place and retries on the next tick.
 pub async fn run_status<C: Client>(
     State(orchestrator_client): State<C>,
+    Extension(links_cfg): Extension<LinksConfig>,
     Path(id): Path<Uuid>,
 ) -> Response {
     let result = orchestrator_client.run_summary(id).await;
 
-    to_response(run_status_body(id, result, Utc::now()))
+    to_response(run_status_body(id, result, Utc::now(), &links_cfg))
 }
 
 /// Maps the result of fetching an execution summary to a rendered `(status, body)` pair: the detail
@@ -101,12 +105,13 @@ pub async fn run_status<C: Client>(
 fn execution_detail_body(
     execution_id: Uuid,
     result: Result<Option<TestExecutionSummary>, orchestrator::Error>,
+    links_cfg: &LinksConfig,
 ) -> (StatusCode, String) {
     match result {
         Ok(Some(execution)) => render_body(
             StatusCode::OK,
             ExecutionTemplate {
-                execution: ExecutionDetailView::new(execution),
+                execution: ExecutionDetailView::new(execution, links_cfg),
             },
         ),
         Ok(None) => render_body(
@@ -134,17 +139,21 @@ fn execution_detail_body(
 /// parent run.
 pub async fn execution_detail<C: Client>(
     State(orchestrator_client): State<C>,
+    Extension(links_cfg): Extension<LinksConfig>,
     Path(execution_id): Path<Uuid>,
 ) -> Response {
     let result = orchestrator_client.execution_summary(execution_id).await;
 
-    to_response(execution_detail_body(execution_id, result))
+    to_response(execution_detail_body(execution_id, result, &links_cfg))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::mocks::{MockClient, sample_execution, sample_summary};
+    use crate::{
+        links::sample_config,
+        orchestrator::mocks::{MockClient, sample_execution, sample_summary},
+    };
     use axum::body::to_bytes;
     use rep_orchestrator_shared::status::Status;
 
@@ -183,6 +192,7 @@ mod tests {
             run_id,
             Ok(Some(sample_summary(run_id, ex_id, Status::Running))),
             Utc::now(),
+            &sample_config(),
         );
 
         assert_eq!(status, StatusCode::OK);
@@ -198,7 +208,7 @@ mod tests {
     #[test]
     fn run_status_body_renders_not_found_for_an_unknown_run() {
         let id = Uuid::from_u128(1);
-        let (status, body) = run_status_body(id, Ok(None), Utc::now());
+        let (status, body) = run_status_body(id, Ok(None), Utc::now(), &sample_config());
 
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert!(body.contains("not found"));
@@ -214,6 +224,7 @@ mod tests {
                 id,
             }),
             Utc::now(),
+            &sample_config(),
         );
 
         assert_eq!(status, StatusCode::BAD_GATEWAY);
@@ -224,8 +235,11 @@ mod tests {
     fn execution_detail_body_renders_a_known_execution() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let (status, body) =
-            execution_detail_body(ex_id, Ok(Some(sample_execution(run_id, ex_id))));
+        let (status, body) = execution_detail_body(
+            ex_id,
+            Ok(Some(sample_execution(run_id, ex_id))),
+            &sample_config(),
+        );
 
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("exec-alpha"), "execution name should render");
@@ -238,7 +252,7 @@ mod tests {
     #[test]
     fn execution_detail_body_renders_not_found_for_an_unknown_execution() {
         let ex_id = Uuid::from_u128(2);
-        let (status, body) = execution_detail_body(ex_id, Ok(None));
+        let (status, body) = execution_detail_body(ex_id, Ok(None), &sample_config());
 
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert!(body.contains("Execution not found"));
@@ -253,6 +267,7 @@ mod tests {
                 status: StatusCode::BAD_GATEWAY,
                 id: ex_id,
             }),
+            &sample_config(),
         );
 
         assert_eq!(status, StatusCode::BAD_GATEWAY);
@@ -265,6 +280,7 @@ mod tests {
         let ex_id = Uuid::from_u128(2);
         let resp = run_status(
             State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Extension(sample_config()),
             Path(run_id),
         )
         .await;
@@ -282,6 +298,7 @@ mod tests {
         let ex_id = Uuid::from_u128(2);
         let resp = execution_detail(
             State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Extension(sample_config()),
             Path(ex_id),
         )
         .await;

@@ -1,11 +1,10 @@
-use std::time::Duration;
-
-use crate::links::{gcp_logs, grafana};
+use crate::links::{LinksConfig, gcp_logs, grafana};
 use crate::status;
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
 use rep_orchestrator_shared::status::{Status, StatusUpdate};
 use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
+use std::time::Duration;
 use uuid::Uuid;
 
 /// Upper bound on how long a non-terminal run is auto-refreshed. A run that never reaches a
@@ -36,8 +35,9 @@ pub struct RunView {
 
 impl RunView {
     /// Build the run view. `now` decides whether the region keeps polling and anchors the elapsed
-    /// time and "last updated" indicator.
-    pub fn new(run: TestRunSummary, now: DateTime<Utc>) -> Self {
+    /// time and "last updated" indicator. `links_cfg` supplies the GCP/Grafana deep-link
+    /// configuration for each execution row.
+    pub fn new(run: TestRunSummary, now: DateTime<Utc>, links_cfg: &LinksConfig) -> Self {
         // Trust `current_status`, not just the presence of `completed_at`, to decide whether the run
         // is actually done — a run that is still in progress should never show a completion time,
         // even if the wire data is momentarily inconsistent.
@@ -63,7 +63,7 @@ impl RunView {
             executions: run
                 .executions
                 .into_iter()
-                .map(ExecutionView::from)
+                .map(|execution| ExecutionView::new(execution, links_cfg))
                 .collect(),
         }
     }
@@ -84,12 +84,12 @@ pub struct ExecutionView {
     pub grafana_url: String,
 }
 
-impl From<TestExecutionSummary> for ExecutionView {
-    fn from(execution: TestExecutionSummary) -> Self {
+impl ExecutionView {
+    fn new(execution: TestExecutionSummary, links_cfg: &LinksConfig) -> Self {
         let namespace = execution.id.to_string();
         let window_end = execution.completed_at.unwrap_or_else(Utc::now);
-        let logs_url = gcp_logs(&namespace, execution.started_at, window_end);
-        let grafana_url = grafana(&namespace, execution.started_at, window_end);
+        let logs_url = gcp_logs(links_cfg, &namespace, execution.started_at, window_end);
+        let grafana_url = grafana(links_cfg, &namespace, execution.started_at, window_end);
 
         Self {
             id: execution.id,
@@ -125,11 +125,11 @@ pub struct ExecutionDetailView {
 }
 
 impl ExecutionDetailView {
-    pub fn new(execution: TestExecutionSummary) -> Self {
+    pub fn new(execution: TestExecutionSummary, links_cfg: &LinksConfig) -> Self {
         let namespace = execution.id.to_string();
         let end = execution.completed_at.unwrap_or_else(Utc::now);
-        let logs_url = gcp_logs(&namespace, execution.started_at, end);
-        let grafana_url = grafana(&namespace, execution.started_at, end);
+        let logs_url = gcp_logs(links_cfg, &namespace, execution.started_at, end);
+        let grafana_url = grafana(links_cfg, &namespace, execution.started_at, end);
 
         Self {
             run_id: execution.test_run_id,
@@ -180,6 +180,7 @@ fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) ->
 mod tests {
     use super::*;
     use crate::{
+        links::sample_config,
         orchestrator::mocks::{sample_execution, sample_summary},
         templates::{ExecutionTemplate, RunTemplate},
     };
@@ -217,7 +218,7 @@ mod tests {
             ..Default::default()
         };
 
-        assert_eq!(RunView::new(run, now).completed_at, None);
+        assert_eq!(RunView::new(run, now, &sample_config()).completed_at, None);
     }
 
     #[test]
@@ -230,14 +231,21 @@ mod tests {
             ..Default::default()
         };
 
-        assert_eq!(RunView::new(run, now).completed_at, Some(now.to_rfc3339()));
+        assert_eq!(
+            RunView::new(run, now, &sample_config()).completed_at,
+            Some(now.to_rfc3339())
+        );
     }
 
     #[test]
     fn run_template_carries_the_poll_trigger_while_non_terminal() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let run = RunView::new(
+            sample_summary(run_id, ex_id, Status::Running),
+            Utc::now(),
+            &sample_config(),
+        );
         let body = RunTemplate { run }.render().expect("template renders");
 
         assert!(body.contains(&format!("hx-get=\"/ui/run/{run_id}\"")));
@@ -251,6 +259,7 @@ mod tests {
         let run = RunView::new(
             sample_summary(run_id, ex_id, Status::Successful),
             Utc::now(),
+            &sample_config(),
         );
         let body = RunTemplate { run }.render().expect("template renders");
 
@@ -263,7 +272,11 @@ mod tests {
     fn run_template_renders_run_and_execution_details() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let run = RunView::new(
+            sample_summary(run_id, ex_id, Status::Running),
+            Utc::now(),
+            &sample_config(),
+        );
         let body = RunTemplate { run }.render().expect("template renders");
 
         assert!(body.contains("my-test-run"), "run name should render");
@@ -279,7 +292,11 @@ mod tests {
     fn run_template_links_each_execution_to_its_gcp_logs_and_grafana_dashboard() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let run = RunView::new(
+            sample_summary(run_id, ex_id, Status::Running),
+            Utc::now(),
+            &sample_config(),
+        );
         let body = RunTemplate { run }.render().expect("template renders");
 
         assert!(
@@ -296,7 +313,11 @@ mod tests {
     fn run_template_shows_polish_indicators() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(sample_summary(run_id, ex_id, Status::Running), Utc::now());
+        let run = RunView::new(
+            sample_summary(run_id, ex_id, Status::Running),
+            Utc::now(),
+            &sample_config(),
+        );
         let body = RunTemplate { run }.render().expect("template renders");
 
         assert!(
@@ -314,7 +335,7 @@ mod tests {
     fn execution_template_renders_status_history_and_metadata() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let view = ExecutionDetailView::new(sample_execution(run_id, ex_id));
+        let view = ExecutionDetailView::new(sample_execution(run_id, ex_id), &sample_config());
         let body = ExecutionTemplate { execution: view }
             .render()
             .expect("template renders");
@@ -348,7 +369,7 @@ mod tests {
     fn execution_template_omits_the_back_link_when_the_run_id_is_unknown() {
         let mut execution = sample_execution(Uuid::from_u128(1), Uuid::from_u128(2));
         execution.test_run_id = None;
-        let view = ExecutionDetailView::new(execution);
+        let view = ExecutionDetailView::new(execution, &sample_config());
         let body = ExecutionTemplate { execution: view }
             .render()
             .expect("template renders");

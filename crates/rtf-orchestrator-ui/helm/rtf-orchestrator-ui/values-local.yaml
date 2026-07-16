@@ -6,3 +6,16 @@ image:
 config:
   logLevel: "info,rtf_orchestrator_ui=debug"
   orchestratorUrl: "http://rep-orchestrator:8035"
+
+# Dummy values: the local/tilt stack has no route from this cluster to real GCP or Grafana
+# instances, so these links will never resolve locally. They only need to satisfy the chart's
+# `required` checks.
+gcpLinks:
+  project: "local-dummy-project"
+  clusterName: "local-dummy-cluster"
+
+grafana:
+  baseUrl: "http://local-dummy-grafana.invalid"
+  dashboardUid: "local-dummy-dashboard-uid"
+  dashboardSlug: "local-dummy-dashboard-slug"
+  datasourceUid: "local-dummy-datasource-uid"

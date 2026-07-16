@@ -38,6 +38,18 @@ spec:
               value: {{ .Values.config.port | quote }}
             - name: RTF_UI_ORCHESTRATOR_URL
               value: {{ required "config.orchestratorUrl is required" .Values.config.orchestratorUrl | quote }}
+            - name: RTF_UI_GCP_PROJECT
+              value: {{ required "gcpLinks.project is required" .Values.gcpLinks.project | quote }}
+            - name: RTF_UI_GCP_CLUSTER_NAME
+              value: {{ required "gcpLinks.clusterName is required" .Values.gcpLinks.clusterName | quote }}
+            - name: RTF_UI_GRAFANA_BASE_URL
+              value: {{ required "grafana.baseUrl is required" .Values.grafana.baseUrl | quote }}
+            - name: RTF_UI_GRAFANA_DASHBOARD_UID
+              value: {{ required "grafana.dashboardUid is required" .Values.grafana.dashboardUid | quote }}
+            - name: RTF_UI_GRAFANA_DASHBOARD_SLUG
+              value: {{ required "grafana.dashboardSlug is required" .Values.grafana.dashboardSlug | quote }}
+            - name: RTF_UI_GRAFANA_DATASOURCE_UID
+              value: {{ required "grafana.datasourceUid is required" .Values.grafana.datasourceUid | quote }}
           startupProbe:
             httpGet:
               path: /ui/health
