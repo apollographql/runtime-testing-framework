@@ -22,10 +22,17 @@ Create a default fully qualified app name.
 {{- end }}
 
 {{/*
+Chart name and version, truncated to fit the 63-byte Kubernetes label limit.
+*/}}
+{{- define "rep-orchestrator.chart" -}}
+{{- printf "%s-%s" (include "rep-orchestrator.name" .) (.Chart.Version | replace "+" "_") | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "rep-orchestrator.labels" -}}
-helm.sh/chart: {{ include "rep-orchestrator.name" . }}-{{ .Chart.Version | replace "+" "_" }}
+helm.sh/chart: {{ include "rep-orchestrator.chart" . }}
 {{ include "rep-orchestrator.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/version: {{ .Chart.Version | replace "+" "_" | quote }}
