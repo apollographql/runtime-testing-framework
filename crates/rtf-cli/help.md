@@ -20,12 +20,13 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf resolve environment`↴](#rtf-resolve-environment)
 * [`rtf completion`↴](#rtf-completion)
 * [`rtf json-schemas`↴](#rtf-json-schemas)
-* [`rtf rep`↴](#rtf-rep)
-* [`rtf rep prepare`↴](#rtf-rep-prepare)
-* [`rtf rep request`↴](#rtf-rep-request)
-* [`rtf rep ci-run`↴](#rtf-rep-ci-run)
-* [`rtf rep execution-output`↴](#rtf-rep-execution-output)
-* [`rtf rep run-output`↴](#rtf-rep-run-output)
+* [`rtf remote`↴](#rtf-remote)
+* [`rtf remote prepare`↴](#rtf-remote-prepare)
+* [`rtf remote request`↴](#rtf-remote-request)
+* [`rtf remote run`↴](#rtf-remote-run)
+* [`rtf remote ci-run`↴](#rtf-remote-ci-run)
+* [`rtf remote execution-output`↴](#rtf-remote-execution-output)
+* [`rtf remote run-output`↴](#rtf-remote-run-output)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -45,7 +46,7 @@ A swiss army knife for testing the Apollo Runtime
 * `resolve` — Resolve file providers for a config file without executing it
 * `completion` — Write a shell completion file to STDOUT for the given shell
 * `json-schemas` — Output json schemas for environment configuration
-* `rep` — Interactions with the REP Orchestrator
+* `remote` — Interactions with the RTF Orchestrator Service
 * `version` — Display CLI version and exit
 
 ###### **Options:**
@@ -330,27 +331,28 @@ Output json schemas for environment configuration
 
 
 
-## `rtf rep`
+## `rtf remote`
 
-Interactions with the REP Orchestrator
+Interactions with the RTF Orchestrator Service
 
-**Usage:** `rtf rep <COMMAND>`
+**Usage:** `rtf remote <COMMAND>`
 
 ###### **Subcommands:**
 
-* `prepare` — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers
-* `request` — Send an IAP-authenticated HTTP request to the REP orchestrator
-* `ci-run` — Trigger a test run using the REP orchestrator and poll for the result
+* `prepare` — Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers
+* `request` — Send an IAP-authenticated HTTP request to the Orchestrator
+* `run` — Trigger a test run using the Orchestrator
+* `ci-run` — Trigger a test run using the Orchestrator and poll for the result
 * `execution-output` — Pull output for a single test execution
 * `run-output` — Pull output for all executions within a given test run
 
 
 
-## `rtf rep prepare`
+## `rtf remote prepare`
 
-Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers
+Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers
 
-**Usage:** `rtf rep prepare [OPTIONS] <TEST_PLAN_PATH>`
+**Usage:** `rtf remote prepare [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
@@ -365,17 +367,17 @@ Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON
 
 
 
-## `rtf rep request`
+## `rtf remote request`
 
-Send an IAP-authenticated HTTP request to the REP orchestrator.
+Send an IAP-authenticated HTTP request to the Orchestrator.
 
 The response body is written to stdout on success.
 
-**Usage:** `rtf rep request [OPTIONS] <PATH>`
+**Usage:** `rtf remote request [OPTIONS] <PATH>`
 
 ###### **Arguments:**
 
-* `<PATH>` — Path on the orchestrator to request (e.g. `/health`)
+* `<PATH>` — Path on the Orchestrator to request (e.g. `/health`)
 
 ###### **Options:**
 
@@ -383,17 +385,38 @@ The response body is written to stdout on success.
 
   Default value: `GET`
 * `-b`, `--body <BODY>` — Request body as a literal string
-* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the REP orchestrator base URL
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
-## `rtf rep ci-run`
+## `rtf remote run`
 
-Trigger a test run using the REP orchestrator and poll for the result.
+Trigger a test run using the Orchestrator.
+
+The output of this command will be the test run id and a link to the RTF UI to view the status
+
+**Usage:** `rtf remote run [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
+
+###### **Options:**
+
+* `--github` — Prepare a test plan file from GitHub instead of from a local path
+
+  Default value: `false`
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+
+
+
+## `rtf remote ci-run`
+
+Trigger a test run using the Orchestrator and poll for the result.
 
 The output of this command is aimed at being usable in CI runs and is non-interactive.
 
-**Usage:** `rtf rep ci-run [OPTIONS] <TEST_PLAN_PATH>`
+**Usage:** `rtf remote ci-run [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
@@ -411,15 +434,15 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 
 
 
-## `rtf rep execution-output`
+## `rtf remote execution-output`
 
 Pull output for a single test execution
 
-**Usage:** `rtf rep execution-output [OPTIONS] <ID>`
+**Usage:** `rtf remote execution-output [OPTIONS] <ID>`
 
 ###### **Arguments:**
 
-* `<ID>` — ID of the orchestrator test execution you wish to pull output for
+* `<ID>` — ID of the Orchestrator test execution you wish to pull output for
 
 ###### **Options:**
 
@@ -432,15 +455,15 @@ Pull output for a single test execution
 
 
 
-## `rtf rep run-output`
+## `rtf remote run-output`
 
 Pull output for all executions within a given test run
 
-**Usage:** `rtf rep run-output [OPTIONS] <ID>`
+**Usage:** `rtf remote run-output [OPTIONS] <ID>`
 
 ###### **Arguments:**
 
-* `<ID>` — ID of the orchestrator test run you wish to pull output for
+* `<ID>` — ID of the Orchestrator test run you wish to pull output for
 
 ###### **Options:**
 

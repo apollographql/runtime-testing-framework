@@ -14,8 +14,8 @@ naming hierarchy:
 1. **Environment dependency** — Tests that require API tokens are grouped by their credential
    requirement. Files named after the command they test have no external dependency. Examples:
    `github` (requires `GITHUB_TOKEN`), `graphos` (requires `APOLLO_KEY`).
-1. **Command** — The CLI subcommand under test. Examples: `template`, `run`, `rep`. Where no command
-   is supplied, use `no_command`.
+1. **Command** — The CLI subcommand under test. Examples: `template`, `run`, `remote`. Where no
+   command is supplied, use `no_command`.
 1. **Flag(s)** — Flags that cause significant branching in functionality, added as a prefix to the
    test case name. Omit if the flag is already implied by the environment dependency.
 1. **Test class** — A grouping of parameterized cases defined with [`simple_test_case`][0].

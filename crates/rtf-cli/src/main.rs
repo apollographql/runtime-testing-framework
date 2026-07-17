@@ -3,24 +3,26 @@ use git_version::git_version;
 use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
     cli::{
-        Args, Command, CustomProviderSubcommand, InlineSubcommand, RepSubcommand, ResolveSubcommand,
+        Args, Command, CustomProviderSubcommand, InlineSubcommand, RemoteSubcommand,
+        ResolveSubcommand,
     },
     commands::{
         plumbing::{
-            execute_rep_request, expand_test_plan_matrix, generate_json_schema,
+            execute_remote_request, expand_test_plan_matrix, generate_json_schema,
             generate_shell_completions, inline_test_plan, resolve_environment, resolve_scenario,
             run_custom_provider, template_custom_provider, template_test_plan,
-            test_custom_provider, write_rep_trigger_payload_to_stdout,
+            test_custom_provider, write_remote_trigger_payload_to_stdout,
         },
         porcelain::{
             check_and_run_test_plan, ci_run, open_docs, pull_execution_output, pull_run_output,
+            remote_run,
         },
     },
 };
 use rtf_config::inlining::InlineMode;
 use rustls::crypto::aws_lc_rs;
 use std::process::exit;
-use tracing::error;
+use tracing::{error, warn};
 
 #[tokio::main]
 async fn main() {
@@ -38,6 +40,19 @@ async fn main() {
     if aws_lc_rs::default_provider().install_default().is_err() {
         panic!("unable to install default crypto provider");
     }
+
+    // `rep` is a deprecated alias for `remote`. Normalise it here so the rest of `main` only
+    // has to deal with one variant, and warn the user once so they can migrate.
+    let command = match command {
+        Command::Rep { subcommand } => {
+            warn!(
+                "`rtf rep` is deprecated and will be removed in a future release; use `rtf remote` instead"
+            );
+
+            Command::Remote { subcommand }
+        }
+        _ => command,
+    };
 
     let res = match command {
         // porcelain commands
@@ -140,31 +155,45 @@ async fn main() {
                 },
         } => resolve_environment(&environment_path, variables.into(), &outdir, force).await,
 
-        Command::Rep {
+        Command::Remote {
             subcommand:
-                RepSubcommand::Request {
+                RemoteSubcommand::Request {
                     path,
                     method,
                     body,
                     orchestrator_url,
                 },
-        } => execute_rep_request(&path, method, body.as_deref(), orchestrator_url).await,
+        } => execute_remote_request(&path, method, body.as_deref(), orchestrator_url).await,
 
-        Command::Rep {
+        Command::Remote {
             subcommand:
-                RepSubcommand::Prepare {
+                RemoteSubcommand::Prepare {
                     test_plan_path,
                     github,
                     git_ref,
                 },
         } => {
-            write_rep_trigger_payload_to_stdout(&test_plan_path, github, git_ref, variables.into())
-                .await
+            write_remote_trigger_payload_to_stdout(
+                &test_plan_path,
+                github,
+                git_ref,
+                variables.into(),
+            )
+            .await
         }
 
-        Command::Rep {
+        Command::Remote {
             subcommand:
-                RepSubcommand::CiRun {
+                RemoteSubcommand::Run {
+                    test_plan_path,
+                    github,
+                    git_ref,
+                },
+        } => remote_run(&test_plan_path, github, git_ref, variables.into()).await,
+
+        Command::Remote {
+            subcommand:
+                RemoteSubcommand::CiRun {
                     test_plan_path,
                     github,
                     git_ref,
@@ -181,12 +210,12 @@ async fn main() {
             .await
         }
 
-        Command::Rep {
-            subcommand: RepSubcommand::ExecutionOutput { id, outdir, force },
+        Command::Remote {
+            subcommand: RemoteSubcommand::ExecutionOutput { id, outdir, force },
         } => pull_execution_output(id, &outdir, force).await,
 
-        Command::Rep {
-            subcommand: RepSubcommand::RunOutput { id, outdir, force },
+        Command::Remote {
+            subcommand: RemoteSubcommand::RunOutput { id, outdir, force },
         } => pull_run_output(id, &outdir, force).await,
 
         Command::Completion { shell } => generate_shell_completions(shell),
@@ -201,6 +230,9 @@ async fn main() {
             );
             exit(0);
         }
+
+        // `rep` is normalised to `remote` above, before this match runs.
+        Command::Rep { .. } => unreachable!(),
     };
 
     if let Err(e) = res {

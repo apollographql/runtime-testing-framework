@@ -1,5 +1,5 @@
-name: rep-prepare
-description: Minimal fixture for rtf rep prepare tests
+name: remote-prepare
+description: Minimal fixture for rtf remote prepare tests
 
 scenario:
   from:

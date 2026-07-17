@@ -139,10 +139,17 @@ pub enum Command {
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
 
-    /// Interactions with the REP Orchestrator
+    /// Interactions with the RTF Orchestrator Service
+    Remote {
+        #[clap(subcommand)]
+        subcommand: RemoteSubcommand,
+    },
+
+    /// Deprecated alias for `remote`, kept working for backwards compatibility.
+    #[command(hide = true)]
     Rep {
         #[clap(subcommand)]
-        subcommand: RepSubcommand,
+        subcommand: RemoteSubcommand,
     },
 
     /// Display CLI version and exit
@@ -294,9 +301,9 @@ pub enum ResolveSubcommand {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum RepSubcommand {
-    /// Prepare a test plan for execution by the REP service.
-    /// Outputs a RepTestPlan JSON with inlined relative files and custom providers.
+pub enum RemoteSubcommand {
+    /// Prepare a test plan for remote execution by the Orchestrator.
+    /// Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers.
     Prepare {
         /// Relative path to the test plan file. When using --github this must be in the
         /// format ORG/REPO/PATH
@@ -311,11 +318,11 @@ pub enum RepSubcommand {
         git_ref: Option<String>,
     },
 
-    /// Send an IAP-authenticated HTTP request to the REP orchestrator.
+    /// Send an IAP-authenticated HTTP request to the Orchestrator.
     ///
     /// The response body is written to stdout on success.
     Request {
-        /// Path on the orchestrator to request (e.g. `/health`)
+        /// Path on the Orchestrator to request (e.g. `/health`)
         path: String,
 
         /// HTTP method
@@ -326,12 +333,30 @@ pub enum RepSubcommand {
         #[arg(short, long)]
         body: Option<String>,
 
-        /// Override the REP orchestrator base URL
+        /// Override the Orchestrator base URL
         #[arg(long)]
         orchestrator_url: Option<Url>,
     },
 
-    /// Trigger a test run using the REP orchestrator and poll for the result.
+    /// Trigger a test run using the Orchestrator.
+    ///
+    /// The output of this command will be the test run id and a link to the
+    /// RTF UI to view the status
+    Run {
+        /// Relative path to the test plan file. When using --github this must be in the
+        /// format ORG/REPO/PATH
+        test_plan_path: String,
+
+        /// Prepare a test plan file from GitHub instead of from a local path
+        #[arg(long, default_value = "false")]
+        github: bool,
+
+        /// Optional git ref to pull files from when using --github
+        #[arg(long = "ref", requires = "github")]
+        git_ref: Option<String>,
+    },
+
+    /// Trigger a test run using the Orchestrator and poll for the result.
     ///
     /// The output of this command is aimed at being usable in CI runs and is non-interactive.
     CiRun {
@@ -353,7 +378,7 @@ pub enum RepSubcommand {
 
     /// Pull output for a single test execution
     ExecutionOutput {
-        /// ID of the orchestrator test execution you wish to pull output for
+        /// ID of the Orchestrator test execution you wish to pull output for
         id: Uuid,
 
         /// Directory to place output in
@@ -367,7 +392,7 @@ pub enum RepSubcommand {
 
     /// Pull output for all executions within a given test run
     RunOutput {
-        /// ID of the orchestrator test run you wish to pull output for
+        /// ID of the Orchestrator test run you wish to pull output for
         id: Uuid,
 
         /// Directory to place output in

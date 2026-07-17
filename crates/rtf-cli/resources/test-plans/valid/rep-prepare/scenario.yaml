@@ -1,7 +1,0 @@
-name: rep-prepare-scenario
-description: Minimal DockerScenario for rep prepare tests
-
-docker:
-  image: alpine
-  tag: latest
-  command: echo hello

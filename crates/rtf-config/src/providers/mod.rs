@@ -31,7 +31,7 @@ pub enum Error {
     CommandFailed { name: String, err: String },
 
     #[error(
-        "Mixed file provider usage detected:\nwith REP compatible label: {labeled:?}\nwith explicit volume mounts: {explicit_mount:?}"
+        "Mixed file provider usage detected:\nwith Orchestrator-compatible label: {labeled:?}\nwith explicit volume mounts: {explicit_mount:?}"
     )]
     InvalidFileProviderUsage {
         labeled: Vec<String>,

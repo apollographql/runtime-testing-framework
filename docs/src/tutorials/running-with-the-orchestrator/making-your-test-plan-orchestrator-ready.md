@@ -14,15 +14,22 @@ services.
 
 ## Restrictions on Orchestrator Test Plans
 
-The Orchestrator requires that Test Plans submitted to it are written using `docker compose` based
-Environments and `docker` based Scenarios: script based Test Plans are not supported. Enforcing this
-allows the Orchestrator to convert your docker compose based environment into Kubernetes resources
-using [kompose][1] which are then patched with [kustomize][2] according to the labels detailed
-below.
+The Orchestrator enforces that Test Plans submitted to it are compatible for running in a Kubernetes
+cluster.
 
-The Test Plan you built in the ["Writing test plans"][0] series already uses a docker compose based
-environment and docker based scenario, so all we need to add is the appropriate labels and it will
-be ready to run!
+Compatible Environments are:
+
+- `docker compose` based. The Orchestrator converts your `docker compose` based environments into
+  Kubernetes resources using [kompose][1] which are then patched with [kustomize][2] according to
+  the labels detailed below.
+- `null`(if the `skip = true` field is set in the Environment config). This skips environment
+  provisioning in the Orchestrator and just runs the Scenario.
+
+The only compatible Scenario is a `docker` based one.
+
+The Test Plan you built in the ["Writing test plans"][0] series already uses a `docker compose`
+based Environment and `docker` based Scenario, so all we need to add is the appropriate labels and
+it will be ready to run!
 
 ## The `rtf.io` labels
 

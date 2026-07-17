@@ -134,11 +134,11 @@ pub fn prepare_rtf_run(dir: &str) -> CmdWithTmpDir {
     }
 }
 
-pub fn prepare_rtf_rep_prepare(dir: &str) -> CmdWithTmpDir {
+pub fn prepare_rtf_remote_prepare(dir: &str) -> CmdWithTmpDir {
     let test_setup = prepare_for_test(dir);
     let mut cmd = cargo_bin_cmd!("rtf");
 
-    cmd.arg("rep")
+    cmd.arg("remote")
         .arg("prepare")
         .arg(&test_setup.test_plan_file_path)
         .arg("-vv");

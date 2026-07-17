@@ -4,8 +4,8 @@
 
 Task-oriented guides for common development workflows.
 
-- [PR Checks][0] - running CI checks locally
-- [Run rep-orchestrator tests][1] - running unit, DB, and integration tests for the orchestrator
+- [Run PR checks][0] - running CI checks locally
+- [Run rep-orchestrator tests][1] - running unit, DB, and integration tests for the Orchestrator
 - [Run a test coverage report][2] - generating and inspecting a full workspace coverage report
 - [Update trybuild .stderr files][3] - refreshing expected compiler output after a Rust version
   change

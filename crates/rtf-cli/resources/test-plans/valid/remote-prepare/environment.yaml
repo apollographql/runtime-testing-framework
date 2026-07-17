@@ -1,0 +1,9 @@
+name: remote-prepare-environment
+description: Minimal DockerCompose environment for remote prepare tests
+
+project_name: remote-prepare
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml
