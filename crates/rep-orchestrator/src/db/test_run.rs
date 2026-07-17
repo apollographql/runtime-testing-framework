@@ -22,6 +22,7 @@ pub struct TestRun {
     id: i32,
     uuid: Uuid,
     name: String,
+    initiated_by: String,
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
     variables_id: Option<i32>,
@@ -59,6 +60,7 @@ impl TestRun {
             id,
             uuid: Uuid::new_v4(),
             name: name.into(),
+            initiated_by: "unknown".to_owned(),
             started_at: Utc::now(),
             completed_at: None,
             variables_id: None,
@@ -90,7 +92,7 @@ impl TestRun {
         let tr: TestRun = sqlx::query_as(
             "INSERT INTO test_run (name, started_at, variables_id)
              VALUES ($1, NOW(), $2)
-             RETURNING id, uuid, name, started_at, completed_at, variables_id;
+             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id;
             ",
         )
         .bind(name)
@@ -171,6 +173,7 @@ impl TestRun {
             id: self.uuid,
             name: self.name,
             current_status: current.status.into(),
+            initiated_by: self.initiated_by,
             started_at: self.started_at,
             updated_at: current.updated_at,
             completed_at: self.completed_at,
@@ -368,6 +371,20 @@ mod tests {
         // Persisted as NULL too, not just on the returned struct.
         let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
         assert_eq!(fetched.variables_id, None);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn init_defaults_initiated_by_to_unknown() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", None, c).await?;
+        assert_eq!(tr.initiated_by, "unknown");
+
+        // Persisted via the column default, not just on the returned struct.
+        let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
+        assert_eq!(fetched.initiated_by, "unknown");
 
         Ok(())
     }

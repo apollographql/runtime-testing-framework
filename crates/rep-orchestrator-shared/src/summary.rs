@@ -8,6 +8,7 @@ pub struct TestRunSummary {
     pub id: Uuid,
     pub name: String,
     pub current_status: Status,
+    pub initiated_by: String,
     pub started_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
