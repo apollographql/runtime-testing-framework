@@ -161,8 +161,8 @@ impl DockerComposeEnvironment {
             //
             // We only rewrite the environment variables if at least one service has the label present
             // This will break any services that try to volume mount to the files on the local filesystem
-            // but we are ok with this since the presence of a label implies the user wants this work on REP
-            // and any services attempting to mount to the local filesystem will fail
+            // but we are ok with this since the presence of a label implies the user wants this to work
+            // on the Orchestrator and any services attempting to mount to the local filesystem will fail
             if has_labeled_services {
                 vars.insert(
                     nfp.env_var.clone(),

@@ -46,7 +46,7 @@ A swiss army knife for testing the Apollo Runtime
 * `resolve` — Resolve file providers for a config file without executing it
 * `completion` — Write a shell completion file to STDOUT for the given shell
 * `json-schemas` — Output json schemas for environment configuration
-* `remote` — Interactions with remote RTF service
+* `remote` — Interactions with the RTF Orchestrator Service
 * `version` — Display CLI version and exit
 
 ###### **Options:**
@@ -333,16 +333,16 @@ Output json schemas for environment configuration
 
 ## `rtf remote`
 
-Interactions with remote RTF service
+Interactions with the RTF Orchestrator Service
 
 **Usage:** `rtf remote <COMMAND>`
 
 ###### **Subcommands:**
 
-* `prepare` — Prepare a test plan for remote execution by the RTF service. Outputs an RTF service compatible JSON payload with inlined relative files and custom providers
-* `request` — Send an IAP-authenticated HTTP request to the RTF service
-* `run` — Trigger a test run using the RTF service
-* `ci-run` — Trigger a test run using the RTF service and poll for the result
+* `prepare` — Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers
+* `request` — Send an IAP-authenticated HTTP request to the Orchestrator
+* `run` — Trigger a test run using the Orchestrator
+* `ci-run` — Trigger a test run using the Orchestrator and poll for the result
 * `execution-output` — Pull output for a single test execution
 * `run-output` — Pull output for all executions within a given test run
 
@@ -350,7 +350,7 @@ Interactions with remote RTF service
 
 ## `rtf remote prepare`
 
-Prepare a test plan for remote execution by the RTF service. Outputs an RTF service compatible JSON payload with inlined relative files and custom providers
+Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers
 
 **Usage:** `rtf remote prepare [OPTIONS] <TEST_PLAN_PATH>`
 
@@ -369,7 +369,7 @@ Prepare a test plan for remote execution by the RTF service. Outputs an RTF serv
 
 ## `rtf remote request`
 
-Send an IAP-authenticated HTTP request to the RTF service.
+Send an IAP-authenticated HTTP request to the Orchestrator.
 
 The response body is written to stdout on success.
 
@@ -377,7 +377,7 @@ The response body is written to stdout on success.
 
 ###### **Arguments:**
 
-* `<PATH>` — Path on the orchestrator to request (e.g. `/health`)
+* `<PATH>` — Path on the Orchestrator to request (e.g. `/health`)
 
 ###### **Options:**
 
@@ -385,13 +385,13 @@ The response body is written to stdout on success.
 
   Default value: `GET`
 * `-b`, `--body <BODY>` — Request body as a literal string
-* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the RTF service base URL
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
 ## `rtf remote run`
 
-Trigger a test run using the RTF service.
+Trigger a test run using the Orchestrator.
 
 The output of this command will be the test run id and a link to the RTF UI to view the status
 
@@ -412,7 +412,7 @@ The output of this command will be the test run id and a link to the RTF UI to v
 
 ## `rtf remote ci-run`
 
-Trigger a test run using the RTF service and poll for the result.
+Trigger a test run using the Orchestrator and poll for the result.
 
 The output of this command is aimed at being usable in CI runs and is non-interactive.
 
@@ -442,7 +442,7 @@ Pull output for a single test execution
 
 ###### **Arguments:**
 
-* `<ID>` — ID of the orchestrator test execution you wish to pull output for
+* `<ID>` — ID of the Orchestrator test execution you wish to pull output for
 
 ###### **Options:**
 
@@ -463,7 +463,7 @@ Pull output for all executions within a given test run
 
 ###### **Arguments:**
 
-* `<ID>` — ID of the orchestrator test run you wish to pull output for
+* `<ID>` — ID of the Orchestrator test run you wish to pull output for
 
 ###### **Options:**
 

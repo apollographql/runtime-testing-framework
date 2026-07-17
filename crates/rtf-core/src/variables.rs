@@ -157,7 +157,7 @@ pub struct ParsedVariables {
 impl ParsedVariables {
     /// Reconstruct the flat map of runtime overrides — scalars and matrix-dimension arrays in a
     /// single object, mirroring the user's `--vars` / `-v` input. This is the form captured for the
-    /// REP payload.
+    /// Orchestrator's trigger payload.
     ///
     /// A key can appear in both maps when the same name is supplied as a `-v` scalar and a `--vars`
     /// array (`parse` keeps both; `merge` resolves it). Matrix dimensions are emitted first so a

@@ -139,7 +139,7 @@ pub enum Command {
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
 
-    /// Interactions with remote RTF service
+    /// Interactions with the RTF Orchestrator Service
     Remote {
         #[clap(subcommand)]
         subcommand: RemoteSubcommand,
@@ -302,8 +302,8 @@ pub enum ResolveSubcommand {
 
 #[derive(Debug, Subcommand)]
 pub enum RemoteSubcommand {
-    /// Prepare a test plan for remote execution by the RTF service.
-    /// Outputs an RTF service compatible JSON payload with inlined relative files and custom providers.
+    /// Prepare a test plan for remote execution by the Orchestrator.
+    /// Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers.
     Prepare {
         /// Relative path to the test plan file. When using --github this must be in the
         /// format ORG/REPO/PATH
@@ -318,11 +318,11 @@ pub enum RemoteSubcommand {
         git_ref: Option<String>,
     },
 
-    /// Send an IAP-authenticated HTTP request to the RTF service.
+    /// Send an IAP-authenticated HTTP request to the Orchestrator.
     ///
     /// The response body is written to stdout on success.
     Request {
-        /// Path on the orchestrator to request (e.g. `/health`)
+        /// Path on the Orchestrator to request (e.g. `/health`)
         path: String,
 
         /// HTTP method
@@ -333,12 +333,12 @@ pub enum RemoteSubcommand {
         #[arg(short, long)]
         body: Option<String>,
 
-        /// Override the RTF service base URL
+        /// Override the Orchestrator base URL
         #[arg(long)]
         orchestrator_url: Option<Url>,
     },
 
-    /// Trigger a test run using the RTF service.
+    /// Trigger a test run using the Orchestrator.
     ///
     /// The output of this command will be the test run id and a link to the
     /// RTF UI to view the status
@@ -356,7 +356,7 @@ pub enum RemoteSubcommand {
         git_ref: Option<String>,
     },
 
-    /// Trigger a test run using the RTF service and poll for the result.
+    /// Trigger a test run using the Orchestrator and poll for the result.
     ///
     /// The output of this command is aimed at being usable in CI runs and is non-interactive.
     CiRun {
@@ -378,7 +378,7 @@ pub enum RemoteSubcommand {
 
     /// Pull output for a single test execution
     ExecutionOutput {
-        /// ID of the orchestrator test execution you wish to pull output for
+        /// ID of the Orchestrator test execution you wish to pull output for
         id: Uuid,
 
         /// Directory to place output in
@@ -392,7 +392,7 @@ pub enum RemoteSubcommand {
 
     /// Pull output for all executions within a given test run
     RunOutput {
-        /// ID of the orchestrator test run you wish to pull output for
+        /// ID of the Orchestrator test run you wish to pull output for
         id: Uuid,
 
         /// Directory to place output in

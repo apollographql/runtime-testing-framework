@@ -1,4 +1,4 @@
-//! IAP-authenticated HTTP client for the REP orchestrator.
+//! IAP-authenticated HTTP client for the RTF Orchestrator Service.
 use crate::orchestrator::{
     DEFAULT_ORCHESTRATOR_URL, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
     IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result,
@@ -10,7 +10,7 @@ use reqwest::{Client, Method, RequestBuilder, Url};
 use serde::{Serialize, de::DeserializeOwned};
 use std::str::FromStr;
 
-/// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
+/// Authenticated HTTP client for the RTF Orchestrator Service, protected by Google Cloud IAP.
 #[derive(Debug)]
 pub struct OrchestratorClient {
     adc: AdcCredentials,
@@ -21,7 +21,7 @@ pub struct OrchestratorClient {
 }
 
 impl OrchestratorClient {
-    /// Build a new client using the [default orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
+    /// Build a new client using the [default Orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
     ///
     /// Loads Application Default Credentials from disk and fetches the IAP
     /// OAuth client credentials from Secret Manager.
@@ -32,7 +32,7 @@ impl OrchestratorClient {
         .await
     }
 
-    /// Build a new client with a custom orchestrator URL.
+    /// Build a new client with a custom Orchestrator URL.
     ///
     /// Loads Application Default Credentials from disk and fetches the IAP
     /// OAuth client credentials from Secret Manager.
@@ -50,7 +50,7 @@ impl OrchestratorClient {
         })
     }
 
-    /// Prepare a new authenticated request for sending to the orchestrator.
+    /// Prepare a new authenticated request for sending to the Orchestrator.
     pub async fn request(&self, method: Method, endpoint: &str) -> Result<RequestBuilder> {
         let id_token = id_token(&self.adc, &self.client_id, &self.client_secret).await?;
         let url = self
@@ -61,7 +61,7 @@ impl OrchestratorClient {
         Ok(self.http_client.request(method, url).bearer_auth(id_token))
     }
 
-    /// Make a GET request to the orchestrator, deserializing the response body from JSON.
+    /// Make a GET request to the Orchestrator, deserializing the response body from JSON.
     pub async fn get_json<T>(&self, endpoint: &str) -> Result<T>
     where
         T: DeserializeOwned,
@@ -78,7 +78,7 @@ impl OrchestratorClient {
         }
     }
 
-    /// Make a JSON POST request to the orchestrator, deserializing the response body from JSON.
+    /// Make a JSON POST request to the Orchestrator, deserializing the response body from JSON.
     pub async fn post_json<B, T>(&self, endpoint: &str, body: &B) -> Result<T>
     where
         B: Serialize,

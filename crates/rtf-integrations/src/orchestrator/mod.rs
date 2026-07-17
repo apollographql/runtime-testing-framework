@@ -1,7 +1,7 @@
-//! IAP-authenticated HTTP client for the REP orchestrator.
+//! IAP-authenticated HTTP client for the RTF Orchestrator Service.
 //!
 //! This module provides everything needed to make authenticated HTTP requests
-//! to the REP orchestrator service, which is protected by Google Cloud IAP.
+//! to the RTF Orchestrator Service, which is protected by Google Cloud IAP.
 //! Authentication uses an interactive user OAuth loopback flow against the
 //! same Web OAuth client that IAP itself is configured with: the CLI opens a
 //! browser, the user consents, and the resulting refresh token is cached on
@@ -14,10 +14,10 @@ mod client;
 
 pub use client::OrchestratorClient;
 
-/// The default base URL for the REP orchestrator.
+/// The default base URL for the Orchestrator.
 pub const DEFAULT_ORCHESTRATOR_URL: &str = "https://api.rtf.apollographql.com";
 
-/// The GCP project that hosts the REP orchestrator's Secret Manager secrets.
+/// The GCP project that hosts the Orchestrator's Secret Manager secrets.
 const GCP_PROJECT: &str = "runtime-testing-framework";
 
 /// The Secret Manager secret name storing the IAP OAuth client ID.
@@ -34,12 +34,12 @@ const IAP_OAUTH_CLIENT_SECRET_SECRET_NAME: &str = "iap-orchestrator-client-secre
 /// Errors that can occur when building or using an [`OrchestratorClient`].
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// A request to the orchestrator failed
-    #[error("got {status} response from orchestrator: {body:?}")]
+    /// A request to the Orchestrator failed
+    #[error("got {status} response from Orchestrator: {body:?}")]
     FailedRequest {
-        /// The status code returned by the orchestrator
+        /// The status code returned by the Orchestrator
         status: StatusCode,
-        /// The response body returned by the orchestrator
+        /// The response body returned by the Orchestrator
         body: String,
     },
 
