@@ -54,6 +54,10 @@ impl TestRun {
         self.uuid
     }
 
+    pub fn initiated_by(&self) -> &str {
+        &self.initiated_by
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, name: &str) -> Self {
         Self {
@@ -74,14 +78,31 @@ impl TestRun {
             .await?)
     }
 
-    /// Create a new run, capturing any runtime variable overrides supplied with it.
+    /// Delegates to [`init_with_initiator`](Self::init_with_initiator) with `"unknown"` so callers
+    /// that don't have (or don't care about) an initiator keep a single, simple entry point. This
+    /// is a thin wrapper rather than a duplicated INSERT for two reasons: it keeps every
+    /// creation-time column defined in exactly one query (so a future column addition can't drift
+    /// between two copies of this statement), and it avoids a separate `create()` +
+    /// `set_initiated_by()` pair, which would create a row before its initiator is known — a window
+    /// where a concurrent reader sees `initiated_by = "unknown"` on a run that really does have one,
+    /// and where a crash between the two calls would silently and permanently misrecord it.
+    pub async fn init(
+        name: &str,
+        variables: Option<Value>,
+        conn: &mut PgConnection,
+    ) -> Result<Self> {
+        Self::init_with_initiator(name, variables, "unknown", conn).await
+    }
+
+    /// Create a new run, capturing any runtime variable overrides supplied with it and the test run initiator.
     ///
     /// `variables` is the flat overrides blob (`-v` / `--vars`) as JSON, or `None` when none were
     /// supplied. When present it is upserted into the deduplicated `variables` table and the run is
     /// linked to it, so `variables_id` is `NULL` exactly when `variables` is `None`.
-    pub async fn init(
+    pub async fn init_with_initiator(
         name: &str,
         variables: Option<Value>,
+        initiated_by: &str,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         let variables_id = match variables {
@@ -90,13 +111,14 @@ impl TestRun {
         };
 
         let tr: TestRun = sqlx::query_as(
-            "INSERT INTO test_run (name, started_at, variables_id)
-             VALUES ($1, NOW(), $2)
+            "INSERT INTO test_run (name, started_at, variables_id, initiated_by)
+             VALUES ($1, NOW(), $2, $3)
              RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id;
             ",
         )
         .bind(name)
         .bind(variables_id)
+        .bind(initiated_by)
         .fetch_one(&mut *conn)
         .await?;
 
