@@ -23,6 +23,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote`↴](#rtf-remote)
 * [`rtf remote prepare`↴](#rtf-remote-prepare)
 * [`rtf remote request`↴](#rtf-remote-request)
+* [`rtf remote run`↴](#rtf-remote-run)
 * [`rtf remote ci-run`↴](#rtf-remote-ci-run)
 * [`rtf remote execution-output`↴](#rtf-remote-execution-output)
 * [`rtf remote run-output`↴](#rtf-remote-run-output)
@@ -340,6 +341,7 @@ Interactions with remote RTF service
 
 * `prepare` — Prepare a test plan for remote execution by the RTF service. Outputs an RTF service compatible JSON payload with inlined relative files and custom providers
 * `request` — Send an IAP-authenticated HTTP request to the RTF service
+* `run` — Trigger a test run using the RTF service
 * `ci-run` — Trigger a test run using the RTF service and poll for the result
 * `execution-output` — Pull output for a single test execution
 * `run-output` — Pull output for all executions within a given test run
@@ -384,6 +386,27 @@ The response body is written to stdout on success.
   Default value: `GET`
 * `-b`, `--body <BODY>` — Request body as a literal string
 * `--orchestrator-url <ORCHESTRATOR_URL>` — Override the RTF service base URL
+
+
+
+## `rtf remote run`
+
+Trigger a test run using the RTF service.
+
+The output of this command will be the test run id and a link to the RTF UI to view the status
+
+**Usage:** `rtf remote run [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
+
+###### **Options:**
+
+* `--github` — Prepare a test plan file from GitHub instead of from a local path
+
+  Default value: `false`
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
 
 
 

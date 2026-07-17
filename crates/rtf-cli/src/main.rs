@@ -15,6 +15,7 @@ use rtf_cli::{
         },
         porcelain::{
             check_and_run_test_plan, ci_run, open_docs, pull_execution_output, pull_run_output,
+            remote_run,
         },
     },
 };
@@ -180,6 +181,15 @@ async fn main() {
             )
             .await
         }
+
+        Command::Remote {
+            subcommand:
+                RemoteSubcommand::Run {
+                    test_plan_path,
+                    github,
+                    git_ref,
+                },
+        } => remote_run(&test_plan_path, github, git_ref, variables.into()).await,
 
         Command::Remote {
             subcommand:

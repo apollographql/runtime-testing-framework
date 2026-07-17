@@ -67,6 +67,30 @@ fn remote_request_health_succeeds() {
 }
 
 #[test]
+fn remote_run_help_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "run", "--help"])
+        .assert()
+        .success();
+}
+
+#[test]
+#[ignore = "requires GCP Application Default Credentials and Secret Manager access"]
+fn remote_run_smoke_test_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "run",
+            "../rep-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml",
+        ])
+        .assert()
+        .success()
+        .stdout(contains(
+            "View test run status: https://api.rtf.apollographql.com/ui/run/",
+        ));
+}
+
+#[test]
 fn remote_ci_run_help_succeeds() {
     cargo_bin_cmd!("rtf")
         .args(["remote", "ci-run", "--help"])

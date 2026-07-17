@@ -338,6 +338,24 @@ pub enum RemoteSubcommand {
         orchestrator_url: Option<Url>,
     },
 
+    /// Trigger a test run using the RTF service.
+    ///
+    /// The output of this command will be the test run id and a link to the
+    /// RTF UI to view the status
+    Run {
+        /// Relative path to the test plan file. When using --github this must be in the
+        /// format ORG/REPO/PATH
+        test_plan_path: String,
+
+        /// Prepare a test plan file from GitHub instead of from a local path
+        #[arg(long, default_value = "false")]
+        github: bool,
+
+        /// Optional git ref to pull files from when using --github
+        #[arg(long = "ref", requires = "github")]
+        git_ref: Option<String>,
+    },
+
     /// Trigger a test run using the RTF service and poll for the result.
     ///
     /// The output of this command is aimed at being usable in CI runs and is non-interactive.
