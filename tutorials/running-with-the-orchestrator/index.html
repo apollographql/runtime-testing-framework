@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Running with the orchestrator - Runtime Testing Framework</title>
+        <title>Running with the Orchestrator - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "../../searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-5550fce5.js"></script>
+        <script src="../../toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,12 +178,12 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: tutorial -->
-<h1 id="running-test-plans-with-the-rtf-orchestrator"><a class="header" href="#running-test-plans-with-the-rtf-orchestrator">Running test plans with the RTF Orchestrator</a></h1>
-<p>This section guides you through running RTF test plans using the RTF Orchestrator: a managed, remote
-execution service for running RTF Test Plans at Apollo. Instead of running your <a href="../../reference/framework/test-plans.html">Test Plan</a>
-locally with <code>rtf run</code>, you submit it to the Orchestrator which provisions an isolated Kubernetes
-namespace for deploying your <a href="../../reference/framework/environments.html">Environment</a> before then executing your <a href="../../reference/framework/scenarios.html">Scenario</a> and storing
-the results in GCS for you to retrieve.</p>
+<h1 id="running-test-plans-with-the-rtf-orchestrator-service"><a class="header" href="#running-test-plans-with-the-rtf-orchestrator-service">Running test plans with the RTF Orchestrator Service</a></h1>
+<p>This section guides you through running RTF test plans using the <a href="../../reference/glossary.html">RTF Orchestrator Service</a>: a
+managed, remote execution service for running RTF Test Plans at Apollo. Instead of running your
+<a href="../../reference/framework/test-plans.html">Test Plan</a> locally with <code>rtf run</code>, you submit it to the Orchestrator which provisions an
+isolated Kubernetes namespace for deploying your <a href="../../reference/framework/environments.html">Environment</a> before then executing your
+<a href="../../reference/framework/scenarios.html">Scenario</a> and storing the results in GCS for you to retrieve.</p>
 <h2 id="why-use-the-orchestrator"><a class="header" href="#why-use-the-orchestrator">Why use the Orchestrator?</a></h2>
 <p>When you run a Test Plan with <code>rtf run</code>, RTF handles spinning up your test environment and running
 your scenario on your local machine. When using scripted environments and scenarios this is
@@ -191,9 +191,9 @@ incredibly flexible but also highly susceptible to being affected by how that lo
 configured. Running locally using a <code>docker compose</code> based environment and <code>docker</code> based scenario
 helps with making things more reproducible, but you are still subject to the constraints of the
 local machine you are running on.</p>
-<p>In contrast, the RTF Orchestrator provides a dedicated execution environment that handles running
-your test plan in an isolated Kubernetes namespace. This provides several advantages:</p>
-<ol>
+<p>In contrast, the Orchestrator provides a dedicated execution environment that handles running your
+test plan in an isolated Kubernetes namespace. This provides several advantages:</p>
+<ul>
 <li><strong>Minimal local requirements</strong>: the machine triggering the test run only needs to be able to
 submit the Test Plan to the Orchestrator, not run the services under test.</li>
 <li><strong>Output storage</strong>: logs and output artifacts are uploaded to GCS and can be retrieved by anyone
@@ -201,30 +201,29 @@ with access to the Orchestrator after the run completes.</li>
 <li><strong>Consistent environments</strong>: every execution runs in an isolated namespace, giving far more
 consistent performance.</li>
 <li><strong>Parallel matrix execution</strong>: matrix dimensions run as independent executions managed by the
-orchestrator concurrently, leading to a significant speed up in wall-clock execution time.</li>
-</ol>
+Orchestrator concurrently, leading to a significant speed up in wall-clock execution time.</li>
+</ul>
 <h2 id="accessing-the-orchestrator"><a class="header" href="#accessing-the-orchestrator">Accessing the Orchestrator</a></h2>
-<p>The orchestrator is deployed at <code>https://api.rtf.apollographql.com</code> and is protected by Google Cloud
+<p>The Orchestrator is deployed at <code>https://api.rtf.apollographql.com</code> and is protected by Google Cloud
 IAP. Access is managed in GCP by the Runtime Readiness team.</p>
 <p>Once access is granted, you can authenticate with GCP using the following command:</p>
 <pre><code class="language-bash">gcloud auth application-default login
 </code></pre>
 <p>You can check whether or not you have access by attempting to hit the healthcheck endpoint on the
 Orchestrator using the <code>rtf</code> CLI like so:</p>
-<pre><code class="language-bash">rtf rep request health
+<pre><code class="language-bash">rtf remote request health
 </code></pre>
 <p>If you see <code>{"ok":true}</code> in your terminal then you are correctly authenticated. If you are unable to
 reach the Orchestrator, reach out to the Runtime Readiness team in Slack and we will set up access
 for you and your team.</p>
 <blockquote>
-<p><strong>Before going further</strong></p>
-<p>Please ensure that:</p>
+<p><strong>Prerequisites</strong></p>
 <ul>
 <li>you have completed the <a href="../test-plans/index.html">“Writing test plans”</a> tutorial series</li>
 <li>the <code>rtf</code> CLI installed</li>
 <li>the <code>gcloud</code> CLI installed</li>
 <li>you have authenticated with <code>gcloud auth application-default login</code></li>
-<li>you have validated your access to the Orchestrator using <code>rtf rep request health</code></li>
+<li>you have validated your access to the Orchestrator using <code>rtf remote request health</code></li>
 </ul>
 </blockquote>
 <hr>

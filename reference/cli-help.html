@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "../searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-5550fce5.js"></script>
+        <script src="../toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -198,12 +198,13 @@
 <li><a href="#rtf-resolve-environment"><code>rtf resolve environment</code>↴</a></li>
 <li><a href="#rtf-completion"><code>rtf completion</code>↴</a></li>
 <li><a href="#rtf-json-schemas"><code>rtf json-schemas</code>↴</a></li>
-<li><a href="#rtf-rep"><code>rtf rep</code>↴</a></li>
-<li><a href="#rtf-rep-prepare"><code>rtf rep prepare</code>↴</a></li>
-<li><a href="#rtf-rep-request"><code>rtf rep request</code>↴</a></li>
-<li><a href="#rtf-rep-ci-run"><code>rtf rep ci-run</code>↴</a></li>
-<li><a href="#rtf-rep-execution-output"><code>rtf rep execution-output</code>↴</a></li>
-<li><a href="#rtf-rep-run-output"><code>rtf rep run-output</code>↴</a></li>
+<li><a href="#rtf-remote"><code>rtf remote</code>↴</a></li>
+<li><a href="#rtf-remote-prepare"><code>rtf remote prepare</code>↴</a></li>
+<li><a href="#rtf-remote-request"><code>rtf remote request</code>↴</a></li>
+<li><a href="#rtf-remote-run"><code>rtf remote run</code>↴</a></li>
+<li><a href="#rtf-remote-ci-run"><code>rtf remote ci-run</code>↴</a></li>
+<li><a href="#rtf-remote-execution-output"><code>rtf remote execution-output</code>↴</a></li>
+<li><a href="#rtf-remote-run-output"><code>rtf remote run-output</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -220,7 +221,7 @@
 <li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
 <li><code>completion</code> — Write a shell completion file to STDOUT for the given shell</li>
 <li><code>json-schemas</code> — Output json schemas for environment configuration</li>
-<li><code>rep</code> — Interactions with the REP Orchestrator</li>
+<li><code>remote</code> — Interactions with the RTF Orchestrator Service</li>
 <li><code>version</code> — Display CLI version and exit</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
@@ -460,20 +461,21 @@
 <p>Possible values: <code>test-plan</code>, <code>environment</code>, <code>scenario</code></p>
 </li>
 </ul>
-<h2 id="rtf-rep"><a class="header" href="#rtf-rep"><code>rtf rep</code></a></h2>
-<p>Interactions with the REP Orchestrator</p>
-<p><strong>Usage:</strong> <code>rtf rep &lt;COMMAND&gt;</code></p>
+<h2 id="rtf-remote"><a class="header" href="#rtf-remote"><code>rtf remote</code></a></h2>
+<p>Interactions with the RTF Orchestrator Service</p>
+<p><strong>Usage:</strong> <code>rtf remote &lt;COMMAND&gt;</code></p>
 <h6 id="subcommands-4"><a class="header" href="#subcommands-4"><strong>Subcommands:</strong></a></h6>
 <ul>
-<li><code>prepare</code> — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</li>
-<li><code>request</code> — Send an IAP-authenticated HTTP request to the REP orchestrator</li>
-<li><code>ci-run</code> — Trigger a test run using the REP orchestrator and poll for the result</li>
+<li><code>prepare</code> — Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers</li>
+<li><code>request</code> — Send an IAP-authenticated HTTP request to the Orchestrator</li>
+<li><code>run</code> — Trigger a test run using the Orchestrator</li>
+<li><code>ci-run</code> — Trigger a test run using the Orchestrator and poll for the result</li>
 <li><code>execution-output</code> — Pull output for a single test execution</li>
 <li><code>run-output</code> — Pull output for all executions within a given test run</li>
 </ul>
-<h2 id="rtf-rep-prepare"><a class="header" href="#rtf-rep-prepare"><code>rtf rep prepare</code></a></h2>
-<p>Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</p>
-<p><strong>Usage:</strong> <code>rtf rep prepare [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h2 id="rtf-remote-prepare"><a class="header" href="#rtf-remote-prepare"><code>rtf remote prepare</code></a></h2>
+<p>Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers</p>
+<p><strong>Usage:</strong> <code>rtf remote prepare [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-11"><a class="header" href="#arguments-11"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
@@ -488,13 +490,13 @@
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
 </ul>
-<h2 id="rtf-rep-request"><a class="header" href="#rtf-rep-request"><code>rtf rep request</code></a></h2>
-<p>Send an IAP-authenticated HTTP request to the REP orchestrator.</p>
+<h2 id="rtf-remote-request"><a class="header" href="#rtf-remote-request"><code>rtf remote request</code></a></h2>
+<p>Send an IAP-authenticated HTTP request to the Orchestrator.</p>
 <p>The response body is written to stdout on success.</p>
-<p><strong>Usage:</strong> <code>rtf rep request [OPTIONS] &lt;PATH&gt;</code></p>
+<p><strong>Usage:</strong> <code>rtf remote request [OPTIONS] &lt;PATH&gt;</code></p>
 <h6 id="arguments-12"><a class="header" href="#arguments-12"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;PATH&gt;</code> — Path on the orchestrator to request (e.g. <code>/health</code>)</li>
+<li><code>&lt;PATH&gt;</code> — Path on the Orchestrator to request (e.g. <code>/health</code>)</li>
 </ul>
 <h6 id="options-12"><a class="header" href="#options-12"><strong>Options:</strong></a></h6>
 <ul>
@@ -506,13 +508,13 @@
 <p><code>-b</code>, <code>--body &lt;BODY&gt;</code> — Request body as a literal string</p>
 </li>
 <li>
-<p><code>--orchestrator-url &lt;ORCHESTRATOR_URL&gt;</code> — Override the REP orchestrator base URL</p>
+<p><code>--orchestrator-url &lt;ORCHESTRATOR_URL&gt;</code> — Override the Orchestrator base URL</p>
 </li>
 </ul>
-<h2 id="rtf-rep-ci-run"><a class="header" href="#rtf-rep-ci-run"><code>rtf rep ci-run</code></a></h2>
-<p>Trigger a test run using the REP orchestrator and poll for the result.</p>
-<p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
-<p><strong>Usage:</strong> <code>rtf rep ci-run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h2 id="rtf-remote-run"><a class="header" href="#rtf-remote-run"><code>rtf remote run</code></a></h2>
+<p>Trigger a test run using the Orchestrator.</p>
+<p>The output of this command will be the test run id and a link to the RTF UI to view the status</p>
+<p><strong>Usage:</strong> <code>rtf remote run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-13"><a class="header" href="#arguments-13"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
@@ -526,19 +528,37 @@
 <li>
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
+</ul>
+<h2 id="rtf-remote-ci-run"><a class="header" href="#rtf-remote-ci-run"><code>rtf remote ci-run</code></a></h2>
+<p>Trigger a test run using the Orchestrator and poll for the result.</p>
+<p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
+<p><strong>Usage:</strong> <code>rtf remote ci-run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
+</ul>
+<h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
+</li>
 <li>
 <p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code></p>
 <p>Default value: <code>10</code></p>
 </li>
 </ul>
-<h2 id="rtf-rep-execution-output"><a class="header" href="#rtf-rep-execution-output"><code>rtf rep execution-output</code></a></h2>
+<h2 id="rtf-remote-execution-output"><a class="header" href="#rtf-remote-execution-output"><code>rtf remote execution-output</code></a></h2>
 <p>Pull output for a single test execution</p>
-<p><strong>Usage:</strong> <code>rtf rep execution-output [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
+<p><strong>Usage:</strong> <code>rtf remote execution-output [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;ID&gt;</code> — ID of the orchestrator test execution you wish to pull output for</li>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to pull output for</li>
 </ul>
-<h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
+<h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>
@@ -549,14 +569,14 @@
 <p>Default value: <code>false</code></p>
 </li>
 </ul>
-<h2 id="rtf-rep-run-output"><a class="header" href="#rtf-rep-run-output"><code>rtf rep run-output</code></a></h2>
+<h2 id="rtf-remote-run-output"><a class="header" href="#rtf-remote-run-output"><code>rtf remote run-output</code></a></h2>
 <p>Pull output for all executions within a given test run</p>
-<p><strong>Usage:</strong> <code>rtf rep run-output [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
+<p><strong>Usage:</strong> <code>rtf remote run-output [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-16"><a class="header" href="#arguments-16"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;ID&gt;</code> — ID of the orchestrator test run you wish to pull output for</li>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test run you wish to pull output for</li>
 </ul>
-<h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
+<h6 id="options-16"><a class="header" href="#options-16"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>

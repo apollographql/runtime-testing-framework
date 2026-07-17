@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-integrations/src/orchestrator/client.rs`."><title>client.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_integrations" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.0 (2d8144b78 2026-07-07)" data-channel="1.97.0" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">rtf_integrations/orchestrator/</div>client.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! IAP-authenticated HTTP client for the REP orchestrator.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-integrations/src/orchestrator/client.rs`."><title>client.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_integrations" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.0 (2d8144b78 2026-07-07)" data-channel="1.97.0" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">rtf_integrations/orchestrator/</div>client.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! IAP-authenticated HTTP client for the RTF Orchestrator Service.
 <a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use </span><span class="kw">crate</span>::orchestrator::{
 <a href=#3 id=3 data-nosnippet>3</a>    DEFAULT_ORCHESTRATOR_URL, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
 <a href=#4 id=4 data-nosnippet>4</a>    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, <span class="prelude-ty">Result</span>,
@@ -10,7 +10,7 @@
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>serde::{Serialize, de::DeserializeOwned};
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>std::str::FromStr;
 <a href=#12 id=12 data-nosnippet>12</a>
-<a href=#13 id=13 data-nosnippet>13</a><span class="doccomment">/// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
+<a href=#13 id=13 data-nosnippet>13</a><span class="doccomment">/// Authenticated HTTP client for the RTF Orchestrator Service, protected by Google Cloud IAP.
 <a href=#14 id=14 data-nosnippet>14</a></span><span class="attr">#[derive(Debug)]
 <a href=#15 id=15 data-nosnippet>15</a></span><span class="kw">pub struct </span>OrchestratorClient {
 <a href=#16 id=16 data-nosnippet>16</a>    adc: AdcCredentials,
@@ -21,7 +21,7 @@
 <a href=#21 id=21 data-nosnippet>21</a>}
 <a href=#22 id=22 data-nosnippet>22</a>
 <a href=#23 id=23 data-nosnippet>23</a><span class="kw">impl </span>OrchestratorClient {
-<a href=#24 id=24 data-nosnippet>24</a>    <span class="doccomment">/// Build a new client using the [default orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
+<a href=#24 id=24 data-nosnippet>24</a>    <span class="doccomment">/// Build a new client using the [default Orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
 <a href=#25 id=25 data-nosnippet>25</a>    ///
 <a href=#26 id=26 data-nosnippet>26</a>    /// Loads Application Default Credentials from disk and fetches the IAP
 <a href=#27 id=27 data-nosnippet>27</a>    /// OAuth client credentials from Secret Manager.
@@ -32,7 +32,7 @@
 <a href=#32 id=32 data-nosnippet>32</a>        .<span class="kw">await
 <a href=#33 id=33 data-nosnippet>33</a>    </span>}
 <a href=#34 id=34 data-nosnippet>34</a>
-<a href=#35 id=35 data-nosnippet>35</a>    <span class="doccomment">/// Build a new client with a custom orchestrator URL.
+<a href=#35 id=35 data-nosnippet>35</a>    <span class="doccomment">/// Build a new client with a custom Orchestrator URL.
 <a href=#36 id=36 data-nosnippet>36</a>    ///
 <a href=#37 id=37 data-nosnippet>37</a>    /// Loads Application Default Credentials from disk and fetches the IAP
 <a href=#38 id=38 data-nosnippet>38</a>    /// OAuth client credentials from Secret Manager.
@@ -50,7 +50,7 @@
 <a href=#50 id=50 data-nosnippet>50</a>        })
 <a href=#51 id=51 data-nosnippet>51</a>    }
 <a href=#52 id=52 data-nosnippet>52</a>
-<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// Prepare a new authenticated request for sending to the orchestrator.
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// Prepare a new authenticated request for sending to the Orchestrator.
 <a href=#54 id=54 data-nosnippet>54</a>    </span><span class="kw">pub async fn </span>request(<span class="kw-2">&amp;</span><span class="self">self</span>, method: Method, endpoint: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;RequestBuilder&gt; {
 <a href=#55 id=55 data-nosnippet>55</a>        <span class="kw">let </span>id_token = id_token(<span class="kw-2">&amp;</span><span class="self">self</span>.adc, <span class="kw-2">&amp;</span><span class="self">self</span>.client_id, <span class="kw-2">&amp;</span><span class="self">self</span>.client_secret).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#56 id=56 data-nosnippet>56</a>        <span class="kw">let </span>url = <span class="self">self
@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>        <span class="prelude-val">Ok</span>(<span class="self">self</span>.http_client.request(method, url).bearer_auth(id_token))
 <a href=#62 id=62 data-nosnippet>62</a>    }
 <a href=#63 id=63 data-nosnippet>63</a>
-<a href=#64 id=64 data-nosnippet>64</a>    <span class="doccomment">/// Make a GET request to the orchestrator, deserializing the response body from JSON.
+<a href=#64 id=64 data-nosnippet>64</a>    <span class="doccomment">/// Make a GET request to the Orchestrator, deserializing the response body from JSON.
 <a href=#65 id=65 data-nosnippet>65</a>    </span><span class="kw">pub async fn </span>get_json&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, endpoint: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;T&gt;
 <a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">where
 <a href=#67 id=67 data-nosnippet>67</a>        </span>T: DeserializeOwned,
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>        }
 <a href=#79 id=79 data-nosnippet>79</a>    }
 <a href=#80 id=80 data-nosnippet>80</a>
-<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Make a JSON POST request to the orchestrator, deserializing the response body from JSON.
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Make a JSON POST request to the Orchestrator, deserializing the response body from JSON.
 <a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">pub async fn </span>post_json&lt;B, T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, endpoint: <span class="kw-2">&amp;</span>str, body: <span class="kw-2">&amp;</span>B) -&gt; <span class="prelude-ty">Result</span>&lt;T&gt;
 <a href=#83 id=83 data-nosnippet>83</a>    <span class="kw">where
 <a href=#84 id=84 data-nosnippet>84</a>        </span>B: Serialize,

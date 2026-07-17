@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "../../searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-5550fce5.js"></script>
+        <script src="../../toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -180,7 +180,8 @@
                         <!-- diataxis-type: explanation -->
 <h1 id="orchestrator-helm-chart-versioning-policy"><a class="header" href="#orchestrator-helm-chart-versioning-policy">Orchestrator Helm chart versioning policy</a></h1>
 <p>This document records the decisions behind how we version and deploy the <code>rep-orchestrator</code> Helm
-chart, the rationale for the phased approach, and the options that were considered and rejected.</p>
+chart for the <a href="../../reference/glossary.html">RTF Orchestrator Service</a>, the rationale for the phased approach, and the options
+that were considered and rejected.</p>
 <p><strong>When a phase is completed, update the <a href="#current-phase">Current phase</a> section to reflect actual state. The
 phase descriptions below are a permanent historical record of what was done and why — they should
 not be edited after the fact.</strong></p>
@@ -196,7 +197,7 @@ Production is still updated by manually opening a PR on <code>runtime-environmen
 </blockquote>
 <h2 id="design-intent"><a class="header" href="#design-intent">Design intent</a></h2>
 <p>The chart and image are published together on every code merge by design. The intent is that
-updating the Helm chart is the canonical way to update the orchestrator — a chart version change
+updating the Helm chart is the canonical way to update the Orchestrator — a chart version change
 implies a software change, and a software change produces a new chart version. This keeps deployment
 straightforward: there is one thing to bump (the chart), and it brings everything with it.</p>
 <h2 id="options-considered"><a class="header" href="#options-considered">Options considered</a></h2>
@@ -283,11 +284,11 @@ a change in this repo and Phase 2 is a values change in <code>runtime-environmen
 <li>The <code>image.tag: edge</code> and <code>pullPolicy: Always</code> overrides are removed from the production
 <code>valuesObject</code> in <code>runtime-environment-provisioner</code>.</li>
 <li>The chart’s <code>appVersion</code> (the git SHA baked in at publish time) becomes the live image tag.</li>
-<li>Deploying a new image now requires a chart bump PR to REP.</li>
+<li>Deploying a new image now requires a chart bump PR to <code>runtime-environment-provisioner</code>.</li>
 </ul>
 <p><strong>Result:</strong> The lockstep intent is fully enforced in production. Every code change produces a new
-chart version; bumping to that version in REP is the single operation that updates the running
-orchestrator.</p>
+chart version; bumping to that version in <code>runtime-environment-provisioner</code> is the single operation
+that updates the running Orchestrator.</p>
 <hr>
 <h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <div class="table-wrapper">
@@ -296,9 +297,9 @@ orchestrator.</p>
 <tr><th>Phase</th><th>Image tag in production</th><th>Lockstep enforced?</th><th>Automation</th></tr>
 </thead>
 <tbody>
-<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to REP</td></tr>
-<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to REP</td></tr>
-<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to REP</td></tr>
+<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
+<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
+<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
 </tbody>
 </table>
 </div>

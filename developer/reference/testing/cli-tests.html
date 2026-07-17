@@ -35,10 +35,10 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "../../../searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-5550fce5.js"></script>
+        <script src="../../../toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -189,8 +189,8 @@ naming hierarchy:</p>
 <li><strong>Environment dependency</strong> — Tests that require API tokens are grouped by their credential
 requirement. Files named after the command they test have no external dependency. Examples:
 <code>github</code> (requires <code>GITHUB_TOKEN</code>), <code>graphos</code> (requires <code>APOLLO_KEY</code>).</li>
-<li><strong>Command</strong> — The CLI subcommand under test. Examples: <code>template</code>, <code>run</code>, <code>rep</code>. Where no command
-is supplied, use <code>no_command</code>.</li>
+<li><strong>Command</strong> — The CLI subcommand under test. Examples: <code>template</code>, <code>run</code>, <code>remote</code>. Where no
+command is supplied, use <code>no_command</code>.</li>
 <li><strong>Flag(s)</strong> — Flags that cause significant branching in functionality, added as a prefix to the
 test case name. Omit if the flag is already implied by the environment dependency.</li>
 <li><strong>Test class</strong> — A grouping of parameterized cases defined with <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>.</li>

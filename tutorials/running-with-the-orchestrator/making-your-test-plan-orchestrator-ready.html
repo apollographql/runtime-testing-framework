@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Making your test plan orchestrator-ready - Runtime Testing Framework</title>
+        <title>Making your test plan Orchestrator-ready - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "../../searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-5550fce5.js"></script>
+        <script src="../../toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -191,14 +191,20 @@ services.</p>
 </ul>
 </blockquote>
 <h2 id="restrictions-on-orchestrator-test-plans"><a class="header" href="#restrictions-on-orchestrator-test-plans">Restrictions on Orchestrator Test Plans</a></h2>
-<p>The Orchestrator requires that Test Plans submitted to it are written using <code>docker compose</code> based
-Environments and <code>docker</code> based Scenarios: script based Test Plans are not supported. Enforcing this
-allows the Orchestrator to convert your docker compose based environment into Kubernetes resources
-using <a href="https://kompose.io/">kompose</a> which are then patched with <a href="https://kustomize.io/">kustomize</a> according to the labels detailed
-below.</p>
-<p>The Test Plan you built in the <a href="../test-plans/index.html">“Writing test plans”</a> series already uses a docker compose based
-environment and docker based scenario, so all we need to add is the appropriate labels and it will
-be ready to run!</p>
+<p>The Orchestrator enforces that Test Plans submitted to it are compatible for running in a Kubernetes
+cluster.</p>
+<p>Compatible Environments are:</p>
+<ul>
+<li><code>docker compose</code> based. The Orchestrator converts your <code>docker compose</code> based environments into
+Kubernetes resources using <a href="https://kompose.io/">kompose</a> which are then patched with <a href="https://kustomize.io/">kustomize</a> according to
+the labels detailed below.</li>
+<li><code>null</code>(if the <code>skip = true</code> field is set in the Environment config). This skips environment
+provisioning in the Orchestrator and just runs the Scenario.</li>
+</ul>
+<p>The only compatible Scenario is a <code>docker</code> based one.</p>
+<p>The Test Plan you built in the <a href="../test-plans/index.html">“Writing test plans”</a> series already uses a <code>docker compose</code>
+based Environment and <code>docker</code> based Scenario, so all we need to add is the appropriate labels and
+it will be ready to run!</p>
 <h2 id="the-rtfio-labels"><a class="header" href="#the-rtfio-labels">The <code>rtf.io</code> labels</a></h2>
 <p>The Orchestrator uses docker compose service labels in the <code>rtf.io</code> namespace to determine how it
 should handle your services during deployment and execution. These labels have no effect when you

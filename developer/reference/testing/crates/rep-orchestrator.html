@@ -35,10 +35,10 @@
             const path_to_root = "../../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../../searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "../../../../searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../../toc-5550fce5.js"></script>
+        <script src="../../../../toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -219,7 +219,7 @@ module::path::tests::function_test_class::test_case
 </span><span class="boring">fn main() {
 </span>endpoint_scenario
 <span class="boring">}</span></code></pre>
-<p>For example: <code>trigger_valid_rep_test_plan_returns_200</code>.</p>
+<p>For example: <code>trigger_valid_test_plan_returns_200</code>.</p>
 <h2 id="feature-flag-annotation"><a class="header" href="#feature-flag-annotation">Feature flag annotation</a></h2>
 <p>Stack-dependent tests must always carry this annotation to prevent the standard test run from
 failing without a stack:</p>
@@ -254,7 +254,7 @@ variations</li>
 <tr><th>Method</th><th>Purpose</th></tr>
 </thead>
 <tbody>
-<tr><td><code>trigger_run</code></td><td>Prepares a <code>RepPayload</code> from a test plan directory and POSTs to <code>/test-run/trigger</code></td></tr>
+<tr><td><code>prepare_rep_payload</code></td><td>Prepares a <code>TriggerPayload</code> from a test plan directory</td></tr>
 <tr><td><code>json_get</code> / <code>json_post</code></td><td>Typed helpers that deserialize JSON responses into the expected type</td></tr>
 <tr><td><code>get</code> / <code>post</code></td><td>Raw helpers returning <code>Response</code> for status-code assertions</td></tr>
 </tbody>

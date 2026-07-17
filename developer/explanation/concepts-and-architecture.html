@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "../../searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-5550fce5.js"></script>
+        <script src="../../toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,8 +179,8 @@
                     <main>
                         <!-- diataxis-type: explanation -->
 <h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and architecture</a></h1>
-<p>This page provides a high-level overview of RTF and REP’s architecture and the key concepts that
-inform their design.</p>
+<p>This page provides a high-level overview of RTF’s architecture and the key concepts that inform its
+design.</p>
 <h2 id="crates"><a class="header" href="#crates">Crates</a></h2>
 <p>RTF is organized as a <a href="https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html">Cargo workspace</a> with crates stored in the <code>crates</code> directory. Each crate
 has its own README file explaining its purpose at the crate’s root.</p>
@@ -194,9 +194,9 @@ into strongly typed Rust structs</li>
 </ul>
 <p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
 testability and CLI control over execution.</p>
-<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for REP. It manages the lifecycle
-of test runs and individual test executions across two Kubernetes clusters: a management cluster
-(Argo workflows for environment provisioning) and a workload cluster (scenario jobs). It uses the
+<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for RTF. It manages the lifecycle
+of test runs and individual test executions across Kubernetes clusters: a management cluster (Argo
+workflows for environment provisioning) and workload clusters (scenario jobs). It uses the
 <code>rep-orchestrator-shared</code> crate for types shared between it and the <code>rep-orchestrator-cli</code> which
 submits updates to the clusters.</p>
 <p>The <code>rtf-integrations</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP
@@ -244,22 +244,23 @@ requests.</p>
 │     - Run teardown command                                              │
 └─────────────────────────────────────────────────────────────────────────┘
 </code></pre>
-<h2 id="rtf-and-rep"><a class="header" href="#rtf-and-rep">RTF and REP</a></h2>
-<p>RTF and REP are related but distinct systems that serve different execution contexts:</p>
+<h2 id="rtf-orchestrator-service"><a class="header" href="#rtf-orchestrator-service">RTF Orchestrator Service</a></h2>
+<p>RTF and the Orchestrator are related but distinct systems that serve different execution contexts:</p>
 <ul>
 <li><strong>RTF CLI</strong> (<code>rtf</code>) is a local command-line tool. A developer runs it directly to perform actions
 against test plans on the same system the CLI is hosted on.</li>
-<li><strong>REP (Runtime Environment Provisioner) Orchestrator Service</strong> is a server-side system. It
-receives Test Plans over HTTP, manages their execution in a REP provisioned cluster
-asynchronously, and reports results back to callers via status endpoints.</li>
+<li><strong><a href="../../reference/glossary.html">RTF Orchestrator Service</a></strong> is a server-side system. It receives Test Plans over HTTP,
+manages their execution in a provisioned cluster asynchronously, and reports results back to
+callers via status endpoints.</li>
 </ul>
-<p>The handoff point between the two systems is the <code>RepPayload</code> — a resolved Test Plan produced by
-<code>rtf rep prepare</code> and submitted to REP via <code>POST /test-run/trigger</code>. REP does not replace the RTF
-CLI; they are complementary tools for different execution contexts.</p>
-<h3 id="rep-data-flow"><a class="header" href="#rep-data-flow">REP data flow</a></h3>
-<p>When a caller triggers a test run via REP:</p>
+<p>The handoff point between the two systems is the <a href="../../reference/glossary.html">Trigger Payload</a> — a resolved Test Plan
+produced by <code>rtf remote prepare</code> and submitted to the Orchestrator via <code>POST /test-run/trigger</code>. The
+Orchestrator does not replace the RTF CLI; they are complementary tools for different execution
+contexts.</p>
+<h3 id="orchestrator-data-flow"><a class="header" href="#orchestrator-data-flow">Orchestrator data flow</a></h3>
+<p>When a caller triggers a test run via the Orchestrator:</p>
 <pre><code class="language-text">┌─────────────────────────────────────────────────────────────────────────┐
-│  POST /test-run/trigger (RepPayload)                                    │
+│  POST /test-run/trigger (Trigger Payload)                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼

@@ -161,8 +161,8 @@
 <a href=#161 id=161 data-nosnippet>161</a>            //
 <a href=#162 id=162 data-nosnippet>162</a>            // We only rewrite the environment variables if at least one service has the label present
 <a href=#163 id=163 data-nosnippet>163</a>            // This will break any services that try to volume mount to the files on the local filesystem
-<a href=#164 id=164 data-nosnippet>164</a>            // but we are ok with this since the presence of a label implies the user wants this work on REP
-<a href=#165 id=165 data-nosnippet>165</a>            // and any services attempting to mount to the local filesystem will fail
+<a href=#164 id=164 data-nosnippet>164</a>            // but we are ok with this since the presence of a label implies the user wants this to work
+<a href=#165 id=165 data-nosnippet>165</a>            // on the Orchestrator and any services attempting to mount to the local filesystem will fail
 <a href=#166 id=166 data-nosnippet>166</a>            </span><span class="kw">if </span>has_labeled_services {
 <a href=#167 id=167 data-nosnippet>167</a>                vars.insert(
 <a href=#168 id=168 data-nosnippet>168</a>                    nfp.env_var.clone(),

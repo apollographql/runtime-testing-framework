@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-515b1dbb.js";
+            window.path_to_searchindex_js = "searchindex-a0e3cd27.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-5550fce5.js"></script>
+        <script src="toc-3b257163.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -2324,12 +2324,12 @@ cases where docker isn’t available</li>
 <li><a href="#file-providers">Framework reference</a> — the full reference for all config fields and provider types</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
-<h1 id="running-test-plans-with-the-rtf-orchestrator"><a class="header" href="#running-test-plans-with-the-rtf-orchestrator">Running test plans with the RTF Orchestrator</a></h1>
-<p>This section guides you through running RTF test plans using the RTF Orchestrator: a managed, remote
-execution service for running RTF Test Plans at Apollo. Instead of running your <a href="#test-plans">Test Plan</a>
-locally with <code>rtf run</code>, you submit it to the Orchestrator which provisions an isolated Kubernetes
-namespace for deploying your <a href="#environments">Environment</a> before then executing your <a href="#scenarios">Scenario</a> and storing
-the results in GCS for you to retrieve.</p>
+<h1 id="running-test-plans-with-the-rtf-orchestrator-service"><a class="header" href="#running-test-plans-with-the-rtf-orchestrator-service">Running test plans with the RTF Orchestrator Service</a></h1>
+<p>This section guides you through running RTF test plans using the <a href="#glossary">RTF Orchestrator Service</a>: a
+managed, remote execution service for running RTF Test Plans at Apollo. Instead of running your
+<a href="#test-plans">Test Plan</a> locally with <code>rtf run</code>, you submit it to the Orchestrator which provisions an
+isolated Kubernetes namespace for deploying your <a href="#environments">Environment</a> before then executing your
+<a href="#scenarios">Scenario</a> and storing the results in GCS for you to retrieve.</p>
 <h2 id="why-use-the-orchestrator"><a class="header" href="#why-use-the-orchestrator">Why use the Orchestrator?</a></h2>
 <p>When you run a Test Plan with <code>rtf run</code>, RTF handles spinning up your test environment and running
 your scenario on your local machine. When using scripted environments and scenarios this is
@@ -2337,9 +2337,9 @@ incredibly flexible but also highly susceptible to being affected by how that lo
 configured. Running locally using a <code>docker compose</code> based environment and <code>docker</code> based scenario
 helps with making things more reproducible, but you are still subject to the constraints of the
 local machine you are running on.</p>
-<p>In contrast, the RTF Orchestrator provides a dedicated execution environment that handles running
-your test plan in an isolated Kubernetes namespace. This provides several advantages:</p>
-<ol>
+<p>In contrast, the Orchestrator provides a dedicated execution environment that handles running your
+test plan in an isolated Kubernetes namespace. This provides several advantages:</p>
+<ul>
 <li><strong>Minimal local requirements</strong>: the machine triggering the test run only needs to be able to
 submit the Test Plan to the Orchestrator, not run the services under test.</li>
 <li><strong>Output storage</strong>: logs and output artifacts are uploaded to GCS and can be retrieved by anyone
@@ -2347,30 +2347,29 @@ with access to the Orchestrator after the run completes.</li>
 <li><strong>Consistent environments</strong>: every execution runs in an isolated namespace, giving far more
 consistent performance.</li>
 <li><strong>Parallel matrix execution</strong>: matrix dimensions run as independent executions managed by the
-orchestrator concurrently, leading to a significant speed up in wall-clock execution time.</li>
-</ol>
+Orchestrator concurrently, leading to a significant speed up in wall-clock execution time.</li>
+</ul>
 <h2 id="accessing-the-orchestrator"><a class="header" href="#accessing-the-orchestrator">Accessing the Orchestrator</a></h2>
-<p>The orchestrator is deployed at <code>https://api.rtf.apollographql.com</code> and is protected by Google Cloud
+<p>The Orchestrator is deployed at <code>https://api.rtf.apollographql.com</code> and is protected by Google Cloud
 IAP. Access is managed in GCP by the Runtime Readiness team.</p>
 <p>Once access is granted, you can authenticate with GCP using the following command:</p>
 <pre><code class="language-bash">gcloud auth application-default login
 </code></pre>
 <p>You can check whether or not you have access by attempting to hit the healthcheck endpoint on the
 Orchestrator using the <code>rtf</code> CLI like so:</p>
-<pre><code class="language-bash">rtf rep request health
+<pre><code class="language-bash">rtf remote request health
 </code></pre>
 <p>If you see <code>{"ok":true}</code> in your terminal then you are correctly authenticated. If you are unable to
 reach the Orchestrator, reach out to the Runtime Readiness team in Slack and we will set up access
 for you and your team.</p>
 <blockquote>
-<p><strong>Before going further</strong></p>
-<p>Please ensure that:</p>
+<p><strong>Prerequisites</strong></p>
 <ul>
 <li>you have completed the <a href="#writing-test-plans">“Writing test plans”</a> tutorial series</li>
 <li>the <code>rtf</code> CLI installed</li>
 <li>the <code>gcloud</code> CLI installed</li>
 <li>you have authenticated with <code>gcloud auth application-default login</code></li>
-<li>you have validated your access to the Orchestrator using <code>rtf rep request health</code></li>
+<li>you have validated your access to the Orchestrator using <code>rtf remote request health</code></li>
 </ul>
 </blockquote>
 <hr>
@@ -2389,14 +2388,20 @@ services.</p>
 </ul>
 </blockquote>
 <h2 id="restrictions-on-orchestrator-test-plans"><a class="header" href="#restrictions-on-orchestrator-test-plans">Restrictions on Orchestrator Test Plans</a></h2>
-<p>The Orchestrator requires that Test Plans submitted to it are written using <code>docker compose</code> based
-Environments and <code>docker</code> based Scenarios: script based Test Plans are not supported. Enforcing this
-allows the Orchestrator to convert your docker compose based environment into Kubernetes resources
-using <a href="https://kompose.io/">kompose</a> which are then patched with <a href="https://kustomize.io/">kustomize</a> according to the labels detailed
-below.</p>
-<p>The Test Plan you built in the <a href="#writing-test-plans">“Writing test plans”</a> series already uses a docker compose based
-environment and docker based scenario, so all we need to add is the appropriate labels and it will
-be ready to run!</p>
+<p>The Orchestrator enforces that Test Plans submitted to it are compatible for running in a Kubernetes
+cluster.</p>
+<p>Compatible Environments are:</p>
+<ul>
+<li><code>docker compose</code> based. The Orchestrator converts your <code>docker compose</code> based environments into
+Kubernetes resources using <a href="https://kompose.io/">kompose</a> which are then patched with <a href="https://kustomize.io/">kustomize</a> according to
+the labels detailed below.</li>
+<li><code>null</code>(if the <code>skip = true</code> field is set in the Environment config). This skips environment
+provisioning in the Orchestrator and just runs the Scenario.</li>
+</ul>
+<p>The only compatible Scenario is a <code>docker</code> based one.</p>
+<p>The Test Plan you built in the <a href="#writing-test-plans">“Writing test plans”</a> series already uses a <code>docker compose</code>
+based Environment and <code>docker</code> based Scenario, so all we need to add is the appropriate labels and
+it will be ready to run!</p>
 <h2 id="the-rtfio-labels"><a class="header" href="#the-rtfio-labels">The <code>rtf.io</code> labels</a></h2>
 <p>The Orchestrator uses docker compose service labels in the <code>rtf.io</code> namespace to determine how it
 should handle your services during deployment and execution. These labels have no effect when you
@@ -2493,61 +2498,62 @@ look at how we monitor the status of the execution before fetching the results.<
 <p><a href="#running-and-fetching-results">Running and fetching results</a></p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="running-and-fetching-results"><a class="header" href="#running-and-fetching-results">Running and fetching results</a></h1>
-<p>In this guide, we’ll submit our Test Plan to the RTF Orchestrator using <code>rtf rep ci-run</code>, watch it
-progress through the execution lifecycle, and then fetch the results using <code>rtf rep run-output</code>.</p>
+<p>In this guide, we’ll submit our <a href="#glossary">Test Plan</a> to the <a href="#glossary">RTF Orchestrator Service</a> using
+<code>rtf remote ci-run</code>, watch it progress through the execution lifecycle, and then fetch the results
+using <code>rtf remote run-output</code>.</p>
 <blockquote>
 <p><strong>Prerequisites</strong></p>
 <ul>
-<li>Completed the <a href="#making-your-test-plan-orchestrator-ready">“Making your test plan orchestrator-ready”</a> guide</li>
+<li>Completed the <a href="#making-your-test-plan-orchestrator-ready">“Making your test plan Orchestrator-ready”</a> guide</li>
 <li><code>gcloud</code> CLI installed and authenticated with <code>gcloud auth application-default login</code></li>
-<li>Access to the orchestrator at <code>https://api.rtf.apollographql.com</code> granted by the Runtime
+<li>Access to the Orchestrator at <code>https://api.rtf.apollographql.com</code> granted by the Runtime
 Readiness team</li>
 </ul>
 </blockquote>
 <h2 id="doing-things-manually"><a class="header" href="#doing-things-manually">Doing things manually</a></h2>
-<p>For actual execution we recommend using the <code>rtf rep ci-run</code> subcommand which handles all of the
+<p>For actual execution we recommend using the <code>rtf remote ci-run</code> subcommand which handles all of the
 following steps for you automatically. But before we take a look at how to use that subcommand,
 we’ll first explain what that is doing under the hood so you have an understanding of what is
 happening when the Orchestrator executes a Test Plan.</p>
-<h3 id="preparing-the-trigger-payload"><a class="header" href="#preparing-the-trigger-payload">Preparing the trigger payload</a></h3>
+<h3 id="preparing-the-trigger-payload"><a class="header" href="#preparing-the-trigger-payload">Preparing the Trigger Payload</a></h3>
 <p>Before a Test Plan can be submitted to the Orchestrator, it must be converted into a
-<code>trigger payload</code>. This is simply a JSON representation of the Test Plan in the inline form
+<a href="#glossary">Trigger Payload</a>. This is simply a JSON representation of the Test Plan in the inline form
 generated by <code>rtf template</code>, along with any local files that are referenced by file providers
 contained in the Test Plan.</p>
-<p>To build the payload manually we use the <code>rtf rep prepare</code> command:</p>
-<pre><code class="language-bash">rtf rep prepare test-plan.yaml
+<p>To build the payload manually we use the <code>rtf remote prepare</code> command:</p>
+<pre><code class="language-bash">rtf remote prepare test-plan.yaml
 </code></pre>
-<p><code>rtf rep prepare</code> writes its output as a single JSON object to stdout, allowing you to pipe it
+<p><code>rtf remote prepare</code> writes its output as a single JSON object to stdout, allowing you to pipe it
 directly to other tools or inspect it with <code>jq</code>. You should not edit this payload by hand before
 submitting to the Orchestrator as this is likely to result in broken test runs.</p>
-<h3 id="triggering-a-run-with-rtf-rep-request"><a class="header" href="#triggering-a-run-with-rtf-rep-request">Triggering a run with <code>rtf rep request</code></a></h3>
-<p>To manually trigger a Test Run we can use the <code>rtf rep request</code> subcommand that allows for making
-individual requests to the Orchestrator. The trigger request is made using the payload we covered in
-the previous section like so:</p>
-<pre><code class="language-bash">rtf rep request -X POST --body "$(rtf rep prepare test-plan.yaml)" test-run/trigger
+<h3 id="triggering-a-run-with-rtf-remote-request"><a class="header" href="#triggering-a-run-with-rtf-remote-request">Triggering a run with <code>rtf remote request</code></a></h3>
+<p>To manually trigger a <a href="#glossary">Test Run</a> we can use the <code>rtf remote request</code> subcommand that allows for
+making individual requests to the Orchestrator. The trigger request is made using the payload we
+covered in the previous section like so:</p>
+<pre><code class="language-bash">rtf remote request -X POST --body "$(rtf remote prepare test-plan.yaml)" test-run/trigger
 </code></pre>
-<p>Provided the Test Plan is accepted, this will return a <strong>Test Run Summary</strong> that details the current
-status of our newly created test run. We won’t go into the details of everything that is contained
-in the summary just now, as all we need for the next step is the ID of our run which we can extract
-from the summary by piping it through <code>jq</code> and using the following filter:</p>
+<p>Provided the Test Plan is accepted, this will return a <strong><a href="#glossary">Test Run Summary</a></strong> that details the
+current status of our newly created test run. We won’t go into the details of everything that is
+contained in the summary just now, as all we need for the next step is the ID of our run which we
+can extract from the summary by piping it through <code>jq</code> and using the following filter:</p>
 <pre><code class="language-bash">| jq -r '.id'
 </code></pre>
 <h3 id="polling-for-status-updates"><a class="header" href="#polling-for-status-updates">Polling for status updates</a></h3>
 <p>Armed with our test run ID we can use the <code>test-run/$id/status</code> endpoint to see what is happening as
 our run is processed by the Orchestrator:</p>
-<pre><code class="language-bash">rtf rep request "test-run/$RUN_ID/status" | jq
+<pre><code class="language-bash">rtf remote request "test-run/$RUN_ID/status" | jq
 </code></pre>
 <p>This endpoint returns the same <strong>Test Run Summary</strong> data as the trigger endpoint, but with the
 details being pulled fresh each time we make the request. Using this we can check the value of the
 <code>current_status</code> field to see how our run is progressing (see “The execution lifecycle” below).</p>
 <p>Once our run enters a terminal state we are able to try pulling the results for analysis. But before
-we take a look at that, let’s introduce the <code>rtf rep ci-run</code> subcommand that automates the process
-we’ve just implemented by hand.</p>
-<h2 id="triggering-a-run-with-rtf-rep-ci-run"><a class="header" href="#triggering-a-run-with-rtf-rep-ci-run">Triggering a run with <code>rtf rep ci-run</code></a></h2>
-<p><code>rtf rep ci-run</code> is the primary command for running a Test Plan through the Orchestrator. It
-automates all of the steps we just covered, preparing the trigger payload, submitting it for
+we take a look at that, let’s introduce the <code>rtf remote ci-run</code> subcommand that automates the
+process we’ve just implemented by hand.</p>
+<h2 id="triggering-a-run-with-rtf-remote-ci-run"><a class="header" href="#triggering-a-run-with-rtf-remote-ci-run">Triggering a run with <code>rtf remote ci-run</code></a></h2>
+<p><code>rtf remote ci-run</code> is the primary command for running a Test Plan through the Orchestrator. It
+automates all of the steps we just covered, preparing the Trigger Payload, submitting it for
 execution, and polling for status updates until the run completes.</p>
-<pre><code class="language-bash">rtf rep ci-run test-plan.yaml
+<pre><code class="language-bash">rtf remote ci-run test-plan.yaml
 </code></pre>
 <p>The command prints a status table that updates at each poll interval (default: 10 seconds) showing
 the most recent activity associated with your run:</p>
@@ -2561,12 +2567,12 @@ the most recent activity associated with your run:</p>
 
 Test run complete. Final status: successful
 
-Run 'rtf rep request test-run/&lt;run-id&gt;/status' to view the summary for this run
+Run 'rtf remote request test-run/&lt;run-id&gt;/status' to view the summary for this run
 
 Run the following to fetch the status, log or output.zip for an execution:
-   rtf rep request test-execution/$ID/status
-   rtf rep request test-execution/$ID/log.txt
-   rtf rep request test-execution/$ID/output.zip &gt; output.zip
+   rtf remote request test-execution/$ID/status
+   rtf remote request test-execution/$ID/log.txt
+   rtf remote request test-execution/$ID/output.zip &gt; output.zip
 </code></pre>
 <h3 id="the-execution-lifecycle"><a class="header" href="#the-execution-lifecycle">The execution lifecycle</a></h3>
 <p>The <code>status</code> column from that table shows the current execution status of the run as a whole. Each
@@ -2579,7 +2585,7 @@ executes:</p>
 </thead>
 <tbody>
 <tr><td><code>INITIALISING</code></td><td>The run has been accepted and executions are being queued</td></tr>
-<tr><td><code>RESOLVING</code></td><td>The orchestrator is resolving the environment configuration</td></tr>
+<tr><td><code>RESOLVING</code></td><td>The Orchestrator is resolving the environment configuration</td></tr>
 <tr><td><code>PROVISIONING</code></td><td>The environment namespace is being created and services are being deployed</td></tr>
 <tr><td><code>ENVIRONMENT_READY</code></td><td>The environment is healthy and the Scenario is starting</td></tr>
 <tr><td><code>RUNNING</code></td><td>The Scenario job is running</td></tr>
@@ -2591,7 +2597,7 @@ executes:</p>
 </div>
 <p>The <code>running</code> column in the table counts executions that are not yet in a terminal state. For matrix
 Test Plans, the table shows the aggregate count across all executions.</p>
-<p><code>rtf rep ci-run</code> exits with:</p>
+<p><code>rtf remote ci-run</code> exits with:</p>
 <ul>
 <li><code>0</code> if all executions were <code>SUCCESSFUL</code></li>
 <li><code>1</code> if any execution <code>FAILED</code></li>
@@ -2601,13 +2607,13 @@ Test Plans, the table shows the aggregate count across all executions.</p>
 when a test run does not succeed.</p>
 <h3 id="adjusting-the-poll-interval"><a class="header" href="#adjusting-the-poll-interval">Adjusting the poll interval</a></h3>
 <p>You can use <code>--poll-interval-seconds</code> to change how frequently the command polls for status updates:</p>
-<pre><code class="language-bash">rtf rep ci-run test-plan.yaml --poll-interval-seconds 30
+<pre><code class="language-bash">rtf remote ci-run test-plan.yaml --poll-interval-seconds 30
 </code></pre>
 <h2 id="fetching-output-for-a-single-execution"><a class="header" href="#fetching-output-for-a-single-execution">Fetching output for a single execution</a></h2>
-<p>Once a run is complete, use <code>rtf rep execution-output</code> to fetch the log and output zip for a
-specific execution. You can find the execution ID in the output of <code>rtf rep ci-run</code>, or by querying
-the run status with <code>rtf rep request test-run/&lt;run-id&gt;/status</code>.</p>
-<pre><code class="language-bash">rtf rep execution-output &lt;execution-id&gt;
+<p>Once our run is complete, we can use <code>rtf remote execution-output</code> to fetch the log and output zip
+for a specific execution. We can find the execution ID in the output of <code>rtf remote ci-run</code>, or by
+querying the run status with <code>rtf remote request test-run/&lt;run-id&gt;/status</code>.</p>
+<pre><code class="language-bash">rtf remote execution-output &lt;execution-id&gt;
 </code></pre>
 <p>This writes the following to a newly created <code>output/</code> directory by default:</p>
 <pre><code class="language-text">output/
@@ -2621,17 +2627,17 @@ the run status with <code>rtf rep request test-run/&lt;run-id&gt;/status</code>.
 <li><code>output/logs/&lt;pod&gt;/&lt;container&gt;.txt</code> — container logs for services with
 <code>rtf.io/log-collection: "true"</code></li>
 </ul>
-<p>To write output to a different directory, use <code>--outdir</code>:</p>
-<pre><code class="language-bash">rtf rep execution-output &lt;execution-id&gt; --outdir my-results
+<p>If we want to write output to a different directory, we can use <code>--outdir</code>:</p>
+<pre><code class="language-bash">rtf remote execution-output &lt;execution-id&gt; --outdir my-results
 </code></pre>
-<p>If the output directory already exists, the command will exit with an error. Use <code>--force</code> to remove
-it and start fresh:</p>
-<pre><code class="language-bash">rtf rep execution-output &lt;execution-id&gt; --force
+<p>If the output directory already exists, the command exits with an error. We can use <code>--force</code> to
+remove it and start fresh:</p>
+<pre><code class="language-bash">rtf remote execution-output &lt;execution-id&gt; --force
 </code></pre>
 <h2 id="fetching-output-for-all-executions-in-a-run"><a class="header" href="#fetching-output-for-all-executions-in-a-run">Fetching output for all executions in a run</a></h2>
-<p>For matrix Test Plans, <code>rtf rep run-output</code> fetches the output for every execution in a run in
-parallel, grouping each execution’s output into a named subdirectory:</p>
-<pre><code class="language-bash">rtf rep run-output &lt;run-id&gt;
+<p>For matrix Test Plans, we can use <code>rtf remote run-output</code> to fetch the output for every execution in
+our run in parallel; it groups each execution’s output into a named subdirectory:</p>
+<pre><code class="language-bash">rtf remote run-output &lt;run-id&gt;
 </code></pre>
 <p>This produces:</p>
 <pre><code class="language-text">output/
@@ -2644,16 +2650,24 @@ parallel, grouping each execution’s output into a named subdirectory:</p>
     output.zip
   ...
 </code></pre>
-<p>The same <code>--outdir</code> and <code>--force</code> flags are available as with <code>rtf rep execution-output</code>.</p>
+<p>We can use the same <code>--outdir</code> and <code>--force</code> flags as with <code>rtf remote execution-output</code>.</p>
 <h2 id="making-raw-api-requests"><a class="header" href="#making-raw-api-requests">Making raw API requests</a></h2>
-<p>As covered above, the <code>rtf rep request</code> allows you to make arbitrary authenticated request to the
-Orchestrator directly in situations where higher level commands such as <code>rtf rep ci-run</code> are not
-providing the functionality you need:</p>
-<pre><code class="language-bash">rtf rep request test-run/&lt;run-id&gt;/status
-rtf rep request test-execution/&lt;execution-id&gt;/log.txt
+<p>As covered above, <code>rtf remote request</code> lets us make arbitrary authenticated requests to the
+Orchestrator directly, for situations where higher level commands such as <code>rtf remote ci-run</code> don’t
+provide the functionality we need:</p>
+<pre><code class="language-bash">rtf remote request test-run/&lt;run-id&gt;/status
+rtf remote request test-execution/&lt;execution-id&gt;/log.txt
 </code></pre>
-<p>The response body for requests executed this way is always written to stdout. Use <code>-X</code> to specify a
-method and <code>-b</code> to supply a request body. See the <a href="#command-line-help-for-rtf">CLI reference</a> for the full set of options.</p>
+<p>The response body for requests we make this way is always written to stdout. We can use <code>-X</code> to
+specify a method and <code>-b</code> to supply a request body. See the <a href="#command-line-help-for-rtf">CLI reference</a> for the full set of
+options.</p>
+<h2 id="next-steps-6"><a class="header" href="#next-steps-6">Next steps</a></h2>
+<p>You’ve now completed the “Running with the Orchestrator” tutorial series: you can submit a Test Plan
+to the Orchestrator, monitor it through to completion, and fetch its results. To go further:</p>
+<ul>
+<li><a href="#command-line-help-for-rtf">CLI reference</a> — full reference for <code>rtf remote</code> and its subcommands</li>
+<li><a href="#troubleshooting">Troubleshooting</a> — common issues and how to resolve them</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-custom-providers"><a class="header" href="#writing-custom-providers">Writing custom providers</a></h1>
 <p>This section will guide you through writing a custom provider for rtf from a blank file. The custom
@@ -3446,7 +3460,7 @@ order. Remove the output directory before the next run:</p>
 <p>The <code>variables</code> and <code>matrix</code> fields work identically in script-based Test Plans. See the
 <a href="#setting-variables">Setting variables</a> and <a href="#using-a-matrix">Using a matrix</a> sections of the docker tutorial for full
 walkthroughs.</p>
-<h2 id="next-steps-6"><a class="header" href="#next-steps-6">Next steps</a></h2>
+<h2 id="next-steps-7"><a class="header" href="#next-steps-7">Next steps</a></h2>
 <p>In this guide, we wrote a script-based Test Plan and ran it successfully. Next, we’ll look at the
 <code>command</code> configuration in more detail.</p>
 <p><a href="#writing-a-command">Writing a command</a></p>
@@ -3574,7 +3588,7 @@ the same way as shown here.</p>
 <p>Remove the output before continuing:</p>
 <pre><code class="language-bash">rm -rf output/
 </code></pre>
-<h2 id="next-steps-7"><a class="header" href="#next-steps-7">Next steps</a></h2>
+<h2 id="next-steps-8"><a class="header" href="#next-steps-8">Next steps</a></h2>
 <p>In this guide, we covered how <code>command</code> config works — inline scripts, environment variables, and
 pointing to external script files. Next, we’ll use variables and overrides to customize the Scenario
 at runtime.</p>
@@ -3701,7 +3715,7 @@ environment teardown
 </code></pre>
 <p>The override replaces only the <code>command</code> — the <code>variable_definitions</code> and <code>env_vars</code> from
 <code>scenario.yaml</code> are unchanged, so <code>SCENARIO_ENV</code> still receives its value from <code>scenario_variable</code>.</p>
-<h2 id="next-steps-8"><a class="header" href="#next-steps-8">Next steps</a></h2>
+<h2 id="next-steps-9"><a class="header" href="#next-steps-9">Next steps</a></h2>
 <p>You’ve now completed the script-based test plan tutorials. To go further:</p>
 <ul>
 <li><a href="#the-framework">Framework reference</a> — full reference for all config fields</li>
@@ -4533,7 +4547,7 @@ field.</li>
 </ul>
 <h3 id="service-labels"><a class="header" href="#service-labels">Service labels</a></h3>
 <p>Services in the compose files can carry RTF-specific labels that control behaviour when the test
-runs under the <a href="#running-test-plans-with-the-rtf-orchestrator">RTF Orchestrator</a>. These labels have no effect when running locally with the
+runs under the <a href="#running-test-plans-with-the-rtf-orchestrator-service">RTF Orchestrator</a>. These labels have no effect when running locally with the
 <code>rtf</code> CLI.</p>
 <div class="table-wrapper">
 <table>
@@ -5566,12 +5580,13 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-resolve-environment"><code>rtf resolve environment</code>↴</a></li>
 <li><a href="#rtf-completion"><code>rtf completion</code>↴</a></li>
 <li><a href="#rtf-json-schemas"><code>rtf json-schemas</code>↴</a></li>
-<li><a href="#rtf-rep"><code>rtf rep</code>↴</a></li>
-<li><a href="#rtf-rep-prepare"><code>rtf rep prepare</code>↴</a></li>
-<li><a href="#rtf-rep-request"><code>rtf rep request</code>↴</a></li>
-<li><a href="#rtf-rep-ci-run"><code>rtf rep ci-run</code>↴</a></li>
-<li><a href="#rtf-rep-execution-output"><code>rtf rep execution-output</code>↴</a></li>
-<li><a href="#rtf-rep-run-output"><code>rtf rep run-output</code>↴</a></li>
+<li><a href="#rtf-remote"><code>rtf remote</code>↴</a></li>
+<li><a href="#rtf-remote-prepare"><code>rtf remote prepare</code>↴</a></li>
+<li><a href="#rtf-remote-request"><code>rtf remote request</code>↴</a></li>
+<li><a href="#rtf-remote-run"><code>rtf remote run</code>↴</a></li>
+<li><a href="#rtf-remote-ci-run"><code>rtf remote ci-run</code>↴</a></li>
+<li><a href="#rtf-remote-execution-output"><code>rtf remote execution-output</code>↴</a></li>
+<li><a href="#rtf-remote-run-output"><code>rtf remote run-output</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -5588,7 +5603,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
 <li><code>completion</code> — Write a shell completion file to STDOUT for the given shell</li>
 <li><code>json-schemas</code> — Output json schemas for environment configuration</li>
-<li><code>rep</code> — Interactions with the REP Orchestrator</li>
+<li><code>remote</code> — Interactions with the RTF Orchestrator Service</li>
 <li><code>version</code> — Display CLI version and exit</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
@@ -5828,20 +5843,21 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p>Possible values: <code>test-plan</code>, <code>environment</code>, <code>scenario</code></p>
 </li>
 </ul>
-<h2 id="rtf-rep"><a class="header" href="#rtf-rep"><code>rtf rep</code></a></h2>
-<p>Interactions with the REP Orchestrator</p>
-<p><strong>Usage:</strong> <code>rtf rep &lt;COMMAND&gt;</code></p>
+<h2 id="rtf-remote"><a class="header" href="#rtf-remote"><code>rtf remote</code></a></h2>
+<p>Interactions with the RTF Orchestrator Service</p>
+<p><strong>Usage:</strong> <code>rtf remote &lt;COMMAND&gt;</code></p>
 <h6 id="subcommands-4"><a class="header" href="#subcommands-4"><strong>Subcommands:</strong></a></h6>
 <ul>
-<li><code>prepare</code> — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</li>
-<li><code>request</code> — Send an IAP-authenticated HTTP request to the REP orchestrator</li>
-<li><code>ci-run</code> — Trigger a test run using the REP orchestrator and poll for the result</li>
+<li><code>prepare</code> — Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers</li>
+<li><code>request</code> — Send an IAP-authenticated HTTP request to the Orchestrator</li>
+<li><code>run</code> — Trigger a test run using the Orchestrator</li>
+<li><code>ci-run</code> — Trigger a test run using the Orchestrator and poll for the result</li>
 <li><code>execution-output</code> — Pull output for a single test execution</li>
 <li><code>run-output</code> — Pull output for all executions within a given test run</li>
 </ul>
-<h2 id="rtf-rep-prepare"><a class="header" href="#rtf-rep-prepare"><code>rtf rep prepare</code></a></h2>
-<p>Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</p>
-<p><strong>Usage:</strong> <code>rtf rep prepare [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h2 id="rtf-remote-prepare"><a class="header" href="#rtf-remote-prepare"><code>rtf remote prepare</code></a></h2>
+<p>Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers</p>
+<p><strong>Usage:</strong> <code>rtf remote prepare [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-11"><a class="header" href="#arguments-11"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
@@ -5856,13 +5872,13 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
 </ul>
-<h2 id="rtf-rep-request"><a class="header" href="#rtf-rep-request"><code>rtf rep request</code></a></h2>
-<p>Send an IAP-authenticated HTTP request to the REP orchestrator.</p>
+<h2 id="rtf-remote-request"><a class="header" href="#rtf-remote-request"><code>rtf remote request</code></a></h2>
+<p>Send an IAP-authenticated HTTP request to the Orchestrator.</p>
 <p>The response body is written to stdout on success.</p>
-<p><strong>Usage:</strong> <code>rtf rep request [OPTIONS] &lt;PATH&gt;</code></p>
+<p><strong>Usage:</strong> <code>rtf remote request [OPTIONS] &lt;PATH&gt;</code></p>
 <h6 id="arguments-12"><a class="header" href="#arguments-12"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;PATH&gt;</code> — Path on the orchestrator to request (e.g. <code>/health</code>)</li>
+<li><code>&lt;PATH&gt;</code> — Path on the Orchestrator to request (e.g. <code>/health</code>)</li>
 </ul>
 <h6 id="options-12"><a class="header" href="#options-12"><strong>Options:</strong></a></h6>
 <ul>
@@ -5874,13 +5890,13 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p><code>-b</code>, <code>--body &lt;BODY&gt;</code> — Request body as a literal string</p>
 </li>
 <li>
-<p><code>--orchestrator-url &lt;ORCHESTRATOR_URL&gt;</code> — Override the REP orchestrator base URL</p>
+<p><code>--orchestrator-url &lt;ORCHESTRATOR_URL&gt;</code> — Override the Orchestrator base URL</p>
 </li>
 </ul>
-<h2 id="rtf-rep-ci-run"><a class="header" href="#rtf-rep-ci-run"><code>rtf rep ci-run</code></a></h2>
-<p>Trigger a test run using the REP orchestrator and poll for the result.</p>
-<p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
-<p><strong>Usage:</strong> <code>rtf rep ci-run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h2 id="rtf-remote-run"><a class="header" href="#rtf-remote-run"><code>rtf remote run</code></a></h2>
+<p>Trigger a test run using the Orchestrator.</p>
+<p>The output of this command will be the test run id and a link to the RTF UI to view the status</p>
+<p><strong>Usage:</strong> <code>rtf remote run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-13"><a class="header" href="#arguments-13"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
@@ -5894,19 +5910,37 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li>
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
+</ul>
+<h2 id="rtf-remote-ci-run"><a class="header" href="#rtf-remote-ci-run"><code>rtf remote ci-run</code></a></h2>
+<p>Trigger a test run using the Orchestrator and poll for the result.</p>
+<p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
+<p><strong>Usage:</strong> <code>rtf remote ci-run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
+</ul>
+<h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
+</li>
 <li>
 <p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code></p>
 <p>Default value: <code>10</code></p>
 </li>
 </ul>
-<h2 id="rtf-rep-execution-output"><a class="header" href="#rtf-rep-execution-output"><code>rtf rep execution-output</code></a></h2>
+<h2 id="rtf-remote-execution-output"><a class="header" href="#rtf-remote-execution-output"><code>rtf remote execution-output</code></a></h2>
 <p>Pull output for a single test execution</p>
-<p><strong>Usage:</strong> <code>rtf rep execution-output [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
+<p><strong>Usage:</strong> <code>rtf remote execution-output [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;ID&gt;</code> — ID of the orchestrator test execution you wish to pull output for</li>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to pull output for</li>
 </ul>
-<h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
+<h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>
@@ -5917,14 +5951,14 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p>Default value: <code>false</code></p>
 </li>
 </ul>
-<h2 id="rtf-rep-run-output"><a class="header" href="#rtf-rep-run-output"><code>rtf rep run-output</code></a></h2>
+<h2 id="rtf-remote-run-output"><a class="header" href="#rtf-remote-run-output"><code>rtf remote run-output</code></a></h2>
 <p>Pull output for all executions within a given test run</p>
-<p><strong>Usage:</strong> <code>rtf rep run-output [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
+<p><strong>Usage:</strong> <code>rtf remote run-output [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-16"><a class="header" href="#arguments-16"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;ID&gt;</code> — ID of the orchestrator test run you wish to pull output for</li>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test run you wish to pull output for</li>
 </ul>
-<h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
+<h6 id="options-16"><a class="header" href="#options-16"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>
@@ -5974,6 +6008,12 @@ operations to run against the supergraph under test).</p>
 <h2 id="rtf-1"><a class="header" href="#rtf-1">RTF</a></h2>
 <p>May refer to either the Runtime Testing Framework as a whole or the <code>rtf</code> CLI which is used to
 resolve and run Test Plans.</p>
+<h2 id="rtf-orchestrator-service"><a class="header" href="#rtf-orchestrator-service">RTF Orchestrator Service</a></h2>
+<p>A server-side system that receives Test Plans over HTTP, manages their execution in a provisioned
+Kubernetes cluster asynchronously, and reports results back to callers via status endpoints. The RTF
+Orchestrator Service is complementary to the RTF CLI rather than a replacement for it: the CLI runs
+Test Plans locally, while the Orchestrator runs them remotely and at scale. Often shortened to “the
+Orchestrator” after first use.</p>
 <h2 id="scenario-1"><a class="header" href="#scenario-1">Scenario</a></h2>
 <p>An RTF configuration file for specifying how to run a test against services spun up by an
 Environment configuration using Command and File providers. Like all RTF configuration files,
@@ -5983,17 +6023,38 @@ Scenario configurations support Templating using Variables from the Test Plan.</
 configuration file may specify how to set Provider parameters and Command Provider environment
 variables. Template strings are denoted with opening and closing double braces surrounding the name
 of the Variable to inject with a single space at either side: <code>"{{ my_variable }}"</code></p>
+<h2 id="test-execution"><a class="header" href="#test-execution">Test Execution</a></h2>
+<p>A single Environment and Scenario pair executed by the RTF Orchestrator Service as part of a Test
+Run. A Test Run for a matrix Test Plan comprises one Test Execution per matrix dimension, each
+provisioned and run independently. A Test Execution progresses through the same lifecycle statuses
+as its parent Test Run.</p>
 <h2 id="test-plan"><a class="header" href="#test-plan">Test Plan</a></h2>
 <p>The main RTF configuration file that defines an runnable test by combining a Scenario configuration
 with the Environment configuration it should be executed against. If either the Scenario or
 Environment supports Templating Variables then they can be specified statically as part of the Test
 Plan itself or dynamically through command line arguments to the RTF CLI.</p>
+<h2 id="test-run"><a class="header" href="#test-run">Test Run</a></h2>
+<p>The RTF Orchestrator Service’s record of a single submission of a Test Plan for remote execution,
+created from a Trigger Payload. A Test Run comprises one or more Test Executions — one per matrix
+dimension for matrix Test Plans — and progresses through a lifecycle of statuses: <code>INITIALISING</code>,
+<code>RESOLVING</code>, <code>PROVISIONING</code>, <code>ENVIRONMENT_READY</code>, <code>RUNNING</code>, and a terminal status of <code>SUCCESSFUL</code>,
+<code>FAILED</code>, or <code>UNRUNNABLE</code>.</p>
+<h2 id="test-run-summary"><a class="header" href="#test-run-summary">Test Run Summary</a></h2>
+<p>The JSON object returned by the RTF Orchestrator Service’s trigger and status endpoints, describing
+the current status of a Test Run and each of its Test Executions.</p>
+<h2 id="trigger-payload"><a class="header" href="#trigger-payload">Trigger Payload</a></h2>
+<p>A JSON representation of a fully resolved Test Plan, produced by <code>rtf remote prepare</code>. It bundles
+the inline Test Plan (as generated by <code>rtf template</code>) together with the contents of any local files
+referenced by its File Providers, so the RTF Orchestrator Service — which has no filesystem access
+to the machine the Test Plan was prepared on — has everything it needs to run it. Submitted to the
+Orchestrator via <code>POST /test-run/trigger</code>.</p>
 <h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
 <p>Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
-<h1 id="understanding-rtf-and-rep-internals"><a class="header" href="#understanding-rtf-and-rep-internals">Understanding RTF and REP internals</a></h1>
-<p>This section explains the design decisions and architectural thinking behind RTF and REP.</p>
+<h1 id="understanding-rtf-and-the-orchestrator"><a class="header" href="#understanding-rtf-and-the-orchestrator">Understanding RTF and the Orchestrator</a></h1>
+<p>This section explains the design decisions and architectural thinking behind RTF and the
+<a href="#glossary">RTF Orchestrator Service</a>.</p>
 <ul>
 <li><a href="#concepts-and-architecture">Concepts and Architecture</a> - high-level architecture overview</li>
 <li><a href="#logging-philosophy">Logging Philosophy</a> - why RTF logs the way it does</li>
@@ -6002,8 +6063,8 @@ their values defined within the Test Plan referencing those configuration files.
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and architecture</a></h1>
-<p>This page provides a high-level overview of RTF and REP’s architecture and the key concepts that
-inform their design.</p>
+<p>This page provides a high-level overview of RTF’s architecture and the key concepts that inform its
+design.</p>
 <h2 id="crates"><a class="header" href="#crates">Crates</a></h2>
 <p>RTF is organized as a <a href="https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html">Cargo workspace</a> with crates stored in the <code>crates</code> directory. Each crate
 has its own README file explaining its purpose at the crate’s root.</p>
@@ -6017,9 +6078,9 @@ into strongly typed Rust structs</li>
 </ul>
 <p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
 testability and CLI control over execution.</p>
-<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for REP. It manages the lifecycle
-of test runs and individual test executions across two Kubernetes clusters: a management cluster
-(Argo workflows for environment provisioning) and a workload cluster (scenario jobs). It uses the
+<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for RTF. It manages the lifecycle
+of test runs and individual test executions across Kubernetes clusters: a management cluster (Argo
+workflows for environment provisioning) and workload clusters (scenario jobs). It uses the
 <code>rep-orchestrator-shared</code> crate for types shared between it and the <code>rep-orchestrator-cli</code> which
 submits updates to the clusters.</p>
 <p>The <code>rtf-integrations</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP
@@ -6067,22 +6128,23 @@ requests.</p>
 │     - Run teardown command                                              │
 └─────────────────────────────────────────────────────────────────────────┘
 </code></pre>
-<h2 id="rtf-and-rep"><a class="header" href="#rtf-and-rep">RTF and REP</a></h2>
-<p>RTF and REP are related but distinct systems that serve different execution contexts:</p>
+<h2 id="rtf-orchestrator-service-1"><a class="header" href="#rtf-orchestrator-service-1">RTF Orchestrator Service</a></h2>
+<p>RTF and the Orchestrator are related but distinct systems that serve different execution contexts:</p>
 <ul>
 <li><strong>RTF CLI</strong> (<code>rtf</code>) is a local command-line tool. A developer runs it directly to perform actions
 against test plans on the same system the CLI is hosted on.</li>
-<li><strong>REP (Runtime Environment Provisioner) Orchestrator Service</strong> is a server-side system. It
-receives Test Plans over HTTP, manages their execution in a REP provisioned cluster
-asynchronously, and reports results back to callers via status endpoints.</li>
+<li><strong><a href="#glossary">RTF Orchestrator Service</a></strong> is a server-side system. It receives Test Plans over HTTP,
+manages their execution in a provisioned cluster asynchronously, and reports results back to
+callers via status endpoints.</li>
 </ul>
-<p>The handoff point between the two systems is the <code>RepPayload</code> — a resolved Test Plan produced by
-<code>rtf rep prepare</code> and submitted to REP via <code>POST /test-run/trigger</code>. REP does not replace the RTF
-CLI; they are complementary tools for different execution contexts.</p>
-<h3 id="rep-data-flow"><a class="header" href="#rep-data-flow">REP data flow</a></h3>
-<p>When a caller triggers a test run via REP:</p>
+<p>The handoff point between the two systems is the <a href="#glossary">Trigger Payload</a> — a resolved Test Plan
+produced by <code>rtf remote prepare</code> and submitted to the Orchestrator via <code>POST /test-run/trigger</code>. The
+Orchestrator does not replace the RTF CLI; they are complementary tools for different execution
+contexts.</p>
+<h3 id="orchestrator-data-flow"><a class="header" href="#orchestrator-data-flow">Orchestrator data flow</a></h3>
+<p>When a caller triggers a test run via the Orchestrator:</p>
 <pre><code class="language-text">┌─────────────────────────────────────────────────────────────────────────┐
-│  POST /test-run/trigger (RepPayload)                                    │
+│  POST /test-run/trigger (Trigger Payload)                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -6230,13 +6292,15 @@ used by the CLI.</p>
 <p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157"><code>Context</code></a> is the concrete implementation used by the RTF CLI. It performs real IO: reading
 files from the filesystem, executing commands, making HTTP requests to GraphOS and GitHub. When the
 CLI runs <code>rtf run</code>, it constructs a <code>Context</code> and passes it through to all provider logic.</p>
-<h3 id="repcontext-rep"><a class="header" href="#repcontext-rep"><code>RepContext</code> (REP)</a></h3>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rep-orchestrator/src/context.rs"><code>RepContext</code></a> is the concrete implementation used by <code>rep-orchestrator</code>. It wraps an inner
-<code>Context</code> but overrides the file IO behaviour: instead of reading from the filesystem, it reads from
-an in-memory map of file contents that was pre-bundled by <code>rtf rep prepare</code> into the <code>RepPayload</code>.</p>
-<p>This is a deliberate design constraint. REP is a server — it has no access to the filesystem paths
-that existed on the developer’s machine when the test plan was prepared. The <code>RepPayload</code> carries
-everything the server needs, and <code>RepContext</code> enforces that only that content is accessible.</p>
+<h3 id="repcontext-rtf-orchestrator-service"><a class="header" href="#repcontext-rtf-orchestrator-service"><code>RepContext</code> (RTF Orchestrator Service)</a></h3>
+<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rep-orchestrator/src/context.rs"><code>RepContext</code></a> is the concrete implementation used by the <a href="#glossary">RTF Orchestrator Service</a>
+(<code>rep-orchestrator</code>). It wraps an inner <code>Context</code> but overrides the file IO behaviour: instead of
+reading from the filesystem, it reads from an in-memory map of file contents that was pre-bundled by
+<code>rtf remote prepare</code> into the <a href="#glossary">Trigger Payload</a>.</p>
+<p>This is a deliberate design constraint. The Orchestrator is a server — it has no access to the
+filesystem paths that existed on the developer’s machine when the test plan was prepared. The
+Trigger Payload carries everything the server needs, and <code>RepContext</code> enforces that only that
+content is accessible.</p>
 <p>As a consequence, any <code>ResolutionContext</code> methods that would touch the filesystem directly are
 implemented as panics:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -6246,8 +6310,8 @@ implemented as panics:</p>
 }
 <span class="boring">}</span></code></pre>
 <p>This is intentional. We should not be attempting to use the filesystem in the ways these methods
-expose during REP execution. Attempting to use the filesystem via those methods is a bug in the
-architecture, not something to handle gracefully.</p>
+expose during execution in the Orchestrator. Attempting to use the filesystem via those methods is a
+bug in the architecture, not something to handle gracefully.</p>
 <p>HTTP and API client operations (<code>platform_client</code>, <code>github_client</code>, <code>http_client</code>) are delegated to
 the inner <code>Context</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
@@ -6269,7 +6333,8 @@ inline logic at the CLI struct level.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="orchestrator-helm-chart-versioning-policy"><a class="header" href="#orchestrator-helm-chart-versioning-policy">Orchestrator Helm chart versioning policy</a></h1>
 <p>This document records the decisions behind how we version and deploy the <code>rep-orchestrator</code> Helm
-chart, the rationale for the phased approach, and the options that were considered and rejected.</p>
+chart for the <a href="#glossary">RTF Orchestrator Service</a>, the rationale for the phased approach, and the options
+that were considered and rejected.</p>
 <p><strong>When a phase is completed, update the <a href="#current-phase">Current phase</a> section to reflect actual state. The
 phase descriptions below are a permanent historical record of what was done and why — they should
 not be edited after the fact.</strong></p>
@@ -6285,7 +6350,7 @@ Production is still updated by manually opening a PR on <code>runtime-environmen
 </blockquote>
 <h2 id="design-intent"><a class="header" href="#design-intent">Design intent</a></h2>
 <p>The chart and image are published together on every code merge by design. The intent is that
-updating the Helm chart is the canonical way to update the orchestrator — a chart version change
+updating the Helm chart is the canonical way to update the Orchestrator — a chart version change
 implies a software change, and a software change produces a new chart version. This keeps deployment
 straightforward: there is one thing to bump (the chart), and it brings everything with it.</p>
 <h2 id="options-considered"><a class="header" href="#options-considered">Options considered</a></h2>
@@ -6372,11 +6437,11 @@ a change in this repo and Phase 2 is a values change in <code>runtime-environmen
 <li>The <code>image.tag: edge</code> and <code>pullPolicy: Always</code> overrides are removed from the production
 <code>valuesObject</code> in <code>runtime-environment-provisioner</code>.</li>
 <li>The chart’s <code>appVersion</code> (the git SHA baked in at publish time) becomes the live image tag.</li>
-<li>Deploying a new image now requires a chart bump PR to REP.</li>
+<li>Deploying a new image now requires a chart bump PR to <code>runtime-environment-provisioner</code>.</li>
 </ul>
 <p><strong>Result:</strong> The lockstep intent is fully enforced in production. Every code change produces a new
-chart version; bumping to that version in REP is the single operation that updates the running
-orchestrator.</p>
+chart version; bumping to that version in <code>runtime-environment-provisioner</code> is the single operation
+that updates the running Orchestrator.</p>
 <hr>
 <h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <div class="table-wrapper">
@@ -6385,9 +6450,9 @@ orchestrator.</p>
 <tr><th>Phase</th><th>Image tag in production</th><th>Lockstep enforced?</th><th>Automation</th></tr>
 </thead>
 <tbody>
-<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to REP</td></tr>
-<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to REP</td></tr>
-<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to REP</td></tr>
+<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
+<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
+<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
 </tbody>
 </table>
 </div>
@@ -6395,8 +6460,8 @@ orchestrator.</p>
 <h1 id="developer-how-to-guides"><a class="header" href="#developer-how-to-guides">Developer how-to guides</a></h1>
 <p>Task-oriented guides for common development workflows.</p>
 <ul>
-<li><a href="#running-pr-checks">PR Checks</a> - running CI checks locally</li>
-<li><a href="#how-to-run-rep-orchestrator-tests">Run rep-orchestrator tests</a> - running unit, DB, and integration tests for the orchestrator</li>
+<li><a href="#running-pr-checks">Run PR checks</a> - running CI checks locally</li>
+<li><a href="#how-to-run-rep-orchestrator-tests">Run rep-orchestrator tests</a> - running unit, DB, and integration tests for the Orchestrator</li>
 <li><a href="#how-to-run-a-test-coverage-report">Run a test coverage report</a> - generating and inspecting a full workspace coverage report</li>
 <li><a href="#how-to-update-trybuild-stderr-files-for-rtf-derive">Update trybuild .stderr files</a> - refreshing expected compiler output after a Rust version
 change</li>
@@ -6508,7 +6573,7 @@ make db-up
 </code></pre>
 <p>The DB tests can also be run against the tilt stack (documented in the section below).</p>
 <h2 id="integration-tests"><a class="header" href="#integration-tests">Integration tests</a></h2>
-<p>Integration tests exercise the full HTTP API and require the complete tilt stack (orchestrator
+<p>Integration tests exercise the full HTTP API and require the complete tilt stack (Orchestrator
 server + database).</p>
 <p>Set up the cluster:</p>
 <pre><code class="language-bash">cd crates/rep-orchestrator
@@ -7623,8 +7688,8 @@ naming hierarchy:</p>
 <li><strong>Environment dependency</strong> — Tests that require API tokens are grouped by their credential
 requirement. Files named after the command they test have no external dependency. Examples:
 <code>github</code> (requires <code>GITHUB_TOKEN</code>), <code>graphos</code> (requires <code>APOLLO_KEY</code>).</li>
-<li><strong>Command</strong> — The CLI subcommand under test. Examples: <code>template</code>, <code>run</code>, <code>rep</code>. Where no command
-is supplied, use <code>no_command</code>.</li>
+<li><strong>Command</strong> — The CLI subcommand under test. Examples: <code>template</code>, <code>run</code>, <code>remote</code>. Where no
+command is supplied, use <code>no_command</code>.</li>
 <li><strong>Flag(s)</strong> — Flags that cause significant branching in functionality, added as a prefix to the
 test case name. Omit if the flag is already implied by the environment dependency.</li>
 <li><strong>Test class</strong> — A grouping of parameterized cases defined with <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>.</li>
@@ -8041,7 +8106,7 @@ module::path::tests::function_test_class::test_case
 </span><span class="boring">fn main() {
 </span>endpoint_scenario
 <span class="boring">}</span></code></pre>
-<p>For example: <code>trigger_valid_rep_test_plan_returns_200</code>.</p>
+<p>For example: <code>trigger_valid_test_plan_returns_200</code>.</p>
 <h2 id="feature-flag-annotation"><a class="header" href="#feature-flag-annotation">Feature flag annotation</a></h2>
 <p>Stack-dependent tests must always carry this annotation to prevent the standard test run from
 failing without a stack:</p>
@@ -8076,7 +8141,7 @@ variations</li>
 <tr><th>Method</th><th>Purpose</th></tr>
 </thead>
 <tbody>
-<tr><td><code>trigger_run</code></td><td>Prepares a <code>RepPayload</code> from a test plan directory and POSTs to <code>/test-run/trigger</code></td></tr>
+<tr><td><code>prepare_rep_payload</code></td><td>Prepares a <code>TriggerPayload</code> from a test plan directory</td></tr>
 <tr><td><code>json_get</code> / <code>json_post</code></td><td>Typed helpers that deserialize JSON responses into the expected type</td></tr>
 <tr><td><code>get</code> / <code>post</code></td><td>Raw helpers returning <code>Response</code> for status-code assertions</td></tr>
 </tbody>

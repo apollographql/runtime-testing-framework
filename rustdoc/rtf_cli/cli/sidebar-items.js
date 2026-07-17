@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Command","CustomProviderSubcommand","InlineSubcommand","RepSubcommand","ResolveSubcommand","SchemasConfig"],"struct":["Args","InlineArgs","RunTarget","Variables"]};
+window.SIDEBAR_ITEMS = {"enum":["Command","CustomProviderSubcommand","InlineSubcommand","RemoteSubcommand","ResolveSubcommand","SchemasConfig"],"struct":["Args","InlineArgs","RunTarget","Variables"]};
