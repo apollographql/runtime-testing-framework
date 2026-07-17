@@ -292,7 +292,7 @@ where
             execution_statuses
                 .into_iter()
                 .reduce(|l, r| l.combine(r))
-                .and_then(|s| if s.is_terminal() { Some(s) } else { None })
+                .filter(|&s| s.is_terminal())
         }
 
         _ => None,

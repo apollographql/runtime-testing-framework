@@ -74,6 +74,7 @@ pub async fn resolve_environment(
     ctx.set_output_path(&out_dir);
 
     match &environment.execution {
+        EnvironmentExecution::Null(_) => (),
         EnvironmentExecution::Script(script) => {
             resolve_script_environment(script, &out_dir, &mut ctx).await?;
         }

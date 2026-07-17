@@ -1,0 +1,3 @@
+name: null-environment
+description: A simple null environment for testing resolve
+skip: true

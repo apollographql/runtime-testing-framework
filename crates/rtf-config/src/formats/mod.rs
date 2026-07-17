@@ -1,5 +1,6 @@
 //! The various different config file formats that we support
 use crate::{checks, providers};
+use rtf_integrations::github;
 use std::io;
 
 mod custom_provider;
@@ -13,12 +14,11 @@ mod test_plan;
 pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::{
     DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, FileProviderServices,
-    ScriptEnvironment,
+    NullEnvironment, ScriptEnvironment,
 };
 pub use execution::{Execution, Generic};
 pub use matrix::Matrix;
 pub use output_collection::{OutputCollection, PrometheusQuery};
-use rtf_integrations::github;
 pub use scenario::{DockerCommand, DockerScenario, ScenarioConfig, ScenarioExecution};
 pub use test_plan::{RawTestPlanConfig, Sources, TestPlan, TestPlanConfig};
 
