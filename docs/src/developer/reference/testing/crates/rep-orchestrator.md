@@ -43,7 +43,7 @@ Integration tests follow the Endpoint → Scenario naming described in the
 endpoint_scenario
 ```
 
-For example: `trigger_valid_rep_test_plan_returns_200`.
+For example: `trigger_valid_test_plan_returns_200`.
 
 ## Feature flag annotation
 
@@ -78,11 +78,11 @@ pub struct TestHelper {
 }
 ```
 
-| Method                   | Purpose                                                                             |
-| ------------------------ | ----------------------------------------------------------------------------------- |
-| `trigger_run`            | Prepares a `RepPayload` from a test plan directory and POSTs to `/test-run/trigger` |
-| `json_get` / `json_post` | Typed helpers that deserialize JSON responses into the expected type                |
-| `get` / `post`           | Raw helpers returning `Response` for status-code assertions                         |
+| Method                   | Purpose                                                              |
+| ------------------------ | -------------------------------------------------------------------- |
+| `prepare_rep_payload`    | Prepares a `TriggerPayload` from a test plan directory               |
+| `json_get` / `json_post` | Typed helpers that deserialize JSON responses into the expected type |
+| `get` / `post`           | Raw helpers returning `Response` for status-code assertions          |
 
 Shared logic between tests should be added as further methods on `TestHelper`.
 

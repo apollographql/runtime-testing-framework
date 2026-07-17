@@ -3,9 +3,10 @@
 # Orchestrator Helm chart versioning policy
 
 This document records the decisions behind how we version and deploy the `rep-orchestrator` Helm
-chart, the rationale for the phased approach, and the options that were considered and rejected.
+chart for the [RTF Orchestrator Service][0], the rationale for the phased approach, and the options
+that were considered and rejected.
 
-**When a phase is completed, update the [Current phase][0] section to reflect actual state. The
+**When a phase is completed, update the [Current phase][1] section to reflect actual state. The
 phase descriptions below are a permanent historical record of what was done and why — they should
 not be edited after the fact.**
 
@@ -23,7 +24,7 @@ not be edited after the fact.**
 ## Design intent
 
 The chart and image are published together on every code merge by design. The intent is that
-updating the Helm chart is the canonical way to update the orchestrator — a chart version change
+updating the Helm chart is the canonical way to update the Orchestrator — a chart version change
 implies a software change, and a software change produces a new chart version. This keeps deployment
 straightforward: there is one thing to bump (the chart), and it brings everything with it.
 
@@ -132,20 +133,21 @@ before the service takes on production traffic (Phase 3).
 - The `image.tag: edge` and `pullPolicy: Always` overrides are removed from the production
   `valuesObject` in `runtime-environment-provisioner`.
 - The chart's `appVersion` (the git SHA baked in at publish time) becomes the live image tag.
-- Deploying a new image now requires a chart bump PR to REP.
+- Deploying a new image now requires a chart bump PR to `runtime-environment-provisioner`.
 
 **Result:** The lockstep intent is fully enforced in production. Every code change produces a new
-chart version; bumping to that version in REP is the single operation that updates the running
-orchestrator.
+chart version; bumping to that version in `runtime-environment-provisioner` is the single operation
+that updates the running Orchestrator.
 
 ---
 
 ## Summary
 
-| Phase | Image tag in production      | Lockstep enforced?         | Automation               |
-| ----- | ---------------------------- | -------------------------- | ------------------------ |
-| 0     | `edge` (hardcoded in values) | No                         | None — manual PRs to REP |
-| 1 + 2 | `edge` (values override)     | No — intentional deviation | None — manual PRs to REP |
-| 3     | Git SHA (`appVersion`)       | Yes                        | None — manual PRs to REP |
+| Phase | Image tag in production      | Lockstep enforced?         | Automation                                             |
+| ----- | ---------------------------- | -------------------------- | ------------------------------------------------------ |
+| 0     | `edge` (hardcoded in values) | No                         | None — manual PRs to `runtime-environment-provisioner` |
+| 1 + 2 | `edge` (values override)     | No — intentional deviation | None — manual PRs to `runtime-environment-provisioner` |
+| 3     | Git SHA (`appVersion`)       | Yes                        | None — manual PRs to `runtime-environment-provisioner` |
 
-[0]: #current-phase
+[0]: ../../reference/glossary.md
+[1]: #current-phase

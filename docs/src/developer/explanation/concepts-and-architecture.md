@@ -2,8 +2,8 @@
 
 # Concepts and architecture
 
-This page provides a high-level overview of RTF and REP's architecture and the key concepts that
-inform their design.
+This page provides a high-level overview of RTF's architecture and the key concepts that inform its
+design.
 
 ## Crates
 
@@ -21,9 +21,9 @@ The `rtf-config` crate is the heart of RTF. It handles:
 The crate exposes a [ResolutionContext][2] trait that abstracts all IO operations, enabling
 testability and CLI control over execution.
 
-The `rep-orchestrator` crate is a server-side orchestration layer for REP. It manages the lifecycle
-of test runs and individual test executions across two Kubernetes clusters: a management cluster
-(Argo workflows for environment provisioning) and a workload cluster (scenario jobs). It uses the
+The `rep-orchestrator` crate is a server-side orchestration layer for RTF. It manages the lifecycle
+of test runs and individual test executions across Kubernetes clusters: a management cluster (Argo
+workflows for environment provisioning) and workload clusters (scenario jobs). It uses the
 `rep-orchestrator-shared` crate for types shared between it and the `rep-orchestrator-cli` which
 submits updates to the clusters.
 
@@ -77,27 +77,28 @@ When a user runs `rtf run test-plan.yaml`, the following flow occurs:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## RTF and REP
+## RTF Orchestrator Service
 
-RTF and REP are related but distinct systems that serve different execution contexts:
+RTF and the Orchestrator are related but distinct systems that serve different execution contexts:
 
 - **RTF CLI** (`rtf`) is a local command-line tool. A developer runs it directly to perform actions
   against test plans on the same system the CLI is hosted on.
-- **REP (Runtime Environment Provisioner) Orchestrator Service** is a server-side system. It
-  receives Test Plans over HTTP, manages their execution in a REP provisioned cluster
-  asynchronously, and reports results back to callers via status endpoints.
+- **[RTF Orchestrator Service][1]** is a server-side system. It receives Test Plans over HTTP,
+  manages their execution in a provisioned cluster asynchronously, and reports results back to
+  callers via status endpoints.
 
-The handoff point between the two systems is the `RepPayload` — a resolved Test Plan produced by
-`rtf rep prepare` and submitted to REP via `POST /test-run/trigger`. REP does not replace the RTF
-CLI; they are complementary tools for different execution contexts.
+The handoff point between the two systems is the [Trigger Payload][1] — a resolved Test Plan
+produced by `rtf remote prepare` and submitted to the Orchestrator via `POST /test-run/trigger`. The
+Orchestrator does not replace the RTF CLI; they are complementary tools for different execution
+contexts.
 
-### REP data flow
+### Orchestrator data flow
 
-When a caller triggers a test run via REP:
+When a caller triggers a test run via the Orchestrator:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  POST /test-run/trigger (RepPayload)                                    │
+│  POST /test-run/trigger (Trigger Payload)                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼

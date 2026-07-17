@@ -15,8 +15,8 @@
     - [Writing a scenario](tutorials/test-plans/writing-a-scenario.md)
     - [Writing an environment](tutorials/test-plans/writing-an-environment.md)
     - [Using file providers](tutorials/test-plans/using-file-providers.md)
-  - [Running with the orchestrator](tutorials/running-with-the-orchestrator/index.md)
-    - [Making your test plan orchestrator-ready](tutorials/running-with-the-orchestrator/making-your-test-plan-orchestrator-ready.md)
+  - [Running with the Orchestrator](tutorials/running-with-the-orchestrator/index.md)
+    - [Making your test plan Orchestrator-ready](tutorials/running-with-the-orchestrator/making-your-test-plan-orchestrator-ready.md)
     - [Running and fetching results](tutorials/running-with-the-orchestrator/running-and-fetching-results.md)
   - [Writing custom providers](tutorials/custom-providers/index.md)
     - [Writing a custom provider definition](tutorials/custom-providers/writing-a-custom-provider-definition.md)
@@ -45,7 +45,7 @@
 
 # Developer Documentation
 
-- [Understanding RTF and REP](developer/explanation/index.md)
+- [Understanding RTF and the Orchestrator](developer/explanation/index.md)
   - [Concepts and Architecture](developer/explanation/concepts-and-architecture.md)
   - [Logging Philosophy](developer/explanation/logging-philosophy.md)
   - [Use of IO in Providers](developer/explanation/context.md)

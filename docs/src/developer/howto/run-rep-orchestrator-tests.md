@@ -50,7 +50,7 @@ The DB tests can also be run against the tilt stack (documented in the section b
 
 ## Integration tests
 
-Integration tests exercise the full HTTP API and require the complete tilt stack (orchestrator
+Integration tests exercise the full HTTP API and require the complete tilt stack (Orchestrator
 server + database).
 
 Set up the cluster:
