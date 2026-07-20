@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error","Status"],"fn":["upsert_variables"],"mod":["pool"],"struct":["StatusUpdate","TestExecution","TestRun"],"trait":["Queryable","StatusTracked","UpdateHandle"],"type":["Result"]};
+window.SIDEBAR_ITEMS = {"enum":["Error","Status"],"fn":["upsert_variables"],"mod":["pool"],"struct":["StatusUpdate","TestExecution","TestRun","TestRunFilter"],"trait":["Queryable","StatusTracked","UpdateHandle"],"type":["Result"]};
