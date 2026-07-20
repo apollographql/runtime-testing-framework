@@ -1,0 +1,13 @@
+name: null-environment-scenario
+description: Minimal DockerScenario for null-environment integration tests
+
+docker:
+  image: nginx
+  tag: alpine
+  command: "echo 'hello, world!' | tee $RTF_OUTPUT"
+
+output_collection:
+  prometheus:
+    - name: scenario_up
+      step: 15s
+      query: up

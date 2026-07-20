@@ -1,0 +1,12 @@
+name: null-environment-nginx
+description: Minimal fixture for null-environment ProvisionEnvironment integration tests
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
