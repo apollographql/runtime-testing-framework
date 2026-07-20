@@ -21,9 +21,11 @@ use std::{
 };
 
 mod docker_compose;
+mod null;
 mod script;
 
 pub use docker_compose::{DockerComposeEnvironment, FileProviderServices};
+pub use null::NullEnvironment;
 pub use script::ScriptEnvironment;
 
 /// # Environment Config
@@ -57,6 +59,7 @@ impl EnvironmentConfig<EnvironmentExecution> {
         match &self.execution {
             EnvironmentExecution::DockerCompose(ex) => Some(&ex.output_collection),
             EnvironmentExecution::Script(_) => None,
+            EnvironmentExecution::Null(_) => None,
         }
     }
 
@@ -203,15 +206,18 @@ impl<R: RunEnvironment> CheckArrayDuplicates for EnvironmentConfig<R> {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(
     untagged,
-    expecting = "expected docker-compose environment (with compose_files) or script environment (with setup/teardown)"
+    expecting = "expected null environment (skip: true), docker-compose environment (with compose_files) or script environment (with setup/teardown)"
 )]
 #[allow(clippy::large_enum_variant)] // We only ever allocate one of these, not multiples, so the difference in variant size should not be an issue
 pub enum EnvironmentExecution {
+    // Null needs to be the first variant in this enum to ensure that any time `skip: true` is set,
+    // we resolve to a NullEnvironment.
+    Null(NullEnvironment),
     DockerCompose(DockerComposeEnvironment),
     Script(ScriptEnvironment),
 }
 
-enum_impl_check!(EnvironmentExecution => Script, DockerCompose);
+enum_impl_check!(EnvironmentExecution => Null, DockerCompose, Script);
 
 impl RunEnvironment for EnvironmentExecution {
     async fn execute_setup(
@@ -221,6 +227,7 @@ impl RunEnvironment for EnvironmentExecution {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         match self {
+            EnvironmentExecution::Null(inner) => inner.execute_setup(name, out_dir, ctx).await,
             EnvironmentExecution::DockerCompose(inner) => {
                 inner.execute_setup(name, out_dir, ctx).await
             }
@@ -235,6 +242,7 @@ impl RunEnvironment for EnvironmentExecution {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         match self {
+            EnvironmentExecution::Null(inner) => inner.execute_teardown(name, out_dir, ctx).await,
             EnvironmentExecution::DockerCompose(inner) => {
                 inner.execute_teardown(name, out_dir, ctx).await
             }
@@ -246,6 +254,7 @@ impl RunEnvironment for EnvironmentExecution {
 impl RunProviders for EnvironmentExecution {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         match self {
+            EnvironmentExecution::Null(inner) => inner.named_providers(),
             EnvironmentExecution::DockerCompose(inner) => inner.named_providers(),
             EnvironmentExecution::Script(inner) => inner.named_providers(),
         }
@@ -258,6 +267,7 @@ impl RunProviders for EnvironmentExecution {
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
+            EnvironmentExecution::Null(inner) => inner.inline(mode, ctx, cache),
             EnvironmentExecution::DockerCompose(inner) => inner.inline(mode, ctx, cache),
             EnvironmentExecution::Script(inner) => inner.inline(mode, ctx, cache),
         }
@@ -269,6 +279,7 @@ impl CheckArrayDuplicates for EnvironmentExecution {
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
         match self {
+            EnvironmentExecution::Null(inner) => inner.deduplicated_arrays(),
             EnvironmentExecution::DockerCompose(inner) => inner.deduplicated_arrays(),
             EnvironmentExecution::Script(inner) => inner.deduplicated_arrays(),
         }
@@ -428,7 +439,7 @@ pub(crate) mod tests {
     };
     use indoc::indoc;
     use simple_test_case::test_case;
-    use std::collections::HashMap;
+    use std::{assert_matches, collections::HashMap};
 
     #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "setup2", "teardown1", "teardown2"]; "both setup and both teardown pending requires variables")]
     #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), r("teardown2")], &["setup1", "setup2", "teardown1"]; "both setup and single teardown pending requires variables")]
@@ -555,6 +566,54 @@ pub(crate) mod tests {
         let environment = EnvironmentConfig::empty();
 
         assert!(!environment.output_collection_defined());
+    }
+
+    #[test]
+    fn output_collection_defined_false_for_null_environment() {
+        let environment = EnvironmentConfig {
+            execution: EnvironmentExecution::Null(NullEnvironment { skip: true }),
+            ..EnvironmentConfig::empty()
+        };
+
+        assert!(!environment.output_collection_defined());
+    }
+
+    #[test]
+    fn skip_true_alongside_valid_non_null_environmment_parses_as_null_environment() {
+        let yaml = indoc!(
+            r#"
+            name: test
+            description: test
+            compose_files:
+              - name: compose.yaml
+                kind: inline
+                content: "services: {}"
+            skip: true"#
+        );
+
+        let config: EnvironmentConfig<EnvironmentExecution> =
+            serde_yaml::from_str(yaml).expect("environment config to parse");
+
+        assert_matches!(config.execution, EnvironmentExecution::Null(_));
+    }
+
+    #[test]
+    fn skip_false_alongside_valid_non_null_environmment_parses_as_that_environment() {
+        let yaml = indoc!(
+            r#"
+            name: test
+            description: test
+            compose_files:
+              - name: compose.yaml
+                kind: inline
+                content: "services: {}"
+            skip: false"#
+        );
+
+        let config: EnvironmentConfig<EnvironmentExecution> =
+            serde_yaml::from_str(yaml).expect("environment config to parse");
+
+        assert_matches!(config.execution, EnvironmentExecution::DockerCompose(_));
     }
 
     #[tokio::test]

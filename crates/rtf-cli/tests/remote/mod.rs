@@ -17,12 +17,12 @@ fn remote_prepare_output_contains_relative_file_content() {
 }
 
 #[test]
-fn remote_prepare_fails_with_non_docker_compose_environment() {
+fn remote_prepare_fails_with_incompatible_environment() {
     // docker-scenario fixture has a script environment + docker scenario
     let mut cmd = prepare_rtf_remote_prepare("resources/test-plans/valid/docker-scenario");
-    cmd.assert()
-        .failure()
-        .stderr(contains("missing field `compose_files`"));
+    cmd.assert().failure().stderr(contains(
+        "expected null or docker-compose environment when running via the Orchestrator",
+    ));
 }
 
 #[test]

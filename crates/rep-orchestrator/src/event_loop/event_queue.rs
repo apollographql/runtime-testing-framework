@@ -7,7 +7,9 @@ use crate::{
     state::TestRunWithPayload,
 };
 use rep_orchestrator_shared::{
-    OutputCollectionResponse, PrometheusQueries, payload::TriggerPayload, test_plan::RepTestPlan,
+    OutputCollectionResponse, PrometheusQueries,
+    payload::TriggerPayload,
+    test_plan::{RepEnvironment, RepTestPlan},
 };
 use rtf_config::{
     StableSource,
@@ -218,6 +220,19 @@ impl EventQueue {
                 .resolved_execution_cache
                 .get(&ex_id)
                 .map(|c| (c.docker_image.clone(), c.docker_command.clone()))
+        })
+        .await
+    }
+
+    pub(crate) async fn resolved_environment_for_execution(
+        &self,
+        ex_id: Uuid,
+    ) -> Option<RepEnvironment> {
+        self.with_shared(|shared| {
+            shared
+                .resolved_execution_cache
+                .get(&ex_id)
+                .map(|c| c.environment.clone())
         })
         .await
     }
@@ -558,6 +573,7 @@ impl ProvisioningHandle {
 
         let image = test_plan.scenario.execution.docker_image();
         let command = test_plan.scenario.execution.command();
+        let environment = test_plan.environment.execution.clone();
 
         let env_yaml = serde_yaml::to_string(&test_plan.environment)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
@@ -567,8 +583,7 @@ impl ProvisioningHandle {
         let env_prom_queries = test_plan
             .environment
             .execution
-            .output_collection
-            .prometheus
+            .prometheus_queries()
             .iter()
             .map(|q| {
                 q.with_namespace_label_filter(&ex.uuid().to_string())
@@ -602,6 +617,7 @@ impl ProvisioningHandle {
                     output_collection,
                     docker_image: image,
                     docker_command: command,
+                    environment,
                 },
             );
 
@@ -820,6 +836,7 @@ struct ResolvedExecutionConfig {
     output_collection: OutputCollectionResponse,
     docker_image: String,
     docker_command: String,
+    environment: RepEnvironment,
 }
 
 #[derive(Debug)]
@@ -902,7 +919,7 @@ mod tests {
         event_loop::tests::stub_test_plan,
     };
     use rep_orchestrator_shared::payload::SourceKeyedArrayMap;
-    use rtf_config::templating::Scalar;
+    use rtf_config::{formats::NullEnvironment, templating::Scalar};
     use simple_test_case::test_case;
     use std::{collections::HashMap, time::Duration};
 
@@ -1287,8 +1304,88 @@ mod tests {
                 !cached.docker_command.is_empty(),
                 "scenario docker command should be cached"
             );
+            assert!(
+                matches!(cached.environment, RepEnvironment::DockerCompose(_)),
+                "expected the typed environment to be cached, got {:?}",
+                cached.environment
+            );
         })
         .await;
+    }
+
+    #[tokio::test]
+    async fn resolve_and_cache_config_caches_null_environment_with_no_prometheus_queries() {
+        let cfg = dummy_config();
+        let (_, ph, _, _) = EventQueue::new(1, 100);
+        let run_uuid = Uuid::new_v4();
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let mut test_plan = stub_test_plan();
+        test_plan.environment.execution = RepEnvironment::Null(NullEnvironment { skip: true });
+
+        let ctx = RepContext::new(&cfg, empty_source_map(), empty_source_map());
+        ph.cache_for_test_run(run_uuid, ctx, test_plan).await;
+        ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
+            .await;
+
+        let res = ph.resolve_and_cache_config(&ex).await;
+        assert!(res.is_ok(), "{res:?}");
+
+        ph.with_shared(|shared| {
+            let cached = shared
+                .resolved_execution_cache
+                .get(&ex.uuid())
+                .expect("execution config should be cached");
+
+            assert!(
+                matches!(cached.environment, RepEnvironment::Null(_)),
+                "expected a null environment to be cached, got {:?}",
+                cached.environment
+            );
+            assert!(
+                cached.output_collection.prometheus.environment.is_empty(),
+                "expected no environment prometheus queries for a null environment"
+            );
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn resolved_environment_for_execution_returns_cached_environment() {
+        let (eq, ph, _, _) = EventQueue::new(1, 100);
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let res = eq.resolved_environment_for_execution(ex.uuid()).await;
+        assert!(
+            res.is_none(),
+            "expected no cached environment before resolution, got {res:?}"
+        );
+
+        ph.with_shared(|shared| {
+            shared.resolved_execution_cache.insert(
+                ex.uuid(),
+                ResolvedExecutionConfig {
+                    env_yaml: "yaml".to_string(),
+                    scenario_yaml: "yaml".to_string(),
+                    output_collection: OutputCollectionResponse {
+                        prometheus: PrometheusQueries {
+                            environment: Vec::new(),
+                            scenario: Vec::new(),
+                        },
+                    },
+                    docker_image: "image".to_string(),
+                    docker_command: "command".to_string(),
+                    environment: RepEnvironment::Null(NullEnvironment { skip: true }),
+                },
+            );
+        })
+        .await;
+
+        let res = eq.resolved_environment_for_execution(ex.uuid()).await;
+        assert!(
+            matches!(res, Some(RepEnvironment::Null(_))),
+            "expected the cached null environment to be returned, got {res:?}"
+        );
     }
 
     #[tokio::test]
@@ -1312,6 +1409,7 @@ mod tests {
                     },
                     docker_image: "image".to_string(),
                     docker_command: "command".to_string(),
+                    environment: RepEnvironment::Null(NullEnvironment { skip: true }),
                 },
             );
         })

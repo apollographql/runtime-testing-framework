@@ -321,7 +321,7 @@ where
             execution_statuses
                 .into_iter()
                 .reduce(|l, r| l.combine(r))
-                .and_then(|s| if s.is_terminal() { Some(s) } else { None })
+                .filter(|&s| s.is_terminal())
         }
 
         _ => None,
@@ -360,7 +360,10 @@ mod tests {
         db::status::{Status, StatusTracked},
     };
     use Status::*;
-    use rep_orchestrator_shared::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
+    use rep_orchestrator_shared::{
+        payload::SourceKeyedArrayMap,
+        test_plan::{RepEnvironment, RepTestPlan},
+    };
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
@@ -654,13 +657,13 @@ mod tests {
                     description: String::new(),
                     variable_definitions: vec![],
                     custom_providers: vec![],
-                    execution: DockerComposeEnvironment {
+                    execution: RepEnvironment::DockerCompose(DockerComposeEnvironment {
                         project_name: None,
                         compose_files: vec![],
                         file_providers: vec![],
                         env_vars: Default::default(),
                         output_collection: OutputCollection { prometheus: vec![] },
-                    },
+                    }),
                 },
             },
             relative_files: SourceKeyedArrayMap::from_data(HashMap::new()),

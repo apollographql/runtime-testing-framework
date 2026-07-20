@@ -344,7 +344,6 @@ impl Check for DockerComposeEnvironment {
     }
 }
 
-#[allow(async_fn_in_trait)]
 impl RunProviders for DockerComposeEnvironment {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         let mut providers = self.compose_files.named_providers();

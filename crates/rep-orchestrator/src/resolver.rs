@@ -296,7 +296,7 @@ mod tests {
     use indoc::indoc;
     use rep_orchestrator_shared::{
         payload::{SourceKeyedArrayMap, TriggerPayload},
-        test_plan::RepTestPlan,
+        test_plan::{RepEnvironment, RepTestPlan},
     };
     use rtf_config::{
         formats::{
@@ -339,7 +339,7 @@ mod tests {
         }
     }
 
-    fn minimal_rep_test_plan() -> RepTestPlan {
+    fn minimal_rep_test_plan(compose_files: Vec<NamedComposeFileProvider>) -> RepTestPlan {
         RepTestPlan {
             name: "test".to_string(),
             description: "test".to_string(),
@@ -367,13 +367,13 @@ mod tests {
                 description: "test".to_string(),
                 variable_definitions: vec![],
                 custom_providers: vec![],
-                execution: DockerComposeEnvironment {
+                execution: RepEnvironment::DockerCompose(DockerComposeEnvironment {
                     project_name: None,
-                    compose_files: vec![],
+                    compose_files,
                     file_providers: vec![],
                     env_vars: HashMap::new(),
                     output_collection: OutputCollection { prometheus: vec![] },
-                },
+                }),
             },
         }
     }
@@ -381,7 +381,7 @@ mod tests {
     fn empty_payload() -> TriggerPayload {
         TriggerPayload {
             variables: None,
-            test_plan: minimal_rep_test_plan(),
+            test_plan: minimal_rep_test_plan(vec![]),
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
                 data: vec![],
@@ -395,7 +395,7 @@ mod tests {
 
     fn payload_with_conflicting_var() -> TriggerPayload {
         // Conflicting key in both variables and matrix dimensions triggers TemplatingCheck
-        let mut test_plan = minimal_rep_test_plan();
+        let mut test_plan = minimal_rep_test_plan(vec![]);
         test_plan
             .variables
             .insert("my_var".to_string(), Scalar::String("default".to_string()));
@@ -425,7 +425,7 @@ mod tests {
 
     fn payload_with_bad_variant_names() -> TriggerPayload {
         // variant_names references a variable not in dimensions → MatrixExpansion fails
-        let mut test_plan = minimal_rep_test_plan();
+        let mut test_plan = minimal_rep_test_plan(vec![]);
         test_plan.matrix = Matrix {
             variant_names: Some("${nonexistent}".to_string()),
             dimensions: [("a".to_string(), vec![Scalar::String("val1".to_string())])].into(),
@@ -471,7 +471,7 @@ mod tests {
                 data: vec![],
             },
         );
-        let tp = minimal_rep_test_plan();
+        let tp = minimal_rep_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
         ph.cache_for_test_run(run_uuid, ctx, tp).await;
         ph.request_provisioning(ex.clone(), run_uuid).await.unwrap();
@@ -595,8 +595,7 @@ mod tests {
             "#
         ))
         .expect("required compose file provider must deserialize");
-        let mut test_plan = minimal_rep_test_plan();
-        test_plan.environment.execution.compose_files = vec![required_compose];
+        let test_plan = minimal_rep_test_plan(vec![required_compose]);
         let payload = TriggerPayload {
             variables: None,
             test_plan,

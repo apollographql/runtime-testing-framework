@@ -1,9 +1,9 @@
 use crate::{
     db::{TestExecution, UpdateHandle},
-    event_loop::{Error, Event, EventData, Result},
+    event_loop::{Error, Event, EventData, EventLoopConfig, Result},
     k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec},
 };
-use rep_orchestrator_shared::OtelConfig;
+use rep_orchestrator_shared::test_plan::RepEnvironment;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
@@ -14,10 +14,8 @@ pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
 
 pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
-    orchestrator_url: &str,
-    toolbox_pull_policy: &str,
-    otel: &OtelConfig,
-    kubeconfig_secret_name: &str,
+    environment: &RepEnvironment,
+    cfg: &EventLoopConfig<'_>,
     clients: K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
@@ -36,10 +34,11 @@ where
             &execution_id,
             WorkflowSpec::for_execution(
                 &test_execution,
-                orchestrator_url,
-                toolbox_pull_policy,
-                otel,
-                kubeconfig_secret_name,
+                environment,
+                cfg.orchestrator_url,
+                cfg.toolbox_pull_policy,
+                cfg.otel,
+                cfg.kubeconfig_secret_name,
             ),
         )
         .await
@@ -146,8 +145,20 @@ mod tests {
             mock_client::{MockClient, Resp},
         },
     };
+    use rep_orchestrator_shared::OtelConfig;
+    use rtf_config::formats::DockerComposeEnvironment;
     use simple_test_case::test_case;
     use tokio::sync::mpsc;
+
+    fn stub_docker_compose_environment() -> RepEnvironment {
+        RepEnvironment::DockerCompose(DockerComposeEnvironment {
+            project_name: None,
+            compose_files: vec![],
+            file_providers: vec![],
+            env_vars: Default::default(),
+            output_collection: Default::default(),
+        })
+    }
 
     #[tokio::test]
     async fn full_happy_path_sets_expected_statuses() {
@@ -159,13 +170,20 @@ mod tests {
         // create workflow
         let res = create_workflow(
             ex.clone(),
-            "http://localhost:8035",
-            "IfNotPresent",
-            &OtelConfig {
-                grpc: "http://otel:4317".to_string(),
-                http: "http://otel:4318".to_string(),
+            &stub_docker_compose_environment(),
+            &EventLoopConfig {
+                orchestrator_url: "http://localhost:8035",
+                prometheus_endpoint: "",
+                toolbox_pull_policy: "IfNotPresent",
+                otel: &OtelConfig {
+                    grpc: "http://otel:4317".to_string(),
+                    http: "http://otel:4318".to_string(),
+                },
+                kubeconfig_secret_name: "",
+                failed_execution_ttl_seconds: 1,
+                kubeconfig_path: "",
+                workload_context: "workload-kubeconfig",
             },
-            "workload-kubeconfig",
             clients.clone(),
             &mut handle,
         )
@@ -197,13 +215,20 @@ mod tests {
 
         let res = create_workflow(
             ex,
-            "http://localhost:8035",
-            "IfNotPresent",
-            &OtelConfig {
-                grpc: "http://otel:4317".to_string(),
-                http: "http://otel:4318".to_string(),
+            &stub_docker_compose_environment(),
+            &EventLoopConfig {
+                orchestrator_url: "http://localhost:8035",
+                prometheus_endpoint: "",
+                toolbox_pull_policy: "IfNotPresent",
+                otel: &OtelConfig {
+                    grpc: "http://otel:4317".to_string(),
+                    http: "http://otel:4318".to_string(),
+                },
+                kubeconfig_secret_name: "",
+                failed_execution_ttl_seconds: 1,
+                kubeconfig_path: "",
+                workload_context: "workload-kubeconfig",
             },
-            "workload-kubeconfig",
             clients,
             &mut handle,
         )

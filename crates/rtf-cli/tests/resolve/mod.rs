@@ -179,6 +179,32 @@ fn resolve_environment_is_executable() {
 }
 
 #[test]
+fn resolve_null_environment_creates_expected_output() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from("resources/environments/valid/null-based", &["**"])
+        .unwrap();
+
+    let output_dir = tmp.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("environment")
+        .arg(tmp.child("environment.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("-v")
+        .assert();
+
+    res.success().stderr(contains("done"));
+
+    // A null environment resolves to nothing: no setup/teardown output at all
+    assert!(!output_dir.child("setup").exists());
+    assert!(!output_dir.child("teardown").exists());
+}
+
+#[test]
 fn resolve_script_environment_creates_expected_output() {
     let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from("resources/environments/valid/script-based", &["**"])

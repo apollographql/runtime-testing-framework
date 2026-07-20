@@ -6,9 +6,14 @@ edition.workspace = true
 [dependencies]
 rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
+rtf-derive = { path = "../rtf-derive" }
 
 anyhow.workspace = true
 chrono.workspace = true
+schemars.workspace = true
 serde.workspace = true
 tracing.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+serde_yaml.workspace = true

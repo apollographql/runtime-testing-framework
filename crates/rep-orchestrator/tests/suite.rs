@@ -176,6 +176,170 @@ async fn full_test_run_happy_path_completes_successfully() {
 
 #[tokio::test]
 #[serial]
+async fn full_test_run_happy_path_completes_successfully_with_null_environment() {
+    let t = TestHelper::new();
+    let run: TestRunSummary = t
+        .json_post(
+            "test-run/trigger",
+            t.prepare_rep_payload("resources/test-plans/valid/null-environment")
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Wait for the run to enter a successful status
+    let ex_id = t
+        .poll_for_execution_id(run.id, Duration::from_secs(5))
+        .await;
+    t.poll_for_status(ex_id, Successful, Duration::from_secs(180))
+        .await;
+
+    // Fetch and validate the log output
+    let log_txt = t
+        .get_text(format!("test-execution/{ex_id}/log.txt"))
+        .await
+        .unwrap();
+
+    assert!(log_txt.ends_with("hello, world!\n"), "{log_txt:?}");
+
+    // Fetch and validate the output.zip
+    let bytes = t
+        .get_bytes(format!("test-execution/{ex_id}/output.zip"))
+        .await
+        .unwrap();
+
+    let mut zip = ZipArchive::new(io::Cursor::new(bytes))
+        .context("unable to parse zip file")
+        .unwrap();
+
+    let mut file_names = Vec::with_capacity(zip.len());
+    let mut rtf_output_content = None;
+
+    for i in 0..zip.len() {
+        let mut file = zip.by_index(i).unwrap();
+        file_names.push(file.name().to_string());
+
+        if file.name().ends_with("RTF_OUTPUT") {
+            let mut s = String::new();
+            file.read_to_string(&mut s)
+                .context("unable to read RTF_OUTPUT file")
+                .unwrap();
+            rtf_output_content = Some(s);
+        }
+    }
+
+    let content = rtf_output_content
+        .unwrap_or_else(|| panic!("no RTF_OUTPUT file in output.zip. Got: {file_names:#?}"));
+    assert_eq!(content, "hello, world!\n", "unexpected RTF_OUTPUT content");
+
+    let log_entries: Vec<String> = file_names
+        .iter()
+        .filter(|n| n.starts_with("output/logs/"))
+        .cloned()
+        .collect();
+    assert!(
+        !log_entries.is_empty(),
+        "expected log files in output.zip, got: {file_names:#?}"
+    );
+
+    // Verify the first log file is readable (content may legitimately be empty)
+    let first_log = log_entries.first().unwrap().clone();
+    {
+        let mut log_file = zip.by_name(&first_log).unwrap();
+        let mut log_content = String::new();
+        log_file
+            .read_to_string(&mut log_content)
+            .context("unable to read log file")
+            .unwrap();
+    }
+
+    // Verify events.json is present, valid JSON, and non-empty
+    assert!(
+        file_names.iter().any(|n| n == "output/events.json"),
+        "expected output/events.json in output.zip; got: {file_names:#?}",
+    );
+    let mut events_buf = String::new();
+    zip.by_name("output/events.json")
+        .unwrap()
+        .read_to_string(&mut events_buf)
+        .context("unable to read events.json")
+        .unwrap();
+    assert!(!events_buf.is_empty(), "events.json must not be empty");
+    serde_json::from_str::<serde_json::Value>(&events_buf)
+        .context("events.json must be valid JSON")
+        .unwrap();
+
+    // Verify resource-metrics.json is present, valid JSON, and non-empty
+    assert!(
+        file_names
+            .iter()
+            .any(|n| n == "output/resource-metrics.json"),
+        "expected output/resource-metrics.json in output.zip; got: {file_names:#?}",
+    );
+    let mut metrics_buf = String::new();
+    zip.by_name("output/resource-metrics.json")
+        .unwrap()
+        .read_to_string(&mut metrics_buf)
+        .context("unable to read resource-metrics.json")
+        .unwrap();
+    assert!(
+        !metrics_buf.is_empty(),
+        "resource-metrics.json must not be empty"
+    );
+    serde_json::from_str::<serde_json::Value>(&metrics_buf)
+        .context("resource-metrics.json must be valid JSON")
+        .unwrap();
+
+    // Verify prometheus query collection for the scenario side only. A null environment has no
+    // output_collection of its own (it never runs a deploy-environment step at all), so unlike
+    // the docker-compose happy path, only output/prometheus/scenario/{name}.json should exist -
+    // there must be no output/prometheus/environment/ directory whatsoever.
+    let path = "output/prometheus/scenario/scenario_up.json";
+    assert!(
+        file_names.iter().any(|n| n == path),
+        "expected {path} in output.zip; got: {file_names:#?}",
+    );
+
+    let mut buf = String::new();
+    zip.by_name(path)
+        .unwrap()
+        .read_to_string(&mut buf)
+        .context(format!("unable to read {path}"))
+        .unwrap();
+
+    let value: serde_json::Value = serde_json::from_str(&buf)
+        .context(format!("{path} must be valid JSON"))
+        .unwrap();
+
+    let expected_query = PrometheusQuery {
+        name: "scenario_up".to_string(),
+        step: "15s".to_string(),
+        query: "up".to_string(),
+    }
+    .with_namespace_label_filter(&ex_id.to_string())
+    .unwrap()
+    .query;
+
+    let actual_query = value["result"][0]["metric"]["query"]
+        .as_str()
+        .unwrap_or_else(|| panic!("expected result[0].metric.query in {path}: {value:#?}"));
+
+    assert_eq!(
+        actual_query, expected_query,
+        "{path}: prometheus query did not have the namespace label injected"
+    );
+
+    assert!(
+        !file_names
+            .iter()
+            .any(|n| n.starts_with("output/prometheus/environment/")),
+        "expected no environment-side prometheus output for a null environment; got: {file_names:#?}"
+    );
+}
+
+#[tokio::test]
+#[serial]
 async fn unknown_docker_image_in_environment_marks_execution_unrunnable() {
     let t = TestHelper::new();
     let run: TestRunSummary = t
