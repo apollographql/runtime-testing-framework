@@ -1,13 +1,18 @@
 use crate::{
     db::TestExecution,
+    k8s::workflow::as_workflow::AsWorkflowTasks,
     k8s::{CLI_BINARY, TOOLBOX_IMAGE},
 };
 use k8s_openapi::api::core::v1::{Container, EnvVar, SecretVolumeSource, Volume, VolumeMount};
 use kube::CustomResource;
-use rep_orchestrator_shared::OtelConfig;
+use rep_orchestrator_shared::{OtelConfig, test_plan::RepEnvironment};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+mod as_workflow;
+
+const CREATE_NAMESPACE: &str = "create-namespace";
+const CREATE_SERVICE_ACCOUNT: &str = "create-service-account";
 const TTL_SECONDS_AFTER_FINISHED: i32 = 10; // cleanup after 10s
 const TTL_SECONDS_AFTER_FAILED: i32 = 120; // cleanup after 2m when failed for debugging
 
@@ -55,6 +60,7 @@ pub struct WorkflowSpec {
 impl WorkflowSpec {
     pub fn for_execution(
         ex: &TestExecution,
+        env: &RepEnvironment,
         orchestrator_url: &str,
         toolbox_pull_policy: &str,
         otel: &OtelConfig,
@@ -64,28 +70,25 @@ impl WorkflowSpec {
         let env_vars = ex.toolbox_env_vars(orchestrator_url);
         let namespace = execution_id.to_string();
 
+        let mut templates = vec![
+            TemplateDef::Main(MainTemplate::new(env)),
+            TemplateDef::Task(create_namespace(
+                &namespace,
+                toolbox_pull_policy,
+                env_vars.clone(),
+            )),
+            TemplateDef::Task(create_service_account(
+                &namespace,
+                toolbox_pull_policy,
+                env_vars.clone(),
+            )),
+        ];
+        templates.extend(env.tasks(&namespace, toolbox_pull_policy, otel, env_vars.clone()));
+
         Self {
             service_account_name: "argo-workflow".to_owned(),
             entrypoint: "main".to_owned(),
-            templates: vec![
-                TemplateDef::Main(MainTemplate::new()),
-                TemplateDef::Task(create_namespace(
-                    &namespace,
-                    toolbox_pull_policy,
-                    env_vars.clone(),
-                )),
-                TemplateDef::Task(create_service_account(
-                    &namespace,
-                    toolbox_pull_policy,
-                    env_vars.clone(),
-                )),
-                TemplateDef::Task(deploy_environment(
-                    &namespace,
-                    toolbox_pull_policy,
-                    otel,
-                    env_vars.clone(),
-                )),
-            ],
+            templates,
             volumes: vec![Volume {
                 name: "kubeconfig".into(),
                 secret: Some(SecretVolumeSource {
@@ -122,17 +125,16 @@ pub struct MainTemplate {
 }
 
 impl MainTemplate {
-    #[expect(clippy::new_without_default)]
-    pub fn new() -> Self {
+    pub fn new(env: &RepEnvironment) -> Self {
+        let mut tasks = vec![
+            TaskSpec::new(CREATE_NAMESPACE, &[]),
+            TaskSpec::new(CREATE_SERVICE_ACCOUNT, &[CREATE_NAMESPACE]),
+        ];
+        tasks.extend(env.specs(CREATE_SERVICE_ACCOUNT));
+
         Self {
             name: "main".into(),
-            dag: Dag {
-                tasks: vec![
-                    TaskSpec::new("create-namespace", &[]),
-                    TaskSpec::new("create-service-account", &["create-namespace"]),
-                    TaskSpec::new("deploy-environment", &["create-service-account"]),
-                ],
-            },
+            dag: Dag { tasks },
         }
     }
 }
@@ -205,7 +207,7 @@ fn kubeconfig_volume_mount() -> VolumeMount {
 
 fn create_namespace(namespace: &str, toolbox_pull_policy: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
-        "create-namespace",
+        CREATE_NAMESPACE,
         toolbox_pull_policy,
         vec![
             "create-namespace".into(),
@@ -226,7 +228,7 @@ fn create_service_account(
     env: Vec<EnvVar>,
 ) -> TaskTemplate {
     TaskTemplate::new(
-        "create-service-account",
+        CREATE_SERVICE_ACCOUNT,
         toolbox_pull_policy,
         vec![
             "create-service-account".into(),
@@ -241,32 +243,43 @@ fn create_service_account(
     )
 }
 
-fn deploy_environment(
-    namespace: &str,
-    toolbox_pull_policy: &str,
-    otel: &OtelConfig,
-    env: Vec<EnvVar>,
-) -> TaskTemplate {
-    TaskTemplate::new(
-        "deploy-environment",
-        toolbox_pull_policy,
-        vec![
-            "deploy-environment".into(),
-            "--namespace".into(),
-            namespace.into(),
-            "--kubeconfig".into(),
-            KUBECONFIG_PATH.into(),
-            "--toolbox-pull-policy".into(),
-            toolbox_pull_policy.into(),
-            "--provider-dir".into(),
-            "/providers".into(),
-            "--otel-collector-grpc".into(),
-            otel.grpc.clone(),
-            "--otel-collector-http".into(),
-            otel.http.clone(),
-        ],
-        vec![kubeconfig_volume_mount()],
-        None,
-        env,
-    )
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::k8s::workflow::as_workflow::DEPLOY_ENVIRONMENT;
+    use rtf_config::formats::{DockerComposeEnvironment, NullEnvironment};
+
+    #[test]
+    fn main_template_includes_deploy_environment_for_docker_compose() {
+        let env = RepEnvironment::DockerCompose(DockerComposeEnvironment {
+            project_name: None,
+            compose_files: vec![],
+            file_providers: vec![],
+            env_vars: Default::default(),
+            output_collection: Default::default(),
+        });
+
+        let main = MainTemplate::new(&env);
+
+        let names: Vec<&str> = main.dag.tasks.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec![CREATE_NAMESPACE, CREATE_SERVICE_ACCOUNT, DEPLOY_ENVIRONMENT]
+        );
+
+        let deploy = &main.dag.tasks[2];
+        assert_eq!(
+            deploy.dependencies,
+            vec![CREATE_SERVICE_ACCOUNT.to_string()]
+        );
+    }
+
+    #[test]
+    fn main_template_omits_deploy_environment_for_null() {
+        let env = RepEnvironment::Null(NullEnvironment { skip: true });
+        let main = MainTemplate::new(&env);
+
+        let names: Vec<&str> = main.dag.tasks.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, vec![CREATE_NAMESPACE, CREATE_SERVICE_ACCOUNT]);
+    }
 }

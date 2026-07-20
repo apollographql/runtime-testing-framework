@@ -119,9 +119,10 @@ impl RepContext {
             .inline_compose_files(self, inline_cache)
             .await?;
 
-        Ok(FileProviderServices::from_inline(
-            &variant.environment.execution,
-        ))
+        Ok(variant
+            .environment
+            .execution
+            .file_provider_services_from_inline())
     }
 }
 

@@ -3798,7 +3798,10 @@ dependencies = [
  "chrono",
  "rtf-config",
  "rtf-core",
+ "rtf-derive",
+ "schemars 1.2.1",
  "serde",
+ "serde_yaml",
  "tracing",
  "uuid",
 ]

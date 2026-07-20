@@ -201,12 +201,17 @@ impl Event {
                         |e| error!(%e, "failed to build management k8s client for CreateEnvArgoWorkflow"),
                     )?;
 
+                let environment = event_queue
+                    .resolved_environment_for_execution(self.test_execution.uuid())
+                    .await
+                    .ok_or_else(|| {
+                        Error::Resolve(ResolverError::UnknownExecution(self.test_execution.uuid()))
+                    })?;
+
                 provision_environment::create_workflow(
                     self.test_execution.clone(),
-                    cfg.orchestrator_url,
-                    cfg.toolbox_pull_policy,
-                    cfg.otel,
-                    cfg.kubeconfig_secret_name,
+                    &environment,
+                    cfg,
                     clients,
                     conn,
                 )
@@ -377,7 +382,7 @@ mod tests {
         db::{MockUpdateHandle, TestExecution},
         k8s::mock_client::MockClient,
     };
-    use rep_orchestrator_shared::test_plan::RepTestPlan;
+    use rep_orchestrator_shared::test_plan::{RepEnvironment, RepTestPlan};
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
@@ -457,7 +462,7 @@ mod tests {
                 description: String::new(),
                 variable_definitions: vec![],
                 custom_providers: vec![],
-                execution: stub_environment(),
+                execution: RepEnvironment::DockerCompose(stub_environment()),
             },
         }
     }
