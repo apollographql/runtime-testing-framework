@@ -215,7 +215,7 @@
 <a href=#215 id=215 data-nosnippet>215</a>    #[tokio::test]
 <a href=#216 id=216 data-nosnippet>216</a>    </span><span class="kw">async fn </span>init_creates_execution_with_initialising_status() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>res = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span>;
 <a href=#220 id=220 data-nosnippet>220</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"{res:?}"</span>);
 <a href=#221 id=221 data-nosnippet>221</a>
@@ -230,7 +230,7 @@
 <a href=#230 id=230 data-nosnippet>230</a>    #[tokio::test]
 <a href=#231 id=231 data-nosnippet>231</a>    </span><span class="kw">async fn </span>get_by_id_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#232 id=232 data-nosnippet>232</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">let </span>ex1 = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#235 id=235 data-nosnippet>235</a>        <span class="kw">let </span>ex2 = TestExecution::get_by_id(ex1.id, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#236 id=236 data-nosnippet>236</a>
@@ -243,7 +243,7 @@
 <a href=#243 id=243 data-nosnippet>243</a>    #[tokio::test]
 <a href=#244 id=244 data-nosnippet>244</a>    </span><span class="kw">async fn </span>get_by_id_unchecked_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#245 id=245 data-nosnippet>245</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#247 id=247 data-nosnippet>247</a>        <span class="kw">let </span>ex1 = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>ex2 = TestExecution::get_by_id_unchecked(ex1.id, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#249 id=249 data-nosnippet>249</a>
@@ -256,7 +256,7 @@
 <a href=#256 id=256 data-nosnippet>256</a>    #[tokio::test]
 <a href=#257 id=257 data-nosnippet>257</a>    </span><span class="kw">async fn </span>get_by_uuid_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#258 id=258 data-nosnippet>258</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#259 id=259 data-nosnippet>259</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">let </span>ex1 = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">let </span>ex2 = TestExecution::get_by_uuid(<span class="kw-2">&amp;</span>ex1.uuid, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#262 id=262 data-nosnippet>262</a>
@@ -270,7 +270,7 @@
 <a href=#270 id=270 data-nosnippet>270</a>    </span><span class="kw">async fn </span>test_run_returns_parent_run() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#271 id=271 data-nosnippet>271</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#272 id=272 data-nosnippet>272</a>
-<a href=#273 id=273 data-nosnippet>273</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"A"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#273 id=273 data-nosnippet>273</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"A"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">let </span>ex1 = TestExecution::init(<span class="string">"a"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#275 id=275 data-nosnippet>275</a>        <span class="kw">let </span>ex2 = TestExecution::init(<span class="string">"b"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#276 id=276 data-nosnippet>276</a>
@@ -288,7 +288,7 @@
 <a href=#288 id=288 data-nosnippet>288</a>    </span><span class="kw">async fn </span>set_exit_code_persists_value() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#289 id=289 data-nosnippet>289</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#290 id=290 data-nosnippet>290</a>
-<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"A"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"A"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">let </span><span class="kw-2">mut </span>ex1 = TestExecution::init(<span class="string">"a"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#293 id=293 data-nosnippet>293</a>
 <a href=#294 id=294 data-nosnippet>294</a>        <span class="macro">assert!</span>(ex1.exit_code.is_none(), <span class="string">"after init: {ex1:?}"</span>);
@@ -307,7 +307,7 @@
 <a href=#307 id=307 data-nosnippet>307</a>    </span><span class="kw">async fn </span>mark_has_file_upload_persists_value() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#309 id=309 data-nosnippet>309</a>
-<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"A"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"A"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#311 id=311 data-nosnippet>311</a>        <span class="kw">let </span><span class="kw-2">mut </span>ex1 = TestExecution::init(<span class="string">"a"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#312 id=312 data-nosnippet>312</a>
 <a href=#313 id=313 data-nosnippet>313</a>        <span class="macro">assert!</span>(!ex1.has_file_upload, <span class="string">"after init: {ex1:?}"</span>);
@@ -331,7 +331,7 @@
 <a href=#331 id=331 data-nosnippet>331</a>    #[tokio::test]
 <a href=#332 id=332 data-nosnippet>332</a>    </span><span class="kw">async fn </span>set_status_and_current_status_match(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#335 id=335 data-nosnippet>335</a>        <span class="kw">let </span>ex = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#336 id=336 data-nosnippet>336</a>
 <a href=#337 id=337 data-nosnippet>337</a>        ex.set_status(status, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -346,7 +346,7 @@
 <a href=#346 id=346 data-nosnippet>346</a>    #[tokio::test]
 <a href=#347 id=347 data-nosnippet>347</a>    </span><span class="kw">async fn </span>status_history_returns_entries_newest_first() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">let </span>ex = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>; <span class="comment">// sets Status::Initialising
 <a href=#351 id=351 data-nosnippet>351</a>        </span>ex.set_status(Status::Running, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#352 id=352 data-nosnippet>352</a>        ex.set_status(Status::Successful, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -367,7 +367,7 @@
 <a href=#367 id=367 data-nosnippet>367</a>    #[tokio::test]
 <a href=#368 id=368 data-nosnippet>368</a>    </span><span class="kw">async fn </span>set_terminal_status_sets_completed_at(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#369 id=369 data-nosnippet>369</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#370 id=370 data-nosnippet>370</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">let </span>ex = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#372 id=372 data-nosnippet>372</a>        <span class="macro">assert!</span>(ex.completed_at.is_none());
 <a href=#373 id=373 data-nosnippet>373</a>
@@ -385,7 +385,7 @@
 <a href=#385 id=385 data-nosnippet>385</a>    #[tokio::test]
 <a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">async fn </span>set_non_terminal_status_does_not_set_completed_at(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>ex = TestExecution::init(<span class="string">"test"</span>, tr.id(), <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#390 id=390 data-nosnippet>390</a>        <span class="macro">assert!</span>(ex.completed_at.is_none());
 <a href=#391 id=391 data-nosnippet>391</a>
@@ -406,7 +406,7 @@
 <a href=#406 id=406 data-nosnippet>406</a>        execution_status: Status,
 <a href=#407 id=407 data-nosnippet>407</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#408 id=408 data-nosnippet>408</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = run_status {
 <a href=#411 id=411 data-nosnippet>411</a>            tr.set_status(s, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#412 id=412 data-nosnippet>412</a>        }
@@ -425,7 +425,7 @@
 <a href=#425 id=425 data-nosnippet>425</a>    #[tokio::test]
 <a href=#426 id=426 data-nosnippet>426</a>    </span><span class="kw">async fn </span>execution_provisioning_and_running_are_high_water_mark(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#429 id=429 data-nosnippet>429</a>        tr.set_status(status, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#430 id=430 data-nosnippet>430</a>        <span class="kw">let </span>ex = tr.init_execution(<span class="string">"test"</span>, <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#431 id=431 data-nosnippet>431</a>
@@ -449,7 +449,7 @@
 <a href=#449 id=449 data-nosnippet>449</a>    #[tokio::test]
 <a href=#450 id=450 data-nosnippet>450</a>    </span><span class="kw">async fn </span>single_execution_terminal_status_propagates_immediately(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#451 id=451 data-nosnippet>451</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#453 id=453 data-nosnippet>453</a>        <span class="kw">let </span>ex = tr.init_execution(<span class="string">"test"</span>, <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#454 id=454 data-nosnippet>454</a>        ex.set_status(status, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#455 id=455 data-nosnippet>455</a>
@@ -463,7 +463,7 @@
 <a href=#463 id=463 data-nosnippet>463</a>    #[tokio::test]
 <a href=#464 id=464 data-nosnippet>464</a>    </span><span class="kw">async fn </span>terminal_status_propagation_requires_all_executions() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#467 id=467 data-nosnippet>467</a>        <span class="kw">let </span>ex1 = tr.init_execution(<span class="string">"a"</span>, <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#468 id=468 data-nosnippet>468</a>        <span class="kw">let </span>ex2 = tr.init_execution(<span class="string">"b"</span>, <span class="number">1</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#469 id=469 data-nosnippet>469</a>        <span class="kw">let </span>ex3 = tr.init_execution(<span class="string">"c"</span>, <span class="number">2</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;

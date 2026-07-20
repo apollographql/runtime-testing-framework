@@ -62,7 +62,7 @@
 <a href=#62 id=62 data-nosnippet>62</a>    </span><span class="kw">async fn </span>handler_marks_file_upload_as_requested() -&gt; anyhow::Result&lt;()&gt; {
 <a href=#63 id=63 data-nosnippet>63</a>        <span class="kw">let </span>tss = TestServerState::new();
 <a href=#64 id=64 data-nosnippet>64</a>        <span class="kw">let </span>conn = <span class="macro">conn!</span>();
-<a href=#65 id=65 data-nosnippet>65</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#65 id=65 data-nosnippet>65</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#66 id=66 data-nosnippet>66</a>        <span class="kw">let </span>ex = tr.init_execution(<span class="string">"test"</span>, <span class="number">0</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#67 id=67 data-nosnippet>67</a>
 <a href=#68 id=68 data-nosnippet>68</a>        <span class="kw">let </span>resp = tss
@@ -91,7 +91,7 @@
 <a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">async fn </span>handle_returns_400_to_second_upload_request() -&gt; anyhow::Result&lt;()&gt; {
 <a href=#92 id=92 data-nosnippet>92</a>        <span class="kw">let </span>tss = TestServerState::new();
 <a href=#93 id=93 data-nosnippet>93</a>        <span class="kw">let </span>conn = <span class="macro">conn!</span>();
-<a href=#94 id=94 data-nosnippet>94</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#94 id=94 data-nosnippet>94</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#95 id=95 data-nosnippet>95</a>        <span class="kw">let </span>ex = tr.init_execution(<span class="string">"test"</span>, <span class="number">0</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#96 id=96 data-nosnippet>96</a>
 <a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">for </span>(i, expected) <span class="kw">in </span>[StatusCode::OK, StatusCode::BAD_REQUEST].iter().enumerate() {
@@ -153,7 +153,7 @@
 <a href=#153 id=153 data-nosnippet>153</a>    </span><span class="kw">async fn </span>handler_returns_403_without_token() -&gt; anyhow::Result&lt;()&gt; {
 <a href=#154 id=154 data-nosnippet>154</a>        <span class="kw">let </span>tss = TestServerState::new();
 <a href=#155 id=155 data-nosnippet>155</a>        <span class="kw">let </span>conn = <span class="macro">conn!</span>();
-<a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">let </span>ex = tr.init_execution(<span class="string">"test"</span>, <span class="number">0</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#158 id=158 data-nosnippet>158</a>
 <a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">let </span>resp = tss
@@ -175,7 +175,7 @@
 <a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">async fn </span>handler_returns_403_with_wrong_token() -&gt; anyhow::Result&lt;()&gt; {
 <a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span>tss = TestServerState::new();
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>conn = <span class="macro">conn!</span>();
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#179 id=179 data-nosnippet>179</a>        <span class="kw">let </span>ex = tr.init_execution(<span class="string">"test"</span>, <span class="number">0</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#180 id=180 data-nosnippet>180</a>
 <a href=#181 id=181 data-nosnippet>181</a>        <span class="kw">let </span>resp = tss
@@ -198,7 +198,7 @@
 <a href=#198 id=198 data-nosnippet>198</a>    </span><span class="kw">async fn </span>handler_accepts_valid_token() -&gt; anyhow::Result&lt;()&gt; {
 <a href=#199 id=199 data-nosnippet>199</a>        <span class="kw">let </span>tss = TestServerState::new();
 <a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">let </span>conn = <span class="macro">conn!</span>();
-<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#202 id=202 data-nosnippet>202</a>        <span class="kw">let </span>ex = tr.init_execution(<span class="string">"test"</span>, <span class="number">0</span>, conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#203 id=203 data-nosnippet>203</a>
 <a href=#204 id=204 data-nosnippet>204</a>        <span class="kw">let </span>resp = tss

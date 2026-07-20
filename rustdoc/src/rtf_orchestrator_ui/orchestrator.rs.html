@@ -123,45 +123,46 @@
 <a href=#123 id=123 data-nosnippet>123</a>            id: run_id,
 <a href=#124 id=124 data-nosnippet>124</a>            name: <span class="string">"my-test-run"</span>.to_owned(),
 <a href=#125 id=125 data-nosnippet>125</a>            current_status: status,
-<a href=#126 id=126 data-nosnippet>126</a>            started_at: Utc::now(),
-<a href=#127 id=127 data-nosnippet>127</a>            executions: <span class="macro">vec!</span>[TestExecutionSummary {
-<a href=#128 id=128 data-nosnippet>128</a>                test_run_id: <span class="prelude-val">None</span>,
-<a href=#129 id=129 data-nosnippet>129</a>                ..sample_execution(run_id, ex_id)
-<a href=#130 id=130 data-nosnippet>130</a>            }],
-<a href=#131 id=131 data-nosnippet>131</a>            ..Default::default()
-<a href=#132 id=132 data-nosnippet>132</a>        }
-<a href=#133 id=133 data-nosnippet>133</a>    }
-<a href=#134 id=134 data-nosnippet>134</a>
-<a href=#135 id=135 data-nosnippet>135</a>    <span class="doccomment">/// A client that always succeeds with a canned run/execution summary. Since the not-found and
-<a href=#136 id=136 data-nosnippet>136</a>    /// error branches are now covered directly by `endpoints::run_status_body` and
-<a href=#137 id=137 data-nosnippet>137</a>    /// `execution_detail_body` (no client involved), this only needs to prove that a handler calls
-<a href=#138 id=138 data-nosnippet>138</a>    /// its client and renders whatever comes back.
-<a href=#139 id=139 data-nosnippet>139</a>    </span><span class="attr">#[derive(Debug, Clone)]
-<a href=#140 id=140 data-nosnippet>140</a>    </span><span class="kw">pub struct </span>MockClient {
-<a href=#141 id=141 data-nosnippet>141</a>        test_run_summary: TestRunSummary,
-<a href=#142 id=142 data-nosnippet>142</a>        test_execution_summary: TestExecutionSummary,
-<a href=#143 id=143 data-nosnippet>143</a>    }
-<a href=#144 id=144 data-nosnippet>144</a>
-<a href=#145 id=145 data-nosnippet>145</a>    <span class="kw">impl </span>MockClient {
-<a href=#146 id=146 data-nosnippet>146</a>        <span class="kw">pub fn </span>with_test_run(run_id: Uuid, ex_id: Uuid, status: Status) -&gt; <span class="self">Self </span>{
-<a href=#147 id=147 data-nosnippet>147</a>            <span class="self">Self </span>{
-<a href=#148 id=148 data-nosnippet>148</a>                test_run_summary: sample_summary(run_id, ex_id, status),
-<a href=#149 id=149 data-nosnippet>149</a>                test_execution_summary: sample_execution(run_id, ex_id),
-<a href=#150 id=150 data-nosnippet>150</a>            }
-<a href=#151 id=151 data-nosnippet>151</a>        }
-<a href=#152 id=152 data-nosnippet>152</a>    }
-<a href=#153 id=153 data-nosnippet>153</a>
-<a href=#154 id=154 data-nosnippet>154</a>    <span class="kw">impl </span>Client <span class="kw">for </span>MockClient {
-<a href=#155 id=155 data-nosnippet>155</a>        <span class="kw">async fn </span>run_summary(<span class="kw-2">&amp;</span><span class="self">self</span>, _id: Uuid) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TestRunSummary&gt;, Error&gt; {
-<a href=#156 id=156 data-nosnippet>156</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.test_run_summary.clone()))
-<a href=#157 id=157 data-nosnippet>157</a>        }
-<a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">async fn </span>execution_summary(
-<a href=#160 id=160 data-nosnippet>160</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#161 id=161 data-nosnippet>161</a>            _id: Uuid,
-<a href=#162 id=162 data-nosnippet>162</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TestExecutionSummary&gt;, Error&gt; {
-<a href=#163 id=163 data-nosnippet>163</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.test_execution_summary.clone()))
-<a href=#164 id=164 data-nosnippet>164</a>        }
-<a href=#165 id=165 data-nosnippet>165</a>    }
-<a href=#166 id=166 data-nosnippet>166</a>}
+<a href=#126 id=126 data-nosnippet>126</a>            initiated_by: <span class="string">"someone@apollographql.com"</span>.to_owned(),
+<a href=#127 id=127 data-nosnippet>127</a>            started_at: Utc::now(),
+<a href=#128 id=128 data-nosnippet>128</a>            executions: <span class="macro">vec!</span>[TestExecutionSummary {
+<a href=#129 id=129 data-nosnippet>129</a>                test_run_id: <span class="prelude-val">None</span>,
+<a href=#130 id=130 data-nosnippet>130</a>                ..sample_execution(run_id, ex_id)
+<a href=#131 id=131 data-nosnippet>131</a>            }],
+<a href=#132 id=132 data-nosnippet>132</a>            ..Default::default()
+<a href=#133 id=133 data-nosnippet>133</a>        }
+<a href=#134 id=134 data-nosnippet>134</a>    }
+<a href=#135 id=135 data-nosnippet>135</a>
+<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// A client that always succeeds with a canned run/execution summary. Since the not-found and
+<a href=#137 id=137 data-nosnippet>137</a>    /// error branches are now covered directly by `endpoints::run_status_body` and
+<a href=#138 id=138 data-nosnippet>138</a>    /// `execution_detail_body` (no client involved), this only needs to prove that a handler calls
+<a href=#139 id=139 data-nosnippet>139</a>    /// its client and renders whatever comes back.
+<a href=#140 id=140 data-nosnippet>140</a>    </span><span class="attr">#[derive(Debug, Clone)]
+<a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">pub struct </span>MockClient {
+<a href=#142 id=142 data-nosnippet>142</a>        test_run_summary: TestRunSummary,
+<a href=#143 id=143 data-nosnippet>143</a>        test_execution_summary: TestExecutionSummary,
+<a href=#144 id=144 data-nosnippet>144</a>    }
+<a href=#145 id=145 data-nosnippet>145</a>
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">impl </span>MockClient {
+<a href=#147 id=147 data-nosnippet>147</a>        <span class="kw">pub fn </span>with_test_run(run_id: Uuid, ex_id: Uuid, status: Status) -&gt; <span class="self">Self </span>{
+<a href=#148 id=148 data-nosnippet>148</a>            <span class="self">Self </span>{
+<a href=#149 id=149 data-nosnippet>149</a>                test_run_summary: sample_summary(run_id, ex_id, status),
+<a href=#150 id=150 data-nosnippet>150</a>                test_execution_summary: sample_execution(run_id, ex_id),
+<a href=#151 id=151 data-nosnippet>151</a>            }
+<a href=#152 id=152 data-nosnippet>152</a>        }
+<a href=#153 id=153 data-nosnippet>153</a>    }
+<a href=#154 id=154 data-nosnippet>154</a>
+<a href=#155 id=155 data-nosnippet>155</a>    <span class="kw">impl </span>Client <span class="kw">for </span>MockClient {
+<a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">async fn </span>run_summary(<span class="kw-2">&amp;</span><span class="self">self</span>, _id: Uuid) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TestRunSummary&gt;, Error&gt; {
+<a href=#157 id=157 data-nosnippet>157</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.test_run_summary.clone()))
+<a href=#158 id=158 data-nosnippet>158</a>        }
+<a href=#159 id=159 data-nosnippet>159</a>
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">async fn </span>execution_summary(
+<a href=#161 id=161 data-nosnippet>161</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#162 id=162 data-nosnippet>162</a>            _id: Uuid,
+<a href=#163 id=163 data-nosnippet>163</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;TestExecutionSummary&gt;, Error&gt; {
+<a href=#164 id=164 data-nosnippet>164</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.test_execution_summary.clone()))
+<a href=#165 id=165 data-nosnippet>165</a>        }
+<a href=#166 id=166 data-nosnippet>166</a>    }
+<a href=#167 id=167 data-nosnippet>167</a>}
 </code></pre></div></section></main></body></html>
