@@ -2,6 +2,7 @@
 //! attaches to every request once it authenticates the caller.
 
 use axum::http::HeaderMap;
+use tracing::warn;
 
 const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
 const UNKNOWN_USER: &str = "unknown";
@@ -9,30 +10,39 @@ const UNKNOWN_USER: &str = "unknown";
 /// Reads the `X-Goog-Authenticated-User-Email` header (format `prefix:email`, e.g.
 /// `accounts.google.com:someone@apollographql.com`) and returns the email.
 ///
-/// Returns `unknown` if the Header is missing, invalid utf-8 or there is no email to extract
+/// Returns UNKNOWN_USER if the header is missing, not valid UTF-8, has no colon separator, or
+/// has an empty email portion. Every one of those cases is logged at `warn`.
 pub fn extract_initiator(headers: &HeaderMap) -> &str {
-    match headers.get(IAP_USER_EMAIL_HEADER) {
-        Some(user) => {
-            let user_str = match user.to_str() {
-                Ok(str) => str,
-                Err(_) => return UNKNOWN_USER,
-            };
+    headers
+        .get(IAP_USER_EMAIL_HEADER)
+        .or_else(|| {
+            warn!("{IAP_USER_EMAIL_HEADER} header missing from request");
 
-            let email = user_str.split_once(":").map(|(_, email)| email);
+            None
+        })
+        .and_then(|value| {
+            value
+                .to_str()
+                .inspect_err(|err| warn!(%err, "{IAP_USER_EMAIL_HEADER} header is not valid UTF-8"))
+                .ok()
+        })
+        .and_then(|value| {
+            value.split_once(':').or_else(|| {
+                warn!("{IAP_USER_EMAIL_HEADER} header has no colon separator");
 
-            match email {
-                Some(email) => {
-                    if email.is_empty() {
-                        return UNKNOWN_USER;
-                    }
-
-                    email
-                }
-                None => UNKNOWN_USER,
+                None
+            })
+        })
+        .map(|(_, email)| email)
+        .filter(|email| {
+            let is_empty = email.is_empty();
+            if is_empty {
+                warn!("{IAP_USER_EMAIL_HEADER} header has an empty email portion");
             }
-        }
-        None => UNKNOWN_USER,
-    }
+
+            !is_empty
+        })
+        .unwrap_or(UNKNOWN_USER)
 }
 
 #[cfg(test)]
