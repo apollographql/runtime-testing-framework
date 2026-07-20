@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Rep"],"type":["RepTestPlan"]};
+window.SIDEBAR_ITEMS = {"enum":["RepEnvironment"],"struct":["Rep"],"type":["RepTestPlan"]};
