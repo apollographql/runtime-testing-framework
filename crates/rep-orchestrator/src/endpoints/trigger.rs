@@ -1,14 +1,15 @@
 use crate::{
     config::Config, conn, context::RepContext, db::TestRun, error::Error, event_loop::SubmitError,
-    state::ServerState,
+    iap_identity::extract_initiator, state::ServerState,
 };
-use axum::{Json, extract::State};
+use axum::{Json, extract::State, http::HeaderMap};
 use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
 use serde_json::Value;
 use tracing::debug;
 
 pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
+    headers: HeaderMap,
     Json(payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
     debug!("validating test plan file provider usage");
@@ -33,9 +34,11 @@ pub async fn handler(
         .as_ref()
         .map(|v| serde_json::to_value(v).expect("variables to serialize"));
 
+    let initiated_by = extract_initiator(&headers);
+
     debug!("initialising run");
     let (test_run, summary) =
-        match init_run_and_build_summary(&payload.test_plan.name, variables).await {
+        match init_run_and_build_summary(&payload.test_plan.name, variables, initiated_by).await {
             Ok((tr, s)) => (tr, s),
             Err(e) => {
                 eq_state.release_pending_execution_claim(claim).await;
@@ -63,9 +66,10 @@ pub async fn handler(
 async fn init_run_and_build_summary(
     name: &str,
     variables: Option<Value>,
+    initiated_by: Option<String>,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
-    let test_run = TestRun::init(name, variables, conn).await?;
+    let test_run = TestRun::init(name, variables, initiated_by.as_deref(), conn).await?;
     let summary = test_run.clone().try_into_summary(conn).await?;
 
     Ok((test_run, summary))
@@ -109,6 +113,10 @@ mod tests {
         let resp = tss
             .test_server
             .post("/test-run/trigger")
+            .add_header(
+                "x-goog-authenticated-user-email",
+                "accounts.google.com:ci@my-project.iam.gserviceaccount.com",
+            )
             .json(&payload)
             .await;
         assert_eq!(resp.status_code(), StatusCode::OK);
@@ -120,13 +128,42 @@ mod tests {
         // The run should be initialising
         let summary: TestRunSummary = resp.json();
         assert_eq!(summary.current_status, Status::Initialising);
-
-        // The run should be in the DB
-        let maybe_run = TestRun::get_by_uuid(&summary.id, conn!()).await.unwrap();
-        assert!(
-            maybe_run.is_some(),
-            "test run ID did not map to a known run in the DB"
+        assert_eq!(
+            summary.initiated_by,
+            "ci@my-project.iam.gserviceaccount.com"
         );
+
+        // The run should be in the DB, with the initiator captured from the IAP header
+        let maybe_run = TestRun::get_by_uuid(&summary.id, conn!()).await.unwrap();
+        let run = maybe_run.expect("test run ID did not map to a known run in the DB");
+        assert_eq!(
+            run.initiated_by(),
+            Some("ci@my-project.iam.gserviceaccount.com")
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_records_unknown_when_the_iap_header_is_absent() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let payload = tss.minimal_trigger_payload();
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .json(&payload)
+            .await;
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let summary: TestRunSummary = resp.json();
+        assert_eq!(summary.initiated_by, "unknown");
+
+        let tr = TestRun::get_by_uuid(&summary.id, conn!())
+            .await?
+            .expect("test run should be in the DB");
+        assert_eq!(tr.initiated_by(), None);
 
         Ok(())
     }

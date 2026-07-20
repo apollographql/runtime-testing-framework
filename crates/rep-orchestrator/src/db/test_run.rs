@@ -11,6 +11,10 @@ use std::collections::HashMap;
 use tracing::error;
 use uuid::Uuid;
 
+/// Reported in place of a `None` `initiated_by` when a [`TestRun`] is turned into a
+/// [`TestRunSummary`].
+const UNKNOWN_INITIATOR: &str = "unknown";
+
 /// A `TestRun` denotes a single user-triggered set of tests that should be considered passing or
 /// failing based on their combined status.
 ///
@@ -22,6 +26,7 @@ pub struct TestRun {
     id: i32,
     uuid: Uuid,
     name: String,
+    initiated_by: Option<String>,
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
     variables_id: Option<i32>,
@@ -53,12 +58,17 @@ impl TestRun {
         self.uuid
     }
 
+    pub fn initiated_by(&self) -> Option<&str> {
+        self.initiated_by.as_deref()
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, name: &str) -> Self {
         Self {
             id,
             uuid: Uuid::new_v4(),
             name: name.into(),
+            initiated_by: None,
             started_at: Utc::now(),
             completed_at: None,
             variables_id: None,
@@ -72,14 +82,20 @@ impl TestRun {
             .await?)
     }
 
-    /// Create a new run, capturing any runtime variable overrides supplied with it.
+    /// Create a new run, capturing any runtime variable overrides supplied with it and the test run
+    /// initiator.
     ///
     /// `variables` is the flat overrides blob (`-v` / `--vars`) as JSON, or `None` when none were
     /// supplied. When present it is upserted into the deduplicated `variables` table and the run is
     /// linked to it, so `variables_id` is `NULL` exactly when `variables` is `None`.
+    ///
+    /// `initiated_by` is whatever identity the caller managed to extract, or `None` if it couldn't
+    /// (or didn't try to). Stored as-is — `None` is persisted as SQL `NULL`, not some sentinel
+    /// string, so "we don't know" stays a real, queryable absence rather than a magic value.
     pub async fn init(
         name: &str,
         variables: Option<Value>,
+        initiated_by: Option<&str>,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         let variables_id = match variables {
@@ -88,19 +104,29 @@ impl TestRun {
         };
 
         let tr: TestRun = sqlx::query_as(
-            "INSERT INTO test_run (name, started_at, variables_id)
-             VALUES ($1, NOW(), $2)
-             RETURNING id, uuid, name, started_at, completed_at, variables_id;
+            "INSERT INTO test_run (name, started_at, variables_id, initiated_by)
+             VALUES ($1, NOW(), $2, $3)
+             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id;
             ",
         )
         .bind(name)
         .bind(variables_id)
+        .bind(initiated_by)
         .fetch_one(&mut *conn)
         .await?;
 
         tr.set_status(Status::Initialising, None, conn).await?;
 
         Ok(tr)
+    }
+
+    /// Initialise a TestRun, setting `initiated_by`` to `None`
+    pub async fn init_unknown_initiator(
+        name: &str,
+        variables: Option<Value>,
+        conn: &mut PgConnection,
+    ) -> Result<Self> {
+        Self::init(name, variables, None, conn).await
     }
 
     pub async fn init_execution(
@@ -171,6 +197,9 @@ impl TestRun {
             id: self.uuid,
             name: self.name,
             current_status: current.status.into(),
+            initiated_by: self
+                .initiated_by
+                .unwrap_or_else(|| UNKNOWN_INITIATOR.to_owned()),
             started_at: self.started_at,
             updated_at: current.updated_at,
             completed_at: self.completed_at,
@@ -346,7 +375,7 @@ mod tests {
     #[tokio::test]
     async fn init_creates_run_with_initialising_status() -> Result<()> {
         let c = conn!();
-        let res = TestRun::init("test", None, c).await;
+        let res = TestRun::init_unknown_initiator("test", None, c).await;
         assert!(res.is_ok(), "{res:?}");
 
         let tr = res.unwrap();
@@ -362,7 +391,7 @@ mod tests {
     #[tokio::test]
     async fn init_leaves_variables_id_null() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
         assert_eq!(tr.variables_id, None);
 
         // Persisted as NULL too, not just on the returned struct.
@@ -374,11 +403,37 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
+    async fn init_leaves_initiated_by_none_by_default() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
+        assert_eq!(tr.initiated_by, None);
+
+        // Persisted as a real NULL, not just on the returned struct.
+        let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
+        assert_eq!(fetched.initiated_by, None);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn try_into_summary_reports_a_none_initiator_as_unknown() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
+
+        let summary = tr.try_into_summary(c).await?;
+        assert_eq!(summary.initiated_by, "unknown");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
     async fn init_persists_and_dedupes_variables() -> Result<()> {
         let c = conn!();
         let vars = json!({ "region": "us", "tier": [1, 2, 3] });
 
-        let tr = TestRun::init("test", Some(vars.clone()), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", Some(vars.clone()), c).await?;
         let captured = tr.variables_id;
         assert!(
             captured.is_some(),
@@ -404,7 +459,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("test", None, c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, c).await?;
         let tr2 = TestRun::get_by_id(tr1.id, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -416,7 +471,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_unchecked_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("test", None, c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, c).await?;
         let tr2 = TestRun::get_by_id_unchecked(tr1.id, c).await?;
 
         assert_eq!(tr1, tr2);
@@ -428,7 +483,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_uuid_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("test", None, c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, c).await?;
         let tr2 = TestRun::get_by_uuid(&tr1.uuid, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -441,7 +496,7 @@ mod tests {
     async fn executions_returns_all_associated_executions() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::init("A", None, c).await?;
+        let tr = TestRun::init_unknown_initiator("A", None, c).await?;
         let ex1 = tr.init_execution("a", 0, c).await?;
         let ex2 = tr.init_execution("b", 1, c).await?;
 
@@ -464,7 +519,7 @@ mod tests {
     #[tokio::test]
     async fn set_status_and_current_status_match(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
 
         tr.set_status(status, None, c).await?;
         let current = tr.current_status(c).await?;
@@ -478,7 +533,7 @@ mod tests {
     #[tokio::test]
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", None, c).await?; // sets Status::Initialising
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?; // sets Status::Initialising
         tr.set_status(Status::Running, None, c).await?;
         tr.set_status(Status::Successful, None, c).await?;
 
@@ -498,7 +553,7 @@ mod tests {
     #[tokio::test]
     async fn set_terminal_status_sets_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -516,7 +571,7 @@ mod tests {
     #[tokio::test]
     async fn set_non_terminal_status_does_not_set_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -617,8 +672,8 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_returns_cached_plans() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("run-a", None, c).await?;
-        let tr2 = TestRun::init("run-b", None, c).await?;
+        let tr1 = TestRun::init_unknown_initiator("run-a", None, c).await?;
+        let tr2 = TestRun::init_unknown_initiator("run-b", None, c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
@@ -638,7 +693,7 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_partitions_malformed_json() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
         let uuid = tr.uuid();
 
         // We don't expose an API for storing an arbitrary JSON blob like this, but we need to
@@ -664,7 +719,7 @@ mod tests {
     #[tokio::test]
     async fn clear_cached_payload_removes_the_entry() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", None, c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
         let run_id = tr.id;
 
         // should be present in the cache after caching
@@ -692,8 +747,8 @@ mod tests {
     #[ignore = "races with other tests that use the test plan cache"]
     async fn clear_test_plan_cache_removes_all_entries() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("run-a", None, c).await?;
-        let tr2 = TestRun::init("run-b", None, c).await?;
+        let tr1 = TestRun::init_unknown_initiator("run-a", None, c).await?;
+        let tr2 = TestRun::init_unknown_initiator("run-b", None, c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 

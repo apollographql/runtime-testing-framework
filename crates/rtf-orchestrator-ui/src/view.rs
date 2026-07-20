@@ -21,6 +21,7 @@ pub struct RunView {
     pub name: String,
     pub status_label: String,
     pub status_class: &'static str,
+    pub initiated_by: String,
     pub started_at: String,
     pub updated_at: String,
     pub completed_at: Option<String>,
@@ -51,6 +52,7 @@ impl RunView {
             name: run.name,
             status_label: run.current_status.to_string(),
             status_class: status::css_class(run.current_status),
+            initiated_by: run.initiated_by,
             started_at: run.started_at.to_rfc3339(),
             updated_at: run.updated_at.to_rfc3339(),
             completed_at: completed_at.map(|ts| ts.to_rfc3339()),
@@ -281,6 +283,10 @@ mod tests {
 
         assert!(body.contains("my-test-run"), "run name should render");
         assert!(body.contains("RUNNING"), "run status label should render");
+        assert!(
+            body.contains("someone@apollographql.com"),
+            "run initiator should render"
+        );
         assert!(body.contains("exec-alpha"), "execution name should render");
         assert!(
             body.contains("SUCCESSFUL"),
