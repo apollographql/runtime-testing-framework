@@ -140,7 +140,7 @@ impl TestRun {
 
     pub async fn executions(&self, conn: &mut PgConnection) -> Result<Vec<TestExecution>> {
         Ok(
-            sqlx::query_as("SELECT * FROM test_execution WHERE test_run_id = $1;")
+            sqlx::query_as("SELECT * FROM test_execution WHERE test_run_id = $1 ORDER BY id;")
                 .bind(self.id)
                 .fetch_all(conn)
                 .await?,
@@ -174,24 +174,10 @@ impl TestRun {
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestRunSummary> {
         let status_history = self.status_history(conn).await?;
-        let current = self.current_status(conn).await?;
-        let raw_executions = self.executions(conn).await?;
-
-        let mut executions = Vec::with_capacity(raw_executions.len());
-        for ex in raw_executions.into_iter() {
-            // It is possible for us to encounter TestExecutions that are part way through
-            // initialising when calling this method (as in, the row for the execution exists
-            // in the DB but we don't yet have the first status row). Building a summary requires
-            // at least one status, so we skip executions missing that information.
-            //
-            // The user facing effect of this is the same as if the main execution row had
-            // not yet been created, namely that the execution is not yet present in the list
-            match ex.try_into_summary(conn).await {
-                Ok(summary) => executions.push(summary),
-                Err(db::Error::Sqlx(sqlx::Error::RowNotFound)) => continue,
-                Err(e) => return Err(e),
-            }
-        }
+        let current = status_history
+            .first()
+            .cloned()
+            .ok_or(db::Error::Sqlx(sqlx::Error::RowNotFound))?;
 
         Ok(TestRunSummary {
             id: self.uuid,
@@ -204,8 +190,34 @@ impl TestRun {
             updated_at: current.updated_at,
             completed_at: self.completed_at,
             status_history: status_history.into_iter().map(Into::into).collect(),
-            executions,
+            executions: Vec::new(),
         })
+    }
+
+    pub async fn try_into_summary_with_executions(
+        self,
+        conn: &mut PgConnection,
+    ) -> Result<TestRunSummary> {
+        let raw_executions = self.executions(conn).await?;
+        let mut summary = self.try_into_summary(conn).await?;
+
+        summary.executions = Vec::with_capacity(raw_executions.len());
+        for ex in raw_executions.into_iter() {
+            // It is possible for us to encounter TestExecutions that are part way through
+            // initialising when calling this method (as in, the row for the execution exists
+            // in the DB but we don't yet have the first status row). Building a summary requires
+            // at least one status, so we skip executions missing that information.
+            //
+            // The user facing effect of this is the same as if the main execution row had
+            // not yet been created, namely that the execution is not yet present in the list
+            match ex.try_into_summary(conn).await {
+                Ok(ex_summary) => summary.executions.push(ex_summary),
+                Err(db::Error::Sqlx(sqlx::Error::RowNotFound)) => continue,
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(summary)
     }
 
     /// Load all currently cached test plans into a map of test run UUID to ([TestRun], [TriggerPayload]).
@@ -772,6 +784,36 @@ mod tests {
         let (map, malformed) = TestRun::load_payload_cache(c).await?;
         assert!(map.is_empty(), "expected empty map after clear all");
         assert!(malformed.is_empty(), "unexpected malformed after clear all");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn try_into_summary_leaves_executions_empty() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
+        tr.init_execution("exec", 0, c).await?;
+
+        let uuid = tr.uuid();
+        let summary = tr.try_into_summary(c).await?;
+
+        assert_eq!(summary.id, uuid);
+        assert!(summary.executions.is_empty(), "{summary:?}");
+        assert_eq!(summary.current_status, Status::Initialising.into());
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn try_into_summary_with_executions_includes_executions() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, c).await?;
+        tr.init_execution("exec", 0, c).await?;
+
+        let summary = tr.try_into_summary_with_executions(c).await?;
+        assert_eq!(summary.executions.len(), 1, "{summary:?}");
 
         Ok(())
     }

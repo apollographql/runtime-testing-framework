@@ -3,6 +3,15 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// A page of historic [TestRunSummary]s matching a set of query filters, along with the total
+/// number of runs matching those filters (ignoring pagination) so that callers can page through
+/// the full result set.
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TestRunListResponse {
+    pub runs: Vec<TestRunSummary>,
+    pub total: i64,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TestRunSummary {
     pub id: Uuid,
