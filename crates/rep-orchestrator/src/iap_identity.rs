@@ -5,14 +5,14 @@ use axum::http::HeaderMap;
 use tracing::warn;
 
 const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
-const UNKNOWN_USER: &str = "unknown";
 
 /// Reads the `X-Goog-Authenticated-User-Email` header (format `prefix:email`, e.g.
 /// `accounts.google.com:someone@apollographql.com`) and returns the email.
 ///
-/// Returns UNKNOWN_USER if the header is missing, not valid UTF-8, has no colon separator, or
-/// has an empty email portion. Every one of those cases is logged at `warn`.
-pub fn extract_initiator(headers: &HeaderMap) -> &str {
+/// Returns `None` if the header is missing, not valid UTF-8, has no colon separator, or has an
+/// empty email portion. Every one of those cases is logged at `warn`. This function has no notion
+/// of a default/fallback identity — that's a storage concern the caller owns.
+pub fn extract_initiator(headers: &HeaderMap) -> Option<String> {
     headers
         .get(IAP_USER_EMAIL_HEADER)
         .or_else(|| {
@@ -42,7 +42,7 @@ pub fn extract_initiator(headers: &HeaderMap) -> &str {
 
             !is_empty
         })
-        .unwrap_or(UNKNOWN_USER)
+        .map(|email| email.to_owned())
 }
 
 #[cfg(test)]
@@ -61,37 +61,40 @@ mod tests {
     fn extract_initiator_returns_the_email_portion() {
         let headers = headers_with("accounts.google.com:someone@apollographql.com");
 
-        assert_eq!(extract_initiator(&headers), "someone@apollographql.com");
+        assert_eq!(
+            extract_initiator(&headers),
+            Some("someone@apollographql.com".to_owned())
+        );
     }
 
     #[test]
-    fn extract_initiator_returns_unknown_when_header_is_missing() {
+    fn extract_initiator_returns_none_when_header_is_missing() {
         let headers = HeaderMap::new();
 
-        assert_eq!(extract_initiator(&headers), UNKNOWN_USER);
+        assert_eq!(extract_initiator(&headers), None);
     }
 
     #[test]
-    fn extract_initiator_returns_unknown_when_header_has_no_colon() {
+    fn extract_initiator_returns_none_when_header_has_no_colon() {
         let headers = headers_with("someone@apollographql.com");
 
-        assert_eq!(extract_initiator(&headers), UNKNOWN_USER);
+        assert_eq!(extract_initiator(&headers), None);
     }
 
     #[test]
-    fn extract_initiator_returns_unknown_when_email_portion_is_empty() {
+    fn extract_initiator_returns_none_when_email_portion_is_empty() {
         let headers = headers_with("accounts.google.com:");
 
-        assert_eq!(extract_initiator(&headers), UNKNOWN_USER);
+        assert_eq!(extract_initiator(&headers), None);
     }
 
     #[test]
-    fn extract_initiator_returns_unknown_when_header_value_is_not_valid_utf8() {
+    fn extract_initiator_returns_none_when_header_value_is_not_valid_utf8() {
         let mut headers = HeaderMap::new();
         headers.insert(
             IAP_USER_EMAIL_HEADER,
             HeaderValue::from_bytes(&[0xff, 0xfe]).unwrap(),
         );
-        assert_eq!(extract_initiator(&headers), UNKNOWN_USER);
+        assert_eq!(extract_initiator(&headers), None);
     }
 }

@@ -66,10 +66,11 @@ pub async fn handler(
 async fn init_run_and_build_summary(
     name: &str,
     variables: Option<Value>,
-    initiated_by: &str,
+    initiated_by: Option<String>,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
-    let test_run = TestRun::init_with_initiator(name, variables, initiated_by, conn).await?;
+    let test_run =
+        TestRun::init_with_initiator(name, variables, initiated_by.as_deref(), conn).await?;
     let summary = test_run.clone().try_into_summary(conn).await?;
 
     Ok((test_run, summary))
@@ -136,7 +137,10 @@ mod tests {
         // The run should be in the DB, with the initiator captured from the IAP header
         let maybe_run = TestRun::get_by_uuid(&summary.id, conn!()).await.unwrap();
         let run = maybe_run.expect("test run ID did not map to a known run in the DB");
-        assert_eq!(run.initiated_by(), "ci@my-project.iam.gserviceaccount.com");
+        assert_eq!(
+            run.initiated_by(),
+            Some("ci@my-project.iam.gserviceaccount.com")
+        );
 
         Ok(())
     }
@@ -160,7 +164,7 @@ mod tests {
         let tr = TestRun::get_by_uuid(&summary.id, conn!())
             .await?
             .expect("test run should be in the DB");
-        assert_eq!(tr.initiated_by(), "unknown");
+        assert_eq!(tr.initiated_by(), None);
 
         Ok(())
     }

@@ -11,6 +11,10 @@ use std::collections::HashMap;
 use tracing::error;
 use uuid::Uuid;
 
+/// Reported in place of a `None` `initiated_by` when a [`TestRun`] is turned into a
+/// [`TestRunSummary`].
+const UNKNOWN_INITIATOR: &str = "unknown";
+
 /// A `TestRun` denotes a single user-triggered set of tests that should be considered passing or
 /// failing based on their combined status.
 ///
@@ -22,7 +26,7 @@ pub struct TestRun {
     id: i32,
     uuid: Uuid,
     name: String,
-    initiated_by: String,
+    initiated_by: Option<String>,
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
     variables_id: Option<i32>,
@@ -54,8 +58,8 @@ impl TestRun {
         self.uuid
     }
 
-    pub fn initiated_by(&self) -> &str {
-        &self.initiated_by
+    pub fn initiated_by(&self) -> Option<&str> {
+        self.initiated_by.as_deref()
     }
 
     #[cfg(test)]
@@ -64,7 +68,7 @@ impl TestRun {
             id,
             uuid: Uuid::new_v4(),
             name: name.into(),
-            initiated_by: "unknown".to_owned(),
+            initiated_by: None,
             started_at: Utc::now(),
             completed_at: None,
             variables_id: None,
@@ -78,31 +82,33 @@ impl TestRun {
             .await?)
     }
 
-    /// Delegates to [`init_with_initiator`](Self::init_with_initiator) with `"unknown"` so callers
-    /// that don't have (or don't care about) an initiator keep a single, simple entry point. This
-    /// is a thin wrapper rather than a duplicated INSERT for two reasons: it keeps every
-    /// creation-time column defined in exactly one query (so a future column addition can't drift
-    /// between two copies of this statement), and it avoids a separate `create()` +
-    /// `set_initiated_by()` pair, which would create a row before its initiator is known — a window
-    /// where a concurrent reader sees `initiated_by = "unknown"` on a run that really does have one,
-    /// and where a crash between the two calls would silently and permanently misrecord it.
+    /// Delegates to [`init_with_initiator`](Self::init_with_initiator) with `None` so callers that
+    /// don't have (or don't care about) an initiator keep a single, simple entry point. This is a
+    /// thin wrapper rather than a duplicated INSERT so that every creation-time column stays defined
+    /// in exactly one query — a future column addition can't drift between two copies of this
+    /// statement.
     pub async fn init(
         name: &str,
         variables: Option<Value>,
         conn: &mut PgConnection,
     ) -> Result<Self> {
-        Self::init_with_initiator(name, variables, "unknown", conn).await
+        Self::init_with_initiator(name, variables, None, conn).await
     }
 
-    /// Create a new run, capturing any runtime variable overrides supplied with it and the test run initiator.
+    /// Create a new run, capturing any runtime variable overrides supplied with it and the test run
+    /// initiator.
     ///
     /// `variables` is the flat overrides blob (`-v` / `--vars`) as JSON, or `None` when none were
     /// supplied. When present it is upserted into the deduplicated `variables` table and the run is
     /// linked to it, so `variables_id` is `NULL` exactly when `variables` is `None`.
+    ///
+    /// `initiated_by` is whatever identity the caller managed to extract, or `None` if it couldn't
+    /// (or didn't try to). Stored as-is — `None` is persisted as SQL `NULL`, not some sentinel
+    /// string, so "we don't know" stays a real, queryable absence rather than a magic value.
     pub async fn init_with_initiator(
         name: &str,
         variables: Option<Value>,
-        initiated_by: &str,
+        initiated_by: Option<&str>,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         let variables_id = match variables {
@@ -195,7 +201,9 @@ impl TestRun {
             id: self.uuid,
             name: self.name,
             current_status: current.status.into(),
-            initiated_by: self.initiated_by,
+            initiated_by: self
+                .initiated_by
+                .unwrap_or_else(|| UNKNOWN_INITIATOR.to_owned()),
             started_at: self.started_at,
             updated_at: current.updated_at,
             completed_at: self.completed_at,
@@ -399,14 +407,26 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn init_defaults_initiated_by_to_unknown() -> Result<()> {
+    async fn init_leaves_initiated_by_none_by_default() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", None, c).await?;
-        assert_eq!(tr.initiated_by, "unknown");
+        assert_eq!(tr.initiated_by, None);
 
-        // Persisted via the column default, not just on the returned struct.
+        // Persisted as a real NULL, not just on the returned struct.
         let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
-        assert_eq!(fetched.initiated_by, "unknown");
+        assert_eq!(fetched.initiated_by, None);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn try_into_summary_reports_a_none_initiator_as_unknown() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", None, c).await?;
+
+        let summary = tr.try_into_summary(c).await?;
+        assert_eq!(summary.initiated_by, "unknown");
 
         Ok(())
     }
