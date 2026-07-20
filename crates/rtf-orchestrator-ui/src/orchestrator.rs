@@ -123,6 +123,7 @@ pub(crate) mod mocks {
             id: run_id,
             name: "my-test-run".to_owned(),
             current_status: status,
+            initiated_by: "someone@apollographql.com".to_owned(),
             started_at: Utc::now(),
             executions: vec![TestExecutionSummary {
                 test_run_id: None,
