@@ -14,6 +14,7 @@ pub mod execution_config;
 pub mod execution_status;
 pub mod generate_upload_urls;
 pub mod health;
+pub mod list_runs;
 pub mod run_status;
 pub mod trigger;
 
