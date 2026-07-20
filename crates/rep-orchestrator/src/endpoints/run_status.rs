@@ -23,7 +23,9 @@ mod tests {
     #[tokio::test]
     async fn handler_returns_200_for_known_run() -> anyhow::Result<()> {
         let tss = TestServerState::new();
-        let run_id = TestRun::init("test", None, conn!()).await?.uuid();
+        let run_id = TestRun::init_unknown_initiator("test", None, conn!())
+            .await?
+            .uuid();
 
         let resp = tss
             .test_server
@@ -39,7 +41,7 @@ mod tests {
     async fn handler_leaves_execution_test_run_id_unset() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let run_id = tr.uuid();
         tr.init_execution("test", 0, conn).await?;
 

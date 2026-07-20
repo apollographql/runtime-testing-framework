@@ -71,7 +71,7 @@ mod tests {
             Some("hello, world!".into()),
         ));
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
         ex.set_status(status, None, conn).await?;
@@ -93,7 +93,7 @@ mod tests {
     #[tokio::test]
     async fn output_zip_handler_redirects(status: Status) -> anyhow::Result<()> {
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
         ex.set_status(status, None, conn).await?;
@@ -138,7 +138,7 @@ mod tests {
     ) -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
@@ -160,7 +160,7 @@ mod tests {
     ) -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
 

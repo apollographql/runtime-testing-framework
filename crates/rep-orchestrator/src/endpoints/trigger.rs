@@ -69,8 +69,7 @@ async fn init_run_and_build_summary(
     initiated_by: Option<String>,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
-    let test_run =
-        TestRun::init_with_initiator(name, variables, initiated_by.as_deref(), conn).await?;
+    let test_run = TestRun::init(name, variables, initiated_by.as_deref(), conn).await?;
     let summary = test_run.clone().try_into_summary(conn).await?;
 
     Ok((test_run, summary))

@@ -75,7 +75,7 @@ mod tests {
     async fn get_handler_returns_200_for_known_execution() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let ex_id = tr.init_execution("test", 0, conn).await?.uuid();
 
         let resp = tss
@@ -92,7 +92,7 @@ mod tests {
     async fn get_handler_populates_test_run_id() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let run_id = tr.uuid();
         let ex_id = tr.init_execution("test", 0, conn).await?.uuid();
 
@@ -144,7 +144,7 @@ mod tests {
         let tss = TestServerState::new();
         let (ex_id, token) = {
             let conn = conn!();
-            let tr = TestRun::init("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             (ex.uuid(), ex.token().to_owned())
         };
@@ -202,7 +202,7 @@ mod tests {
         let tss = TestServerState::new();
         let (ex_id, token) = {
             let conn = conn!();
-            let tr = TestRun::init("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             (ex.uuid(), ex.token().to_owned())
         };
@@ -244,7 +244,7 @@ mod tests {
         let tss = TestServerState::new();
         let (ex_id, token) = {
             let conn = conn!();
-            let tr = TestRun::init("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             (ex.uuid(), ex.token().to_owned())
         };
@@ -279,7 +279,7 @@ mod tests {
     async fn post_handler_returns_403_without_token() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
@@ -315,7 +315,7 @@ mod tests {
         let tss = TestServerState::new();
         let ex_id = {
             let conn = conn!();
-            let tr = TestRun::init("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
             tr.init_execution("test", 0, conn).await?.uuid()
         };
 
@@ -336,7 +336,7 @@ mod tests {
     async fn get_handler_does_not_require_token() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
         let ex_id = tr.init_execution("test", 0, conn).await?.uuid();
 
         let resp = tss
