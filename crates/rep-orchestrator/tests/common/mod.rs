@@ -1,4 +1,4 @@
-use anyhow::{Context as _, bail};
+use anyhow::{Context as _, anyhow, bail, ensure};
 use axum::body::Bytes;
 use rep_orchestrator_shared::{
     status::Status,
@@ -6,11 +6,20 @@ use rep_orchestrator_shared::{
     {payload::TriggerPayload, test_plan::Rep},
 };
 use reqwest::{Client, Response};
-use rtf_config::{context::Context, formats::TestPlan};
+use rtf_config::{
+    context::Context,
+    formats::{PrometheusQuery, TestPlan},
+};
 use serde::{Serialize, de::DeserializeOwned};
-use std::{env, fmt::Display, time::Duration};
+use std::{
+    env,
+    fmt::Display,
+    io::{self, Read},
+    time::Duration,
+};
 use tokio::time::{Instant, sleep};
 use uuid::Uuid;
+use zip::ZipArchive;
 
 const SERVER_URL: &str = "http://localhost:8035";
 
@@ -183,16 +192,111 @@ impl TestHelper {
         resp.text().await.context("unable to read body")
     }
 
-    pub async fn get_bytes(&self, endpoint: String) -> anyhow::Result<Bytes> {
+    pub async fn get_output_zip(&self, ex_id: Uuid) -> anyhow::Result<OutputZip> {
         let resp = self
-            .get(&endpoint)
+            .get(format!("test-execution/{ex_id}/output.zip"))
             .await
-            .context("unable to make GET request")?;
+            .context("unable to GET output.zip")?
+            .error_for_status()?;
 
-        if !resp.status().is_success() {
-            bail!("failed GET: {}", resp.status());
+        let bytes = resp.bytes().await.context("unable to read body")?;
+
+        Ok(OutputZip::new(bytes))
+    }
+
+    pub fn prometheus_query_with_namespace_filter(
+        &self,
+        ex_id: Uuid,
+        name: &str,
+        raw_query: &str,
+    ) -> String {
+        PrometheusQuery {
+            name: name.to_string(),
+            step: "15s".to_string(),
+            query: raw_query.to_string(),
         }
+        .with_namespace_label_filter(&ex_id.to_string())
+        .unwrap()
+        .query
+    }
+}
 
-        resp.bytes().await.context("unable to read body")
+/// A parsed `output.zip` archive, with assertion helpers for the checks integration tests
+/// commonly need to make about its contents.
+pub struct OutputZip {
+    zip: ZipArchive<io::Cursor<Bytes>>,
+    file_names: Vec<String>,
+}
+
+impl OutputZip {
+    fn new(bytes: Bytes) -> Self {
+        let mut zip = ZipArchive::new(io::Cursor::new(bytes))
+            .context("unable to parse zip file")
+            .unwrap();
+
+        let file_names = (0..zip.len())
+            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .collect();
+
+        Self { zip, file_names }
+    }
+
+    pub fn contains_path_prefix(&self, prefix: &str) -> bool {
+        self.file_names.iter().any(|n| n.starts_with(prefix))
+    }
+
+    pub fn read_string(&mut self, path: &str) -> String {
+        let mut buf = String::new();
+
+        self.zip
+            .by_name(path)
+            .unwrap_or_else(|_| {
+                panic!(
+                    "{path} not found in output.zip; got: {:#?}",
+                    self.file_names
+                )
+            })
+            .read_to_string(&mut buf)
+            .context(format!("unable to read {path}"))
+            .unwrap();
+
+        buf
+    }
+
+    pub fn read_json(&mut self, path: &str) -> anyhow::Result<serde_json::Value> {
+        let s = self.read_string(path);
+        ensure!(!s.is_empty(), "{path} exists but is an empty file");
+
+        serde_json::from_str::<serde_json::Value>(&s).context(format!("{path} must be valid JSON"))
+    }
+
+    pub fn read_prometheus_query(&mut self, source: &str, name: &str) -> anyhow::Result<String> {
+        let path = format!("output/prometheus/{source}/{name}.json");
+        let s = self.read_string(&path);
+        ensure!(!s.is_empty(), "{path} exists but is an empty file");
+
+        let value: serde_json::Value =
+            serde_json::from_str(&s).context(format!("{path} must be valid JSON"))?;
+
+        value["result"][0]["metric"]["query"]
+            .as_str()
+            .map(|s| s.to_string())
+            .ok_or_else(|| anyhow!("expected result[0].metric.query in {path}: {value:#?}"))
+    }
+
+    pub fn rtf_output_content(&mut self) -> String {
+        let path = self
+            .file_names
+            .iter()
+            .find(|n| n.ends_with("RTF_OUTPUT"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "no RTF_OUTPUT file in output.zip. Got: {:#?}",
+                    self.file_names
+                )
+            })
+            .clone();
+
+        self.read_string(&path)
     }
 }
