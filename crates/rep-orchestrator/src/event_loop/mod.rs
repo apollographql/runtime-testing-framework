@@ -249,7 +249,7 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
-                let clients = ClusterClients::try_new_workload(
+                let mut clients = ClusterClients::try_new_workload(
                     cfg.kubeconfig_path,
                     cfg.workload_context,
                 )
@@ -273,7 +273,7 @@ impl Event {
                                 prometheus_endpoint: cfg.prometheus_endpoint,
                                 toolbox_pull_policy: cfg.toolbox_pull_policy,
                             },
-                            clients,
+                            &mut clients,
                             conn,
                         )
                         .await
@@ -320,7 +320,7 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
-                let clients = ClusterClients::try_new_workload(
+                let mut clients = ClusterClients::try_new_workload(
                     cfg.kubeconfig_path,
                     cfg.workload_context,
                 )
@@ -329,7 +329,8 @@ impl Event {
                     |e| error!(%e, "failed to build workload k8s client for CleanupNamespace"),
                 )?;
 
-                let res = cleanup_namespace::try_run(self.test_execution.clone(), clients).await;
+                let res =
+                    cleanup_namespace::try_run(self.test_execution.clone(), &mut clients).await;
                 if let Some(run_uuid) = event_queue
                     .mark_execution_complete(self.test_execution.uuid())
                     .await
@@ -421,7 +422,7 @@ mod tests {
     async fn create_scenario_job_uses_embedded_image_and_command() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
-        let clients = MockClient::default_ok();
+        let mut clients = MockClient::default_ok();
 
         let res = run_scenario::create_job(
             ex,
@@ -432,7 +433,7 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
             },
-            clients,
+            &mut clients,
             &mut handle,
         )
         .await;

@@ -22,7 +22,7 @@ pub(super) async fn create_job<K, H>(
     scenario_image: String,
     scenario_command: String,
     config: &CreateJobConfig<'_>,
-    clients: K,
+    clients: &mut K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
 where
@@ -107,7 +107,7 @@ async fn wait_and_update<K>(
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
     etx: &UnboundedSender<Event>,
-    clients: K,
+    mut clients: K,
 ) where
     K: WorkloadClient,
 {
@@ -173,7 +173,7 @@ mod tests {
     async fn full_happy_path_sets_expected_statuses() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
-        let clients = MockClient::default_ok();
+        let mut clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
 
         // create job
@@ -186,7 +186,7 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
             },
-            clients.clone(),
+            &mut clients,
             &mut handle,
         )
         .await;
@@ -212,7 +212,7 @@ mod tests {
     async fn create_job_returns_expected_job_error() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
-        let clients = MockClient {
+        let mut clients = MockClient {
             create_job: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default_ok()
         };
@@ -226,7 +226,7 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
             },
-            clients.clone(),
+            &mut clients,
             &mut handle,
         )
         .await;
@@ -258,8 +258,7 @@ mod tests {
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]
-    #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
-    #[test_case(WatchOutcome::StreamClosed; "stream closed")]
+    #[test_case(WatchOutcome::WatchErrors(String::new()); "transient error limit exceeded")]
     #[test_case(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into()); "container unrunnable")]
     #[tokio::test]
     async fn wait_and_update_submits_mark_unrunnable_then_cleanup_on_watch_error(

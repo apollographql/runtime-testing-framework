@@ -7,7 +7,7 @@ use tracing::{info, warn};
 
 pub(super) async fn try_run<K>(
     test_execution: TestExecution,
-    clients: K,
+    clients: &mut K,
 ) -> Result<Option<EventData>>
 where
     K: WorkloadClient,
@@ -35,9 +35,9 @@ mod tests {
     #[tokio::test]
     async fn try_run_happy_path_returns_ok() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
-        let clients = MockClient::default_ok();
+        let mut clients = MockClient::default_ok();
 
-        let res = try_run(ex, clients).await;
+        let res = try_run(ex, &mut clients).await;
 
         assert!(res.is_ok(), "{res:?}");
     }
@@ -45,12 +45,12 @@ mod tests {
     #[tokio::test]
     async fn try_run_returns_expected_delete_error() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
-        let clients = MockClient {
+        let mut clients = MockClient {
             delete_workload_namespace: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default()
         };
 
-        let res = try_run(ex, clients).await;
+        let res = try_run(ex, &mut clients).await;
 
         assert!(matches!(res, Err(Error::DeleteNamespace { .. })));
     }
@@ -58,7 +58,7 @@ mod tests {
     #[tokio::test]
     async fn try_run_returns_ok_when_namespace_not_found() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
-        let clients = MockClient {
+        let mut clients = MockClient {
             delete_workload_namespace: Resp::new(Err(k8s::Error::Kube(kube::Error::Api(
                 Box::new(kube::core::Status {
                     status: None,
@@ -72,7 +72,7 @@ mod tests {
             ..MockClient::default()
         };
 
-        let res = try_run(ex, clients).await;
+        let res = try_run(ex, &mut clients).await;
 
         assert!(res.is_ok(), "{res:?}");
     }

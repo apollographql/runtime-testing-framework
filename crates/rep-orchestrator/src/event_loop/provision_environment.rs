@@ -88,7 +88,7 @@ async fn wait_and_update<K>(
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
     etx: &UnboundedSender<Event>,
-    clients: K,
+    mut clients: K,
 ) where
     K: FullClient,
 {
@@ -269,8 +269,7 @@ mod tests {
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]
     #[test_case(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into()); "container unrunnable")]
-    #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
-    #[test_case(WatchOutcome::StreamClosed; "stream closed")]
+    #[test_case(WatchOutcome::WatchErrors(String::new()); "transient error limit exceeded")]
     #[tokio::test]
     async fn wait_and_update_submits_mark_unrunnable_then_cleanup_on_watch_error(
         outcome: WatchOutcome,
