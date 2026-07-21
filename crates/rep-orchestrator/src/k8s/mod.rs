@@ -19,6 +19,7 @@ pub use workflow::{
 /// Binary name of the REP orchestrator CLI, available on `PATH` inside [TOOLBOX_IMAGE].
 const CLI_BINARY: &str = "rep-orchestrator-cli";
 pub(crate) const OUTPUT_COLLECTOR: &str = "output-collector";
+pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";
 pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
 pub const TOOLBOX_IMAGE: &str =
     "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge";

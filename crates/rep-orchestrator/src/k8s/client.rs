@@ -1,6 +1,6 @@
 use crate::k8s::{
     CLUSTER_API_NAMESPACE, Error, FullClient, ManagementClient, OUTPUT_COLLECTOR, Result,
-    WatchOutcome, Workflow, WorkflowSpec, WorkloadClient, workflow_name,
+    SCENARIO_RUNNER_CONTAINER, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient, workflow_name,
 };
 use chrono::{DateTime, Duration, Utc};
 use k8s_openapi::api::{
@@ -505,6 +505,28 @@ fn check_pod_for_unrunnable(pod: &Pod) -> Option<WatchOutcome> {
     None
 }
 
+/// Detect a `scenario-runner` container that was killed by the OOM killer. Unlike the Waiting
+/// reasons in `check_pod_for_unrunnable`, this container *did* terminate with a real exit code —
+/// but its sibling `output-collector` sidecar waits on a sentinel file that a SIGKILLed process
+/// never gets to write, so the pod hangs indefinitely without this check.
+///
+/// Scoped to the named `scenario-runner` container specifically: this must only ever run against
+/// the scenario Job's pod, never against environment pods, where an OOMKilled container is
+/// expected to self-heal via the Deployment's normal restart behaviour.
+fn check_scenario_runner_oomkilled(pod: &Pod) -> Option<WatchOutcome> {
+    let statuses = pod.status.as_ref()?.container_statuses.as_deref()?;
+    let status = statuses
+        .iter()
+        .find(|s| s.name == SCENARIO_RUNNER_CONTAINER)?;
+    let terminated = status.state.as_ref()?.terminated.as_ref()?;
+
+    if terminated.reason.as_deref() == Some("OOMKilled") {
+        Some(WatchOutcome::ContainerUnrunnable("OOMKilled".to_owned()))
+    } else {
+        None
+    }
+}
+
 fn check_workflow_status(wf: &Workflow) -> Option<WatchOutcome> {
     let status = wf.status.as_ref()?;
     match status.phase.as_deref() {
@@ -569,6 +591,17 @@ async fn poll_pods(api: &Api<Pod>, params: &ListParams) -> Result<Option<WatchOu
     Ok(pods.items.iter().find_map(check_pod_for_unrunnable))
 }
 
+/// List pods matching `params` and check each for a permanently-stuck waiting state or an
+/// OOMKilled `scenario-runner` container. Only used for the scenario Job's own pod — see
+/// `check_scenario_runner_oomkilled`.
+async fn poll_scenario_pods(api: &Api<Pod>, params: &ListParams) -> Result<Option<WatchOutcome>> {
+    let pods = api.list(params).await?;
+
+    Ok(pods.items.iter().find_map(|pod| {
+        check_pod_for_unrunnable(pod).or_else(|| check_scenario_runner_oomkilled(pod))
+    }))
+}
+
 async fn poll_job_and_pods(
     job_api: &Api<Job>,
     pod_api: &Api<Pod>,
@@ -578,7 +611,7 @@ async fn poll_job_and_pods(
         return Ok(Some(outcome));
     }
 
-    poll_pods(pod_api, params).await
+    poll_scenario_pods(pod_api, params).await
 }
 
 async fn poll_workflow_and_pods(
@@ -647,7 +680,7 @@ mod tests {
     use crate::k8s::workflow::WorkflowStatus;
     use k8s_openapi::api::batch::v1::{JobCondition, JobStatus};
     use k8s_openapi::api::core::v1::{
-        ContainerState, ContainerStateWaiting, ContainerStatus, PodStatus,
+        ContainerState, ContainerStateTerminated, ContainerStateWaiting, ContainerStatus, PodStatus,
     };
     use simple_test_case::test_case;
 
@@ -672,6 +705,27 @@ mod tests {
                     state: Some(ContainerState {
                         waiting: Some(ContainerStateWaiting {
                             reason: Some(reason.to_owned()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn pod_with_terminated_container(name: &str, reason: &str, exit_code: i32) -> Pod {
+        Pod {
+            status: Some(PodStatus {
+                container_statuses: Some(vec![ContainerStatus {
+                    name: name.to_owned(),
+                    state: Some(ContainerState {
+                        terminated: Some(ContainerStateTerminated {
+                            reason: Some(reason.to_owned()),
+                            exit_code,
                             ..Default::default()
                         }),
                         ..Default::default()
@@ -761,6 +815,37 @@ mod tests {
     #[test]
     fn check_pod_for_unrunnable_ignores_unrelated_waiting_reasons() {
         let pod = pod_with_waiting_reason("ContainerCreating");
+        assert!(check_pod_for_unrunnable(&pod).is_none());
+    }
+
+    #[test]
+    fn check_scenario_runner_oomkilled_flags_oomkilled_scenario_runner() {
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "OOMKilled", 137);
+        assert!(matches!(
+            check_scenario_runner_oomkilled(&pod),
+            Some(WatchOutcome::ContainerUnrunnable(_))
+        ));
+    }
+
+    #[test]
+    fn check_scenario_runner_oomkilled_ignores_other_terminated_reasons() {
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "Error", 1);
+        assert!(check_scenario_runner_oomkilled(&pod).is_none());
+    }
+
+    #[test]
+    fn check_scenario_runner_oomkilled_ignores_oomkilled_sidecar() {
+        // The output-collector sidecar is never the scenario itself; an OOMKill there is not a
+        // scenario failure.
+        let pod = pod_with_terminated_container(OUTPUT_COLLECTOR, "OOMKilled", 137);
+        assert!(check_scenario_runner_oomkilled(&pod).is_none());
+    }
+
+    #[test]
+    fn poll_pods_used_for_environment_pods_ignores_scenario_oomkill() {
+        // Environment pods must never be flagged for a scenario-runner OOMKill - poll_pods (used
+        // by poll_workflow_and_pods) intentionally has no OOMKilled check at all.
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "OOMKilled", 137);
         assert!(check_pod_for_unrunnable(&pod).is_none());
     }
 

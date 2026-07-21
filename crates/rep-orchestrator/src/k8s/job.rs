@@ -1,6 +1,6 @@
 use crate::{
     db::TestExecution,
-    k8s::{CLI_BINARY, OUTPUT_COLLECTOR, TOOLBOX_IMAGE},
+    k8s::{CLI_BINARY, OUTPUT_COLLECTOR, SCENARIO_RUNNER_CONTAINER, TOOLBOX_IMAGE},
 };
 use k8s_openapi::api::{
     batch::v1::JobSpec,
@@ -98,7 +98,7 @@ fn rtf_resolve_container_spec(
 
 fn scenario_run_container_spec(scenario_image: String) -> Container {
     Container {
-        name: "scenario-runner".to_owned(),
+        name: SCENARIO_RUNNER_CONTAINER.to_owned(),
         image: Some(scenario_image),
         image_pull_policy: Some("Always".to_string()),
         command: Some(vec!["/bin/sh".to_owned(), "/shared/run.sh".to_owned()]),
