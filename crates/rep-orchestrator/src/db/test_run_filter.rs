@@ -1,4 +1,4 @@
-use crate::db::{Result, TestRun};
+use crate::db::{Result, TestRun, test_run::UNKNOWN_INITIATOR};
 use chrono::{DateTime, Utc};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 
@@ -29,7 +29,14 @@ impl TestRunFilter {
             qb.push(" AND name = ").push_bind(name.clone());
         }
         if let Some(user) = &self.initiated_by {
-            qb.push(" AND initiated_by = ").push_bind(user.clone());
+            // `NULL ILIKE anything` is `NULL` (never matches), so a run with no recorded
+            // initiator would be unfindable no matter what's searched — even searching for
+            // "unknown", which is exactly what such a run displays as. Coalescing to the same
+            // placeholder the UI shows keeps search consistent with what's on screen.
+            qb.push(" AND COALESCE(initiated_by, ")
+                .push_bind(UNKNOWN_INITIATOR)
+                .push(") ILIKE ")
+                .push_bind(substring_pattern(user));
         }
         if let Some(dt) = self.started_after {
             qb.push(" AND started_at >= ").push_bind(dt);
@@ -64,6 +71,18 @@ impl TestRunFilter {
     }
 }
 
+/// Builds an `ILIKE` pattern matching `term` as a case-insensitive substring anywhere in the
+/// column, escaping `%`, `_`, and `\` in `term` first so they match literally rather than as `LIKE`
+/// wildcards (Postgres's default `LIKE`/`ILIKE` escape character is `\`, so no `ESCAPE` clause is
+/// needed on the query side).
+fn substring_pattern(term: &str) -> String {
+    let escaped = term
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    format!("%{escaped}%")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,6 +92,18 @@ mod tests {
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
+    }
+
+    #[test]
+    fn substring_pattern_wraps_the_term_in_wildcards() {
+        assert_eq!(substring_pattern("alice"), "%alice%");
+    }
+
+    #[test]
+    fn substring_pattern_escapes_like_wildcards_in_the_term() {
+        assert_eq!(substring_pattern("user_name"), "%user\\_name%");
+        assert_eq!(substring_pattern("50%off"), "%50\\%off%");
+        assert_eq!(substring_pattern("a\\b"), "%a\\\\b%");
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -112,6 +143,135 @@ mod tests {
 
         assert_eq!(runs.len(), 1, "{runs:?}");
         assert_eq!(runs[0].initiated_by(), Some(alice.as_str()));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_filters_by_initiated_by_substring() -> Result<()> {
+        let c = conn!();
+        let alice = unique("alice");
+        let bob = unique("bob");
+        TestRun::init("a", None, Some(&alice), c).await?;
+        TestRun::init("b", None, Some(&bob), c).await?;
+
+        // A substring of `alice`'s unique value, not the full value.
+        let needle = &alice[..alice.len() - 4];
+        let filter = TestRunFilter {
+            initiated_by: Some(needle.to_owned()),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert_eq!(runs[0].initiated_by(), Some(alice.as_str()));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_filters_by_initiated_by_case_insensitively() -> Result<()> {
+        let c = conn!();
+        let alice = unique("alice");
+        TestRun::init("a", None, Some(&alice), c).await?;
+
+        let filter = TestRunFilter {
+            initiated_by: Some(alice.to_uppercase()),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert_eq!(runs[0].initiated_by(), Some(alice.as_str()));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_treats_underscore_in_initiated_by_literally() -> Result<()> {
+        let c = conn!();
+        // Without escaping, `_` is a LIKE single-character wildcard and `user_name` would also
+        // match `user1name`.
+        let user_name = unique("user_name");
+        let user1name = format!(
+            "user1name-{}",
+            &user_name[user_name.rfind('-').unwrap() + 1..]
+        );
+        TestRun::init("a", None, Some(&user_name), c).await?;
+        TestRun::init("b", None, Some(&user1name), c).await?;
+
+        let filter = TestRunFilter {
+            initiated_by: Some(user_name.clone()),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert_eq!(runs[0].initiated_by(), Some(user_name.as_str()));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_initiated_by_treats_a_missing_initiator_as_unknown() -> Result<()> {
+        let c = conn!();
+        let name = unique("no-initiator");
+        TestRun::init_unknown_initiator(&name, None, c).await?;
+
+        // Scoped by `name` (unique to this test) since every other test's `init_unknown_initiator`
+        // rows in this shared dev database would otherwise also match "unknown".
+        let filter = TestRunFilter {
+            name: Some(name.clone()),
+            initiated_by: Some("unknown".to_owned()),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_initiated_by_matches_a_substring_of_unknown_case_insensitively()
+    -> Result<()> {
+        let c = conn!();
+        let name = unique("no-initiator-substring");
+        TestRun::init_unknown_initiator(&name, None, c).await?;
+
+        let filter = TestRunFilter {
+            name: Some(name.clone()),
+            initiated_by: Some("KNOW".to_owned()),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_initiated_by_does_not_match_unrelated_terms_for_a_missing_initiator()
+    -> Result<()> {
+        let c = conn!();
+        let name = unique("no-initiator-unrelated");
+        TestRun::init_unknown_initiator(&name, None, c).await?;
+
+        let filter = TestRunFilter {
+            name: Some(name.clone()),
+            initiated_by: Some("alice".to_owned()),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 0, "{runs:?}");
 
         Ok(())
     }
