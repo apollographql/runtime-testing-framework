@@ -34,7 +34,13 @@
     <p>
         <a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">View logs in GCP &#8599;</a>
         &middot;
-        <a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">View dashboard in Grafana &#8599;</a>
+        <a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">View dashboard in Grafana
+            &#8599;</a>
+    </p>
+    <p>
+        <a href="/ui/execution/{{ execution.id }}/log.txt">Download log.txt</a>
+        &middot;
+        <a href="/ui/execution/{{ execution.id }}/output.zip">Download output.zip</a>
     </p>
 </section>
 

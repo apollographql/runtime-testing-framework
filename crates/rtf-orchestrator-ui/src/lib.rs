@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    endpoints::{execution_detail, health, index, run_status},
+    endpoints::{execution_detail, execution_log, execution_output_zip, health, index, run_status},
     links::LinksConfig,
 };
 use axum::{Extension, Router, routing::get};
@@ -47,6 +47,11 @@ where
         .route("/ui/health", get(health))
         .route("/ui/run/{id}", get(run_status::<C>))
         .route("/ui/execution/{eid}", get(execution_detail::<C>))
+        .route("/ui/execution/{eid}/log.txt", get(execution_log::<C>))
+        .route(
+            "/ui/execution/{eid}/output.zip",
+            get(execution_output_zip::<C>),
+        )
         .route("/ui/static/{*path}", get(assets::serve))
         .layer(Extension(links_cfg))
         .with_state(orchestrator_client)

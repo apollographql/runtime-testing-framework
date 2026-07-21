@@ -109,6 +109,7 @@ impl ExecutionView {
 
 /// The execution detail page: the execution's status-history timeline plus its metadata.
 pub struct ExecutionDetailView {
+    pub id: Uuid,
     /// The parent test run's id, used for the "back to run" link.
     pub run_id: Option<Uuid>,
     pub name: String,
@@ -134,6 +135,7 @@ impl ExecutionDetailView {
         let grafana_url = grafana(links_cfg, &namespace, execution.started_at, end);
 
         Self {
+            id: execution.id,
             run_id: execution.test_run_id,
             name: execution.name,
             status_label: execution.current_status.to_string(),

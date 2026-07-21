@@ -1,6 +1,6 @@
 use crate::{
     links::LinksConfig,
-    orchestrator::{self, Client},
+    orchestrator::{self, Client, Download},
     templates::{
         ErrorTemplate, ExecutionNotFoundTemplate, ExecutionTemplate, IndexTemplate,
         RunNotFoundTemplate, RunTemplate,
@@ -11,6 +11,7 @@ use askama::Template;
 use axum::{
     Extension,
     extract::{Path, State},
+    http::header::{CONTENT_DISPOSITION, CONTENT_TYPE},
     response::{Html, IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
@@ -145,6 +146,68 @@ pub async fn execution_detail<C: Client>(
     let result = orchestrator_client.execution_summary(execution_id).await;
 
     to_response(execution_detail_body(execution_id, result, &links_cfg))
+}
+
+/// `GET /ui/execution/{eid}/log.txt`
+///
+/// Proxies the execution's log file from the orchestrator, so
+/// the browser only ever talks to the UI's own origin.
+pub async fn execution_log<C: Client>(
+    State(orchestrator_client): State<C>,
+    Path(execution_id): Path<Uuid>,
+) -> Response {
+    download_response(
+        orchestrator_client.execution_log(execution_id).await,
+        "text/plain; charset=utf-8",
+        format!("{execution_id}-log.txt"),
+    )
+}
+
+/// `GET /ui/execution/{eid}/output.zip`
+///
+/// Proxies the execution's zipped output from the orchestrator.
+pub async fn execution_output_zip<C: Client>(
+    State(orchestrator_client): State<C>,
+    Path(execution_id): Path<Uuid>,
+) -> Response {
+    download_response(
+        orchestrator_client.execution_output_zip(execution_id).await,
+        "application/zip",
+        format!("{execution_id}-output.zip"),
+    )
+}
+
+/// Maps a [`Download`] outcome to an HTTP response: the file's bytes with a `Content-Disposition`
+/// download header on success, or a plain-text response carrying the corresponding status
+/// otherwise.
+fn download_response(
+    result: Result<Download, orchestrator::Error>,
+    content_type: &'static str,
+    filename: String,
+) -> Response {
+    match result {
+        Ok(Download::Ready(bytes)) => (
+            [
+                (CONTENT_TYPE, content_type.to_owned()),
+                (
+                    CONTENT_DISPOSITION,
+                    format!("attachment; filename=\"{filename}\""),
+                ),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Ok(Download::NotFound) => (StatusCode::NOT_FOUND, "not found").into_response(),
+        Ok(Download::NotReady) => (StatusCode::CONFLICT, "output not ready yet").into_response(),
+        Err(error) => {
+            error!(%error, "failed to fetch download from orchestrator");
+            (
+                StatusCode::BAD_GATEWAY,
+                "could not fetch download from orchestrator",
+            )
+                .into_response()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -312,5 +375,77 @@ mod tests {
             body_text(resp).await.contains("exec-alpha"),
             "handler should render the client's execution summary"
         );
+    }
+
+    #[tokio::test]
+    async fn execution_log_calls_the_client_and_streams_its_result() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_log(
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path(ex_id),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(body_text(resp).await, "log contents");
+    }
+
+    #[tokio::test]
+    async fn execution_output_zip_calls_the_client_and_streams_its_result() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_output_zip(
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path(ex_id),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(body_text(resp).await, "output zip contents");
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_bytes_with_a_download_header_on_success() {
+        let resp = download_response(
+            Ok(Download::Ready(b"hello".to_vec())),
+            "text/plain; charset=utf-8",
+            "example.txt".to_owned(),
+        );
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get(CONTENT_DISPOSITION).unwrap(),
+            "attachment; filename=\"example.txt\""
+        );
+        assert_eq!(body_text(resp).await, "hello");
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_404_when_not_found() {
+        let resp = download_response(Ok(Download::NotFound), "text/plain", "f".to_owned());
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_409_when_not_ready() {
+        let resp = download_response(Ok(Download::NotReady), "text/plain", "f".to_owned());
+
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_502_when_the_fetch_fails() {
+        let resp = download_response(
+            Err(orchestrator::Error::Download {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                path: "/test-execution/1/log.txt".to_owned(),
+            }),
+            "text/plain",
+            "f".to_owned(),
+        );
+
+        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 }
