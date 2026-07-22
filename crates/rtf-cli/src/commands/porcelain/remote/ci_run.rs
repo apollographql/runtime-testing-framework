@@ -11,8 +11,6 @@ use tokio::time::sleep;
 use tracing::warn;
 use uuid::Uuid;
 
-const MAX_MESSAGE_CHARS: usize = 60;
-
 pub async fn ci_run(
     test_plan_path: &str,
     github: bool,
@@ -101,7 +99,6 @@ fn any_execution_ongoing(trs: &TestRunSummary) -> bool {
 #[derive(Debug, Default, Clone, Tabled)]
 struct UpdateLine {
     status: String,
-    latest_message: String,
     running: usize,
     successful: usize,
     failed: usize,
@@ -125,27 +122,6 @@ impl UpdateLine {
         // Maximum length of a Status string repr. We pad to ensure that the column size of our
         // table repr remainins fixed.
         line.status = format!("{:<12}", summary.current_status);
-        line.latest_message = summary
-            .executions
-            .last()
-            .map(|ex| {
-                ex.status_history[0]
-                    .message
-                    .clone()
-                    .unwrap_or_default()
-                    .chars()
-                    .take(MAX_MESSAGE_CHARS)
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        // Same here: pad to MAX_MESSAGE_CHARS to ensure we have consistent column widths (This
-        // assumes that we never have wide UTF8 chars in status messages which _should_ be a safe
-        // assumption to make!)
-        if line.latest_message.chars().count() < MAX_MESSAGE_CHARS {
-            line.latest_message
-                .extend(vec![' '; MAX_MESSAGE_CHARS - line.latest_message.len()]);
-        }
 
         line
     }
