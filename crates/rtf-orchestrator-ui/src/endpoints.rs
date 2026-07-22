@@ -164,6 +164,14 @@ pub async fn health() -> &'static str {
     "ok"
 }
 
+/// Query params accepted by the run status page.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct RunParams {
+    /// Restricts the executions table to this exact `current_status` `Display` value (e.g.
+    /// `"FAILED"`); absent/empty means no filter.
+    execution_status: Option<String>,
+}
+
 /// Maps the result of fetching a run summary to a rendered `(status, body)` pair: the banner plus
 /// executions table on success, a "not found" page for an unknown id, or an error page for a fetch
 /// failure. Kept free of the orchestrator [`Client`] so it can be tested directly against
@@ -173,12 +181,13 @@ fn run_status_body(
     result: Result<Option<TestRunSummary>, orchestrator::Error>,
     now: DateTime<Utc>,
     links_cfg: &LinksConfig,
+    execution_status_filter: String,
 ) -> (StatusCode, String) {
     match result {
         Ok(Some(summary)) => render_body(
             StatusCode::OK,
             RunTemplate {
-                run: RunView::new(summary, now, links_cfg),
+                run: RunView::new(summary, now, links_cfg, execution_status_filter),
             },
         ),
         Ok(None) => render_body(
@@ -210,10 +219,18 @@ pub async fn run_status<C: Client>(
     State(orchestrator_client): State<C>,
     Extension(links_cfg): Extension<LinksConfig>,
     Path(id): Path<Uuid>,
+    Query(params): Query<RunParams>,
 ) -> Response {
     let result = orchestrator_client.run_summary(id).await;
+    let execution_status_filter = params.execution_status.unwrap_or_default();
 
-    to_response(run_status_body(id, result, Utc::now(), &links_cfg))
+    to_response(run_status_body(
+        id,
+        result,
+        Utc::now(),
+        &links_cfg,
+        execution_status_filter,
+    ))
 }
 
 /// Maps the result of fetching an execution summary to a rendered `(status, body)` pair: the detail
@@ -466,6 +483,7 @@ mod tests {
             Ok(Some(sample_summary(run_id, ex_id, Status::Running))),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
 
         assert_eq!(status, StatusCode::OK);
@@ -485,7 +503,8 @@ mod tests {
     #[test]
     fn run_status_body_renders_not_found_for_an_unknown_run() {
         let id = Uuid::from_u128(1);
-        let (status, body) = run_status_body(id, Ok(None), Utc::now(), &sample_config());
+        let (status, body) =
+            run_status_body(id, Ok(None), Utc::now(), &sample_config(), String::new());
 
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert!(body.contains("not found"));
@@ -502,6 +521,7 @@ mod tests {
             }),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
 
         assert_eq!(status, StatusCode::BAD_GATEWAY);
@@ -559,6 +579,7 @@ mod tests {
             State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Extension(sample_config()),
             Path(run_id),
+            Query(RunParams::default()),
         )
         .await;
 
