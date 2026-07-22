@@ -3,8 +3,9 @@ use crate::status;
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
 use rep_orchestrator_shared::status::{Status, StatusUpdate};
-use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
+use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary};
 use std::time::Duration;
+use url::form_urlencoded;
 use uuid::Uuid;
 
 /// Upper bound on how long a non-terminal run is auto-refreshed. A run that never reaches a
@@ -103,6 +104,134 @@ impl ExecutionView {
             updated_at: execution.updated_at.to_rfc3339(),
             logs_url,
             grafana_url,
+        }
+    }
+}
+
+/// One row in the recent-runs table on the home page.
+pub struct RunListRowView {
+    pub id: Uuid,
+    pub name: String,
+    pub status_label: String,
+    pub status_class: &'static str,
+    pub initiated_by: String,
+    pub started_at: String,
+}
+
+impl From<TestRunSummary> for RunListRowView {
+    fn from(run: TestRunSummary) -> Self {
+        Self {
+            id: run.id,
+            name: run.name,
+            status_label: run.current_status.to_string(),
+            status_class: status::css_class(run.current_status),
+            initiated_by: run.initiated_by,
+            started_at: run.started_at.to_rfc3339(),
+        }
+    }
+}
+
+/// The home page's recent-runs table: the current page of rows plus enough state to render
+/// Prev/Next pagination links. Carries `initiated_by`/`started_within` too (not just the page's
+/// template fields) so it can build those links itself with correct percent-encoding.
+pub struct RunListView {
+    pub rows: Vec<RunListRowView>,
+    pub total: i64,
+    pub limit: i64,
+    pub offset: i64,
+    initiated_by: String,
+    started_within: String,
+}
+
+impl RunListView {
+    pub fn new(
+        response: TestRunListResponse,
+        limit: i64,
+        offset: i64,
+        initiated_by: String,
+        started_within: String,
+    ) -> Self {
+        Self {
+            rows: response
+                .runs
+                .into_iter()
+                .map(RunListRowView::from)
+                .collect(),
+            total: response.total,
+            limit,
+            offset,
+            initiated_by,
+            started_within,
+        }
+    }
+
+    pub fn has_prev(&self) -> bool {
+        self.offset > 0
+    }
+
+    /// Whether there's a further page beyond what's shown. Derived from how many rows actually
+    /// came back (`rows.len()`), not the requested `limit` — if `offset` landed past the end (a
+    /// stale bookmark, or rows pruned since a pagination link was generated), `rows` is empty and
+    /// this correctly reports no next page rather than trusting a now-bogus `offset`.
+    pub fn has_next(&self) -> bool {
+        self.offset + (self.rows.len() as i64) < self.total
+    }
+
+    /// The Prev link's href, already percent-encoding `initiated_by`/`started_within` — built here
+    /// rather than interpolated in the template, since Askama's HTML-escaping alone doesn't
+    /// percent-encode query values (a name containing `&` or `#` would otherwise corrupt the link).
+    pub fn prev_href(&self) -> String {
+        self.href_with_offset(self.prev_offset())
+    }
+
+    pub fn next_href(&self) -> String {
+        self.href_with_offset(self.offset + self.limit)
+    }
+
+    /// One page back — but if the current page is empty because `offset` overshot the last page,
+    /// a plain `offset - limit` step could still land past the end. Jump straight to the last page
+    /// that actually has rows on it instead, so Prev always recovers in one click.
+    fn prev_offset(&self) -> i64 {
+        if self.rows.is_empty() && self.total > 0 {
+            ((self.total - 1) / self.limit) * self.limit
+        } else {
+            (self.offset - self.limit).max(0)
+        }
+    }
+
+    fn href_with_offset(&self, offset: i64) -> String {
+        let mut qs = form_urlencoded::Serializer::new(String::new());
+        if !self.initiated_by.is_empty() {
+            qs.append_pair("initiated_by", &self.initiated_by);
+        }
+        if !self.started_within.is_empty() {
+            qs.append_pair("started_within", &self.started_within);
+        }
+        qs.append_pair("offset", &offset.to_string());
+        format!("/ui?{}", qs.finish())
+    }
+
+    /// e.g. "1-20 of 137". `None` when there's nothing to summarize — no matching runs at all, or
+    /// `offset` landed past the last page — so the template shows `empty_message` instead rather
+    /// than both a range and a "no runs" row at once.
+    pub fn showing_range(&self) -> Option<String> {
+        if self.rows.is_empty() {
+            return None;
+        }
+        let last = self.offset + self.rows.len() as i64;
+        Some(format!("{}-{} of {}", self.offset + 1, last, self.total))
+    }
+
+    /// The message shown in the table in place of rows when there's nothing on this page: either
+    /// no runs match the filters at all, or `offset` landed past the last page of an otherwise
+    /// non-empty result set.
+    pub fn empty_message(&self) -> Option<&'static str> {
+        if !self.rows.is_empty() {
+            None
+        } else if self.total == 0 {
+            Some("No runs match these filters.")
+        } else {
+            Some("No runs on this page.")
         }
     }
 }
@@ -383,5 +512,113 @@ mod tests {
             .expect("template renders");
 
         assert!(!body.contains("Back to run"));
+    }
+
+    /// Builds a `RunListView` with `n_rows` placeholder rows out of `total` matching runs, at the
+    /// given `limit`/`offset`.
+    fn list_view(n_rows: usize, total: i64, limit: i64, offset: i64) -> RunListView {
+        list_view_with_filters(n_rows, total, limit, offset, "", "")
+    }
+
+    fn list_view_with_filters(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        initiated_by: &str,
+        started_within: &str,
+    ) -> RunListView {
+        let response = TestRunListResponse {
+            runs: vec![TestRunSummary::default(); n_rows],
+            total,
+        };
+        RunListView::new(
+            response,
+            limit,
+            offset,
+            initiated_by.to_owned(),
+            started_within.to_owned(),
+        )
+    }
+
+    #[test]
+    fn has_next_true_when_more_rows_remain() {
+        let view = list_view(20, 137, 20, 0);
+        assert!(view.has_next());
+    }
+
+    #[test]
+    fn has_next_false_on_the_last_full_page() {
+        let view = list_view(20, 20, 20, 0);
+        assert!(!view.has_next());
+    }
+
+    #[test]
+    fn has_next_false_when_offset_landed_past_the_end() {
+        // `total` shrank (or a stale link was followed) since this offset was generated.
+        let view = list_view(0, 15, 20, 40);
+        assert!(!view.has_next());
+        assert!(view.has_prev());
+    }
+
+    #[test]
+    fn has_prev_false_on_the_first_page() {
+        let view = list_view(20, 137, 20, 0);
+        assert!(!view.has_prev());
+    }
+
+    #[test]
+    fn prev_href_steps_back_by_limit_normally() {
+        let view = list_view(20, 137, 20, 40);
+        assert_eq!(view.prev_href(), "/ui?offset=20");
+    }
+
+    #[test]
+    fn prev_href_jumps_to_the_last_real_page_when_offset_overshot() {
+        // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
+        let view = list_view(0, 137, 20, 500);
+        assert_eq!(view.prev_href(), "/ui?offset=120");
+    }
+
+    #[test]
+    fn empty_message_is_none_when_rows_are_present() {
+        let view = list_view(20, 137, 20, 0);
+        assert_eq!(view.empty_message(), None);
+    }
+
+    #[test]
+    fn empty_message_distinguishes_no_matches_from_past_the_end() {
+        assert_eq!(
+            list_view(0, 0, 20, 0).empty_message(),
+            Some("No runs match these filters.")
+        );
+        assert_eq!(
+            list_view(0, 137, 20, 500).empty_message(),
+            Some("No runs on this page.")
+        );
+    }
+
+    #[test]
+    fn showing_range_is_none_when_there_are_no_rows() {
+        assert_eq!(list_view(0, 0, 20, 0).showing_range(), None);
+        assert_eq!(list_view(0, 137, 20, 500).showing_range(), None);
+    }
+
+    #[test]
+    fn showing_range_formats_the_current_page() {
+        let view = list_view(17, 137, 20, 120);
+        assert_eq!(view.showing_range(), Some("121-137 of 137".to_owned()));
+    }
+
+    #[test]
+    fn hrefs_percent_encode_special_characters_in_filters() {
+        let view = list_view_with_filters(20, 137, 20, 40, "a&b#c d", "day");
+        let href = view.prev_href();
+
+        assert!(
+            href.contains("initiated_by=a%26b%23c+d"),
+            "expected percent-encoded initiated_by, got {href}"
+        );
+        assert!(href.contains("started_within=day"));
     }
 }

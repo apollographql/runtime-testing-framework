@@ -43,7 +43,7 @@ where
     C: orchestrator::Client + Clone,
 {
     Router::new()
-        .route("/ui", get(index))
+        .route("/ui", get(index::<C>))
         .route("/ui/health", get(health))
         .route("/ui/run/{id}", get(run_status::<C>))
         .route("/ui/execution/{eid}", get(execution_detail::<C>))
