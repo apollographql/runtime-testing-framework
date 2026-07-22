@@ -388,6 +388,22 @@ mod tests {
             body.contains("/ui/run/"),
             "form should navigate to /ui/run/{{id}}"
         );
+        assert!(
+            body.contains(
+                "https://scaling-dollop-ywevlle.pages.github.io/explanation/overview.html"
+            ),
+            "expected a link explaining what RTF is"
+        );
+        assert!(
+            body.contains(r#"href="https://scaling-dollop-ywevlle.pages.github.io/""#),
+            "expected a link to the RTF docs"
+        );
+        assert!(
+            body.contains(
+                "https://scaling-dollop-ywevlle.pages.github.io/tutorials/running-with-the-orchestrator/index.html"
+            ),
+            "expected a link to the orchestrator tutorial"
+        );
     }
 
     #[test]
