@@ -7,6 +7,7 @@ pub fn css_class(status: Status) -> &'static str {
         StatusCategory::Active => "status--active",
         StatusCategory::Success => "status--success",
         StatusCategory::Failed => "status--failed",
+        StatusCategory::Unrunnable => "status--unrunnable",
     }
 }
 
@@ -24,7 +25,7 @@ mod tests {
             (Status::Running, "status--active"),
             (Status::Successful, "status--success"),
             (Status::Failed, "status--failed"),
-            (Status::Unrunnable, "status--failed"),
+            (Status::Unrunnable, "status--unrunnable"),
         ];
 
         for (status, expected) in cases {
