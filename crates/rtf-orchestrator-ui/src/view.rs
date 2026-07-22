@@ -469,6 +469,23 @@ mod tests {
     }
 
     #[test]
+    fn run_template_shows_the_execution_count() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let run = RunView::new(
+            sample_summary(run_id, ex_id, Status::Running),
+            Utc::now(),
+            &sample_config(),
+        );
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(
+            body.contains("<h3>Executions (1)</h3>"),
+            "expected the single sample execution to be counted next to the table heading, got: {body}"
+        );
+    }
+
+    #[test]
     fn execution_template_renders_status_history_and_metadata() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
