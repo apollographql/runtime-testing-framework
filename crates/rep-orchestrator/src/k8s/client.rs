@@ -15,13 +15,12 @@ use kube::{
     core::NamespaceResourceScope,
 };
 use rep_orchestrator_shared::EXECUTION_ID_LABEL;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
 use tracing::{error, warn};
 use uuid::Uuid;
 
-const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
-const CLIENT_REFRESH_MARGIN: Duration = Duration::seconds(40 * 60);
+const POLL_INTERVAL: time::Duration = time::Duration::from_secs(10);
 const RETRY_WINDOW: Duration = Duration::seconds(15 * 60);
 
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
@@ -72,7 +71,6 @@ pub struct AvailableWorkload {
     client: Client,
     workload_path: String,
     workload_context: String,
-    last_refresh: DateTime<Utc>,
 }
 
 impl AvailableWorkload {
@@ -84,7 +82,6 @@ impl AvailableWorkload {
             client,
             workload_path: workload_path.to_owned(),
             workload_context: workload_context.to_owned(),
-            last_refresh: Utc::now(),
         })
     }
 
@@ -144,33 +141,19 @@ impl<W> ClusterClients<AvailableManagement, W> {
 }
 
 impl<M> ClusterClients<M, AvailableWorkload> {
-    async fn workload_api<K>(&mut self, ns: &str) -> Result<Api<K>>
+    fn workload_api<K>(&mut self, ns: &str) -> Api<K>
     where
         K: Resource<Scope = NamespaceResourceScope>,
         <K as Resource>::DynamicType: Default,
     {
-        let client = self.workload_client().await?;
-
-        Ok(Api::namespaced(client, ns))
+        Api::namespaced(self.workload_client(), ns)
     }
 
-    async fn workload_client(&mut self) -> Result<Client> {
-        self.refresh_workload_if_due().await?;
-
-        Ok(self.workload.client.clone())
+    fn workload_client(&mut self) -> Client {
+        self.workload.client.clone()
     }
 
-    /// Rebuild the workload client from disk if `last_refresh` is older than
-    /// [CLIENT_REFRESH_MARGIN]
-    async fn refresh_workload_if_due(&mut self) -> Result<()> {
-        if Utc::now() - self.workload.last_refresh > CLIENT_REFRESH_MARGIN {
-            self.refresh_workload_now().await?;
-        }
-
-        Ok(())
-    }
-
-    async fn refresh_workload_now(&mut self) -> Result<()> {
+    async fn refresh_workload_client(&mut self) -> Result<()> {
         self.workload = self.workload.refresh().await?;
 
         Ok(())
@@ -179,7 +162,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     async fn create_output_collector_rbac(&mut self, ns: &str) -> Result<()> {
         let pp = PatchParams::apply("rep-orchestrator");
 
-        let sa_api: Api<ServiceAccount> = self.workload_api(ns).await?;
+        let sa_api: Api<ServiceAccount> = self.workload_api(ns);
         sa_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -195,7 +178,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
             )
             .await?;
 
-        let role_api: Api<Role> = self.workload_api(ns).await?;
+        let role_api: Api<Role> = self.workload_api(ns);
         role_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -236,7 +219,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
             )
             .await?;
 
-        let rb_api: Api<RoleBinding> = self.workload_api(ns).await?;
+        let rb_api: Api<RoleBinding> = self.workload_api(ns);
         rb_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -262,7 +245,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
             )
             .await?;
 
-        let cr_api: Api<ClusterRole> = Api::all(self.workload_client().await?);
+        let cr_api: Api<ClusterRole> = Api::all(self.workload_client());
         cr_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -284,7 +267,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
             .await?;
 
         let crb_name = format!("{OUTPUT_COLLECTOR}-{ns}");
-        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client().await?);
+        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client());
         crb_api
             .patch(
                 &crb_name,
@@ -370,7 +353,6 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
 
         let job = self
             .workload_api(ns)
-            .await?
             .create(
                 &Default::default(),
                 &Job {
@@ -403,8 +385,8 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
             sleep(POLL_INTERVAL).await;
 
             let result = async {
-                let job_api: Api<Job> = self.workload_api(ns).await?;
-                let pod_api: Api<Pod> = self.workload_api(ns).await?;
+                let job_api: Api<Job> = self.workload_api(ns);
+                let pod_api: Api<Pod> = self.workload_api(ns);
                 poll_job_and_pods(&job_api, &pod_api, &params).await
             }
             .await;
@@ -413,14 +395,14 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
                 PollDecision::Terminal(outcome) => return outcome,
                 PollDecision::KeepWaiting => {}
                 PollDecision::RetryAfterRefresh => {
-                    let _ = self.refresh_workload_now().await;
+                    let _ = self.refresh_workload_client().await;
                 }
             }
         }
     }
 
     async fn delete_workload_namespace(&mut self, ns: &str) -> Result<()> {
-        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client().await?);
+        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client());
         if let Err(e) = crb_api
             .delete(&format!("{OUTPUT_COLLECTOR}-{ns}"), &Default::default())
             .await
@@ -428,7 +410,7 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
             warn!("failed to delete ClusterRoleBinding {OUTPUT_COLLECTOR}-{ns}: {e}");
         }
 
-        let api: Api<Namespace> = Api::all(self.workload_client().await?);
+        let api: Api<Namespace> = Api::all(self.workload_client());
         api.delete(ns, &Default::default()).await?;
 
         Ok(())
@@ -458,7 +440,7 @@ impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {
             let mgmt_pod_api: Api<Pod> = self.management_api(CLUSTER_API_NAMESPACE);
 
             let result = async {
-                let workload_pod_api: Api<Pod> = self.workload_api(&workload_ns).await?;
+                let workload_pod_api: Api<Pod> = self.workload_api(&workload_ns);
                 poll_workflow_and_pods(
                     &wf_api,
                     &wf_params,
@@ -475,7 +457,7 @@ impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {
                 PollDecision::Terminal(outcome) => return outcome,
                 PollDecision::KeepWaiting => {}
                 PollDecision::RetryAfterRefresh => {
-                    let _ = self.refresh_workload_now().await;
+                    let _ = self.refresh_workload_client().await;
                 }
             }
         }
@@ -662,6 +644,7 @@ fn classify_poll_result(
         }
         Err(e) if e.is_retryable() => {
             let first_failure_at = *first_failure.get_or_insert_with(Utc::now);
+
             if Utc::now() - first_failure_at > RETRY_WINDOW {
                 PollDecision::Terminal(WatchOutcome::WatchErrors(
                     Error::MaxRetriesExceeded.to_string(),
