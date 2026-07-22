@@ -11,7 +11,7 @@ use askama::Template;
 use axum::{
     Extension,
     extract::{Path, Query, State},
-    http::header::{CONTENT_DISPOSITION, CONTENT_TYPE},
+    http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, LOCATION},
     response::{Html, IntoResponse, Response},
 };
 use chrono::{DateTime, Duration, Utc};
@@ -299,7 +299,8 @@ pub async fn execution_log<C: Client>(
 
 /// `GET /ui/execution/{eid}/output.zip`
 ///
-/// Proxies the execution's zipped output from the orchestrator.
+/// The orchestrator answers this with a 307 to a signed GCS URL, which this handler relays
+/// verbatim rather than following - the UI never downloads the artifact's bytes itself.
 pub async fn execution_output_zip<C: Client>(
     State(orchestrator_client): State<C>,
     Path(execution_id): Path<Uuid>,
@@ -312,8 +313,8 @@ pub async fn execution_output_zip<C: Client>(
 }
 
 /// Maps a [`Download`] outcome to an HTTP response: the file's bytes with a `Content-Disposition`
-/// download header on success, or a plain-text response carrying the corresponding status
-/// otherwise.
+/// download header on success, the orchestrator's redirect relayed verbatim, or a plain-text
+/// response carrying the corresponding status otherwise.
 fn download_response(
     result: Result<Download, orchestrator::Error>,
     content_type: &'static str,
@@ -331,6 +332,9 @@ fn download_response(
             bytes,
         )
             .into_response(),
+        Ok(Download::Redirect { status, location }) => {
+            (status, [(LOCATION, location)]).into_response()
+        }
         Ok(Download::NotFound) => (StatusCode::NOT_FOUND, "not found").into_response(),
         Ok(Download::NotReady) => (StatusCode::CONFLICT, "output not ready yet").into_response(),
         Err(error) => {
@@ -674,6 +678,29 @@ mod tests {
             "attachment; filename=\"example.txt\""
         );
         assert_eq!(body_text(resp).await, "hello");
+    }
+
+    #[tokio::test]
+    async fn download_response_relays_a_redirect_verbatim() {
+        let resp = download_response(
+            Ok(Download::Redirect {
+                status: StatusCode::TEMPORARY_REDIRECT,
+                location: "https://storage.googleapis.com/signed-url".to_owned(),
+            }),
+            "application/zip",
+            "f.zip".to_owned(),
+        );
+
+        assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(
+            resp.headers().get(LOCATION).unwrap(),
+            "https://storage.googleapis.com/signed-url"
+        );
+        assert_eq!(
+            body_text(resp).await,
+            "",
+            "a redirect should carry no body - the browser follows Location itself"
+        );
     }
 
     #[tokio::test]

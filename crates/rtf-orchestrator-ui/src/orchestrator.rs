@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary};
-use reqwest::{StatusCode, Url};
+use reqwest::{StatusCode, Url, header::LOCATION, redirect::Policy};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -45,6 +45,13 @@ pub enum Download {
     NotFound,
     /// The parent run/execution exists, but the artifact isn't ready to download yet.
     NotReady,
+    /// The orchestrator redirected (e.g. the output-zip endpoint's 307 to a signed GCS URL). The
+    /// caller relays this status and `Location` verbatim rather than following it here, so the UI
+    /// never downloads the artifact's bytes itself.
+    Redirect {
+        status: StatusCode,
+        location: String,
+    },
 }
 
 pub trait Client: Send + Sync + Clone + 'static {
@@ -85,7 +92,11 @@ impl HttpClient {
     /// with `execution_id`, authenticating requests with `execution_token` as a Bearer token.
     pub fn try_new(orchestrator_url: String) -> anyhow::Result<Self> {
         Ok(Self {
-            client: reqwest::Client::new(),
+            // Redirects (e.g. the output-zip endpoint's 307 to a signed GCS URL) must be
+            // surfaced to the caller, not followed here - see `fetch_download`.
+            client: reqwest::Client::builder()
+                .redirect(Policy::none())
+                .build()?,
             orchestrator_url: Url::parse(&orchestrator_url)?,
         })
     }
@@ -141,17 +152,33 @@ impl Client for HttpClient {
 }
 
 impl HttpClient {
-    /// Fetch `path` from the orchestrator, mapping its response into a [`Download`] outcome.
-    /// `reqwest` follows redirects by default, so this transparently handles endpoints that
-    /// 307-redirect to a signed GCS URL as well as ones that stream bytes directly.
+    /// Fetch `path` from the orchestrator, mapping its response into a [`Download`] outcome. The
+    /// client has no redirect policy, so a 3xx response (e.g. the output-zip endpoint's 307 to a
+    /// signed GCS URL) is surfaced as [`Download::Redirect`] rather than followed here - the
+    /// caller relays it to the browser instead of downloading the artifact's bytes itself.
     async fn fetch_download(&self, path: &str) -> Result<Download, Error> {
         let url = self
             .orchestrator_url
             .join(path)
             .expect("base url should be valid");
         let response = self.client.get(url).send().await?;
+        let status = response.status();
 
-        match response.status() {
+        if status.is_redirection() {
+            let location = response
+                .headers()
+                .get(LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned)
+                .ok_or(Error::Download {
+                    status,
+                    path: path.to_owned(),
+                })?;
+
+            return Ok(Download::Redirect { status, location });
+        }
+
+        match status {
             StatusCode::OK => Ok(Download::Ready(response.bytes().await?.to_vec())),
             StatusCode::NOT_FOUND => Ok(Download::NotFound),
             StatusCode::CONFLICT => Ok(Download::NotReady),
