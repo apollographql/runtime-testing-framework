@@ -19,6 +19,14 @@
             background: #14181f;
             color: #fff;
             padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        header .logo {
+            height: 2rem;
+            width: 2rem;
         }
 
         header h1 {
@@ -132,6 +140,7 @@
 
 <body>
     <header>
+        <img class="logo" src="/ui/static/gongphin.png" alt="" />
         <h1>RTF Orchestrator</h1>
     </header>
     <main>{% block content %}{% endblock %}</main>
