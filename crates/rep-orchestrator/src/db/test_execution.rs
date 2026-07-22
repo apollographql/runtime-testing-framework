@@ -185,7 +185,6 @@ impl TestExecution {
     }
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestExecutionSummary> {
-        let status_history = self.status_history(conn).await?;
         let current: SharedStatusUpdate = self.current_status(conn).await?.into();
 
         Ok(TestExecutionSummary {
@@ -197,8 +196,20 @@ impl TestExecution {
             started_at: self.started_at,
             updated_at: current.updated_at,
             completed_at: self.completed_at,
-            status_history: status_history.into_iter().map(Into::into).collect(),
+            status_history: Vec::new(),
         })
+    }
+
+    pub async fn try_into_summary_with_status_history(
+        self,
+        conn: &mut PgConnection,
+    ) -> Result<TestExecutionSummary> {
+        let status_history = self.status_history(conn).await?;
+        let mut summary = self.try_into_summary(conn).await?;
+
+        summary.status_history = status_history.into_iter().map(Into::into).collect();
+
+        Ok(summary)
     }
 }
 
