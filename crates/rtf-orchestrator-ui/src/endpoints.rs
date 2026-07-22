@@ -373,6 +373,10 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
         assert!(
+            body.contains(r#"<link rel="icon" type="image/png" href="/ui/static/gongphin.png" />"#),
+            "expected the favicon link tag in the page head"
+        );
+        assert!(
             body.contains("<form"),
             "expected a form on the landing page"
         );
