@@ -377,6 +377,10 @@ mod tests {
             "expected the favicon link tag in the page head"
         );
         assert!(
+            body.contains(r#"<img class="logo" src="/ui/static/gongphin.png" alt="" />"#),
+            "expected the header logo image"
+        );
+        assert!(
             body.contains("<form"),
             "expected a form on the landing page"
         );

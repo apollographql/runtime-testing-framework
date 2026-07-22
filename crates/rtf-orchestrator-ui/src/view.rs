@@ -40,6 +40,9 @@ pub struct RunView {
     /// down to, or empty for no filter. Kept as a string, not a parsed [`Status`], since its only
     /// uses are re-populating the `<select>` and round-tripping through URLs.
     pub execution_status_filter: String,
+    /// How many executions are in each status, in lifecycle order, excluding statuses no execution
+    /// currently has. Always reflects every execution, regardless of `execution_status_filter`.
+    pub status_breakdown: Vec<StatusCountView>,
     /// Executions matching `execution_status_filter` (all of them, if empty).
     pub executions: Vec<ExecutionView>,
 }
@@ -63,6 +66,7 @@ impl RunView {
             .filter(|_| run.current_status.is_terminal());
         let end = completed_at.unwrap_or(now);
         let total_executions = run.executions.len();
+        let status_breakdown = status_breakdown(&run.executions);
 
         Self {
             id: run.id,
@@ -80,6 +84,7 @@ impl RunView {
             last_updated: now.format("%H:%M:%S UTC").to_string(),
             should_poll: should_poll(run.current_status, run.started_at, now),
             total_executions,
+            status_breakdown,
             executions: run
                 .executions
                 .into_iter()
@@ -115,6 +120,46 @@ impl RunView {
             "No executions match this filter."
         }
     }
+}
+
+/// Every [`Status`] variant, in lifecycle order — the order the run's status breakdown and the
+/// execution-status filter's `<select>` present statuses in.
+const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
+    Status::Initialising,
+    Status::Resolving,
+    Status::Provisioning,
+    Status::EnvironmentReady,
+    Status::Running,
+    Status::Successful,
+    Status::Failed,
+    Status::Unrunnable,
+];
+
+/// One row in the run's status-breakdown summary.
+pub struct StatusCountView {
+    pub status_label: String,
+    pub status_class: &'static str,
+    pub count: usize,
+}
+
+/// How many `executions` are in each status, in lifecycle order, omitting statuses none of them are
+/// in — a run with no `Unrunnable` executions shouldn't show an "Unrunnable: 0" row.
+fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView> {
+    STATUS_LIFECYCLE_ORDER
+        .into_iter()
+        .filter_map(|candidate| {
+            let count = executions
+                .iter()
+                .filter(|execution| execution.current_status == candidate)
+                .count();
+
+            (count > 0).then(|| StatusCountView {
+                status_label: candidate.to_string(),
+                status_class: status::css_class(candidate),
+                count,
+            })
+        })
+        .collect()
 }
 
 /// The execution view within a test run summary
@@ -669,6 +714,58 @@ mod tests {
         assert!(
             !body.contains("exec-ok"),
             "non-matching execution should be filtered out of the table"
+        );
+    }
+
+    #[test]
+    fn status_breakdown_counts_and_orders_by_lifecycle_ignoring_the_filter() {
+        let run_id = Uuid::from_u128(1);
+        let mut run = run_with_mixed_execution_statuses(run_id);
+        run.executions.push(TestExecutionSummary {
+            id: Uuid::from_u128(12),
+            name: "exec-ok-2".to_owned(),
+            current_status: Status::Successful,
+            ..Default::default()
+        });
+
+        let view = RunView::new(run, Utc::now(), &sample_config(), "FAILED".to_owned());
+
+        let labels_and_counts: Vec<(&str, usize)> = view
+            .status_breakdown
+            .iter()
+            .map(|row| (row.status_label.as_str(), row.count))
+            .collect();
+        assert_eq!(
+            labels_and_counts,
+            vec![("SUCCESSFUL", 2), ("FAILED", 1)],
+            "breakdown should count every execution in lifecycle order and ignore the active filter"
+        );
+    }
+
+    #[test]
+    fn run_template_renders_the_status_breakdown_table() {
+        let run_id = Uuid::from_u128(1);
+        let run = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            String::new(),
+        );
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(
+            body.contains("<h3>Status breakdown</h3>"),
+            "expected a status breakdown heading, got: {body}"
+        );
+        assert!(
+            body.contains("SUCCESSFUL") && body.contains("<td>1</td>"),
+            "expected a row counting the successful execution, got: {body}"
+        );
+        assert!(
+            !body.contains("class=\"status status--unrunnable\""),
+            "statuses with no executions should not get a status pill anywhere on the page \
+             (the filter <select> always lists UNRUNNABLE as an option, so that text alone isn't \
+             a safe check)"
         );
     }
 

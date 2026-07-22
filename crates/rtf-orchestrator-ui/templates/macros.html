@@ -44,6 +44,24 @@
         </div>
     </section>
 
+    <h3>Status breakdown</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in run.status_breakdown %}
+            <tr>
+                <td><span class="status {{ row.status_class }}">{{ row.status_label }}</span></td>
+                <td>{{ row.count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
     <h3>Executions ({{ run.total_executions }})</h3>
     <form method="get" action="/ui/run/{{ run.id }}">
         <select name="execution_status" aria-label="Filter by status">
