@@ -63,6 +63,8 @@ where
 pub(super) async fn wait_for_workflow<K, H>(
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
+    poll_interval_secs: u64,
+    retry_window_secs: u64,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -78,7 +80,15 @@ where
         .await;
 
     tokio::spawn(async move {
-        wait_and_update(test_execution, failed_execution_ttl_seconds, &etx, clients).await;
+        wait_and_update(
+            test_execution,
+            failed_execution_ttl_seconds,
+            poll_interval_secs,
+            retry_window_secs,
+            &etx,
+            clients,
+        )
+        .await;
     });
 
     Ok(None)
@@ -87,13 +97,22 @@ where
 async fn wait_and_update<K>(
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
+    poll_interval_secs: u64,
+    retry_window_secs: u64,
     etx: &UnboundedSender<Event>,
     mut clients: K,
 ) where
     K: FullClient,
 {
     let execution_id = test_execution.uuid();
-    let to_send = match clients.wait_for_workflow(&test_execution.uuid()).await {
+    let to_send = match clients
+        .wait_for_workflow(
+            &test_execution.uuid(),
+            poll_interval_secs,
+            retry_window_secs,
+        )
+        .await
+    {
         WatchOutcome::Succeeded => {
             info!(%execution_id, "argo workflow completed successfully");
             vec![
@@ -181,6 +200,8 @@ mod tests {
                 },
                 kubeconfig_secret_name: "",
                 failed_execution_ttl_seconds: 1,
+                retry_window_secs: 300,
+                poll_interval_secs: 10,
                 kubeconfig_path: "",
                 workload_context: "workload-kubeconfig",
             },
@@ -191,7 +212,7 @@ mod tests {
         assert!(res.is_ok(), "create_workflow: {res:?}");
 
         // wait for workflow to complete
-        let res = wait_for_workflow(ex, 600, etx, clients, &mut handle).await;
+        let res = wait_for_workflow(ex, 600, 10, 300, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait for workflow: {res:?}");
 
         assert_eq!(
@@ -226,6 +247,8 @@ mod tests {
                 },
                 kubeconfig_secret_name: "",
                 failed_execution_ttl_seconds: 1,
+                retry_window_secs: 300,
+                poll_interval_secs: 10,
                 kubeconfig_path: "",
                 workload_context: "workload-kubeconfig",
             },
@@ -254,7 +277,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, 600, &etx, clients).await;
+        wait_and_update(ex, 600, 10, 300, &etx, clients).await;
 
         // should get two events: workflow complete and create scenario configmap
         let evt = erx.try_recv().unwrap();
@@ -281,7 +304,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, 600, &etx, clients).await;
+        wait_and_update(ex, 600, 10, 300, &etx, clients).await;
 
         let first = erx.try_recv().unwrap();
         let second = erx.try_recv().unwrap();

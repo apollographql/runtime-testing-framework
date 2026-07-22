@@ -20,9 +20,6 @@ use tokio::time::sleep;
 use tracing::{error, warn};
 use uuid::Uuid;
 
-const POLL_INTERVAL: time::Duration = time::Duration::from_secs(10);
-const RETRY_WINDOW: Duration = Duration::seconds(15 * 60);
-
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
 // exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
 //
@@ -374,15 +371,23 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
         Ok(job)
     }
 
-    async fn wait_for_job(&mut self, ns: &str, execution_id: &Uuid) -> WatchOutcome {
+    async fn wait_for_job(
+        &mut self,
+        ns: &str,
+        execution_id: &Uuid,
+        poll_interval_secs: u64,
+        retry_window_secs: u64,
+    ) -> WatchOutcome {
         let labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
         let params = ListParams::default().labels(&labels);
+        let poll_interval = time::Duration::from_secs(poll_interval_secs);
+        let retry_window = Duration::seconds(retry_window_secs as i64);
         // Used to keep track of when the first client failure was detected so a maximum
         // retry window is not exceeded
         let mut first_failure: Option<DateTime<Utc>> = None;
 
         loop {
-            sleep(POLL_INTERVAL).await;
+            sleep(poll_interval).await;
 
             let result = async {
                 let job_api: Api<Job> = self.workload_api(ns);
@@ -391,7 +396,7 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
             }
             .await;
 
-            match classify_poll_result(result, &mut first_failure) {
+            match classify_poll_result(result, &mut first_failure, retry_window) {
                 PollDecision::Terminal(outcome) => return outcome,
                 PollDecision::KeepWaiting => {}
                 PollDecision::RetryAfterRefresh => {
@@ -418,7 +423,12 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
 }
 
 impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {
-    async fn wait_for_workflow(&mut self, execution_id: &Uuid) -> WatchOutcome {
+    async fn wait_for_workflow(
+        &mut self,
+        execution_id: &Uuid,
+        poll_interval_secs: u64,
+        retry_window_secs: u64,
+    ) -> WatchOutcome {
         let wf_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
         let wf_params = ListParams::default().labels(&wf_labels);
 
@@ -429,12 +439,14 @@ impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {
 
         let workload_ns = execution_id.to_string();
         let workload_pod_params = ListParams::default();
+        let poll_interval = time::Duration::from_secs(poll_interval_secs);
+        let retry_window = Duration::seconds(retry_window_secs as i64);
         // Used to keep track of when the first client failure was detected so a maximum
         // retry window is not exceeded
         let mut first_failure: Option<DateTime<Utc>> = None;
 
         loop {
-            sleep(POLL_INTERVAL).await;
+            sleep(poll_interval).await;
 
             let wf_api: Api<Workflow> = self.management_api(CLUSTER_API_NAMESPACE);
             let mgmt_pod_api: Api<Pod> = self.management_api(CLUSTER_API_NAMESPACE);
@@ -453,7 +465,7 @@ impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {
             }
             .await;
 
-            match classify_poll_result(result, &mut first_failure) {
+            match classify_poll_result(result, &mut first_failure, retry_window) {
                 PollDecision::Terminal(outcome) => return outcome,
                 PollDecision::KeepWaiting => {}
                 PollDecision::RetryAfterRefresh => {
@@ -630,10 +642,11 @@ enum PollDecision {
 
 /// Shared bookkeeping between `wait_for_job` and `wait_for_workflow`: tracks how long a run of
 /// retryable errors has been ongoing via `first_failure`, resetting it on any successful poll,
-/// and gives up once [RETRY_WINDOW] is exceeded.
+/// and gives up once `retry_window` is exceeded.
 fn classify_poll_result(
     result: Result<Option<WatchOutcome>>,
     first_failure: &mut Option<DateTime<Utc>>,
+    retry_window: Duration,
 ) -> PollDecision {
     match result {
         Ok(Some(outcome)) => PollDecision::Terminal(outcome),
@@ -645,7 +658,7 @@ fn classify_poll_result(
         Err(e) if e.is_retryable() => {
             let first_failure_at = *first_failure.get_or_insert_with(Utc::now);
 
-            if Utc::now() - first_failure_at > RETRY_WINDOW {
+            if Utc::now() - first_failure_at > retry_window {
                 PollDecision::Terminal(WatchOutcome::WatchErrors(
                     Error::MaxRetriesExceeded.to_string(),
                 ))
@@ -666,6 +679,8 @@ mod tests {
         ContainerState, ContainerStateTerminated, ContainerStateWaiting, ContainerStatus, PodStatus,
     };
     use simple_test_case::test_case;
+
+    const TEST_RETRY_WINDOW: Duration = Duration::seconds(15 * 60);
 
     fn job_with_condition(type_: &str, status: &str) -> Job {
         Job {
@@ -835,7 +850,11 @@ mod tests {
     #[test]
     fn classify_poll_result_returns_terminal_on_success_outcome() {
         let mut first_failure = None;
-        let decision = classify_poll_result(Ok(Some(WatchOutcome::Succeeded)), &mut first_failure);
+        let decision = classify_poll_result(
+            Ok(Some(WatchOutcome::Succeeded)),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
 
         assert!(matches!(
             decision,
@@ -847,7 +866,7 @@ mod tests {
     fn classify_poll_result_clears_first_failure_and_keeps_waiting_on_ok_none() {
         let mut first_failure = Some(Utc::now() - Duration::seconds(60));
 
-        let decision = classify_poll_result(Ok(None), &mut first_failure);
+        let decision = classify_poll_result(Ok(None), &mut first_failure, TEST_RETRY_WINDOW);
 
         assert!(matches!(decision, PollDecision::KeepWaiting));
         assert!(first_failure.is_none());
@@ -860,6 +879,7 @@ mod tests {
         let decision = classify_poll_result(
             Err(Error::Kube(kube::Error::TlsRequired)),
             &mut first_failure,
+            TEST_RETRY_WINDOW,
         );
 
         assert!(matches!(
@@ -873,7 +893,11 @@ mod tests {
     fn classify_poll_result_retries_within_window() {
         let mut first_failure = None;
 
-        let decision = classify_poll_result(Err(retryable_error()), &mut first_failure);
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
 
         assert!(matches!(decision, PollDecision::RetryAfterRefresh));
         assert!(first_failure.is_some());
@@ -882,9 +906,13 @@ mod tests {
     #[test]
     fn classify_poll_result_does_not_give_up_before_retry_window_exceeded() {
         // First failure started well under the retry window ago; still within budget.
-        let mut first_failure = Some(Utc::now() - RETRY_WINDOW + Duration::seconds(5));
+        let mut first_failure = Some(Utc::now() - TEST_RETRY_WINDOW + Duration::seconds(5));
 
-        let decision = classify_poll_result(Err(retryable_error()), &mut first_failure);
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
 
         assert!(matches!(decision, PollDecision::RetryAfterRefresh));
     }
@@ -892,13 +920,17 @@ mod tests {
     /// Regression test: `first_failure` used to be set with `Option::insert`, which
     /// unconditionally overwrites the value on *every* retryable error instead of only the
     /// first. That reset the retry window's start time on every poll, so the elapsed time
-    /// compared against [RETRY_WINDOW] was always ~zero and this case could never trigger.
+    /// compared against the retry window was always ~zero and this case could never trigger.
     #[test]
     fn classify_poll_result_gives_up_once_retry_window_exceeded() {
         // First failure started well over the retry window ago.
-        let mut first_failure = Some(Utc::now() - RETRY_WINDOW - Duration::seconds(5));
+        let mut first_failure = Some(Utc::now() - TEST_RETRY_WINDOW - Duration::seconds(5));
 
-        let decision = classify_poll_result(Err(retryable_error()), &mut first_failure);
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
 
         assert!(matches!(
             decision,
@@ -910,12 +942,16 @@ mod tests {
     fn classify_poll_result_recovery_resets_the_retry_window() {
         // Started failing well past the retry window already, but a successful poll should
         // reset the clock rather than carry the stale start time forward.
-        let mut first_failure = Some(Utc::now() - RETRY_WINDOW - Duration::seconds(30));
-        classify_poll_result(Ok(None), &mut first_failure);
+        let mut first_failure = Some(Utc::now() - TEST_RETRY_WINDOW - Duration::seconds(30));
+        classify_poll_result(Ok(None), &mut first_failure, TEST_RETRY_WINDOW);
         assert!(first_failure.is_none());
 
         // Failing again immediately after recovery should not immediately give up.
-        let decision = classify_poll_result(Err(retryable_error()), &mut first_failure);
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
 
         assert!(matches!(decision, PollDecision::RetryAfterRefresh));
     }

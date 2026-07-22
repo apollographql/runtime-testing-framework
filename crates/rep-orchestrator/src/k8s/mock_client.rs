@@ -60,7 +60,13 @@ impl WorkloadClient for MockClient {
             .expect("create_job called but no outcome configured")
     }
 
-    async fn wait_for_job(&mut self, _ns: &str, _execution_id: &Uuid) -> WatchOutcome {
+    async fn wait_for_job(
+        &mut self,
+        _ns: &str,
+        _execution_id: &Uuid,
+        _poll_interval_secs: u64,
+        _retry_window_secs: u64,
+    ) -> WatchOutcome {
         self.wait_for_job
             .take()
             .expect("wait_for_job called but no outcome configured")
@@ -74,7 +80,12 @@ impl WorkloadClient for MockClient {
 }
 
 impl FullClient for MockClient {
-    async fn wait_for_workflow(&mut self, _execution_id: &Uuid) -> WatchOutcome {
+    async fn wait_for_workflow(
+        &mut self,
+        _execution_id: &Uuid,
+        _poll_interval_secs: u64,
+        _retry_window_secs: u64,
+    ) -> WatchOutcome {
         self.wait_for_workflow
             .take()
             .expect("wait_for_workflow called but no outcome configured")

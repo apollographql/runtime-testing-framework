@@ -73,6 +73,8 @@ where
 pub(super) async fn wait_for_job<K, H>(
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
+    poll_interval_secs: u64,
+    retry_window_secs: u64,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -93,6 +95,8 @@ where
             &namespace,
             test_execution,
             failed_execution_ttl_seconds,
+            poll_interval_secs,
+            retry_window_secs,
             &etx,
             clients,
         )
@@ -106,6 +110,8 @@ async fn wait_and_update<K>(
     namespace: &str,
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
+    poll_interval_secs: u64,
+    retry_window_secs: u64,
     etx: &UnboundedSender<Event>,
     mut clients: K,
 ) where
@@ -114,7 +120,12 @@ async fn wait_and_update<K>(
     let execution_id = test_execution.uuid();
 
     let to_send = match clients
-        .wait_for_job(namespace, &test_execution.uuid())
+        .wait_for_job(
+            namespace,
+            &test_execution.uuid(),
+            poll_interval_secs,
+            retry_window_secs,
+        )
         .await
     {
         WatchOutcome::Succeeded => {
@@ -193,7 +204,7 @@ mod tests {
         assert!(res.is_ok(), "create_job: {res:?}");
 
         // wait for job to complete
-        let res = wait_for_job(ex, 600, etx, clients, &mut handle).await;
+        let res = wait_for_job(ex, 600, 10, 300, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait_for_job: {res:?}");
 
         use Status::*;
@@ -251,7 +262,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, 600, &etx, clients).await;
+        wait_and_update("test-namespace", ex, 600, 10, 300, &etx, clients).await;
 
         let evt = erx.try_recv().unwrap();
         assert!(matches!(evt.data, EventData::CleanupNamespace), "{evt:?}");
@@ -271,7 +282,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, 600, &etx, clients).await;
+        wait_and_update("test-namespace", ex, 600, 10, 300, &etx, clients).await;
 
         let first = erx.try_recv().unwrap();
         let second = erx.try_recv().unwrap();

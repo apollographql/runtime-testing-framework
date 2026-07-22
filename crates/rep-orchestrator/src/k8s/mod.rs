@@ -86,11 +86,14 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<Job>> + Send;
 
     /// Wait for a k8s [Job] running within the workload cluster to reach a terminal state,
-    /// selecting the job by its execution ID label.
+    /// selecting the job by its execution ID label. Polls every `poll_interval_secs` and gives up
+    /// once `retry_window_secs` of consecutive retryable errors has elapsed.
     fn wait_for_job(
         &mut self,
         ns: &str,
         execution_id: &Uuid,
+        poll_interval_secs: u64,
+        retry_window_secs: u64,
     ) -> impl Future<Output = WatchOutcome> + Send;
 
     /// Delete an ephemeral namespace within the workload cluster.
@@ -101,10 +104,14 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
 pub trait FullClient: ManagementClient + WorkloadClient {
     /// Wait for a [Workflow] running within the management cluster to reach a terminal state,
     /// selecting the workflow by its execution ID label. The workload cluster is also watched
-    /// so that pods stuck in an unrunnable state can short-circuit the wait.
+    /// so that pods stuck in an unrunnable state can short-circuit the wait. Polls every
+    /// `poll_interval_secs` and gives up once `retry_window_secs` of consecutive retryable errors
+    /// has elapsed.
     fn wait_for_workflow(
         &mut self,
         execution_id: &Uuid,
+        poll_interval_secs: u64,
+        retry_window_secs: u64,
     ) -> impl Future<Output = WatchOutcome> + Send;
 }
 
