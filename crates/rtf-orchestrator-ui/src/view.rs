@@ -3,8 +3,9 @@ use crate::status;
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
 use rep_orchestrator_shared::status::{Status, StatusUpdate};
-use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
+use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary};
 use std::time::Duration;
+use url::form_urlencoded;
 use uuid::Uuid;
 
 /// Upper bound on how long a non-terminal run is auto-refreshed. A run that never reaches a
@@ -31,14 +32,32 @@ pub struct RunView {
     pub last_updated: String,
     /// Whether the rendered region should keep polling for updates (drives the htmx trigger).
     pub should_poll: bool,
+    /// How many executions this run has in total, unaffected by `execution_status_filter` — shown
+    /// next to the table heading so filtering down to a status doesn't read as "the run only has
+    /// this many executions."
+    pub total_executions: usize,
+    /// The `current_status` value (its `Display` string, e.g. `"RUNNING"`) executions are filtered
+    /// down to, or empty for no filter. Kept as a string, not a parsed [`Status`], since its only
+    /// uses are re-populating the `<select>` and round-tripping through URLs.
+    pub execution_status_filter: String,
+    /// How many executions are in each status, in lifecycle order, excluding statuses no execution
+    /// currently has. Always reflects every execution, regardless of `execution_status_filter`.
+    pub status_breakdown: Vec<StatusCountView>,
+    /// Executions matching `execution_status_filter` (all of them, if empty).
     pub executions: Vec<ExecutionView>,
 }
 
 impl RunView {
     /// Build the run view. `now` decides whether the region keeps polling and anchors the elapsed
     /// time and "last updated" indicator. `links_cfg` supplies the GCP/Grafana deep-link
-    /// configuration for each execution row.
-    pub fn new(run: TestRunSummary, now: DateTime<Utc>, links_cfg: &LinksConfig) -> Self {
+    /// configuration for each execution row. `execution_status_filter` restricts the executions
+    /// table to rows whose status matches exactly (empty means no filter).
+    pub fn new(
+        run: TestRunSummary,
+        now: DateTime<Utc>,
+        links_cfg: &LinksConfig,
+        execution_status_filter: String,
+    ) -> Self {
         // Trust `current_status`, not just the presence of `completed_at`, to decide whether the run
         // is actually done — a run that is still in progress should never show a completion time,
         // even if the wire data is momentarily inconsistent.
@@ -46,6 +65,8 @@ impl RunView {
             .completed_at
             .filter(|_| run.current_status.is_terminal());
         let end = completed_at.unwrap_or(now);
+        let total_executions = run.executions.len();
+        let status_breakdown = status_breakdown(&run.executions);
 
         Self {
             id: run.id,
@@ -62,13 +83,83 @@ impl RunView {
             .to_string(),
             last_updated: now.format("%H:%M:%S UTC").to_string(),
             should_poll: should_poll(run.current_status, run.started_at, now),
+            total_executions,
+            status_breakdown,
             executions: run
                 .executions
                 .into_iter()
+                .filter(|execution| {
+                    execution_status_filter.is_empty()
+                        || execution.current_status.to_string() == execution_status_filter
+                })
                 .map(|execution| ExecutionView::new(execution, links_cfg))
                 .collect(),
+            execution_status_filter,
         }
     }
+
+    /// The URL the executions table's htmx auto-poll and manual "Refresh now" button fetch from —
+    /// this run's status page, carrying `execution_status_filter` forward so a refresh doesn't
+    /// silently drop the active filter.
+    pub fn poll_url(&self) -> String {
+        if self.execution_status_filter.is_empty() {
+            format!("/ui/run/{}", self.id)
+        } else {
+            let mut qs = form_urlencoded::Serializer::new(String::new());
+            qs.append_pair("execution_status", &self.execution_status_filter);
+            format!("/ui/run/{}?{}", self.id, qs.finish())
+        }
+    }
+
+    /// The message shown in the executions table in place of rows when there's nothing to show:
+    /// either the run genuinely has no executions yet, or a status filter matched none of them.
+    pub fn executions_empty_message(&self) -> &'static str {
+        if self.execution_status_filter.is_empty() {
+            "No executions yet."
+        } else {
+            "No executions match this filter."
+        }
+    }
+}
+
+/// Every [`Status`] variant, in lifecycle order — the order the run's status breakdown and the
+/// execution-status filter's `<select>` present statuses in.
+const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
+    Status::Initialising,
+    Status::Resolving,
+    Status::Provisioning,
+    Status::EnvironmentReady,
+    Status::Running,
+    Status::Successful,
+    Status::Failed,
+    Status::Unrunnable,
+];
+
+/// One row in the run's status-breakdown summary.
+pub struct StatusCountView {
+    pub status_label: String,
+    pub status_class: &'static str,
+    pub count: usize,
+}
+
+/// How many `executions` are in each status, in lifecycle order, omitting statuses none of them are
+/// in — a run with no `Unrunnable` executions shouldn't show an "Unrunnable: 0" row.
+fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView> {
+    STATUS_LIFECYCLE_ORDER
+        .into_iter()
+        .filter_map(|candidate| {
+            let count = executions
+                .iter()
+                .filter(|execution| execution.current_status == candidate)
+                .count();
+
+            (count > 0).then(|| StatusCountView {
+                status_label: candidate.to_string(),
+                status_class: status::css_class(candidate),
+                count,
+            })
+        })
+        .collect()
 }
 
 /// The execution view within a test run summary
@@ -98,7 +189,7 @@ impl ExecutionView {
             name: execution.name,
             status_label: execution.current_status.to_string(),
             status_class: status::css_class(execution.current_status),
-            exit_code: execution.exit_code,
+            exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
             started_at: execution.started_at.to_rfc3339(),
             updated_at: execution.updated_at.to_rfc3339(),
             logs_url,
@@ -107,8 +198,137 @@ impl ExecutionView {
     }
 }
 
+/// One row in the recent-runs table on the home page.
+pub struct RunListRowView {
+    pub id: Uuid,
+    pub name: String,
+    pub status_label: String,
+    pub status_class: &'static str,
+    pub initiated_by: String,
+    pub started_at: String,
+}
+
+impl From<TestRunSummary> for RunListRowView {
+    fn from(run: TestRunSummary) -> Self {
+        Self {
+            id: run.id,
+            name: run.name,
+            status_label: run.current_status.to_string(),
+            status_class: status::css_class(run.current_status),
+            initiated_by: run.initiated_by,
+            started_at: run.started_at.to_rfc3339(),
+        }
+    }
+}
+
+/// The home page's recent-runs table: the current page of rows plus enough state to render
+/// Prev/Next pagination links. Carries `initiated_by`/`started_within` too (not just the page's
+/// template fields) so it can build those links itself with correct percent-encoding.
+pub struct RunListView {
+    pub rows: Vec<RunListRowView>,
+    pub total: i64,
+    pub limit: i64,
+    pub offset: i64,
+    initiated_by: String,
+    started_within: String,
+}
+
+impl RunListView {
+    pub fn new(
+        response: TestRunListResponse,
+        limit: i64,
+        offset: i64,
+        initiated_by: String,
+        started_within: String,
+    ) -> Self {
+        Self {
+            rows: response
+                .runs
+                .into_iter()
+                .map(RunListRowView::from)
+                .collect(),
+            total: response.total,
+            limit,
+            offset,
+            initiated_by,
+            started_within,
+        }
+    }
+
+    pub fn has_prev(&self) -> bool {
+        self.offset > 0
+    }
+
+    /// Whether there's a further page beyond what's shown. Derived from how many rows actually
+    /// came back (`rows.len()`), not the requested `limit` — if `offset` landed past the end (a
+    /// stale bookmark, or rows pruned since a pagination link was generated), `rows` is empty and
+    /// this correctly reports no next page rather than trusting a now-bogus `offset`.
+    pub fn has_next(&self) -> bool {
+        self.offset + (self.rows.len() as i64) < self.total
+    }
+
+    /// The Prev link's href, already percent-encoding `initiated_by`/`started_within` — built here
+    /// rather than interpolated in the template, since Askama's HTML-escaping alone doesn't
+    /// percent-encode query values (a name containing `&` or `#` would otherwise corrupt the link).
+    pub fn prev_href(&self) -> String {
+        self.href_with_offset(self.prev_offset())
+    }
+
+    pub fn next_href(&self) -> String {
+        self.href_with_offset(self.offset + self.limit)
+    }
+
+    /// One page back — but if the current page is empty because `offset` overshot the last page,
+    /// a plain `offset - limit` step could still land past the end. Jump straight to the last page
+    /// that actually has rows on it instead, so Prev always recovers in one click.
+    fn prev_offset(&self) -> i64 {
+        if self.rows.is_empty() && self.total > 0 {
+            ((self.total - 1) / self.limit) * self.limit
+        } else {
+            (self.offset - self.limit).max(0)
+        }
+    }
+
+    fn href_with_offset(&self, offset: i64) -> String {
+        let mut qs = form_urlencoded::Serializer::new(String::new());
+        if !self.initiated_by.is_empty() {
+            qs.append_pair("initiated_by", &self.initiated_by);
+        }
+        if !self.started_within.is_empty() {
+            qs.append_pair("started_within", &self.started_within);
+        }
+        qs.append_pair("offset", &offset.to_string());
+        format!("/ui?{}", qs.finish())
+    }
+
+    /// e.g. "1-20 of 137". `None` when there's nothing to summarize — no matching runs at all, or
+    /// `offset` landed past the last page — so the template shows `empty_message` instead rather
+    /// than both a range and a "no runs" row at once.
+    pub fn showing_range(&self) -> Option<String> {
+        if self.rows.is_empty() {
+            return None;
+        }
+        let last = self.offset + self.rows.len() as i64;
+        Some(format!("{}-{} of {}", self.offset + 1, last, self.total))
+    }
+
+    /// The message shown in the table in place of rows when there's nothing on this page: either
+    /// no runs match the filters at all, or `offset` landed past the last page of an otherwise
+    /// non-empty result set.
+    pub fn empty_message(&self) -> Option<&'static str> {
+        if !self.rows.is_empty() {
+            None
+        } else if self.total == 0 {
+            Some("No runs match these filters.")
+        } else {
+            Some("No runs on this page.")
+        }
+    }
+}
+
 /// The execution detail page: the execution's status-history timeline plus its metadata.
 pub struct ExecutionDetailView {
+    pub id: Uuid,
     /// The parent test run's id, used for the "back to run" link.
     pub run_id: Option<Uuid>,
     pub name: String,
@@ -134,11 +354,12 @@ impl ExecutionDetailView {
         let grafana_url = grafana(links_cfg, &namespace, execution.started_at, end);
 
         Self {
+            id: execution.id,
             run_id: execution.test_run_id,
             name: execution.name,
             status_label: execution.current_status.to_string(),
             status_class: status::css_class(execution.current_status),
-            exit_code: execution.exit_code,
+            exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
             started_at: execution.started_at.to_rfc3339(),
             updated_at: execution.updated_at.to_rfc3339(),
             completed_at: execution.completed_at.map(|ts| ts.to_rfc3339()),
@@ -220,7 +441,10 @@ mod tests {
             ..Default::default()
         };
 
-        assert_eq!(RunView::new(run, now, &sample_config()).completed_at, None);
+        assert_eq!(
+            RunView::new(run, now, &sample_config(), String::new()).completed_at,
+            None
+        );
     }
 
     #[test]
@@ -234,7 +458,7 @@ mod tests {
         };
 
         assert_eq!(
-            RunView::new(run, now, &sample_config()).completed_at,
+            RunView::new(run, now, &sample_config(), String::new()).completed_at,
             Some(now.to_rfc3339())
         );
     }
@@ -247,6 +471,7 @@ mod tests {
             sample_summary(run_id, ex_id, Status::Running),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
         let body = RunTemplate { run }.render().expect("template renders");
 
@@ -262,6 +487,7 @@ mod tests {
             sample_summary(run_id, ex_id, Status::Successful),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
         let body = RunTemplate { run }.render().expect("template renders");
 
@@ -278,6 +504,7 @@ mod tests {
             sample_summary(run_id, ex_id, Status::Running),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
         let body = RunTemplate { run }.render().expect("template renders");
 
@@ -302,6 +529,7 @@ mod tests {
             sample_summary(run_id, ex_id, Status::Running),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
         let body = RunTemplate { run }.render().expect("template renders");
 
@@ -323,6 +551,7 @@ mod tests {
             sample_summary(run_id, ex_id, Status::Running),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
         let body = RunTemplate { run }.render().expect("template renders");
 
@@ -335,6 +564,209 @@ mod tests {
             "manual refresh control present"
         );
         assert!(body.contains("Elapsed"), "elapsed time shown on the banner");
+    }
+
+    #[test]
+    fn run_template_shows_the_execution_count() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let run = RunView::new(
+            sample_summary(run_id, ex_id, Status::Running),
+            Utc::now(),
+            &sample_config(),
+            String::new(),
+        );
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(
+            body.contains("<h3>Executions (1)</h3>"),
+            "expected the single sample execution to be counted next to the table heading, got: {body}"
+        );
+    }
+
+    /// A run with two executions in different terminal statuses, for exercising the
+    /// `execution_status_filter`.
+    fn run_with_mixed_execution_statuses(run_id: Uuid) -> TestRunSummary {
+        TestRunSummary {
+            id: run_id,
+            name: "mixed-run".to_owned(),
+            current_status: Status::Failed,
+            started_at: Utc::now(),
+            executions: vec![
+                TestExecutionSummary {
+                    id: Uuid::from_u128(10),
+                    name: "exec-ok".to_owned(),
+                    current_status: Status::Successful,
+                    ..Default::default()
+                },
+                TestExecutionSummary {
+                    id: Uuid::from_u128(11),
+                    name: "exec-broke".to_owned(),
+                    current_status: Status::Failed,
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn execution_status_filter_narrows_down_the_executions_shown() {
+        let run_id = Uuid::from_u128(1);
+        let run = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            "FAILED".to_owned(),
+        );
+
+        assert_eq!(run.total_executions, 2, "total ignores the filter");
+        assert_eq!(run.executions.len(), 1, "table rows respect the filter");
+        assert_eq!(run.executions[0].name, "exec-broke");
+    }
+
+    #[test]
+    fn empty_execution_status_filter_keeps_every_execution() {
+        let run_id = Uuid::from_u128(1);
+        let run = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            String::new(),
+        );
+
+        assert_eq!(run.total_executions, 2);
+        assert_eq!(run.executions.len(), 2);
+    }
+
+    #[test]
+    fn poll_url_is_bare_with_no_filter_and_carries_the_filter_when_set() {
+        let run_id = Uuid::from_u128(1);
+        let unfiltered = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            String::new(),
+        );
+        assert_eq!(unfiltered.poll_url(), format!("/ui/run/{run_id}"));
+
+        let filtered = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            "FAILED".to_owned(),
+        );
+        assert_eq!(
+            filtered.poll_url(),
+            format!("/ui/run/{run_id}?execution_status=FAILED")
+        );
+    }
+
+    #[test]
+    fn executions_empty_message_distinguishes_no_matches_from_no_executions_at_all() {
+        let run_id = Uuid::from_u128(1);
+        let no_executions = RunView::new(
+            TestRunSummary {
+                id: run_id,
+                started_at: Utc::now(),
+                ..Default::default()
+            },
+            Utc::now(),
+            &sample_config(),
+            String::new(),
+        );
+        assert_eq!(
+            no_executions.executions_empty_message(),
+            "No executions yet."
+        );
+
+        let no_matches = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            "UNRUNNABLE".to_owned(),
+        );
+        assert_eq!(
+            no_matches.executions_empty_message(),
+            "No executions match this filter."
+        );
+    }
+
+    #[test]
+    fn run_template_renders_the_filter_select_with_the_current_value_chosen() {
+        let run_id = Uuid::from_u128(1);
+        let run = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            "FAILED".to_owned(),
+        );
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(
+            body.contains("<option value=\"FAILED\" selected>FAILED</option>"),
+            "expected the active filter to be pre-selected, got: {body}"
+        );
+        assert!(
+            body.contains("exec-broke"),
+            "matching execution should still render"
+        );
+        assert!(
+            !body.contains("exec-ok"),
+            "non-matching execution should be filtered out of the table"
+        );
+    }
+
+    #[test]
+    fn status_breakdown_counts_and_orders_by_lifecycle_ignoring_the_filter() {
+        let run_id = Uuid::from_u128(1);
+        let mut run = run_with_mixed_execution_statuses(run_id);
+        run.executions.push(TestExecutionSummary {
+            id: Uuid::from_u128(12),
+            name: "exec-ok-2".to_owned(),
+            current_status: Status::Successful,
+            ..Default::default()
+        });
+
+        let view = RunView::new(run, Utc::now(), &sample_config(), "FAILED".to_owned());
+
+        let labels_and_counts: Vec<(&str, usize)> = view
+            .status_breakdown
+            .iter()
+            .map(|row| (row.status_label.as_str(), row.count))
+            .collect();
+        assert_eq!(
+            labels_and_counts,
+            vec![("SUCCESSFUL", 2), ("FAILED", 1)],
+            "breakdown should count every execution in lifecycle order and ignore the active filter"
+        );
+    }
+
+    #[test]
+    fn run_template_renders_the_status_breakdown_table() {
+        let run_id = Uuid::from_u128(1);
+        let run = RunView::new(
+            run_with_mixed_execution_statuses(run_id),
+            Utc::now(),
+            &sample_config(),
+            String::new(),
+        );
+        let body = RunTemplate { run }.render().expect("template renders");
+
+        assert!(
+            body.contains("<h3>Status breakdown</h3>"),
+            "expected a status breakdown heading, got: {body}"
+        );
+        assert!(
+            body.contains("SUCCESSFUL") && body.contains("<td>1</td>"),
+            "expected a row counting the successful execution, got: {body}"
+        );
+        assert!(
+            !body.contains("class=\"status status--unrunnable\""),
+            "statuses with no executions should not get a status pill anywhere on the page \
+             (the filter <select> always lists UNRUNNABLE as an option, so that text alone isn't \
+             a safe check)"
+        );
     }
 
     #[test]
@@ -381,5 +813,113 @@ mod tests {
             .expect("template renders");
 
         assert!(!body.contains("Back to run"));
+    }
+
+    /// Builds a `RunListView` with `n_rows` placeholder rows out of `total` matching runs, at the
+    /// given `limit`/`offset`.
+    fn list_view(n_rows: usize, total: i64, limit: i64, offset: i64) -> RunListView {
+        list_view_with_filters(n_rows, total, limit, offset, "", "")
+    }
+
+    fn list_view_with_filters(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        initiated_by: &str,
+        started_within: &str,
+    ) -> RunListView {
+        let response = TestRunListResponse {
+            runs: vec![TestRunSummary::default(); n_rows],
+            total,
+        };
+        RunListView::new(
+            response,
+            limit,
+            offset,
+            initiated_by.to_owned(),
+            started_within.to_owned(),
+        )
+    }
+
+    #[test]
+    fn has_next_true_when_more_rows_remain() {
+        let view = list_view(20, 137, 20, 0);
+        assert!(view.has_next());
+    }
+
+    #[test]
+    fn has_next_false_on_the_last_full_page() {
+        let view = list_view(20, 20, 20, 0);
+        assert!(!view.has_next());
+    }
+
+    #[test]
+    fn has_next_false_when_offset_landed_past_the_end() {
+        // `total` shrank (or a stale link was followed) since this offset was generated.
+        let view = list_view(0, 15, 20, 40);
+        assert!(!view.has_next());
+        assert!(view.has_prev());
+    }
+
+    #[test]
+    fn has_prev_false_on_the_first_page() {
+        let view = list_view(20, 137, 20, 0);
+        assert!(!view.has_prev());
+    }
+
+    #[test]
+    fn prev_href_steps_back_by_limit_normally() {
+        let view = list_view(20, 137, 20, 40);
+        assert_eq!(view.prev_href(), "/ui?offset=20");
+    }
+
+    #[test]
+    fn prev_href_jumps_to_the_last_real_page_when_offset_overshot() {
+        // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
+        let view = list_view(0, 137, 20, 500);
+        assert_eq!(view.prev_href(), "/ui?offset=120");
+    }
+
+    #[test]
+    fn empty_message_is_none_when_rows_are_present() {
+        let view = list_view(20, 137, 20, 0);
+        assert_eq!(view.empty_message(), None);
+    }
+
+    #[test]
+    fn empty_message_distinguishes_no_matches_from_past_the_end() {
+        assert_eq!(
+            list_view(0, 0, 20, 0).empty_message(),
+            Some("No runs match these filters.")
+        );
+        assert_eq!(
+            list_view(0, 137, 20, 500).empty_message(),
+            Some("No runs on this page.")
+        );
+    }
+
+    #[test]
+    fn showing_range_is_none_when_there_are_no_rows() {
+        assert_eq!(list_view(0, 0, 20, 0).showing_range(), None);
+        assert_eq!(list_view(0, 137, 20, 500).showing_range(), None);
+    }
+
+    #[test]
+    fn showing_range_formats_the_current_page() {
+        let view = list_view(17, 137, 20, 120);
+        assert_eq!(view.showing_range(), Some("121-137 of 137".to_owned()));
+    }
+
+    #[test]
+    fn hrefs_percent_encode_special_characters_in_filters() {
+        let view = list_view_with_filters(20, 137, 20, 40, "a&b#c d", "day");
+        let href = view.prev_href();
+
+        assert!(
+            href.contains("initiated_by=a%26b%23c+d"),
+            "expected percent-encoded initiated_by, got {href}"
+        );
+        assert!(href.contains("started_within=day"));
     }
 }

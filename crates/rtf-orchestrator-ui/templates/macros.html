@@ -1,5 +1,5 @@
 {% macro run_content(run) %}
-<div id="run" {% if run.should_poll %} hx-get="/ui/run/{{ run.id }}" hx-select="#run" hx-trigger="every 10s"
+<div id="run" {% if run.should_poll %} hx-get="{{ run.poll_url() }}" hx-select="#run" hx-trigger="every 10s"
     hx-swap="outerHTML" {% endif %}>
     <section class="banner">
         <h2>{{ run.name }}</h2>
@@ -7,7 +7,8 @@
         <p class="muted">
             {% if run.should_poll %}Auto-refreshing every 10s{% else %}Auto-refresh stopped{% endif %}
             &middot; last updated {{ run.last_updated }}
-            <button type="button" hx-get="/ui/run/{{ run.id }}" hx-select="#run" hx-target="#run" hx-swap="outerHTML">
+            <button type="button" hx-get="{{ run.poll_url() }}" hx-select="#run" hx-target="#run"
+                hx-swap="outerHTML">
                 Refresh now</button>
         </p>
         <dl>
@@ -28,19 +29,75 @@
             {% when None %}
             {% endmatch %}
         </dl>
+        <p>
+            <button type="button" popovertarget="run-output-cmd">Download full run output</button>
+        </p>
+        <div id="run-output-cmd" popover>
+            <p>The Orchestrator doesn't bundle a whole run's output for download. Run this locally
+                instead:</p>
+            <pre><code>rtf remote run-output {{ run.id }}</code></pre>
+            <p class="muted">This downloads a <code>run-summary.json</code> plus each execution's
+                <code>log.txt</code> and <code>output.zip</code> into an <code>output/</code>
+                directory.
+            </p>
+            <button type="button" popovertarget="run-output-cmd" popovertargetaction="hide">Close</button>
+        </div>
     </section>
 
-    <h3>Executions</h3>
+    <h3>Status breakdown</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in run.status_breakdown %}
+            <tr>
+                <td><span class="status {{ row.status_class }}">{{ row.status_label }}</span></td>
+                <td>{{ row.count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>Executions ({{ run.total_executions }})</h3>
+    <form method="get" action="/ui/run/{{ run.id }}">
+        <select name="execution_status" aria-label="Filter by status">
+            <option value="" {% if run.execution_status_filter=="" %}selected{% endif %}>All statuses</option>
+            <option value="INITIALISING" {% if run.execution_status_filter=="INITIALISING" %}selected{% endif %}>
+                INITIALISING</option>
+            <option value="RESOLVING" {% if run.execution_status_filter=="RESOLVING" %}selected{% endif %}>RESOLVING
+            </option>
+            <option value="PROVISIONING" {% if run.execution_status_filter=="PROVISIONING" %}selected{% endif %}>
+                PROVISIONING</option>
+            <option value="ENV_READY" {% if run.execution_status_filter=="ENV_READY" %}selected{% endif %}>ENV_READY
+            </option>
+            <option value="RUNNING" {% if run.execution_status_filter=="RUNNING" %}selected{% endif %}>RUNNING
+            </option>
+            <option value="SUCCESSFUL" {% if run.execution_status_filter=="SUCCESSFUL" %}selected{% endif %}>
+                SUCCESSFUL</option>
+            <option value="FAILED" {% if run.execution_status_filter=="FAILED" %}selected{% endif %}>FAILED</option>
+            <option value="UNRUNNABLE" {% if run.execution_status_filter=="UNRUNNABLE" %}selected{% endif %}>
+                UNRUNNABLE</option>
+        </select>
+        <button type="submit">Filter</button>
+        {% if run.execution_status_filter!="" %}
+        <a href="/ui/run/{{ run.id }}">Clear</a>
+        {% endif %}
+    </form>
     <table>
         <thead>
             <tr>
                 <th>Name</th>
                 <th>Status</th>
-                <th>Exit code</th>
+                <th><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code &#8599;</a></th>
                 <th>Started</th>
                 <th>Updated</th>
                 <th>Logs</th>
                 <th>Dashboard</th>
+                <th>Download</th>
             </tr>
         </thead>
         <tbody>
@@ -57,12 +114,18 @@
                 <td>{{ execution.started_at }}</td>
                 <td>{{ execution.updated_at }}</td>
                 <td><a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">GCP &#8599;</a></td>
-                <td><a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">Grafana &#8599;</a></td>
+                <td><a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">Grafana &#8599;</a>
+                </td>
+                <td>
+                    <a href="/ui/execution/{{ execution.id }}/log.txt">log.txt</a>
+                    &middot;
+                    <a href="/ui/execution/{{ execution.id }}/output.zip">output.zip</a>
+                </td>
             </tr>
             {% endfor %}
             {% if run.executions.is_empty() %}
             <tr>
-                <td colspan="7">No executions yet.</td>
+                <td colspan="8">{{ run.executions_empty_message() }}</td>
             </tr>
             {% endif %}
         </tbody>

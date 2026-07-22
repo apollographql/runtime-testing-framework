@@ -1,20 +1,21 @@
 use crate::{
     links::LinksConfig,
-    orchestrator::{self, Client},
+    orchestrator::{self, Client, Download, RunListFilter},
     templates::{
         ErrorTemplate, ExecutionNotFoundTemplate, ExecutionTemplate, IndexTemplate,
         RunNotFoundTemplate, RunTemplate,
     },
-    view::{ExecutionDetailView, RunView},
+    view::{ExecutionDetailView, RunListView, RunView},
 };
 use askama::Template;
 use axum::{
     Extension,
-    extract::{Path, State},
+    extract::{Path, Query, State},
+    http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, LOCATION},
     response::{Html, IntoResponse, Response},
 };
-use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
+use chrono::{DateTime, Duration, Utc};
+use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary};
 use reqwest::StatusCode;
 use tracing::error;
 use uuid::Uuid;
@@ -36,14 +37,139 @@ fn to_response((status, body): (StatusCode, String)) -> Response {
     (status, Html(body)).into_response()
 }
 
-/// `GET /ui` — the run-id input form.
-pub async fn index() -> Response {
-    to_response(render_body(StatusCode::OK, IndexTemplate))
+const DEFAULT_LIMIT: i64 = 20;
+
+/// Query params accepted by the home page.
+#[derive(Debug, serde::Deserialize)]
+pub struct IndexParams {
+    initiated_by: Option<String>,
+    started_within: Option<String>,
+    offset: Option<i64>,
+}
+
+/// A coarse time-range preset rather than a raw datetime
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StartedWithin {
+    Hour,
+    Day,
+    Week,
+    Month,
+}
+
+impl StartedWithin {
+    /// Anything unrecognized is treated the same as absent rather than rejected.
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "hour" => Some(Self::Hour),
+            "day" => Some(Self::Day),
+            "week" => Some(Self::Week),
+            "month" => Some(Self::Month),
+            _ => None,
+        }
+    }
+
+    fn as_duration(self) -> Duration {
+        match self {
+            Self::Hour => Duration::hours(1),
+            Self::Day => Duration::days(1),
+            Self::Week => Duration::days(7),
+            Self::Month => Duration::days(30),
+        }
+    }
+}
+
+/// `GET /ui` — the run-id lookup box plus a filterable table of recent runs.
+pub async fn index<C: Client>(
+    State(orchestrator_client): State<C>,
+    Query(params): Query<IndexParams>,
+) -> Response {
+    let offset = params.offset.unwrap_or(0).max(0);
+    // Trim so a whitespace-only box (stray leading/trailing space) doesn't silently filter on a
+    // value nothing will ever match — an empty result then genuinely means "no filter applied."
+    let initiated_by = params
+        .initiated_by
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    // Kept as the raw string, not re-derived from `StartedWithin` — parsing it decides the actual
+    // `started_after` filter below, but the display/pagination-link copy doesn't need a second,
+    // separately-materialized value; an unrecognized value just passes through unchanged (the
+    // `<select>` has no matching `<option>` for it, so it renders as "Any time" regardless).
+    let started_within = params.started_within.unwrap_or_default();
+
+    let filter = RunListFilter {
+        initiated_by: initiated_by.clone(),
+        started_after: StartedWithin::parse(&started_within).map(|w| Utc::now() - w.as_duration()),
+        limit: DEFAULT_LIMIT,
+        offset,
+    };
+
+    let list = orchestrator_client.list_runs(&filter).await;
+
+    to_response(index_body(
+        list,
+        DEFAULT_LIMIT,
+        offset,
+        initiated_by,
+        started_within,
+    ))
+}
+
+/// Maps the result of listing recent runs to a rendered `(status, body)` pair. A fetch failure
+/// still renders the page — with the run-id lookup box intact and an inline error in place of the
+/// table — since that box doesn't depend on the list endpoint at all.
+fn index_body(
+    result: Result<TestRunListResponse, orchestrator::Error>,
+    limit: i64,
+    offset: i64,
+    initiated_by: String,
+    started_within: String,
+) -> (StatusCode, String) {
+    match result {
+        Ok(response) => render_body(
+            StatusCode::OK,
+            IndexTemplate {
+                list: Some(RunListView::new(
+                    response,
+                    limit,
+                    offset,
+                    initiated_by.clone(),
+                    started_within.clone(),
+                )),
+                list_error: None,
+                initiated_by,
+                started_within,
+            },
+        ),
+        Err(error) => {
+            error!(%error, "failed to list runs from orchestrator");
+            render_body(
+                StatusCode::OK,
+                IndexTemplate {
+                    initiated_by,
+                    started_within,
+                    list: None,
+                    list_error: Some(
+                        "Could not load recent runs from the orchestrator.".to_owned(),
+                    ),
+                },
+            )
+        }
+    }
 }
 
 /// `GET /ui/health` — liveness/readiness probe for the standalone service.
 pub async fn health() -> &'static str {
     "ok"
+}
+
+/// Query params accepted by the run status page.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct RunParams {
+    /// Restricts the executions table to this exact `current_status` `Display` value (e.g.
+    /// `"FAILED"`); absent/empty means no filter.
+    execution_status: Option<String>,
 }
 
 /// Maps the result of fetching a run summary to a rendered `(status, body)` pair: the banner plus
@@ -55,12 +181,13 @@ fn run_status_body(
     result: Result<Option<TestRunSummary>, orchestrator::Error>,
     now: DateTime<Utc>,
     links_cfg: &LinksConfig,
+    execution_status_filter: String,
 ) -> (StatusCode, String) {
     match result {
         Ok(Some(summary)) => render_body(
             StatusCode::OK,
             RunTemplate {
-                run: RunView::new(summary, now, links_cfg),
+                run: RunView::new(summary, now, links_cfg, execution_status_filter),
             },
         ),
         Ok(None) => render_body(
@@ -92,10 +219,18 @@ pub async fn run_status<C: Client>(
     State(orchestrator_client): State<C>,
     Extension(links_cfg): Extension<LinksConfig>,
     Path(id): Path<Uuid>,
+    Query(params): Query<RunParams>,
 ) -> Response {
     let result = orchestrator_client.run_summary(id).await;
+    let execution_status_filter = params.execution_status.unwrap_or_default();
 
-    to_response(run_status_body(id, result, Utc::now(), &links_cfg))
+    to_response(run_status_body(
+        id,
+        result,
+        Utc::now(),
+        &links_cfg,
+        execution_status_filter,
+    ))
 }
 
 /// Maps the result of fetching an execution summary to a rendered `(status, body)` pair: the detail
@@ -147,6 +282,72 @@ pub async fn execution_detail<C: Client>(
     to_response(execution_detail_body(execution_id, result, &links_cfg))
 }
 
+/// `GET /ui/execution/{eid}/log.txt`
+///
+/// Proxies the execution's log file from the orchestrator, so
+/// the browser only ever talks to the UI's own origin.
+pub async fn execution_log<C: Client>(
+    State(orchestrator_client): State<C>,
+    Path(execution_id): Path<Uuid>,
+) -> Response {
+    download_response(
+        orchestrator_client.execution_log(execution_id).await,
+        "text/plain; charset=utf-8",
+        format!("{execution_id}-log.txt"),
+    )
+}
+
+/// `GET /ui/execution/{eid}/output.zip`
+///
+/// The orchestrator answers this with a 307 to a signed GCS URL, which this handler relays
+/// verbatim rather than following - the UI never downloads the artifact's bytes itself.
+pub async fn execution_output_zip<C: Client>(
+    State(orchestrator_client): State<C>,
+    Path(execution_id): Path<Uuid>,
+) -> Response {
+    download_response(
+        orchestrator_client.execution_output_zip(execution_id).await,
+        "application/zip",
+        format!("{execution_id}-output.zip"),
+    )
+}
+
+/// Maps a [`Download`] outcome to an HTTP response: the file's bytes with a `Content-Disposition`
+/// download header on success, the orchestrator's redirect relayed verbatim, or a plain-text
+/// response carrying the corresponding status otherwise.
+fn download_response(
+    result: Result<Download, orchestrator::Error>,
+    content_type: &'static str,
+    filename: String,
+) -> Response {
+    match result {
+        Ok(Download::Ready(bytes)) => (
+            [
+                (CONTENT_TYPE, content_type.to_owned()),
+                (
+                    CONTENT_DISPOSITION,
+                    format!("attachment; filename=\"{filename}\""),
+                ),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Ok(Download::Redirect { status, location }) => {
+            (status, [(LOCATION, location)]).into_response()
+        }
+        Ok(Download::NotFound) => (StatusCode::NOT_FOUND, "not found").into_response(),
+        Ok(Download::NotReady) => (StatusCode::CONFLICT, "output not ready yet").into_response(),
+        Err(error) => {
+            error!(%error, "failed to fetch download from orchestrator");
+            (
+                StatusCode::BAD_GATEWAY,
+                "could not fetch download from orchestrator",
+            )
+                .into_response()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,9 +367,23 @@ mod tests {
 
     #[test]
     fn index_renders_the_run_id_form() {
-        let (status, body) = render_body(StatusCode::OK, IndexTemplate);
+        let (status, body) = index_body(
+            Ok(TestRunListResponse::default()),
+            DEFAULT_LIMIT,
+            0,
+            String::new(),
+            String::new(),
+        );
 
         assert_eq!(status, StatusCode::OK);
+        assert!(
+            body.contains(r#"<link rel="icon" type="image/png" href="/ui/static/gongphin.png" />"#),
+            "expected the favicon link tag in the page head"
+        );
+        assert!(
+            body.contains(r#"<img class="logo" src="/ui/static/gongphin.png" alt="" />"#),
+            "expected the header logo image"
+        );
         assert!(
             body.contains("<form"),
             "expected a form on the landing page"
@@ -176,6 +391,109 @@ mod tests {
         assert!(
             body.contains("/ui/run/"),
             "form should navigate to /ui/run/{{id}}"
+        );
+        assert!(
+            body.contains(
+                "https://scaling-dollop-ywevlle.pages.github.io/explanation/overview.html"
+            ),
+            "expected a link explaining what RTF is"
+        );
+        assert!(
+            body.contains(r#"href="https://scaling-dollop-ywevlle.pages.github.io/""#),
+            "expected a link to the RTF docs"
+        );
+        assert!(
+            body.contains(
+                "https://scaling-dollop-ywevlle.pages.github.io/tutorials/running-with-the-orchestrator/index.html"
+            ),
+            "expected a link to the orchestrator tutorial"
+        );
+    }
+
+    #[test]
+    fn index_body_renders_the_recent_runs_table() {
+        let run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);
+        let (status, body) = index_body(
+            Ok(TestRunListResponse {
+                runs: vec![run],
+                total: 1,
+            }),
+            DEFAULT_LIMIT,
+            0,
+            String::new(),
+            String::new(),
+        );
+
+        assert_eq!(status, StatusCode::OK);
+        assert!(
+            body.contains("my-test-run"),
+            "recent-runs row should render"
+        );
+    }
+
+    #[test]
+    fn index_body_still_renders_the_lookup_form_when_listing_fails() {
+        let (status, body) = index_body(
+            Err(orchestrator::Error::ListRuns {
+                status: StatusCode::BAD_GATEWAY,
+            }),
+            DEFAULT_LIMIT,
+            0,
+            String::new(),
+            String::new(),
+        );
+
+        assert_eq!(status, StatusCode::OK, "the page itself still renders");
+        assert!(
+            body.contains("<form"),
+            "run-id lookup box should survive a list failure"
+        );
+        assert!(body.contains("Could not load recent runs"));
+    }
+
+    #[tokio::test]
+    async fn index_trims_whitespace_from_initiated_by() {
+        let resp = index(
+            State(MockClient::with_test_run(
+                Uuid::from_u128(1),
+                Uuid::from_u128(2),
+                Status::Running,
+            )),
+            Query(IndexParams {
+                initiated_by: Some("  testuser  ".to_owned()),
+                started_within: None,
+                offset: None,
+            }),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(
+            body_text(resp).await.contains("value=\"testuser\""),
+            "the trimmed value should repopulate the filter box"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_falls_back_to_any_time_for_an_unrecognized_started_within() {
+        let resp = index(
+            State(MockClient::with_test_run(
+                Uuid::from_u128(1),
+                Uuid::from_u128(2),
+                Status::Running,
+            )),
+            Query(IndexParams {
+                initiated_by: None,
+                started_within: Some("decade".to_owned()),
+                offset: None,
+            }),
+        )
+        .await;
+
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "an unrecognized preset should not reject the request"
         );
     }
 
@@ -193,6 +511,7 @@ mod tests {
             Ok(Some(sample_summary(run_id, ex_id, Status::Running))),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
 
         assert_eq!(status, StatusCode::OK);
@@ -212,7 +531,8 @@ mod tests {
     #[test]
     fn run_status_body_renders_not_found_for_an_unknown_run() {
         let id = Uuid::from_u128(1);
-        let (status, body) = run_status_body(id, Ok(None), Utc::now(), &sample_config());
+        let (status, body) =
+            run_status_body(id, Ok(None), Utc::now(), &sample_config(), String::new());
 
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert!(body.contains("not found"));
@@ -229,6 +549,7 @@ mod tests {
             }),
             Utc::now(),
             &sample_config(),
+            String::new(),
         );
 
         assert_eq!(status, StatusCode::BAD_GATEWAY);
@@ -286,6 +607,7 @@ mod tests {
             State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Extension(sample_config()),
             Path(run_id),
+            Query(RunParams::default()),
         )
         .await;
 
@@ -312,5 +634,100 @@ mod tests {
             body_text(resp).await.contains("exec-alpha"),
             "handler should render the client's execution summary"
         );
+    }
+
+    #[tokio::test]
+    async fn execution_log_calls_the_client_and_streams_its_result() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_log(
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path(ex_id),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(body_text(resp).await, "log contents");
+    }
+
+    #[tokio::test]
+    async fn execution_output_zip_calls_the_client_and_streams_its_result() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let resp = execution_output_zip(
+            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            Path(ex_id),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(body_text(resp).await, "output zip contents");
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_bytes_with_a_download_header_on_success() {
+        let resp = download_response(
+            Ok(Download::Ready(b"hello".to_vec())),
+            "text/plain; charset=utf-8",
+            "example.txt".to_owned(),
+        );
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get(CONTENT_DISPOSITION).unwrap(),
+            "attachment; filename=\"example.txt\""
+        );
+        assert_eq!(body_text(resp).await, "hello");
+    }
+
+    #[tokio::test]
+    async fn download_response_relays_a_redirect_verbatim() {
+        let resp = download_response(
+            Ok(Download::Redirect {
+                status: StatusCode::TEMPORARY_REDIRECT,
+                location: "https://storage.googleapis.com/signed-url".to_owned(),
+            }),
+            "application/zip",
+            "f.zip".to_owned(),
+        );
+
+        assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(
+            resp.headers().get(LOCATION).unwrap(),
+            "https://storage.googleapis.com/signed-url"
+        );
+        assert_eq!(
+            body_text(resp).await,
+            "",
+            "a redirect should carry no body - the browser follows Location itself"
+        );
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_404_when_not_found() {
+        let resp = download_response(Ok(Download::NotFound), "text/plain", "f".to_owned());
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_409_when_not_ready() {
+        let resp = download_response(Ok(Download::NotReady), "text/plain", "f".to_owned());
+
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
+    async fn download_response_returns_502_when_the_fetch_fails() {
+        let resp = download_response(
+            Err(orchestrator::Error::Download {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                path: "/test-execution/1/log.txt".to_owned(),
+            }),
+            "text/plain",
+            "f".to_owned(),
+        );
+
+        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 }

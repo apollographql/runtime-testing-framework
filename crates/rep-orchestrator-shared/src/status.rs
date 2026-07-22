@@ -43,7 +43,8 @@ impl Status {
             Initialising | Resolving | Provisioning => StatusCategory::Pending,
             EnvironmentReady | Running => StatusCategory::Active,
             Successful => StatusCategory::Success,
-            Failed | Unrunnable => StatusCategory::Failed,
+            Failed => StatusCategory::Failed,
+            Unrunnable => StatusCategory::Unrunnable,
         }
     }
 }
@@ -73,4 +74,5 @@ pub enum StatusCategory {
     Active,
     Success,
     Failed,
+    Unrunnable,
 }

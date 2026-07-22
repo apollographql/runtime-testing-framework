@@ -13,7 +13,8 @@
     <h2>{{ execution.name }}</h2>
     <p><span class="status {{ execution.status_class }}">{{ execution.status_label }}</span></p>
     <dl>
-        <dt>Exit code</dt>
+        <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code
+                &#8599;</a></dt>
         <dd>
             {% match execution.exit_code %}
             {% when Some with (code) %}{{ code }}
@@ -34,7 +35,13 @@
     <p>
         <a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">View logs in GCP &#8599;</a>
         &middot;
-        <a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">View dashboard in Grafana &#8599;</a>
+        <a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">View dashboard in Grafana
+            &#8599;</a>
+    </p>
+    <p>
+        <a href="/ui/execution/{{ execution.id }}/log.txt">Download log.txt</a>
+        &middot;
+        <a href="/ui/execution/{{ execution.id }}/output.zip">Download output.zip</a>
     </p>
 </section>
 

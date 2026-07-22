@@ -12,8 +12,9 @@ use tracing::error;
 use uuid::Uuid;
 
 /// Reported in place of a `None` `initiated_by` when a [`TestRun`] is turned into a
-/// [`TestRunSummary`].
-const UNKNOWN_INITIATOR: &str = "unknown";
+/// [`TestRunSummary`]. Also used by [`super::TestRunFilter`] so that searching for this value
+/// finds runs with no recorded initiator, matching what the UI actually displays for them.
+pub(crate) const UNKNOWN_INITIATOR: &str = "unknown";
 
 /// A `TestRun` denotes a single user-triggered set of tests that should be considered passing or
 /// failing based on their combined status.

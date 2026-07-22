@@ -34,6 +34,27 @@ mod tests {
         );
     }
 
+    #[test]
+    fn favicon_is_embedded_in_the_binary() {
+        assert!(
+            Assets::get("gongphin.png").is_some(),
+            "gongphin.png should be embedded"
+        );
+    }
+
+    #[tokio::test]
+    async fn serve_returns_the_favicon_with_the_png_content_type() {
+        let resp = serve(Path("gongphin.png".to_string())).await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers()[header::CONTENT_TYPE]
+                .to_str()
+                .expect("header is valid ascii"),
+            "image/png"
+        );
+    }
+
     #[tokio::test]
     async fn serve_returns_the_embedded_asset() {
         let resp = serve(Path("htmx.min.js".to_string())).await;

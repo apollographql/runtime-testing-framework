@@ -1,10 +1,17 @@
-use crate::view::{ExecutionDetailView, RunView};
+use crate::view::{ExecutionDetailView, RunListView, RunView};
 use askama::Template;
 
-/// The landing page: a form to enter a test-run id.
+/// The landing page: the run-id lookup form plus the recent-runs table.
 #[derive(Template)]
 #[template(path = "index.html")]
-pub struct IndexTemplate;
+pub struct IndexTemplate {
+    /// Re-populates the "Initiated by" field after a search.
+    pub initiated_by: String,
+    /// Which `started_within` preset is selected ("", "hour", "day", "week", "month").
+    pub started_within: String,
+    pub list: Option<RunListView>,
+    pub list_error: Option<String>,
+}
 
 /// The run status page: overall status banner plus the executions table.
 #[derive(Template)]
