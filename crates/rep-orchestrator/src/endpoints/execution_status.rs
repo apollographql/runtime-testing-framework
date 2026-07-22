@@ -18,7 +18,7 @@ pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSumma
     match TestExecution::get_by_uuid(&id, conn).await? {
         Some(ex) => {
             let test_run_id = ex.test_run(conn).await?.uuid();
-            let mut summary = ex.try_into_summary(conn).await?;
+            let mut summary = ex.try_into_summary_with_status_history(conn).await?;
             summary.test_run_id = Some(test_run_id);
 
             Ok(Json(summary))
@@ -89,7 +89,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn get_handler_populates_test_run_id() -> anyhow::Result<()> {
+    async fn get_handler_populates_test_run_id_and_status_history() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
@@ -104,6 +104,12 @@ mod tests {
         assert_eq!(resp.status_code(), StatusCode::OK);
         let summary: TestExecutionSummary = resp.json();
         assert_eq!(summary.test_run_id, Some(run_id));
+        assert_eq!(
+            summary.status_history.len(),
+            1,
+            "expected a single status history item, got {:?}",
+            summary.status_history
+        );
 
         Ok(())
     }
