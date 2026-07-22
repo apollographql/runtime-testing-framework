@@ -43,6 +43,10 @@ pub struct Config {
     pub gcs_url_ttl_secs: u64,
     #[serde(default = "default_failed_execution_ttl_secs")]
     pub failed_execution_ttl_secs: u64,
+    #[serde(default = "default_retry_window_secs")]
+    pub retry_window_secs: u64,
+    #[serde(default = "default_poll_interval_secs")]
+    pub poll_interval_secs: u64,
     #[serde(default)]
     pub mock_internal_gcs_url: Option<String>,
     #[serde(default)]
@@ -94,4 +98,12 @@ fn default_kubeconfig_secret_name() -> String {
 
 fn default_failed_execution_ttl_secs() -> u64 {
     600
+}
+
+fn default_retry_window_secs() -> u64 {
+    5 * 60
+}
+
+fn default_poll_interval_secs() -> u64 {
+    10
 }

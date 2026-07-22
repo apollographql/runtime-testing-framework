@@ -951,6 +951,8 @@ mod tests {
             mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),
             mock_public_gcs_url: Some("http://mock-gcs-public".to_string()),
             failed_execution_ttl_secs: 600,
+            retry_window_secs: 300,
+            poll_interval_secs: 10,
         }
     }
 

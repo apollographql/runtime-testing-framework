@@ -22,7 +22,7 @@ pub(super) async fn create_job<K, H>(
     scenario_image: String,
     scenario_command: String,
     config: &CreateJobConfig<'_>,
-    clients: K,
+    clients: &mut K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
 where
@@ -73,6 +73,8 @@ where
 pub(super) async fn wait_for_job<K, H>(
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
+    poll_interval_secs: u64,
+    retry_window_secs: u64,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -93,6 +95,8 @@ where
             &namespace,
             test_execution,
             failed_execution_ttl_seconds,
+            poll_interval_secs,
+            retry_window_secs,
             &etx,
             clients,
         )
@@ -106,15 +110,22 @@ async fn wait_and_update<K>(
     namespace: &str,
     test_execution: TestExecution,
     failed_execution_ttl_seconds: u64,
+    poll_interval_secs: u64,
+    retry_window_secs: u64,
     etx: &UnboundedSender<Event>,
-    clients: K,
+    mut clients: K,
 ) where
     K: WorkloadClient,
 {
     let execution_id = test_execution.uuid();
 
     let to_send = match clients
-        .wait_for_job(namespace, &test_execution.uuid())
+        .wait_for_job(
+            namespace,
+            &test_execution.uuid(),
+            poll_interval_secs,
+            retry_window_secs,
+        )
         .await
     {
         WatchOutcome::Succeeded => {
@@ -173,7 +184,7 @@ mod tests {
     async fn full_happy_path_sets_expected_statuses() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
-        let clients = MockClient::default_ok();
+        let mut clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
 
         // create job
@@ -186,14 +197,14 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
             },
-            clients.clone(),
+            &mut clients,
             &mut handle,
         )
         .await;
         assert!(res.is_ok(), "create_job: {res:?}");
 
         // wait for job to complete
-        let res = wait_for_job(ex, 600, etx, clients, &mut handle).await;
+        let res = wait_for_job(ex, 600, 10, 300, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait_for_job: {res:?}");
 
         use Status::*;
@@ -212,7 +223,7 @@ mod tests {
     async fn create_job_returns_expected_job_error() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
-        let clients = MockClient {
+        let mut clients = MockClient {
             create_job: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default_ok()
         };
@@ -226,7 +237,7 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
             },
-            clients.clone(),
+            &mut clients,
             &mut handle,
         )
         .await;
@@ -251,15 +262,14 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, 600, &etx, clients).await;
+        wait_and_update("test-namespace", ex, 600, 10, 300, &etx, clients).await;
 
         let evt = erx.try_recv().unwrap();
         assert!(matches!(evt.data, EventData::CleanupNamespace), "{evt:?}");
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]
-    #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
-    #[test_case(WatchOutcome::StreamClosed; "stream closed")]
+    #[test_case(WatchOutcome::WatchErrors(String::new()); "transient error limit exceeded")]
     #[test_case(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into()); "container unrunnable")]
     #[tokio::test]
     async fn wait_and_update_submits_mark_unrunnable_then_cleanup_on_watch_error(
@@ -272,7 +282,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, 600, &etx, clients).await;
+        wait_and_update("test-namespace", ex, 600, 10, 300, &etx, clients).await;
 
         let first = erx.try_recv().unwrap();
         let second = erx.try_recv().unwrap();

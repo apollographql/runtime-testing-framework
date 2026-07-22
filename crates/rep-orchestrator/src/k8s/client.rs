@@ -1,7 +1,8 @@
 use crate::k8s::{
-    CLUSTER_API_NAMESPACE, FullClient, ManagementClient, OUTPUT_COLLECTOR, Result, WatchOutcome,
-    Workflow, WorkflowSpec, WorkloadClient, workflow_name,
+    CLUSTER_API_NAMESPACE, Error, FullClient, ManagementClient, OUTPUT_COLLECTOR, Result,
+    SCENARIO_RUNNER_CONTAINER, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient, workflow_name,
 };
+use chrono::{DateTime, Duration, Utc};
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
     core::v1::{Namespace, Pod, ServiceAccount},
@@ -9,14 +10,13 @@ use k8s_openapi::api::{
 };
 use kube::{
     Client, Config, Resource,
-    api::{Api, ObjectMeta, Patch, PatchParams},
+    api::{Api, ListParams, ObjectMeta, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
-use kube_runtime::{WatchStreamExt, watcher};
 use rep_orchestrator_shared::EXECUTION_ID_LABEL;
-use std::{collections::BTreeMap, pin::pin, result};
-use tokio_stream::StreamExt;
+use std::{collections::BTreeMap, time};
+use tokio::time::sleep;
 use tracing::{error, warn};
 use uuid::Uuid;
 
@@ -47,14 +47,45 @@ const UNRUNNABLE_REASONS: &[&str] = &[
     "CreateContainerError",
 ];
 
-/// Typestate marker for a [ClusterClients] slot that holds an initialised [Client].
-#[derive(Clone)]
-pub struct Available(Client);
-
 /// Typestate marker for a [ClusterClients] slot that has not been populated and is therefore
 /// unusable from this instance.
 #[derive(Clone)]
 pub struct Unavailable;
+
+/// Typestate marker for a [ClusterClients] slot that holds an initialised [Client]
+/// for the management cluster.
+/// The underlying [Client] does not need to be rebuilt for the management cluster
+/// as the `kubeconfig` tokens are refreshable through kube client
+#[derive(Clone)]
+pub struct AvailableManagement(Client);
+
+/// Typestate marker for a [ClusterClients] slot that holds an initialised [Client] for workload
+/// clusters.
+/// The underlying [Client] contains a token that cannot be refreshed so this needs to rebuild the
+/// underlying [Client] from disk.
+#[derive(Clone)]
+pub struct AvailableWorkload {
+    client: Client,
+    workload_path: String,
+    workload_context: String,
+}
+
+impl AvailableWorkload {
+    async fn new(workload_path: &str, workload_context: &str) -> Result<Self> {
+        let kfg = Kubeconfig::read_from(workload_path)?;
+        let client = client_for_context(kfg, workload_context).await?;
+
+        Ok(Self {
+            client,
+            workload_path: workload_path.to_owned(),
+            workload_context: workload_context.to_owned(),
+        })
+    }
+
+    async fn refresh(&self) -> Result<Self> {
+        Self::new(&self.workload_path, &self.workload_context).await
+    }
+}
 
 #[derive(Clone)]
 pub struct ClusterClients<M, W> {
@@ -62,44 +93,41 @@ pub struct ClusterClients<M, W> {
     workload: W,
 }
 
-impl ClusterClients<Available, Unavailable> {
+impl ClusterClients<AvailableManagement, Unavailable> {
     /// Construct a client that can only interact with the management cluster.
     pub async fn try_new_management() -> Result<Self> {
         let management = Client::try_from(Config::incluster_env()?)?;
 
         Ok(Self {
-            management: Available(management),
+            management: AvailableManagement(management),
             workload: Unavailable,
         })
     }
 }
 
-impl ClusterClients<Unavailable, Available> {
+impl ClusterClients<Unavailable, AvailableWorkload> {
     /// Construct a client that can only interact with the workload cluster.
     pub async fn try_new_workload(workload_path: &str, workload_context: &str) -> Result<Self> {
-        let kfg = Kubeconfig::read_from(workload_path)?;
-
         Ok(Self {
             management: Unavailable,
-            workload: Available(client_for_context(kfg, workload_context).await?),
+            workload: AvailableWorkload::new(workload_path, workload_context).await?,
         })
     }
 }
 
-impl ClusterClients<Available, Available> {
+impl ClusterClients<AvailableManagement, AvailableWorkload> {
     /// Construct a client that can interact with both clusters.
     pub async fn try_new_full(workload_path: &str, workload_context: &str) -> Result<Self> {
         let management = Client::try_from(Config::incluster_env()?)?;
-        let kfg = Kubeconfig::read_from(workload_path)?;
 
         Ok(Self {
-            management: Available(management),
-            workload: Available(client_for_context(kfg, workload_context).await?),
+            management: AvailableManagement(management),
+            workload: AvailableWorkload::new(workload_path, workload_context).await?,
         })
     }
 }
 
-impl<W> ClusterClients<Available, W> {
+impl<W> ClusterClients<AvailableManagement, W> {
     fn management_api<K>(&self, ns: &str) -> Api<K>
     where
         K: Resource<Scope = NamespaceResourceScope>,
@@ -109,20 +137,26 @@ impl<W> ClusterClients<Available, W> {
     }
 }
 
-impl<M> ClusterClients<M, Available> {
-    fn workload_api<K>(&self, ns: &str) -> Api<K>
+impl<M> ClusterClients<M, AvailableWorkload> {
+    fn workload_api<K>(&mut self, ns: &str) -> Api<K>
     where
         K: Resource<Scope = NamespaceResourceScope>,
         <K as Resource>::DynamicType: Default,
     {
-        Api::namespaced(self.workload.0.clone(), ns)
+        Api::namespaced(self.workload_client(), ns)
     }
 
-    fn workload_client(&self) -> Client {
-        self.workload.0.clone()
+    fn workload_client(&mut self) -> Client {
+        self.workload.client.clone()
     }
 
-    async fn create_output_collector_rbac(&self, ns: &str) -> Result<()> {
+    async fn refresh_workload_client(&mut self) -> Result<()> {
+        self.workload = self.workload.refresh().await?;
+
+        Ok(())
+    }
+
+    async fn create_output_collector_rbac(&mut self, ns: &str) -> Result<()> {
         let pp = PatchParams::apply("rep-orchestrator");
 
         let sa_api: Api<ServiceAccount> = self.workload_api(ns);
@@ -274,7 +308,7 @@ async fn client_for_context(kfg: Kubeconfig, context: &str) -> Result<Client> {
     Ok(client)
 }
 
-impl<W: Clone + Send + Sync + 'static> ManagementClient for ClusterClients<Available, W> {
+impl<W: Clone + Send + Sync + 'static> ManagementClient for ClusterClients<AvailableManagement, W> {
     async fn create_argo_workflow(
         &self,
         execution_id: &Uuid,
@@ -304,9 +338,9 @@ impl<W: Clone + Send + Sync + 'static> ManagementClient for ClusterClients<Avail
     }
 }
 
-impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Available> {
+impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, AvailableWorkload> {
     async fn create_job(
-        &self,
+        &mut self,
         ns: &str,
         name: &str,
         execution_id: &Uuid,
@@ -337,33 +371,42 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
         Ok(job)
     }
 
-    async fn wait_for_job(&self, ns: &str, execution_id: &Uuid) -> WatchOutcome {
-        // Watch for the job to complete
-        let job_api: Api<Job> = self.workload_api(ns);
-        let job_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
-        let job_config = watcher::Config::default().labels(&job_labels);
-        let mut job_stream = pin!(watcher(job_api, job_config).applied_objects());
-
-        // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
-        let pod_api: Api<Pod> = self.workload_api(ns);
-        let pod_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
-        let pod_config = watcher::Config::default().labels(&pod_labels);
-        let mut pod_stream = pin!(watcher(pod_api, pod_config).applied_objects());
+    async fn wait_for_job(
+        &mut self,
+        ns: &str,
+        execution_id: &Uuid,
+        poll_interval_secs: u64,
+        retry_window_secs: u64,
+    ) -> WatchOutcome {
+        let labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
+        let params = ListParams::default().labels(&labels);
+        let poll_interval = time::Duration::from_secs(poll_interval_secs);
+        let retry_window = Duration::seconds(retry_window_secs as i64);
+        // Used to keep track of when the first client failure was detected so a maximum
+        // retry window is not exceeded
+        let mut first_failure: Option<DateTime<Utc>> = None;
 
         loop {
-            tokio::select! {
-                Some(res) = job_stream.next() => {
-                    if let Some(outcome) = handle_job_event(res) { return outcome; }
+            sleep(poll_interval).await;
+
+            let result = async {
+                let job_api: Api<Job> = self.workload_api(ns);
+                let pod_api: Api<Pod> = self.workload_api(ns);
+                poll_job_and_pods(&job_api, &pod_api, &params).await
+            }
+            .await;
+
+            match classify_poll_result(result, &mut first_failure, retry_window) {
+                PollDecision::Terminal(outcome) => return outcome,
+                PollDecision::KeepWaiting => {}
+                PollDecision::RetryAfterRefresh => {
+                    let _ = self.refresh_workload_client().await;
                 }
-                Some(res) = pod_stream.next() => {
-                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
-                }
-                else => return WatchOutcome::StreamClosed
             }
         }
     }
 
-    async fn delete_workload_namespace(&self, ns: &str) -> Result<()> {
+    async fn delete_workload_namespace(&mut self, ns: &str) -> Result<()> {
         let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client());
         if let Err(e) = crb_api
             .delete(&format!("{OUTPUT_COLLECTOR}-{ns}"), &Default::default())
@@ -379,40 +422,55 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
     }
 }
 
-impl FullClient for ClusterClients<Available, Available> {
-    async fn wait_for_workflow(&self, execution_id: &Uuid) -> WatchOutcome {
-        // Watch for the workflow to complete
-        let wf_api: Api<Workflow> = self.management_api(CLUSTER_API_NAMESPACE);
+impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {
+    async fn wait_for_workflow(
+        &mut self,
+        execution_id: &Uuid,
+        poll_interval_secs: u64,
+        retry_window_secs: u64,
+    ) -> WatchOutcome {
         let wf_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
-        let wf_config = watcher::Config::default().labels(&wf_labels);
-        let mut wf_stream = pin!(watcher(wf_api, wf_config).applied_objects());
+        let wf_params = ListParams::default().labels(&wf_labels);
 
-        // Watch the argo workflow pods to make sure they do not get into an unrunnable state
-        // This is not handled particularly well by Argo natively
-        let mgmt_pod_api: Api<Pod> = self.management_api(CLUSTER_API_NAMESPACE);
+        // Argo workflow pods aren't handled particularly well by Argo natively, so we watch them
+        // directly to catch a stuck pod the workflow status itself won't report.
         let wf_pod_labels = format!("workflows.argoproj.io/workflow=provision-env-{execution_id}");
-        let wf_pod_config = watcher::Config::default().labels(&wf_pod_labels);
-        let mut mgmt_pod_stream = pin!(watcher(mgmt_pod_api, wf_pod_config).applied_objects());
+        let wf_pod_params = ListParams::default().labels(&wf_pod_labels);
 
-        // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
         let workload_ns = execution_id.to_string();
-        let workload_pod_api: Api<Pod> = self.workload_api(&workload_ns);
-        let workload_pod_config = watcher::Config::default();
-        let mut workload_pod_stream =
-            pin!(watcher(workload_pod_api, workload_pod_config).applied_objects());
+        let workload_pod_params = ListParams::default();
+        let poll_interval = time::Duration::from_secs(poll_interval_secs);
+        let retry_window = Duration::seconds(retry_window_secs as i64);
+        // Used to keep track of when the first client failure was detected so a maximum
+        // retry window is not exceeded
+        let mut first_failure: Option<DateTime<Utc>> = None;
 
         loop {
-            tokio::select! {
-                Some(res) = wf_stream.next() => {
-                    if let Some(outcome) = handle_workflow_event(res) { return outcome; }
+            sleep(poll_interval).await;
+
+            let wf_api: Api<Workflow> = self.management_api(CLUSTER_API_NAMESPACE);
+            let mgmt_pod_api: Api<Pod> = self.management_api(CLUSTER_API_NAMESPACE);
+
+            let result = async {
+                let workload_pod_api: Api<Pod> = self.workload_api(&workload_ns);
+                poll_workflow_and_pods(
+                    &wf_api,
+                    &wf_params,
+                    &mgmt_pod_api,
+                    &wf_pod_params,
+                    &workload_pod_api,
+                    &workload_pod_params,
+                )
+                .await
+            }
+            .await;
+
+            match classify_poll_result(result, &mut first_failure, retry_window) {
+                PollDecision::Terminal(outcome) => return outcome,
+                PollDecision::KeepWaiting => {}
+                PollDecision::RetryAfterRefresh => {
+                    let _ = self.refresh_workload_client().await;
                 }
-                Some(res) = mgmt_pod_stream.next() => {
-                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
-                }
-                Some(res) = workload_pod_stream.next() => {
-                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
-                }
-                else => return WatchOutcome::StreamClosed
             }
         }
     }
@@ -441,19 +499,29 @@ fn check_pod_for_unrunnable(pod: &Pod) -> Option<WatchOutcome> {
     None
 }
 
-fn handle_pod_watch_event(res: result::Result<Pod, watcher::Error>) -> Option<WatchOutcome> {
-    match res {
-        Ok(pod) => check_pod_for_unrunnable(&pod),
-        Err(e) => Some(WatchOutcome::WatcherError(e.to_string())),
+/// Detect a `scenario-runner` container that was killed by the OOM killer. Unlike the Waiting
+/// reasons in `check_pod_for_unrunnable`, this container *did* terminate with a real exit code —
+/// but its sibling `output-collector` sidecar waits on a sentinel file that a SIGKILLed process
+/// never gets to write, so the pod hangs indefinitely without this check.
+///
+/// Scoped to the named `scenario-runner` container specifically: this must only ever run against
+/// the scenario Job's pod, never against environment pods, where an OOMKilled container is
+/// expected to self-heal via the Deployment's normal restart behaviour.
+fn check_scenario_runner_oomkilled(pod: &Pod) -> Option<WatchOutcome> {
+    let statuses = pod.status.as_ref()?.container_statuses.as_deref()?;
+    let status = statuses
+        .iter()
+        .find(|s| s.name == SCENARIO_RUNNER_CONTAINER)?;
+    let terminated = status.state.as_ref()?.terminated.as_ref()?;
+
+    if terminated.reason.as_deref() == Some("OOMKilled") {
+        Some(WatchOutcome::ContainerUnrunnable("OOMKilled".to_owned()))
+    } else {
+        None
     }
 }
 
-fn handle_workflow_event(res: result::Result<Workflow, watcher::Error>) -> Option<WatchOutcome> {
-    let wf = match res {
-        Ok(wf) => wf,
-        Err(e) => return Some(WatchOutcome::WatcherError(e.to_string())),
-    };
-
+fn check_workflow_status(wf: &Workflow) -> Option<WatchOutcome> {
     let status = wf.status.as_ref()?;
     match status.phase.as_deref() {
         Some("Succeeded") => Some(WatchOutcome::Succeeded),
@@ -476,12 +544,7 @@ fn handle_workflow_event(res: result::Result<Workflow, watcher::Error>) -> Optio
     }
 }
 
-fn handle_job_event(res: result::Result<Job, watcher::Error>) -> Option<WatchOutcome> {
-    let job = match res {
-        Ok(job) => job,
-        Err(e) => return Some(WatchOutcome::WatcherError(e.to_string())),
-    };
-
+fn check_job_status(job: &Job) -> Option<WatchOutcome> {
     let status = job.status.as_ref()?;
     let conditions = status.conditions.as_deref().unwrap_or_default();
     if conditions
@@ -499,4 +562,397 @@ fn handle_job_event(res: result::Result<Job, watcher::Error>) -> Option<WatchOut
     }
 
     None
+}
+
+/// List `api` and apply `check` to the first matching item, if any.
+async fn poll_first<K>(
+    api: &Api<K>,
+    params: &ListParams,
+    check: impl Fn(&K) -> Option<WatchOutcome>,
+) -> Result<Option<WatchOutcome>>
+where
+    K: Clone + std::fmt::Debug + serde::de::DeserializeOwned,
+{
+    let list = api.list(params).await?;
+
+    Ok(list.items.first().and_then(check))
+}
+
+/// List pods matching `params` and check each for a permanently-stuck waiting state.
+async fn poll_pods(api: &Api<Pod>, params: &ListParams) -> Result<Option<WatchOutcome>> {
+    let pods = api.list(params).await?;
+
+    Ok(pods.items.iter().find_map(check_pod_for_unrunnable))
+}
+
+/// List pods matching `params` and check each for a permanently-stuck waiting state or an
+/// OOMKilled `scenario-runner` container. Only used for the scenario Job's own pod — see
+/// `check_scenario_runner_oomkilled`.
+async fn poll_scenario_pods(api: &Api<Pod>, params: &ListParams) -> Result<Option<WatchOutcome>> {
+    let pods = api.list(params).await?;
+
+    Ok(pods.items.iter().find_map(|pod| {
+        check_pod_for_unrunnable(pod).or_else(|| check_scenario_runner_oomkilled(pod))
+    }))
+}
+
+async fn poll_job_and_pods(
+    job_api: &Api<Job>,
+    pod_api: &Api<Pod>,
+    params: &ListParams,
+) -> Result<Option<WatchOutcome>> {
+    if let Some(outcome) = poll_first(job_api, params, check_job_status).await? {
+        return Ok(Some(outcome));
+    }
+
+    poll_scenario_pods(pod_api, params).await
+}
+
+async fn poll_workflow_and_pods(
+    wf_api: &Api<Workflow>,
+    wf_params: &ListParams,
+    mgmt_pod_api: &Api<Pod>,
+    mgmt_pod_params: &ListParams,
+    workload_pod_api: &Api<Pod>,
+    workload_pod_params: &ListParams,
+) -> Result<Option<WatchOutcome>> {
+    if let Some(outcome) = poll_first(wf_api, wf_params, check_workflow_status).await? {
+        return Ok(Some(outcome));
+    }
+
+    if let Some(outcome) = poll_pods(mgmt_pod_api, mgmt_pod_params).await? {
+        return Ok(Some(outcome));
+    }
+
+    poll_pods(workload_pod_api, workload_pod_params).await
+}
+
+/// What a `wait_for_job`/`wait_for_workflow` loop should do next after one poll attempt.
+enum PollDecision {
+    /// The poll succeeded but no terminal state was reached yet; sleep and poll again.
+    KeepWaiting,
+    /// A retryable error occurred and the retry window has not been exceeded; rebuild the
+    /// workload client before polling again, on the chance the error was caused by an expired
+    /// token.
+    RetryAfterRefresh,
+    /// The wait loop is done: either a terminal state was reached, a non-retryable error
+    /// occurred, or the retry window was exceeded.
+    Terminal(WatchOutcome),
+}
+
+/// Shared bookkeeping between `wait_for_job` and `wait_for_workflow`: tracks how long a run of
+/// retryable errors has been ongoing via `first_failure`, resetting it on any successful poll,
+/// and gives up once `retry_window` is exceeded.
+fn classify_poll_result(
+    result: Result<Option<WatchOutcome>>,
+    first_failure: &mut Option<DateTime<Utc>>,
+    retry_window: Duration,
+) -> PollDecision {
+    match result {
+        Ok(Some(outcome)) => PollDecision::Terminal(outcome),
+        // Client api is working so clear first failure
+        Ok(None) => {
+            *first_failure = None;
+            PollDecision::KeepWaiting
+        }
+        Err(e) if e.is_retryable() => {
+            let first_failure_at = *first_failure.get_or_insert_with(Utc::now);
+
+            if Utc::now() - first_failure_at > retry_window {
+                PollDecision::Terminal(WatchOutcome::WatchErrors(
+                    Error::MaxRetriesExceeded.to_string(),
+                ))
+            } else {
+                PollDecision::RetryAfterRefresh
+            }
+        }
+        Err(e) => PollDecision::Terminal(WatchOutcome::WatchErrors(e.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::k8s::workflow::WorkflowStatus;
+    use k8s_openapi::api::batch::v1::{JobCondition, JobStatus};
+    use k8s_openapi::api::core::v1::{
+        ContainerState, ContainerStateTerminated, ContainerStateWaiting, ContainerStatus, PodStatus,
+    };
+    use simple_test_case::test_case;
+
+    const TEST_RETRY_WINDOW: Duration = Duration::seconds(15 * 60);
+
+    fn job_with_condition(type_: &str, status: &str) -> Job {
+        Job {
+            status: Some(JobStatus {
+                conditions: Some(vec![JobCondition {
+                    type_: type_.to_owned(),
+                    status: status.to_owned(),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn pod_with_waiting_reason(reason: &str) -> Pod {
+        Pod {
+            status: Some(PodStatus {
+                container_statuses: Some(vec![ContainerStatus {
+                    state: Some(ContainerState {
+                        waiting: Some(ContainerStateWaiting {
+                            reason: Some(reason.to_owned()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn pod_with_terminated_container(name: &str, reason: &str, exit_code: i32) -> Pod {
+        Pod {
+            status: Some(PodStatus {
+                container_statuses: Some(vec![ContainerStatus {
+                    name: name.to_owned(),
+                    state: Some(ContainerState {
+                        terminated: Some(ContainerStateTerminated {
+                            reason: Some(reason.to_owned()),
+                            exit_code,
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn retryable_error() -> Error {
+        Error::Kube(kube::Error::Service(Box::new(std::io::Error::other(
+            "connection reset",
+        ))))
+    }
+
+    #[test]
+    fn check_job_status_reports_succeeded_on_complete_condition() {
+        let job = job_with_condition("Complete", "True");
+        assert!(matches!(
+            check_job_status(&job),
+            Some(WatchOutcome::Succeeded)
+        ));
+    }
+
+    #[test]
+    fn check_job_status_reports_failed_on_failed_condition() {
+        let job = job_with_condition("Failed", "True");
+        assert!(matches!(
+            check_job_status(&job),
+            Some(WatchOutcome::Failed(_))
+        ));
+    }
+
+    #[test]
+    fn check_job_status_returns_none_while_still_running() {
+        let job = job_with_condition("Complete", "False");
+        assert!(check_job_status(&job).is_none());
+    }
+
+    #[test]
+    fn check_job_status_returns_none_with_no_status_yet() {
+        assert!(check_job_status(&Job::default()).is_none());
+    }
+
+    fn workflow_with_phase(phase: &str) -> Workflow {
+        Workflow {
+            status: Some(WorkflowStatus {
+                phase: Some(phase.to_owned()),
+                message: None,
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test_case("Succeeded", true; "succeeded phase reports success")]
+    #[test_case("Running", false; "running phase reports nothing yet")]
+    #[test]
+    fn check_workflow_status_handles_terminal_and_running_phases(phase: &str, is_succeeded: bool) {
+        let outcome = check_workflow_status(&workflow_with_phase(phase));
+        assert_eq!(
+            matches!(outcome, Some(WatchOutcome::Succeeded)),
+            is_succeeded
+        );
+    }
+
+    #[test]
+    fn check_workflow_status_reports_failed_with_message() {
+        let wf = workflow_with_phase("Failed");
+        assert!(matches!(
+            check_workflow_status(&wf),
+            Some(WatchOutcome::Failed(_))
+        ));
+    }
+
+    #[test]
+    fn check_pod_for_unrunnable_flags_known_unrunnable_reasons() {
+        let pod = pod_with_waiting_reason("ImagePullBackOff");
+        assert!(matches!(
+            check_pod_for_unrunnable(&pod),
+            Some(WatchOutcome::ContainerUnrunnable(_))
+        ));
+    }
+
+    #[test]
+    fn check_pod_for_unrunnable_ignores_unrelated_waiting_reasons() {
+        let pod = pod_with_waiting_reason("ContainerCreating");
+        assert!(check_pod_for_unrunnable(&pod).is_none());
+    }
+
+    #[test]
+    fn check_scenario_runner_oomkilled_flags_oomkilled_scenario_runner() {
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "OOMKilled", 137);
+        assert!(matches!(
+            check_scenario_runner_oomkilled(&pod),
+            Some(WatchOutcome::ContainerUnrunnable(_))
+        ));
+    }
+
+    #[test]
+    fn check_scenario_runner_oomkilled_ignores_other_terminated_reasons() {
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "Error", 1);
+        assert!(check_scenario_runner_oomkilled(&pod).is_none());
+    }
+
+    #[test]
+    fn check_scenario_runner_oomkilled_ignores_oomkilled_sidecar() {
+        // The output-collector sidecar is never the scenario itself; an OOMKill there is not a
+        // scenario failure.
+        let pod = pod_with_terminated_container(OUTPUT_COLLECTOR, "OOMKilled", 137);
+        assert!(check_scenario_runner_oomkilled(&pod).is_none());
+    }
+
+    #[test]
+    fn poll_pods_used_for_environment_pods_ignores_scenario_oomkill() {
+        // Environment pods must never be flagged for a scenario-runner OOMKill - poll_pods (used
+        // by poll_workflow_and_pods) intentionally has no OOMKilled check at all.
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "OOMKilled", 137);
+        assert!(check_pod_for_unrunnable(&pod).is_none());
+    }
+
+    #[test]
+    fn classify_poll_result_returns_terminal_on_success_outcome() {
+        let mut first_failure = None;
+        let decision = classify_poll_result(
+            Ok(Some(WatchOutcome::Succeeded)),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
+
+        assert!(matches!(
+            decision,
+            PollDecision::Terminal(WatchOutcome::Succeeded)
+        ));
+    }
+
+    #[test]
+    fn classify_poll_result_clears_first_failure_and_keeps_waiting_on_ok_none() {
+        let mut first_failure = Some(Utc::now() - Duration::seconds(60));
+
+        let decision = classify_poll_result(Ok(None), &mut first_failure, TEST_RETRY_WINDOW);
+
+        assert!(matches!(decision, PollDecision::KeepWaiting));
+        assert!(first_failure.is_none());
+    }
+
+    #[test]
+    fn classify_poll_result_returns_terminal_on_non_retryable_error_without_starting_window() {
+        let mut first_failure = None;
+
+        let decision = classify_poll_result(
+            Err(Error::Kube(kube::Error::TlsRequired)),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
+
+        assert!(matches!(
+            decision,
+            PollDecision::Terminal(WatchOutcome::WatchErrors(_))
+        ));
+        assert!(first_failure.is_none());
+    }
+
+    #[test]
+    fn classify_poll_result_retries_within_window() {
+        let mut first_failure = None;
+
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
+
+        assert!(matches!(decision, PollDecision::RetryAfterRefresh));
+        assert!(first_failure.is_some());
+    }
+
+    #[test]
+    fn classify_poll_result_does_not_give_up_before_retry_window_exceeded() {
+        // First failure started well under the retry window ago; still within budget.
+        let mut first_failure = Some(Utc::now() - TEST_RETRY_WINDOW + Duration::seconds(5));
+
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
+
+        assert!(matches!(decision, PollDecision::RetryAfterRefresh));
+    }
+
+    /// Regression test: `first_failure` used to be set with `Option::insert`, which
+    /// unconditionally overwrites the value on *every* retryable error instead of only the
+    /// first. That reset the retry window's start time on every poll, so the elapsed time
+    /// compared against the retry window was always ~zero and this case could never trigger.
+    #[test]
+    fn classify_poll_result_gives_up_once_retry_window_exceeded() {
+        // First failure started well over the retry window ago.
+        let mut first_failure = Some(Utc::now() - TEST_RETRY_WINDOW - Duration::seconds(5));
+
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
+
+        assert!(matches!(
+            decision,
+            PollDecision::Terminal(WatchOutcome::WatchErrors(_))
+        ));
+    }
+
+    #[test]
+    fn classify_poll_result_recovery_resets_the_retry_window() {
+        // Started failing well past the retry window already, but a successful poll should
+        // reset the clock rather than carry the stale start time forward.
+        let mut first_failure = Some(Utc::now() - TEST_RETRY_WINDOW - Duration::seconds(30));
+        classify_poll_result(Ok(None), &mut first_failure, TEST_RETRY_WINDOW);
+        assert!(first_failure.is_none());
+
+        // Failing again immediately after recovery should not immediately give up.
+        let decision = classify_poll_result(
+            Err(retryable_error()),
+            &mut first_failure,
+            TEST_RETRY_WINDOW,
+        );
+
+        assert!(matches!(decision, PollDecision::RetryAfterRefresh));
+    }
 }

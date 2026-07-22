@@ -103,6 +103,10 @@ spec:
               value: {{ required "config.toolboxPullPolicy is required" .Values.config.toolboxPullPolicy | quote }}
             - name: RTF_FAILED_EXECUTION_TTL_SECS
               value: {{ .Values.config.failedExecutionTtlSecs | quote }}
+            - name: RTF_RETRY_WINDOW_SECS
+              value: {{ .Values.config.retryWindowSecs | quote }}
+            - name: RTF_POLL_INTERVAL_SECS
+              value: {{ .Values.config.pollIntervalSecs | quote }}
             - name: RTF_OTEL_COLLECTOR_GRPC
               value: {{ .Values.otel.collectorGrpc | quote }}
             - name: RTF_OTEL_COLLECTOR_HTTP
