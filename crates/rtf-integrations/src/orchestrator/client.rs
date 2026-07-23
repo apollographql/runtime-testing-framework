@@ -78,6 +78,19 @@ impl OrchestratorClient {
         }
     }
 
+    /// Make a GET request to the Orchestrator, returning the response as UTF-8 text.
+    pub async fn get_text(&self, endpoint: &str) -> Result<String> {
+        let resp = self.request(Method::GET, endpoint).await?.send().await?;
+        let status = resp.status();
+        let body = resp.text().await?;
+
+        if status.is_success() {
+            Ok(body)
+        } else {
+            Err(Error::FailedRequest { status, body })
+        }
+    }
+
     /// Make a JSON POST request to the Orchestrator, deserializing the response body from JSON.
     pub async fn post_json<B, T>(&self, endpoint: &str, body: &B) -> Result<T>
     where

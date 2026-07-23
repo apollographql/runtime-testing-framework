@@ -71,11 +71,15 @@ pub async fn ci_run(
     };
 
     println!("\n\nTest run complete. Final status: {s}\n");
-    println!("Run 'rtf remote request test-run/{id}/status' to view the summary for this run\n");
-    println!("Run the following to fetch the status, log or output.zip for an execution:");
-    println!("   rtf remote request test-execution/$ID/status");
-    println!("   rtf remote request test-execution/$ID/log.txt");
-    println!("   rtf remote request test-execution/$ID/output.zip > output.zip");
+    println!(
+        "Run 'rtf remote run-status {id} --with-executions' to view the summary for this run\n"
+    );
+    println!(
+        "Run the following to fetch the status, log or output.zip for an individual execution:"
+    );
+    println!("   rtf remote execution-status $ID");
+    println!("   rtf remote execution-log $ID");
+    println!("   rtf remote execution-output $ID");
 
     if exit_code != 0 {
         println!(

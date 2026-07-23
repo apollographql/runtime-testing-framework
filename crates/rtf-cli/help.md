@@ -25,8 +25,11 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote request`↴](#rtf-remote-request)
 * [`rtf remote run`↴](#rtf-remote-run)
 * [`rtf remote ci-run`↴](#rtf-remote-ci-run)
+* [`rtf remote execution-log`↴](#rtf-remote-execution-log)
 * [`rtf remote execution-output`↴](#rtf-remote-execution-output)
+* [`rtf remote execution-status`↴](#rtf-remote-execution-status)
 * [`rtf remote run-output`↴](#rtf-remote-run-output)
+* [`rtf remote run-status`↴](#rtf-remote-run-status)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -343,8 +346,11 @@ Interactions with the RTF Orchestrator Service
 * `request` — Send an IAP-authenticated HTTP request to the Orchestrator
 * `run` — Trigger a test run using the Orchestrator
 * `ci-run` — Trigger a test run using the Orchestrator and poll for the result
-* `execution-output` — Pull output for a single test execution
+* `execution-log` — View the scenario log for a single test execution
+* `execution-output` — Pull all output for a single test execution (log, output.zip & status)
+* `execution-status` — View the status summary for a single test execution
 * `run-output` — Pull output for all executions within a given test run
+* `run-status` — View the status summary for a test run
 
 
 
@@ -434,9 +440,21 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 
 
 
+## `rtf remote execution-log`
+
+View the scenario log for a single test execution
+
+**Usage:** `rtf remote execution-log <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the Orchestrator test execution you wish to view the log of
+
+
+
 ## `rtf remote execution-output`
 
-Pull output for a single test execution
+Pull all output for a single test execution (log, output.zip & status)
 
 **Usage:** `rtf remote execution-output [OPTIONS] <ID>`
 
@@ -452,6 +470,18 @@ Pull output for a single test execution
 * `--force` — Force removal of an existing output directory before running
 
   Default value: `false`
+
+
+
+## `rtf remote execution-status`
+
+View the status summary for a single test execution
+
+**Usage:** `rtf remote execution-status <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the Orchestrator test execution you wish to view the status of
 
 
 
@@ -471,6 +501,24 @@ Pull output for all executions within a given test run
 
   Default value: `output`
 * `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
+
+
+
+## `rtf remote run-status`
+
+View the status summary for a test run
+
+**Usage:** `rtf remote run-status [OPTIONS] <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the Orchestrator test run you wish to view the status of
+
+###### **Options:**
+
+* `--with-executions` — Whether or not details of the underlying test executions should be included
 
   Default value: `false`
 

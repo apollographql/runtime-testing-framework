@@ -376,7 +376,13 @@ pub enum RemoteSubcommand {
         poll_interval_seconds: u64,
     },
 
-    /// Pull output for a single test execution
+    /// View the scenario log for a single test execution
+    ExecutionLog {
+        /// ID of the Orchestrator test execution you wish to view the log of
+        id: Uuid,
+    },
+
+    /// Pull all output for a single test execution (log, output.zip & status)
     ExecutionOutput {
         /// ID of the Orchestrator test execution you wish to pull output for
         id: Uuid,
@@ -388,6 +394,12 @@ pub enum RemoteSubcommand {
         /// Force removal of an existing output directory before running.
         #[arg(long, default_value = "false")]
         force: bool,
+    },
+
+    /// View the status summary for a single test execution
+    ExecutionStatus {
+        /// ID of the Orchestrator test execution you wish to view the status of
+        id: Uuid,
     },
 
     /// Pull output for all executions within a given test run
@@ -402,6 +414,16 @@ pub enum RemoteSubcommand {
         /// Force removal of an existing output directory before running.
         #[arg(long, default_value = "false")]
         force: bool,
+    },
+
+    /// View the status summary for a test run
+    RunStatus {
+        /// ID of the Orchestrator test run you wish to view the status of
+        id: Uuid,
+
+        /// Whether or not details of the underlying test executions should be included
+        #[arg(long, default_value = "false")]
+        with_executions: bool,
     },
 }
 
