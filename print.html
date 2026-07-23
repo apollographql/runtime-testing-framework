@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-a0e3cd27.js";
+            window.path_to_searchindex_js = "searchindex-091ff56a.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-3b257163.js"></script>
@@ -5585,8 +5585,11 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-remote-request"><code>rtf remote request</code>↴</a></li>
 <li><a href="#rtf-remote-run"><code>rtf remote run</code>↴</a></li>
 <li><a href="#rtf-remote-ci-run"><code>rtf remote ci-run</code>↴</a></li>
+<li><a href="#rtf-remote-execution-log"><code>rtf remote execution-log</code>↴</a></li>
 <li><a href="#rtf-remote-execution-output"><code>rtf remote execution-output</code>↴</a></li>
+<li><a href="#rtf-remote-execution-status"><code>rtf remote execution-status</code>↴</a></li>
 <li><a href="#rtf-remote-run-output"><code>rtf remote run-output</code>↴</a></li>
+<li><a href="#rtf-remote-run-status"><code>rtf remote run-status</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -5852,8 +5855,11 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><code>request</code> — Send an IAP-authenticated HTTP request to the Orchestrator</li>
 <li><code>run</code> — Trigger a test run using the Orchestrator</li>
 <li><code>ci-run</code> — Trigger a test run using the Orchestrator and poll for the result</li>
-<li><code>execution-output</code> — Pull output for a single test execution</li>
+<li><code>execution-log</code> — View the scenario log for a single test execution</li>
+<li><code>execution-output</code> — Pull all output for a single test execution (log, output.zip &amp; status)</li>
+<li><code>execution-status</code> — View the status summary for a single test execution</li>
 <li><code>run-output</code> — Pull output for all executions within a given test run</li>
+<li><code>run-status</code> — View the status summary for a test run</li>
 </ul>
 <h2 id="rtf-remote-prepare"><a class="header" href="#rtf-remote-prepare"><code>rtf remote prepare</code></a></h2>
 <p>Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers</p>
@@ -5933,10 +5939,17 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p>Default value: <code>10</code></p>
 </li>
 </ul>
-<h2 id="rtf-remote-execution-output"><a class="header" href="#rtf-remote-execution-output"><code>rtf remote execution-output</code></a></h2>
-<p>Pull output for a single test execution</p>
-<p><strong>Usage:</strong> <code>rtf remote execution-output [OPTIONS] &lt;ID&gt;</code></p>
+<h2 id="rtf-remote-execution-log"><a class="header" href="#rtf-remote-execution-log"><code>rtf remote execution-log</code></a></h2>
+<p>View the scenario log for a single test execution</p>
+<p><strong>Usage:</strong> <code>rtf remote execution-log &lt;ID&gt;</code></p>
 <h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to view the log of</li>
+</ul>
+<h2 id="rtf-remote-execution-output"><a class="header" href="#rtf-remote-execution-output"><code>rtf remote execution-output</code></a></h2>
+<p>Pull all output for a single test execution (log, output.zip &amp; status)</p>
+<p><strong>Usage:</strong> <code>rtf remote execution-output [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-16"><a class="header" href="#arguments-16"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to pull output for</li>
 </ul>
@@ -5951,10 +5964,17 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p>Default value: <code>false</code></p>
 </li>
 </ul>
+<h2 id="rtf-remote-execution-status"><a class="header" href="#rtf-remote-execution-status"><code>rtf remote execution-status</code></a></h2>
+<p>View the status summary for a single test execution</p>
+<p><strong>Usage:</strong> <code>rtf remote execution-status &lt;ID&gt;</code></p>
+<h6 id="arguments-17"><a class="header" href="#arguments-17"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to view the status of</li>
+</ul>
 <h2 id="rtf-remote-run-output"><a class="header" href="#rtf-remote-run-output"><code>rtf remote run-output</code></a></h2>
 <p>Pull output for all executions within a given test run</p>
 <p><strong>Usage:</strong> <code>rtf remote run-output [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-16"><a class="header" href="#arguments-16"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-18"><a class="header" href="#arguments-18"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ID&gt;</code> — ID of the Orchestrator test run you wish to pull output for</li>
 </ul>
@@ -5966,6 +5986,20 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 </li>
 <li>
 <p><code>--force</code> — Force removal of an existing output directory before running</p>
+<p>Default value: <code>false</code></p>
+</li>
+</ul>
+<h2 id="rtf-remote-run-status"><a class="header" href="#rtf-remote-run-status"><code>rtf remote run-status</code></a></h2>
+<p>View the status summary for a test run</p>
+<p><strong>Usage:</strong> <code>rtf remote run-status [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-19"><a class="header" href="#arguments-19"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test run you wish to view the status of</li>
+</ul>
+<h6 id="options-17"><a class="header" href="#options-17"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--with-executions</code> — Whether or not details of the underlying test executions should be included</p>
 <p>Default value: <code>false</code></p>
 </li>
 </ul>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-cli/src/cli.rs`."><title>cli.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rtf_cli" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">rtf_cli/</div>cli.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Parsing of our command line arguments using Clap's derive API
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-cli/src/cli.rs`."><title>cli.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rtf_cli" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.0 (2d8144b78 2026-07-07)" data-channel="1.97.0" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">rtf_cli/</div>cli.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Parsing of our command line arguments using Clap's derive API
 <a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use </span>clap::{ArgAction, Parser, Subcommand, ValueEnum};
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>clap_complete::Shell;
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>reqwest::{Method, Url};
@@ -376,39 +376,61 @@
 <a href=#376 id=376 data-nosnippet>376</a>        </span>poll_interval_seconds: u64,
 <a href=#377 id=377 data-nosnippet>377</a>    },
 <a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Pull output for a single test execution
-<a href=#380 id=380 data-nosnippet>380</a>    </span>ExecutionOutput {
-<a href=#381 id=381 data-nosnippet>381</a>        <span class="doccomment">/// ID of the Orchestrator test execution you wish to pull output for
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// View the scenario log for a single test execution
+<a href=#380 id=380 data-nosnippet>380</a>    </span>ExecutionLog {
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="doccomment">/// ID of the Orchestrator test execution you wish to view the log of
 <a href=#382 id=382 data-nosnippet>382</a>        </span>id: Uuid,
-<a href=#383 id=383 data-nosnippet>383</a>
-<a href=#384 id=384 data-nosnippet>384</a>        <span class="doccomment">/// Directory to place output in
-<a href=#385 id=385 data-nosnippet>385</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"output"</span>)]
-<a href=#386 id=386 data-nosnippet>386</a>        </span>outdir: String,
-<a href=#387 id=387 data-nosnippet>387</a>
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="doccomment">/// Force removal of an existing output directory before running.
-<a href=#389 id=389 data-nosnippet>389</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
-<a href=#390 id=390 data-nosnippet>390</a>        </span>force: bool,
-<a href=#391 id=391 data-nosnippet>391</a>    },
-<a href=#392 id=392 data-nosnippet>392</a>
-<a href=#393 id=393 data-nosnippet>393</a>    <span class="doccomment">/// Pull output for all executions within a given test run
-<a href=#394 id=394 data-nosnippet>394</a>    </span>RunOutput {
-<a href=#395 id=395 data-nosnippet>395</a>        <span class="doccomment">/// ID of the Orchestrator test run you wish to pull output for
-<a href=#396 id=396 data-nosnippet>396</a>        </span>id: Uuid,
-<a href=#397 id=397 data-nosnippet>397</a>
-<a href=#398 id=398 data-nosnippet>398</a>        <span class="doccomment">/// Directory to place output in
-<a href=#399 id=399 data-nosnippet>399</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"output"</span>)]
-<a href=#400 id=400 data-nosnippet>400</a>        </span>outdir: String,
-<a href=#401 id=401 data-nosnippet>401</a>
-<a href=#402 id=402 data-nosnippet>402</a>        <span class="doccomment">/// Force removal of an existing output directory before running.
-<a href=#403 id=403 data-nosnippet>403</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
-<a href=#404 id=404 data-nosnippet>404</a>        </span>force: bool,
-<a href=#405 id=405 data-nosnippet>405</a>    },
-<a href=#406 id=406 data-nosnippet>406</a>}
-<a href=#407 id=407 data-nosnippet>407</a>
-<a href=#408 id=408 data-nosnippet>408</a><span class="attr">#[derive(Debug, Clone, ValueEnum)]
-<a href=#409 id=409 data-nosnippet>409</a></span><span class="kw">pub enum </span>SchemasConfig {
-<a href=#410 id=410 data-nosnippet>410</a>    TestPlan,
-<a href=#411 id=411 data-nosnippet>411</a>    Environment,
-<a href=#412 id=412 data-nosnippet>412</a>    Scenario,
-<a href=#413 id=413 data-nosnippet>413</a>}
+<a href=#383 id=383 data-nosnippet>383</a>    },
+<a href=#384 id=384 data-nosnippet>384</a>
+<a href=#385 id=385 data-nosnippet>385</a>    <span class="doccomment">/// Pull all output for a single test execution (log, output.zip &amp; status)
+<a href=#386 id=386 data-nosnippet>386</a>    </span>ExecutionOutput {
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="doccomment">/// ID of the Orchestrator test execution you wish to pull output for
+<a href=#388 id=388 data-nosnippet>388</a>        </span>id: Uuid,
+<a href=#389 id=389 data-nosnippet>389</a>
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="doccomment">/// Directory to place output in
+<a href=#391 id=391 data-nosnippet>391</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"output"</span>)]
+<a href=#392 id=392 data-nosnippet>392</a>        </span>outdir: String,
+<a href=#393 id=393 data-nosnippet>393</a>
+<a href=#394 id=394 data-nosnippet>394</a>        <span class="doccomment">/// Force removal of an existing output directory before running.
+<a href=#395 id=395 data-nosnippet>395</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
+<a href=#396 id=396 data-nosnippet>396</a>        </span>force: bool,
+<a href=#397 id=397 data-nosnippet>397</a>    },
+<a href=#398 id=398 data-nosnippet>398</a>
+<a href=#399 id=399 data-nosnippet>399</a>    <span class="doccomment">/// View the status summary for a single test execution
+<a href=#400 id=400 data-nosnippet>400</a>    </span>ExecutionStatus {
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="doccomment">/// ID of the Orchestrator test execution you wish to view the status of
+<a href=#402 id=402 data-nosnippet>402</a>        </span>id: Uuid,
+<a href=#403 id=403 data-nosnippet>403</a>    },
+<a href=#404 id=404 data-nosnippet>404</a>
+<a href=#405 id=405 data-nosnippet>405</a>    <span class="doccomment">/// Pull output for all executions within a given test run
+<a href=#406 id=406 data-nosnippet>406</a>    </span>RunOutput {
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="doccomment">/// ID of the Orchestrator test run you wish to pull output for
+<a href=#408 id=408 data-nosnippet>408</a>        </span>id: Uuid,
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="doccomment">/// Directory to place output in
+<a href=#411 id=411 data-nosnippet>411</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"output"</span>)]
+<a href=#412 id=412 data-nosnippet>412</a>        </span>outdir: String,
+<a href=#413 id=413 data-nosnippet>413</a>
+<a href=#414 id=414 data-nosnippet>414</a>        <span class="doccomment">/// Force removal of an existing output directory before running.
+<a href=#415 id=415 data-nosnippet>415</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
+<a href=#416 id=416 data-nosnippet>416</a>        </span>force: bool,
+<a href=#417 id=417 data-nosnippet>417</a>    },
+<a href=#418 id=418 data-nosnippet>418</a>
+<a href=#419 id=419 data-nosnippet>419</a>    <span class="doccomment">/// View the status summary for a test run
+<a href=#420 id=420 data-nosnippet>420</a>    </span>RunStatus {
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="doccomment">/// ID of the Orchestrator test run you wish to view the status of
+<a href=#422 id=422 data-nosnippet>422</a>        </span>id: Uuid,
+<a href=#423 id=423 data-nosnippet>423</a>
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="doccomment">/// Whether or not details of the underlying test executions should be included
+<a href=#425 id=425 data-nosnippet>425</a>        </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
+<a href=#426 id=426 data-nosnippet>426</a>        </span>with_executions: bool,
+<a href=#427 id=427 data-nosnippet>427</a>    },
+<a href=#428 id=428 data-nosnippet>428</a>}
+<a href=#429 id=429 data-nosnippet>429</a>
+<a href=#430 id=430 data-nosnippet>430</a><span class="attr">#[derive(Debug, Clone, ValueEnum)]
+<a href=#431 id=431 data-nosnippet>431</a></span><span class="kw">pub enum </span>SchemasConfig {
+<a href=#432 id=432 data-nosnippet>432</a>    TestPlan,
+<a href=#433 id=433 data-nosnippet>433</a>    Environment,
+<a href=#434 id=434 data-nosnippet>434</a>    Scenario,
+<a href=#435 id=435 data-nosnippet>435</a>}
 </code></pre></div></section></main></body></html>
