@@ -390,7 +390,7 @@ pub enum RemoteSubcommand {
         force: bool,
     },
 
-    /// View the status summary a single test execution
+    /// View the status summary for a single test execution
     ExecutionStatus {
         /// ID of the Orchestrator test execution you wish to view the status of
         id: Uuid,
@@ -408,6 +408,16 @@ pub enum RemoteSubcommand {
         /// Force removal of an existing output directory before running.
         #[arg(long, default_value = "false")]
         force: bool,
+    },
+
+    /// View the status summary for a test run
+    RunStatus {
+        /// ID of the Orchestrator test run you wish to view the status of
+        id: Uuid,
+
+        /// Whether or not details of the underlying test executions should be included
+        #[arg(long, default_value = "false")]
+        with_executions: bool,
     },
 }
 

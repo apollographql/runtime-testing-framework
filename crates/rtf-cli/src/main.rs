@@ -15,7 +15,7 @@ use rtf_cli::{
         },
         porcelain::{
             check_and_run_test_plan, ci_run, execution_status, open_docs, pull_execution_output,
-            pull_run_output, remote_run,
+            pull_run_output, remote_run, run_status,
         },
     },
 };
@@ -221,6 +221,14 @@ async fn main() {
         Command::Remote {
             subcommand: RemoteSubcommand::RunOutput { id, outdir, force },
         } => pull_run_output(id, &outdir, force).await,
+
+        Command::Remote {
+            subcommand:
+                RemoteSubcommand::RunStatus {
+                    id,
+                    with_executions,
+                },
+        } => run_status(id, with_executions).await,
 
         Command::Completion { shell } => generate_shell_completions(shell),
 

@@ -28,6 +28,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote execution-output`↴](#rtf-remote-execution-output)
 * [`rtf remote execution-status`↴](#rtf-remote-execution-status)
 * [`rtf remote run-output`↴](#rtf-remote-run-output)
+* [`rtf remote run-status`↴](#rtf-remote-run-status)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -345,8 +346,9 @@ Interactions with the RTF Orchestrator Service
 * `run` — Trigger a test run using the Orchestrator
 * `ci-run` — Trigger a test run using the Orchestrator and poll for the result
 * `execution-output` — Pull output for a single test execution
-* `execution-status` — View the status summary a single test execution
+* `execution-status` — View the status summary for a single test execution
 * `run-output` — Pull output for all executions within a given test run
+* `run-status` — View the status summary for a test run
 
 
 
@@ -459,7 +461,7 @@ Pull output for a single test execution
 
 ## `rtf remote execution-status`
 
-View the status summary a single test execution
+View the status summary for a single test execution
 
 **Usage:** `rtf remote execution-status <ID>`
 
@@ -485,6 +487,24 @@ Pull output for all executions within a given test run
 
   Default value: `output`
 * `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
+
+
+
+## `rtf remote run-status`
+
+View the status summary for a test run
+
+**Usage:** `rtf remote run-status [OPTIONS] <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the Orchestrator test run you wish to view the status of
+
+###### **Options:**
+
+* `--with-executions` — Whether or not details of the underlying test executions should be included
 
   Default value: `false`
 
