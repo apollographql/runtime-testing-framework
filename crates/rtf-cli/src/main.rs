@@ -14,8 +14,8 @@ use rtf_cli::{
             test_custom_provider, write_remote_trigger_payload_to_stdout,
         },
         porcelain::{
-            check_and_run_test_plan, ci_run, execution_status, open_docs, pull_execution_output,
-            pull_run_output, remote_run, run_status,
+            check_and_run_test_plan, ci_run, execution_log, execution_status, open_docs,
+            pull_execution_output, pull_run_output, remote_run, run_status,
         },
     },
 };
@@ -209,6 +209,10 @@ async fn main() {
             )
             .await
         }
+
+        Command::Remote {
+            subcommand: RemoteSubcommand::ExecutionLog { id },
+        } => execution_log(id).await,
 
         Command::Remote {
             subcommand: RemoteSubcommand::ExecutionOutput { id, outdir, force },

@@ -25,6 +25,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote request`↴](#rtf-remote-request)
 * [`rtf remote run`↴](#rtf-remote-run)
 * [`rtf remote ci-run`↴](#rtf-remote-ci-run)
+* [`rtf remote execution-log`↴](#rtf-remote-execution-log)
 * [`rtf remote execution-output`↴](#rtf-remote-execution-output)
 * [`rtf remote execution-status`↴](#rtf-remote-execution-status)
 * [`rtf remote run-output`↴](#rtf-remote-run-output)
@@ -345,7 +346,8 @@ Interactions with the RTF Orchestrator Service
 * `request` — Send an IAP-authenticated HTTP request to the Orchestrator
 * `run` — Trigger a test run using the Orchestrator
 * `ci-run` — Trigger a test run using the Orchestrator and poll for the result
-* `execution-output` — Pull output for a single test execution
+* `execution-log` — View the scenario log for a single test execution
+* `execution-output` — Pull all output for a single test execution (log, output.zip & status)
 * `execution-status` — View the status summary for a single test execution
 * `run-output` — Pull output for all executions within a given test run
 * `run-status` — View the status summary for a test run
@@ -438,9 +440,21 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 
 
 
+## `rtf remote execution-log`
+
+View the scenario log for a single test execution
+
+**Usage:** `rtf remote execution-log <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the Orchestrator test execution you wish to view the log of
+
+
+
 ## `rtf remote execution-output`
 
-Pull output for a single test execution
+Pull all output for a single test execution (log, output.zip & status)
 
 **Usage:** `rtf remote execution-output [OPTIONS] <ID>`
 

@@ -376,7 +376,13 @@ pub enum RemoteSubcommand {
         poll_interval_seconds: u64,
     },
 
-    /// Pull output for a single test execution
+    /// View the scenario log for a single test execution
+    ExecutionLog {
+        /// ID of the Orchestrator test execution you wish to view the log of
+        id: Uuid,
+    },
+
+    /// Pull all output for a single test execution (log, output.zip & status)
     ExecutionOutput {
         /// ID of the Orchestrator test execution you wish to pull output for
         id: Uuid,
