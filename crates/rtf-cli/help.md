@@ -26,6 +26,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote run`↴](#rtf-remote-run)
 * [`rtf remote ci-run`↴](#rtf-remote-ci-run)
 * [`rtf remote execution-output`↴](#rtf-remote-execution-output)
+* [`rtf remote execution-status`↴](#rtf-remote-execution-status)
 * [`rtf remote run-output`↴](#rtf-remote-run-output)
 * [`rtf version`↴](#rtf-version)
 
@@ -344,6 +345,7 @@ Interactions with the RTF Orchestrator Service
 * `run` — Trigger a test run using the Orchestrator
 * `ci-run` — Trigger a test run using the Orchestrator and poll for the result
 * `execution-output` — Pull output for a single test execution
+* `execution-status` — View the status summary a single test execution
 * `run-output` — Pull output for all executions within a given test run
 
 
@@ -452,6 +454,18 @@ Pull output for a single test execution
 * `--force` — Force removal of an existing output directory before running
 
   Default value: `false`
+
+
+
+## `rtf remote execution-status`
+
+View the status summary a single test execution
+
+**Usage:** `rtf remote execution-status <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the Orchestrator test execution you wish to view the status of
 
 
 

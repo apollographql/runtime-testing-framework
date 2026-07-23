@@ -390,6 +390,12 @@ pub enum RemoteSubcommand {
         force: bool,
     },
 
+    /// View the status summary a single test execution
+    ExecutionStatus {
+        /// ID of the Orchestrator test execution you wish to view the status of
+        id: Uuid,
+    },
+
     /// Pull output for all executions within a given test run
     RunOutput {
         /// ID of the Orchestrator test run you wish to pull output for
