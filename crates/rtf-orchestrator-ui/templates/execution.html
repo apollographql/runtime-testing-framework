@@ -13,6 +13,15 @@
     <h2>{{ execution.name }}</h2>
     <p><span class="status {{ execution.status_class }}">{{ execution.status_label }}</span></p>
     <dl>
+        <dt>Execution ID</dt>
+        <dd><code>{{ execution.id }}</code> <button type="button" class="copy-btn" data-copy="{{ execution.id }}"
+                aria-label="Copy execution ID" title="Copy to clipboard">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"
+                    stroke-linejoin="round">
+                    <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
+                    <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
+                </svg>
+            </button></dd>
         <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code
                 &#8599;</a></dt>
         <dd>

@@ -13,7 +13,14 @@
         </p>
         <dl>
             <dt>Run ID</dt>
-            <dd><code>{{ run.id }}</code></dd>
+            <dd><code>{{ run.id }}</code> <button type="button" class="copy-btn" data-copy="{{ run.id }}"
+                    aria-label="Copy run ID" title="Copy to clipboard">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="1.3" stroke-linejoin="round">
+                        <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
+                        <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
+                    </svg>
+                </button></dd>
             <dt>Initiated by</dt>
             <dd>{{ run.initiated_by }}</dd>
             <dt>Started</dt>
@@ -92,9 +99,9 @@
             <tr>
                 <th>Name</th>
                 <th>Status</th>
-                <th><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code &#8599;</a></th>
-                <th>Started</th>
-                <th>Updated</th>
+                <th class="nowrap"><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code &#8599;</a></th>
+                <th class="nowrap">Started</th>
+                <th class="nowrap">Updated</th>
                 <th>Logs</th>
                 <th>Dashboard</th>
                 <th>Download</th>
@@ -111,11 +118,12 @@
                     {% when None %}&mdash;
                     {% endmatch %}
                 </td>
-                <td>{{ execution.started_at }}</td>
-                <td>{{ execution.updated_at }}</td>
-                <td><a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">GCP &#8599;</a></td>
-                <td><a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">Grafana &#8599;</a>
-                </td>
+                <td class="nowrap">{{ execution.started_at }}</td>
+                <td class="nowrap">{{ execution.updated_at }}</td>
+                <td class="nowrap"><a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">GCP
+                        &#8599;</a></td>
+                <td class="nowrap"><a href="{{ execution.grafana_url }}" target="_blank"
+                        rel="noopener noreferrer">Grafana &#8599;</a></td>
                 <td>
                     <a href="/ui/execution/{{ execution.id }}/log.txt">log.txt</a>
                     &middot;
