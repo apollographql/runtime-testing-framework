@@ -1,10 +1,10 @@
 use crate::links::{LinksConfig, gcp_logs, grafana};
 use crate::status;
 use chrono::{DateTime, Utc};
-use humantime::format_duration;
+use humantime::{format_duration, format_rfc3339_seconds};
 use rep_orchestrator_shared::status::{Status, StatusUpdate};
 use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use url::form_urlencoded;
 use uuid::Uuid;
 
@@ -12,6 +12,15 @@ use uuid::Uuid;
 /// terminal state (e.g. a stuck orchestrator) would otherwise be polled forever; past this age the
 /// UI stops polling and the user can refresh manually.
 const MAX_POLL_AGE_SECS: i64 = 60 * 60;
+
+/// Renders a timestamp as RFC 3339 at second precision (e.g. `2026-07-27T14:23:01Z`), the format
+/// every timestamp on the UI is shown in.
+fn format_rfc3339(dt: DateTime<Utc>) -> String {
+    let seconds_since_epoch = dt.timestamp().max(0) as u64;
+    let system_time = SystemTime::UNIX_EPOCH + Duration::from_secs(seconds_since_epoch);
+
+    format_rfc3339_seconds(system_time).to_string()
+}
 
 /// The run status page content: the overall-status banner and the executions table. This whole
 /// region is re-rendered on every htmx poll (via `hx-select` against the same page route), so the
@@ -74,9 +83,9 @@ impl RunView {
             status_label: run.current_status.to_string(),
             status_class: status::css_class(run.current_status),
             initiated_by: run.initiated_by,
-            started_at: run.started_at.to_rfc3339(),
-            updated_at: run.updated_at.to_rfc3339(),
-            completed_at: completed_at.map(|ts| ts.to_rfc3339()),
+            started_at: format_rfc3339(run.started_at),
+            updated_at: format_rfc3339(run.updated_at),
+            completed_at: completed_at.map(format_rfc3339),
             elapsed: format_duration(Duration::from_secs(
                 (end.timestamp() - run.started_at.timestamp()).max(0) as u64,
             ))
@@ -190,8 +199,8 @@ impl ExecutionView {
             status_label: execution.current_status.to_string(),
             status_class: status::css_class(execution.current_status),
             exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
-            started_at: execution.started_at.to_rfc3339(),
-            updated_at: execution.updated_at.to_rfc3339(),
+            started_at: format_rfc3339(execution.started_at),
+            updated_at: format_rfc3339(execution.updated_at),
             logs_url,
             grafana_url,
         }
@@ -216,7 +225,7 @@ impl From<TestRunSummary> for RunListRowView {
             status_label: run.current_status.to_string(),
             status_class: status::css_class(run.current_status),
             initiated_by: run.initiated_by,
-            started_at: run.started_at.to_rfc3339(),
+            started_at: format_rfc3339(run.started_at),
         }
     }
 }
@@ -360,9 +369,9 @@ impl ExecutionDetailView {
             status_label: execution.current_status.to_string(),
             status_class: status::css_class(execution.current_status),
             exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
-            started_at: execution.started_at.to_rfc3339(),
-            updated_at: execution.updated_at.to_rfc3339(),
-            completed_at: execution.completed_at.map(|ts| ts.to_rfc3339()),
+            started_at: format_rfc3339(execution.started_at),
+            updated_at: format_rfc3339(execution.updated_at),
+            completed_at: execution.completed_at.map(format_rfc3339),
             history: execution
                 .status_history
                 .into_iter()
@@ -388,7 +397,7 @@ impl From<StatusUpdate> for StatusEntryView {
             status_label: update.status.to_string(),
             status_class: status::css_class(update.status),
             message: update.message,
-            updated_at: update.updated_at.to_rfc3339(),
+            updated_at: format_rfc3339(update.updated_at),
         }
     }
 }
@@ -459,7 +468,7 @@ mod tests {
 
         assert_eq!(
             RunView::new(run, now, &sample_config(), String::new()).completed_at,
-            Some(now.to_rfc3339())
+            Some(format_rfc3339(now))
         );
     }
 
