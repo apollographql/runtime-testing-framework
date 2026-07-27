@@ -13,7 +13,14 @@
         </p>
         <dl>
             <dt>Run ID</dt>
-            <dd><code>{{ run.id }}</code></dd>
+            <dd><code>{{ run.id }}</code> <button type="button" class="copy-btn" data-copy="{{ run.id }}"
+                    aria-label="Copy run ID" title="Copy to clipboard">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="1.3" stroke-linejoin="round">
+                        <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
+                        <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
+                    </svg>
+                </button></dd>
             <dt>Initiated by</dt>
             <dd>{{ run.initiated_by }}</dd>
             <dt>Started</dt>

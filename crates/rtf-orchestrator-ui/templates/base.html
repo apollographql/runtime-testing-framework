@@ -97,6 +97,21 @@
             font-weight: 600;
         }
 
+        .copy-btn {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 0.1rem 0.3rem;
+            vertical-align: middle;
+            display: inline-flex;
+            align-items: center;
+            color: inherit;
+        }
+
+        .copy-btn:hover {
+            opacity: 0.7;
+        }
+
         .timeline {
             list-style: none;
             padding-left: 0;
@@ -154,6 +169,21 @@
         </a>
     </header>
     <main>{% block content %}{% endblock %}</main>
+    <script>
+        const COPY_BTN_CHECK_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8.5 6.5 12 13 4"></polyline></svg>';
+
+        document.addEventListener("click", (event) => {
+            const button = event.target.closest(".copy-btn");
+            if (!button) return;
+            navigator.clipboard.writeText(button.dataset.copy).then(() => {
+                const original = button.innerHTML;
+                button.innerHTML = COPY_BTN_CHECK_ICON;
+                setTimeout(() => {
+                    button.innerHTML = original;
+                }, 1200);
+            });
+        });
+    </script>
 </body>
 
 </html>
