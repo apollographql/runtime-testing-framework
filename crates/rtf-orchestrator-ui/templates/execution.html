@@ -13,6 +13,8 @@
     <h2>{{ execution.name }}</h2>
     <p><span class="status {{ execution.status_class }}">{{ execution.status_label }}</span></p>
     <dl>
+        <dt>Execution ID</dt>
+        <dd><code>{{ execution.id }}</code></dd>
         <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code
                 &#8599;</a></dt>
         <dd>
