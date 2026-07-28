@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["GenerateUploadUrlsPayload","SetStatusPayload","SourceKey","SourceKeyedArrayMap","TriggerPayload"]};
+window.SIDEBAR_ITEMS = {"enum":["TriggerPayload"],"struct":["GenerateUploadUrlsPayload","GitHubPayload","PreparedPayload","SetStatusPayload","SourceKey","SourceKeyedArrayMap"]};

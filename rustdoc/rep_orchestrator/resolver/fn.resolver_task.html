@@ -6,7 +6,7 @@ within the server.</p>
 <p>See <code>resolve_variant</code> below for the specific <a href="../../rtf_config/index.html" title="mod rtf_config">rtf_config</a> logic that is run on the server.</p>
 <h2 id="differences-compared-to-rtf_cli"><a class="doc-anchor" href="#differences-compared-to-rtf_cli">§</a>Differences compared to <code>rtf_cli</code></h2>
 <p>The resolution logic used here only supports processing a <a href="../../rep_orchestrator_shared/test_plan/type.RepTestPlan.html" title="type rep_orchestrator_shared::test_plan::RepTestPlan">RepTestPlan</a> that has been submitted
-as part of a <a href="../../rep_orchestrator_shared/payload/trigger/struct.TriggerPayload.html" title="struct rep_orchestrator_shared::payload::trigger::TriggerPayload">TriggerPayload</a> (prepared using <code>rtf rep prepare</code> on the command line). That
+as part of a <a href="../../rep_orchestrator_shared/payload/trigger/struct.PreparedPayload.html" title="struct rep_orchestrator_shared::payload::trigger::PreparedPayload">PreparedPayload</a> (prepared using <code>rtf rep prepare</code> on the command line). That
 preparation logic handles all filesystem operations on the client side and provides the
 required local file data for us to construct a <a href="../context/struct.RepContext.html" title="struct rep_orchestrator::context::RepContext">RepContext</a> that can then handle resolving
 what’s left.</p>
