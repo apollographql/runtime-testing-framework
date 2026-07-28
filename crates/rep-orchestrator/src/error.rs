@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
+use rtf_config::formats;
 use serde_json::json;
 use std::io;
 use uuid::Uuid;
@@ -22,6 +23,9 @@ pub enum Error {
 
     #[error(transparent)]
     Resolve(#[from] crate::resolver::ResolverError),
+
+    #[error(transparent)]
+    RtfConfig(#[from] formats::Error),
 
     #[error(transparent)]
     Yaml(#[from] serde_yaml::Error),

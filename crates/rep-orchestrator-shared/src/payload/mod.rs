@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 mod trigger;
 
-pub use trigger::TriggerPayload;
+pub use trigger::{GitHubPayload, PreparedPayload, TriggerPayload};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GenerateUploadUrlsPayload {}
@@ -33,6 +33,13 @@ pub struct SourceKeyedArrayMap<T> {
 }
 
 impl<T> SourceKeyedArrayMap<T> {
+    pub fn empty() -> Self {
+        Self {
+            keys: Vec::new(),
+            data: Vec::new(),
+        }
+    }
+
     /// Look up a value by its `(StableSource, key)` pair.
     pub fn get(&self, src: StableSource, key: &str) -> Option<&T> {
         self.keys

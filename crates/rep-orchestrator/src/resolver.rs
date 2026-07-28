@@ -6,7 +6,7 @@ use crate::{
     event_loop::{EventData, ProvisioningHandle},
     state::TestRunWithPayload,
 };
-use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
+use rep_orchestrator_shared::{payload::PreparedPayload, test_plan::RepTestPlan};
 use rtf_config::{
     StableSource,
     checks::Check,
@@ -69,7 +69,7 @@ pub(crate) type Result<T> = std::result::Result<T, ResolverError>;
 ///
 /// # Differences compared to `rtf_cli`
 /// The resolution logic used here only supports processing a [RepTestPlan] that has been submitted
-/// as part of a [TriggerPayload] (prepared using `rtf rep prepare` on the command line). That
+/// as part of a [PreparedPayload] (prepared using `rtf rep prepare` on the command line). That
 /// preparation logic handles all filesystem operations on the client side and provides the
 /// required local file data for us to construct a [RepContext] that can then handle resolving
 /// what's left.
@@ -156,7 +156,7 @@ impl ResolverQueue {
 #[tracing::instrument(skip_all, fields(test_run_id = %test_run.uuid(), name = %test_run.name()))]
 async fn resolve_test_plan<H: UpdateHandle>(
     test_run: TestRun,
-    payload: TriggerPayload,
+    payload: PreparedPayload,
     cfg: &Config,
     update_handle: &mut H,
     prov_handle: &ProvisioningHandle,
@@ -182,7 +182,7 @@ async fn resolve_test_plan<H: UpdateHandle>(
 
 async fn try_resolve<H>(
     test_run: &TestRun,
-    payload: TriggerPayload,
+    payload: PreparedPayload,
     update_handle: &mut H,
     cfg: &Config,
     prov_handle: &ProvisioningHandle,
@@ -267,15 +267,15 @@ async fn resolve_config(test_execution: TestExecution, prov_handle: &Provisionin
     }
 }
 
-fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepContext, RepTestPlan)> {
-    let TriggerPayload {
+fn prepare_resolution(cfg: &Config, payload: PreparedPayload) -> Result<(RepContext, RepTestPlan)> {
+    let PreparedPayload {
         mut test_plan,
         relative_files,
         custom_providers,
         ..
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = RepContext::new_from_inlined_files(cfg, relative_files, custom_providers);
 
     test_plan
         .check_templating_will_work(&HashMap::new(), &ctx)
@@ -295,7 +295,7 @@ mod tests {
     };
     use indoc::indoc;
     use rep_orchestrator_shared::{
-        payload::{SourceKeyedArrayMap, TriggerPayload},
+        payload::{PreparedPayload, SourceKeyedArrayMap},
         test_plan::{RepEnvironment, RepTestPlan},
     };
     use rtf_config::{
@@ -380,8 +380,8 @@ mod tests {
         }
     }
 
-    fn empty_payload() -> TriggerPayload {
-        TriggerPayload {
+    fn empty_payload() -> PreparedPayload {
+        PreparedPayload {
             variables: None,
             test_plan: minimal_rep_test_plan(vec![]),
             relative_files: SourceKeyedArrayMap {
@@ -395,7 +395,7 @@ mod tests {
         }
     }
 
-    fn payload_with_conflicting_var() -> TriggerPayload {
+    fn payload_with_conflicting_var() -> PreparedPayload {
         // Conflicting key in both variables and matrix dimensions triggers TemplatingCheck
         let mut test_plan = minimal_rep_test_plan(vec![]);
         test_plan
@@ -411,7 +411,7 @@ mod tests {
             include: vec![],
         };
 
-        TriggerPayload {
+        PreparedPayload {
             variables: None,
             test_plan,
             relative_files: SourceKeyedArrayMap {
@@ -425,7 +425,7 @@ mod tests {
         }
     }
 
-    fn payload_with_bad_variant_names() -> TriggerPayload {
+    fn payload_with_bad_variant_names() -> PreparedPayload {
         // variant_names references a variable not in dimensions → MatrixExpansion fails
         let mut test_plan = minimal_rep_test_plan(vec![]);
         test_plan.matrix = Matrix {
@@ -434,7 +434,7 @@ mod tests {
             include: vec![],
         };
 
-        TriggerPayload {
+        PreparedPayload {
             variables: None,
             test_plan,
             relative_files: SourceKeyedArrayMap {
@@ -462,7 +462,7 @@ mod tests {
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        let ctx = crate::context::RepContext::new(
+        let ctx = crate::context::RepContext::new_from_inlined_files(
             &cfg,
             rep_orchestrator_shared::payload::SourceKeyedArrayMap {
                 keys: vec![],
@@ -541,7 +541,7 @@ mod tests {
     #[test_case(payload_with_bad_variant_names(), "unable to expand matrix variants:"; "matrix_expansion_fails")]
     #[tokio::test]
     async fn resolve_test_plan_prepare_failure_sets_run_unrunnable(
-        payload: TriggerPayload,
+        payload: PreparedPayload,
         expected_msg: &str,
     ) {
         let test_run = TestRun::create_stub(1, "test");
@@ -598,7 +598,7 @@ mod tests {
         ))
         .expect("required compose file provider must deserialize");
         let test_plan = minimal_rep_test_plan(vec![required_compose]);
-        let payload = TriggerPayload {
+        let payload = PreparedPayload {
             variables: None,
             test_plan,
             relative_files: SourceKeyedArrayMap {

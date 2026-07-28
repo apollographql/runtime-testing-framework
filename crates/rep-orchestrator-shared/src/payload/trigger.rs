@@ -2,7 +2,8 @@ use crate::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
 use rtf_config::{
     StableSource,
     context::ResolutionContext,
-    formats::{CustomProviderDefinition, Sources},
+    formats::{self, CustomProviderDefinition, Sources},
+    providers,
     run::RunProviders,
     templating::{Template, TemplateContext},
 };
@@ -12,7 +13,54 @@ use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TriggerPayload {
+#[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
+pub enum TriggerPayload {
+    /// An inlined test plan prepared via the rtf CLI
+    Prepared(PreparedPayload),
+    /// Details for pulling a test plan from GitHub
+    GitHub(GitHubPayload),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GitHubPayload {
+    pub org: String,
+    pub repo: String,
+    pub path: String,
+    #[serde(default, rename = "ref")]
+    pub git_ref: Option<String>,
+    #[serde(default)]
+    pub variables: Option<HashMap<String, ScalarOrArray>>,
+}
+
+impl GitHubPayload {
+    pub async fn into_prepared_with_sources(
+        self,
+        ctx: &impl ResolutionContext,
+    ) -> formats::Result<(PreparedPayload, Sources)> {
+        let (test_plan, sources) = RepTestPlan::try_load_and_resolve_from_github(
+            &self.org,
+            &self.repo,
+            &self.path,
+            self.git_ref,
+            ctx,
+        )
+        .await?;
+
+        Ok((
+            PreparedPayload {
+                test_plan,
+                relative_files: SourceKeyedArrayMap::empty(),
+                custom_providers: SourceKeyedArrayMap::empty(),
+                variables: self.variables,
+            },
+            sources,
+        ))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PreparedPayload {
     pub test_plan: RepTestPlan,
     pub relative_files: SourceKeyedArrayMap<String>,
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
@@ -20,13 +68,13 @@ pub struct TriggerPayload {
     pub variables: Option<HashMap<String, ScalarOrArray>>,
 }
 
-impl TriggerPayload {
+impl PreparedPayload {
     pub async fn prepare(
         mut test_plan: RepTestPlan,
         sources: Sources,
         variables: Variables,
         mut ctx: impl ResolutionContext,
-    ) -> anyhow::Result<TriggerPayload> {
+    ) -> anyhow::Result<PreparedPayload> {
         let (parsed, vars_file_src) = variables.parse(&ctx)?;
         let flat = parsed.as_flat();
         let variable_sources = parsed.merge_into(&mut test_plan)?;
@@ -76,7 +124,7 @@ async fn try_extract_relative_files(
     test_plan: &RepTestPlan,
     files: &mut HashMap<(StableSource, String), String>,
     ctx: &impl ResolutionContext,
-) -> anyhow::Result<()> {
+) -> providers::Result<()> {
     test_plan
         .environment
         .execution

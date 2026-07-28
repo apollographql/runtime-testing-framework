@@ -36,11 +36,19 @@ pub struct RepContext {
 }
 
 impl RepContext {
-    pub fn new(
+    pub fn new_from_inlined_files(
         cfg: &Config,
         relative_files: SourceKeyedArrayMap<String>,
         custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
     ) -> Self {
+        let mut ctx = Self::new(cfg);
+        ctx.relative_files = relative_files;
+        ctx.custom_providers = custom_providers;
+
+        ctx
+    }
+
+    pub fn new(cfg: &Config) -> Self {
         let mut inner = Context::new();
         // apollo_sudo always true; graphos_staging always false for REP
         inner.with_platform_config(&cfg.apollo_key, false, true);
@@ -48,8 +56,8 @@ impl RepContext {
 
         Self {
             inner,
-            relative_files,
-            custom_providers,
+            relative_files: SourceKeyedArrayMap::empty(),
+            custom_providers: SourceKeyedArrayMap::empty(),
             inline_cache: Default::default(),
         }
     }
@@ -171,13 +179,18 @@ impl ResolutionContext for RepContext {
     }
 
     // Reading files looks up in the map we were constructed with rather than touching the
-    // filesystem
+    // filesystem. In the case of local files that were auto-promoted into GitHub files we
+    // defer to the inner Context to handle the read so we are able to support RelativeDir.
 
     async fn read_file_content(
         &self,
         src: &StableSource,
         relative_path: &str,
     ) -> providers::Result<String> {
+        if matches!(self.source_dir_for(src), SourceDir::Github { .. }) {
+            return self.inner.read_file_content(src, relative_path).await;
+        }
+
         self.relative_files
             .get(src.clone(), relative_path)
             .cloned()
@@ -226,19 +239,19 @@ impl ResolutionContext for RepContext {
         }
     }
 
+    fn set_sources(&mut self, sources: Sources) {
+        self.inner.set_sources(sources);
+    }
+
+    fn source_dir_for(&self, src: &StableSource) -> &SourceDir {
+        self.inner.source_dir_for(src)
+    }
+
     // All other file system related methods panic as we can't / shouldn't run them in a server
     // context
 
     fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
         panic!("attempt to read path to string")
-    }
-
-    fn set_sources(&mut self, _sources: Sources) {
-        panic!("attempt to set sources")
-    }
-
-    fn source_dir_for(&self, _src: &StableSource) -> &SourceDir {
-        panic!("attempt to get source dir for stable source")
     }
 
     fn canonicalize_path(&self, _relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
