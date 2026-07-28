@@ -230,6 +230,10 @@ impl ResolutionContext for RepContext {
         str_path: &str,
         err_path: &[String],
     ) -> checks::Result<Option<PathKind>> {
+        if matches!(self.source_dir_for(stable_src), SourceDir::Github { .. }) {
+            return self.inner.check_path_kind(stable_src, str_path, err_path);
+        }
+
         match self.relative_files.get(stable_src.clone(), str_path) {
             Some(_) => Ok(Some(PathKind::File)),
             None => {
