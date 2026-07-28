@@ -4,7 +4,7 @@ use crate::db::{
     test_execution::TestExecution,
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
+use rep_orchestrator_shared::{payload::PreparedPayload, summary::TestRunSummary};
 use serde_json::Value;
 use sqlx::{FromRow, PgConnection};
 use std::collections::HashMap;
@@ -229,7 +229,7 @@ impl TestRun {
     /// [TestRun::clear_payload_cache].
     pub async fn load_payload_cache(
         conn: &mut PgConnection,
-    ) -> Result<(HashMap<Uuid, (TestRun, TriggerPayload)>, Vec<TestRun>)> {
+    ) -> Result<(HashMap<Uuid, (TestRun, PreparedPayload)>, Vec<TestRun>)> {
         let raw = CachedPayload::load_all(conn).await?;
         let mut map = HashMap::with_capacity(raw.len());
         let mut malformed = Vec::new();
@@ -267,7 +267,7 @@ impl TestRun {
     /// Used to recover event loop state on startup for ongoing executions.
     pub async fn cache_payload(
         &self,
-        payload: &TriggerPayload,
+        payload: &PreparedPayload,
         conn: &mut PgConnection,
     ) -> Result<()> {
         let val = serde_json::to_value(payload).expect("payload to serialize");
@@ -640,8 +640,8 @@ mod tests {
         Ok(())
     }
 
-    fn stub_payload() -> TriggerPayload {
-        TriggerPayload {
+    fn stub_payload() -> PreparedPayload {
+        PreparedPayload {
             variables: None,
             test_plan: RepTestPlan {
                 name: String::new(),

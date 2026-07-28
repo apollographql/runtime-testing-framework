@@ -8,7 +8,7 @@ use crate::{
 };
 use rep_orchestrator_shared::{
     OutputCollectionResponse, PrometheusQueries,
-    payload::TriggerPayload,
+    payload::PreparedPayload,
     test_plan::{RepEnvironment, RepTestPlan},
 };
 use rtf_config::{
@@ -257,7 +257,7 @@ impl EventQueue {
 
     async fn init_queue_state_from_cache(
         &mut self,
-        cache: HashMap<Uuid, (TestRun, TriggerPayload)>,
+        cache: HashMap<Uuid, (TestRun, PreparedPayload)>,
         cfg: &Config,
         conn: &mut impl UpdateHandle,
     ) -> crate::Result<()> {
@@ -267,13 +267,13 @@ impl EventQueue {
         };
 
         for (run_uuid, (tr, payload)) in cache.into_iter() {
-            let TriggerPayload {
+            let PreparedPayload {
                 test_plan,
                 relative_files,
                 custom_providers,
                 ..
             } = payload;
-            let ctx = RepContext::new(cfg, relative_files, custom_providers);
+            let ctx = RepContext::new_from_inlined_files(cfg, relative_files, custom_providers);
             h.cache_for_test_run(run_uuid, ctx, test_plan).await;
 
             let executions = conn.executions_for_run(&tr).await?;
@@ -380,7 +380,7 @@ impl EventQueue {
 /// their incomplete child executions as unrunnable.
 async fn try_load_payload_cache(
     conn: &mut PgConnection,
-) -> db::Result<HashMap<Uuid, (TestRun, TriggerPayload)>> {
+) -> db::Result<HashMap<Uuid, (TestRun, PreparedPayload)>> {
     let (cache, malformed_runs) = TestRun::load_payload_cache(conn).await?;
 
     for tr in malformed_runs.into_iter() {
@@ -737,7 +737,7 @@ impl EventQueueState {
         &self,
         claim: Claim,
         test_run: TestRun,
-        payload: TriggerPayload,
+        payload: PreparedPayload,
     ) -> Result<(), SubmitError> {
         let n = payload.test_plan.matrix.n_variants();
         if claim.0 != n {
@@ -969,7 +969,7 @@ mod tests {
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        let ctx = RepContext::new(&cfg, empty_source_map(), empty_source_map());
+        let ctx = RepContext::new_from_inlined_files(&cfg, empty_source_map(), empty_source_map());
         ph.cache_for_test_run(run_uuid, ctx, stub_test_plan()).await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
@@ -1325,7 +1325,7 @@ mod tests {
         let mut test_plan = stub_test_plan();
         test_plan.environment.execution = RepEnvironment::Null(NullEnvironment { skip: true });
 
-        let ctx = RepContext::new(&cfg, empty_source_map(), empty_source_map());
+        let ctx = RepContext::new_from_inlined_files(&cfg, empty_source_map(), empty_source_map());
         ph.cache_for_test_run(run_uuid, ctx, test_plan).await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
@@ -1483,8 +1483,8 @@ mod tests {
         );
     }
 
-    fn stub_trigger_payload() -> TriggerPayload {
-        TriggerPayload {
+    fn stub_trigger_payload() -> PreparedPayload {
+        PreparedPayload {
             variables: None,
             test_plan: stub_test_plan(),
             relative_files: SourceKeyedArrayMap {

@@ -1,4 +1,4 @@
-use rep_orchestrator_shared::payload::TriggerPayload;
+use rep_orchestrator_shared::payload::PreparedPayload;
 use sqlx::{Database, FromRow, PgConnection, Postgres};
 use thiserror::Error;
 use tracing::error;
@@ -220,7 +220,7 @@ pub trait UpdateHandle: Send + Sync {
     fn cache_payload_for_run(
         &mut self,
         tr: &TestRun,
-        payload: &TriggerPayload,
+        payload: &PreparedPayload,
     ) -> impl Future<Output = ()> + Send;
 
     fn clear_cached_payload_for_run(&mut self, run_uuid: Uuid) -> impl Future<Output = ()> + Send;
@@ -273,7 +273,7 @@ impl UpdateHandle for PgConnection {
         Ok(ex.set_status(status, message, self).await?)
     }
 
-    async fn cache_payload_for_run(&mut self, tr: &TestRun, payload: &TriggerPayload) {
+    async fn cache_payload_for_run(&mut self, tr: &TestRun, payload: &PreparedPayload) {
         if let Err(err) = tr.cache_payload(payload, self).await {
             error!(run_uuid=%tr.uuid(), %err, "Unable to cache payload for run");
         }
@@ -439,7 +439,7 @@ mod update_handle {
             Ok(())
         }
 
-        async fn cache_payload_for_run(&mut self, tr: &TestRun, _payload: &TriggerPayload) {
+        async fn cache_payload_for_run(&mut self, tr: &TestRun, _payload: &PreparedPayload) {
             self.cached_payloads.push(tr.uuid());
         }
 

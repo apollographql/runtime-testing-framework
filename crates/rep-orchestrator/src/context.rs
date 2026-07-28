@@ -36,11 +36,19 @@ pub struct RepContext {
 }
 
 impl RepContext {
-    pub fn new(
+    pub fn new_from_inlined_files(
         cfg: &Config,
         relative_files: SourceKeyedArrayMap<String>,
         custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
     ) -> Self {
+        let mut ctx = Self::new(cfg);
+        ctx.relative_files = relative_files;
+        ctx.custom_providers = custom_providers;
+
+        ctx
+    }
+
+    pub fn new(cfg: &Config) -> Self {
         let mut inner = Context::new();
         // apollo_sudo always true; graphos_staging always false for REP
         inner.with_platform_config(&cfg.apollo_key, false, true);
@@ -48,8 +56,8 @@ impl RepContext {
 
         Self {
             inner,
-            relative_files,
-            custom_providers,
+            relative_files: SourceKeyedArrayMap::empty(),
+            custom_providers: SourceKeyedArrayMap::empty(),
             inline_cache: Default::default(),
         }
     }

@@ -1,11 +1,11 @@
 use crate::{db::TestRun, event_loop::EventQueueState, gcs::GCSClient};
-use rep_orchestrator_shared::payload::TriggerPayload;
+use rep_orchestrator_shared::payload::PreparedPayload;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TestRunWithPayload {
     pub test_run: TestRun,
-    pub payload: TriggerPayload,
+    pub payload: PreparedPayload,
 }
 
 #[derive(Debug, Clone)]

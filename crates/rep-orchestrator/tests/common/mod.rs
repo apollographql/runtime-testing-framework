@@ -3,7 +3,7 @@ use axum::body::Bytes;
 use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
-    {payload::TriggerPayload, test_plan::Rep},
+    {payload::PreparedPayload, test_plan::Rep},
 };
 use reqwest::{Client, Response};
 use rtf_config::{
@@ -79,7 +79,10 @@ impl TestHelper {
         Ok(self.post(endpoint, body).await?.json().await?)
     }
 
-    pub async fn prepare_rep_payload(&self, test_plan_dir: &str) -> anyhow::Result<TriggerPayload> {
+    pub async fn prepare_rep_payload(
+        &self,
+        test_plan_dir: &str,
+    ) -> anyhow::Result<PreparedPayload> {
         let ctx = Context::new_from_env_vars(&env::vars().collect());
         let (test_plan, sources) = TestPlan::<Rep>::try_load_and_resolve_from_path(
             format!("{test_plan_dir}/test-plan.yaml"),
@@ -87,7 +90,7 @@ impl TestHelper {
         )
         .await?;
 
-        TriggerPayload::prepare(test_plan, sources, Default::default(), ctx).await
+        PreparedPayload::prepare(test_plan, sources, Default::default(), ctx).await
     }
 
     async fn poll_for_condition<F, T>(

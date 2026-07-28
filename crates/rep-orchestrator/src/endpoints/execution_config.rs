@@ -67,7 +67,7 @@ mod tests {
     use super::*;
     use crate::{config::Config, context::RepContext, db::TestRun, test_helpers::TestServerState};
     use axum::http::{HeaderValue, header::AUTHORIZATION};
-    use rep_orchestrator_shared::payload::TriggerPayload;
+    use rep_orchestrator_shared::payload::PreparedPayload;
     use reqwest::StatusCode;
     use rtf_config::formats::{OutputCollection, PrometheusQuery};
     use simple_test_case::test_case;
@@ -100,14 +100,15 @@ mod tests {
         payload: serde_json::Value,
         tss: &TestServerState,
     ) {
-        let TriggerPayload {
+        let PreparedPayload {
             test_plan,
             relative_files,
             custom_providers,
             ..
         } = serde_json::from_value(payload).unwrap();
 
-        let ctx = RepContext::new(Config::get(), relative_files, custom_providers);
+        let ctx =
+            RepContext::new_from_inlined_files(Config::get(), relative_files, custom_providers);
 
         tss.state
             .eq_state

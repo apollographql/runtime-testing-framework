@@ -1,7 +1,7 @@
 use crate::commands::{
     get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
 };
-use rep_orchestrator_shared::payload::TriggerPayload;
+use rep_orchestrator_shared::payload::PreparedPayload;
 use rtf_core::variables::Variables;
 use tracing::info;
 
@@ -23,7 +23,7 @@ pub async fn prepare_remote_trigger_payload(
     github: bool,
     git_ref: Option<String>,
     variables: Variables,
-) -> anyhow::Result<TriggerPayload> {
+) -> anyhow::Result<PreparedPayload> {
     let ctx = get_context();
 
     info!("loading and resolving test plan");
@@ -33,5 +33,5 @@ pub async fn prepare_remote_trigger_payload(
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
 
-    TriggerPayload::prepare(test_plan, sources, variables, ctx).await
+    PreparedPayload::prepare(test_plan, sources, variables, ctx).await
 }

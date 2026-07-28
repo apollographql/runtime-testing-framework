@@ -3,21 +3,22 @@ use crate::{
     iap_identity::extract_initiator, state::ServerState,
 };
 use axum::{Json, extract::State, http::HeaderMap};
-use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
+use rep_orchestrator_shared::{
+    payload::{PreparedPayload, TriggerPayload},
+    summary::TestRunSummary,
+};
+use rtf_config::formats;
 use serde_json::Value;
-use tracing::debug;
+use tracing::{debug, info};
 
 pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
     headers: HeaderMap,
-    Json(payload): Json<TriggerPayload>,
+    Json(trigger_payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
+    let (payload, ctx) = as_prepared_payload_with_context(trigger_payload).await?;
+
     debug!("validating test plan file provider usage");
-    let ctx = RepContext::new(
-        Config::get(),
-        payload.relative_files.clone(),
-        payload.custom_providers.clone(),
-    );
     ctx.validate_environment_file_provider_usage(&payload.test_plan)
         .await?;
 
@@ -59,6 +60,30 @@ pub async fn handler(
 
         Err(SubmitError::InvalidClaim) => {
             unreachable!("claim is made using the submitted test plan")
+        }
+    }
+}
+
+async fn as_prepared_payload_with_context(
+    trigger_payload: TriggerPayload,
+) -> formats::Result<(PreparedPayload, RepContext)> {
+    match trigger_payload {
+        TriggerPayload::Prepared(payload) => {
+            let ctx = RepContext::new_from_inlined_files(
+                Config::get(),
+                payload.relative_files.clone(),
+                payload.custom_providers.clone(),
+            );
+
+            Ok((payload, ctx))
+        }
+
+        TriggerPayload::GitHub(payload) => {
+            info!("attempting to pull test plan details from GitHub");
+            let ctx = RepContext::new(Config::get());
+            let payload = payload.into_prepared(&ctx).await?;
+
+            Ok((payload, ctx))
         }
     }
 }
