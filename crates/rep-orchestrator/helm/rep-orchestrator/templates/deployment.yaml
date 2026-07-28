@@ -146,9 +146,9 @@ spec:
         - name: cloud-sql-proxy
           image: {{ .Values.cloudSqlProxy.image }}
           args:
-            - "--structured-logs"
-            - "--auto-iam-authn"
-            - "--private-ip"
+            {{- range .Values.cloudSqlProxy.args }}
+            - {{ . | quote }}
+            {{- end }}
             - "--port={{ .Values.db.port }}"
             - {{ .Values.cloudSqlProxy.instanceConnectionName | quote }}
           resources:

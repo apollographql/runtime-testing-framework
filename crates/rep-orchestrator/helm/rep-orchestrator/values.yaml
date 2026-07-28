@@ -6,6 +6,11 @@ cloudSqlProxy:
   instanceConnectionName: "runtime-testing-framework:us-central1:orchestrator-postgres"
   # -- Docker image for the Cloud SQL proxy
   image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2"
+  # -- Extra flags passed to the Cloud SQL proxy, ahead of the port and instance connection name
+  args:
+    - "--structured-logs"
+    - "--auto-iam-authn"
+    - "--private-ip"
 
 # -- Override the container command
 command: []
