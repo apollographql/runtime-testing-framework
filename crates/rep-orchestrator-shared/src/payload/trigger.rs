@@ -5,7 +5,7 @@ use rtf_config::{
     formats::{self, CustomProviderDefinition, Sources},
     providers,
     run::RunProviders,
-    templating::{Template, TemplateContext},
+    templating::{CustomProviderDefinitions, Template, TemplateContext},
 };
 use rtf_core::variables::{ScalarOrArray, Variables};
 use serde::{Deserialize, Serialize};
@@ -99,7 +99,20 @@ impl PreparedPayload {
             try_extract_relative_files(&variant, &mut files, &ctx).await?;
         }
 
-        let custom_providers = Arc::unwrap_or_clone(ctx.custom_provider_definitions());
+        let mut payload = Self {
+            test_plan,
+            relative_files: SourceKeyedArrayMap::from_data(files),
+            custom_providers: SourceKeyedArrayMap::empty(),
+            variables,
+        };
+        payload.set_custom_provider_definitions(Arc::unwrap_or_clone(
+            ctx.custom_provider_definitions(),
+        ));
+
+        Ok(payload)
+    }
+
+    pub fn set_custom_provider_definitions(&mut self, custom_providers: CustomProviderDefinitions) {
         let mut raw_cps = HashMap::new();
         for (k, def) in custom_providers.test_plan.into_iter() {
             raw_cps.insert((StableSource::TestPlan, k), def);
@@ -111,12 +124,7 @@ impl PreparedPayload {
             raw_cps.insert((StableSource::Scenario, k), def);
         }
 
-        Ok(Self {
-            test_plan,
-            relative_files: SourceKeyedArrayMap::from_data(files),
-            custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
-            variables,
-        })
+        self.custom_providers = SourceKeyedArrayMap::from_data(raw_cps);
     }
 }
 

@@ -62,6 +62,13 @@ impl RepContext {
         }
     }
 
+    pub fn set_custom_provider_definitions(
+        &mut self,
+        custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
+    ) {
+        self.custom_providers = custom_providers;
+    }
+
     pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {
         self.inline_cache.clone()
     }
