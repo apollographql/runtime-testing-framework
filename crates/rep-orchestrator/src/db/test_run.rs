@@ -221,7 +221,7 @@ impl TestRun {
         Ok(summary)
     }
 
-    /// Load all currently cached test plans into a map of test run UUID to ([TestRun], [TriggerPayload]).
+    /// Load all currently cached test plans into a map of test run UUID to ([TestRun], [PreparedPayload]).
     ///
     /// Returns DB level errors as `Err` but partitions off malformed test plan JSON errors into a
     /// [Vec] of [TestRun]s that it is the caller's responsibility to process. To evict malformed
@@ -262,7 +262,7 @@ impl TestRun {
         Ok(())
     }
 
-    /// Cache the given [TriggerPayload] against this [TestRun]s ID.
+    /// Cache the given [PreparedPayload] against this [TestRun]s ID.
     ///
     /// Used to recover event loop state on startup for ongoing executions.
     pub async fn cache_payload(
