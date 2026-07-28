@@ -7,7 +7,7 @@ use rep_orchestrator_shared::{
     payload::{PreparedPayload, TriggerPayload},
     summary::TestRunSummary,
 };
-use rtf_config::formats;
+use rtf_config::{context::ResolutionContext, formats};
 use serde_json::Value;
 use tracing::{debug, info};
 
@@ -80,8 +80,9 @@ async fn as_prepared_payload_with_context(
 
         TriggerPayload::GitHub(payload) => {
             info!("attempting to pull test plan details from GitHub");
-            let ctx = RepContext::new(Config::get());
-            let payload = payload.into_prepared(&ctx).await?;
+            let mut ctx = RepContext::new(Config::get());
+            let (payload, sources) = payload.into_prepared_with_sources(&ctx).await?;
+            ctx.set_sources(sources);
 
             Ok((payload, ctx))
         }

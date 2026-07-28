@@ -34,11 +34,11 @@ pub struct GitHubPayload {
 }
 
 impl GitHubPayload {
-    pub async fn into_prepared(
+    pub async fn into_prepared_with_sources(
         self,
         ctx: &impl ResolutionContext,
-    ) -> formats::Result<PreparedPayload> {
-        let (test_plan, _sources) = RepTestPlan::try_load_and_resolve_from_github(
+    ) -> formats::Result<(PreparedPayload, Sources)> {
+        let (test_plan, sources) = RepTestPlan::try_load_and_resolve_from_github(
             &self.org,
             &self.repo,
             &self.path,
@@ -47,12 +47,15 @@ impl GitHubPayload {
         )
         .await?;
 
-        Ok(PreparedPayload {
-            test_plan,
-            relative_files: SourceKeyedArrayMap::empty(),
-            custom_providers: SourceKeyedArrayMap::empty(),
-            variables: self.variables,
-        })
+        Ok((
+            PreparedPayload {
+                test_plan,
+                relative_files: SourceKeyedArrayMap::empty(),
+                custom_providers: SourceKeyedArrayMap::empty(),
+                variables: self.variables,
+            },
+            sources,
+        ))
     }
 }
 
