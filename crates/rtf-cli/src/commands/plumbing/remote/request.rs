@@ -16,7 +16,9 @@ pub async fn execute_remote_request(
     let mut req = client.request(method.clone(), path).await?;
 
     match (data, method) {
-        (Some(body), Method::POST) => req = req.json(body),
+        (Some(body), Method::POST) => {
+            req = req.json(&serde_json::from_str::<serde_json::Value>(body)?)
+        }
         (Some(body), _) => req = req.body(body.to_string()),
         _ => (),
     }

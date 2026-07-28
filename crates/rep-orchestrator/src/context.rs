@@ -62,6 +62,13 @@ impl RepContext {
         }
     }
 
+    pub fn set_custom_provider_definitions(
+        &mut self,
+        custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
+    ) {
+        self.custom_providers = custom_providers;
+    }
+
     pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {
         self.inline_cache.clone()
     }
@@ -223,6 +230,10 @@ impl ResolutionContext for RepContext {
         str_path: &str,
         err_path: &[String],
     ) -> checks::Result<Option<PathKind>> {
+        if matches!(self.source_dir_for(stable_src), SourceDir::Github { .. }) {
+            return self.inner.check_path_kind(stable_src, str_path, err_path);
+        }
+
         match self.relative_files.get(stable_src.clone(), str_path) {
             Some(_) => Ok(Some(PathKind::File)),
             None => {

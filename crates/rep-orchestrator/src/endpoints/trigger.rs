@@ -9,6 +9,7 @@ use rep_orchestrator_shared::{
 };
 use rtf_config::{context::ResolutionContext, formats};
 use serde_json::Value;
+use std::sync::Arc;
 use tracing::{debug, info};
 
 pub async fn handler(
@@ -81,8 +82,12 @@ async fn as_prepared_payload_with_context(
         TriggerPayload::GitHub(payload) => {
             info!("attempting to pull test plan details from GitHub");
             let mut ctx = RepContext::new(Config::get());
-            let (payload, sources) = payload.into_prepared_with_sources(&ctx).await?;
+            let (mut payload, sources) = payload.into_prepared_with_sources(&ctx).await?;
+
+            payload
+                .set_custom_provider_definitions(Arc::unwrap_or_clone(sources.custom_providers()));
             ctx.set_sources(sources);
+            ctx.set_custom_provider_definitions(payload.custom_providers.clone());
 
             Ok((payload, ctx))
         }
