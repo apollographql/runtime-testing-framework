@@ -1,5 +1,6 @@
 use crate::commands::plumbing::prepare_remote_trigger_payload;
 use rep_orchestrator_shared::summary::TestRunSummary;
+use reqwest::Url;
 use rtf_core::variables::Variables;
 use rtf_integrations::orchestrator::OrchestratorClient;
 
@@ -8,6 +9,7 @@ pub async fn remote_run(
     github: bool,
     git_ref: Option<String>,
     variables: Variables,
+    orchestrator_url: Option<Url>,
 ) -> anyhow::Result<()> {
     println!("Preparing trigger payload for {test_plan_path}...");
     match (github, git_ref.as_ref()) {
@@ -18,7 +20,7 @@ pub async fn remote_run(
 
     let payload =
         prepare_remote_trigger_payload(test_plan_path, github, git_ref, variables).await?;
-    let client = OrchestratorClient::new().await?;
+    let client = OrchestratorClient::new(orchestrator_url).await?;
 
     println!("Triggering test run...\n");
     let summary: TestRunSummary = client.post_json("test-run/trigger", &payload).await?;

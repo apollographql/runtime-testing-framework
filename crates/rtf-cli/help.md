@@ -413,6 +413,7 @@ The output of this command will be the test run id and a link to the RTF UI to v
 
   Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
@@ -437,6 +438,7 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 * `--poll-interval-seconds <POLL_INTERVAL_SECONDS>`
 
   Default value: `10`
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
@@ -444,11 +446,15 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 
 View the scenario log for a single test execution
 
-**Usage:** `rtf remote execution-log <ID>`
+**Usage:** `rtf remote execution-log [OPTIONS] <ID>`
 
 ###### **Arguments:**
 
 * `<ID>` — ID of the Orchestrator test execution you wish to view the log of
+
+###### **Options:**
+
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
@@ -470,6 +476,7 @@ Pull all output for a single test execution (log, output.zip & status)
 * `--force` — Force removal of an existing output directory before running
 
   Default value: `false`
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
@@ -477,11 +484,15 @@ Pull all output for a single test execution (log, output.zip & status)
 
 View the status summary for a single test execution
 
-**Usage:** `rtf remote execution-status <ID>`
+**Usage:** `rtf remote execution-status [OPTIONS] <ID>`
 
 ###### **Arguments:**
 
 * `<ID>` — ID of the Orchestrator test execution you wish to view the status of
+
+###### **Options:**
+
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
@@ -503,6 +514,7 @@ Pull output for all executions within a given test run
 * `--force` — Force removal of an existing output directory before running
 
   Default value: `false`
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 
@@ -521,6 +533,7 @@ View the status summary for a test run
 * `--with-executions` — Whether or not details of the underlying test executions should be included
 
   Default value: `false`
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 

@@ -3,6 +3,7 @@ use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
 };
+use reqwest::Url;
 use rtf_core::variables::Variables;
 use rtf_integrations::orchestrator::OrchestratorClient;
 use std::{process::exit, time::Duration};
@@ -17,6 +18,7 @@ pub async fn ci_run(
     git_ref: Option<String>,
     poll_interval_seconds: u64,
     variables: Variables,
+    orchestrator_url: Option<Url>,
 ) -> anyhow::Result<()> {
     println!("Preparing trigger payload for {test_plan_path}...");
     match (github, git_ref.as_ref()) {
@@ -27,7 +29,7 @@ pub async fn ci_run(
 
     let payload =
         prepare_remote_trigger_payload(test_plan_path, github, git_ref, variables).await?;
-    let client = OrchestratorClient::new().await?;
+    let client = OrchestratorClient::new(orchestrator_url).await?;
     let poll_interval = Duration::from_secs(poll_interval_seconds);
 
     println!("Triggering test run...\n");

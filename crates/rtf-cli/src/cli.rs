@@ -354,6 +354,10 @@ pub enum RemoteSubcommand {
         /// Optional git ref to pull files from when using --github
         #[arg(long = "ref", requires = "github")]
         git_ref: Option<String>,
+
+        /// Override the Orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 
     /// Trigger a test run using the Orchestrator and poll for the result.
@@ -374,12 +378,20 @@ pub enum RemoteSubcommand {
 
         #[arg(long, default_value = "10")]
         poll_interval_seconds: u64,
+
+        /// Override the Orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 
     /// View the scenario log for a single test execution
     ExecutionLog {
         /// ID of the Orchestrator test execution you wish to view the log of
         id: Uuid,
+
+        /// Override the Orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 
     /// Pull all output for a single test execution (log, output.zip & status)
@@ -394,12 +406,20 @@ pub enum RemoteSubcommand {
         /// Force removal of an existing output directory before running.
         #[arg(long, default_value = "false")]
         force: bool,
+
+        /// Override the Orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 
     /// View the status summary for a single test execution
     ExecutionStatus {
         /// ID of the Orchestrator test execution you wish to view the status of
         id: Uuid,
+
+        /// Override the Orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 
     /// Pull output for all executions within a given test run
@@ -414,6 +434,10 @@ pub enum RemoteSubcommand {
         /// Force removal of an existing output directory before running.
         #[arg(long, default_value = "false")]
         force: bool,
+
+        /// Override the Orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 
     /// View the status summary for a test run
@@ -424,6 +448,10 @@ pub enum RemoteSubcommand {
         /// Whether or not details of the underlying test executions should be included
         #[arg(long, default_value = "false")]
         with_executions: bool,
+
+        /// Override the Orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 }
 

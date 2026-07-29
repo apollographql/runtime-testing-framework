@@ -188,8 +188,18 @@ async fn main() {
                     test_plan_path,
                     github,
                     git_ref,
+                    orchestrator_url,
                 },
-        } => remote_run(&test_plan_path, github, git_ref, variables.into()).await,
+        } => {
+            remote_run(
+                &test_plan_path,
+                github,
+                git_ref,
+                variables.into(),
+                orchestrator_url,
+            )
+            .await
+        }
 
         Command::Remote {
             subcommand:
@@ -198,6 +208,7 @@ async fn main() {
                     github,
                     git_ref,
                     poll_interval_seconds,
+                    orchestrator_url,
                 },
         } => {
             ci_run(
@@ -206,33 +217,55 @@ async fn main() {
                 git_ref,
                 poll_interval_seconds,
                 variables.into(),
+                orchestrator_url,
             )
             .await
         }
 
         Command::Remote {
-            subcommand: RemoteSubcommand::ExecutionLog { id },
-        } => execution_log(id).await,
+            subcommand:
+                RemoteSubcommand::ExecutionLog {
+                    id,
+                    orchestrator_url,
+                },
+        } => execution_log(id, orchestrator_url).await,
 
         Command::Remote {
-            subcommand: RemoteSubcommand::ExecutionOutput { id, outdir, force },
-        } => pull_execution_output(id, &outdir, force).await,
+            subcommand:
+                RemoteSubcommand::ExecutionOutput {
+                    id,
+                    outdir,
+                    force,
+                    orchestrator_url,
+                },
+        } => pull_execution_output(id, &outdir, force, orchestrator_url).await,
 
         Command::Remote {
-            subcommand: RemoteSubcommand::ExecutionStatus { id },
-        } => execution_status(id).await,
+            subcommand:
+                RemoteSubcommand::ExecutionStatus {
+                    id,
+                    orchestrator_url,
+                },
+        } => execution_status(id, orchestrator_url).await,
 
         Command::Remote {
-            subcommand: RemoteSubcommand::RunOutput { id, outdir, force },
-        } => pull_run_output(id, &outdir, force).await,
+            subcommand:
+                RemoteSubcommand::RunOutput {
+                    id,
+                    outdir,
+                    force,
+                    orchestrator_url,
+                },
+        } => pull_run_output(id, &outdir, force, orchestrator_url).await,
 
         Command::Remote {
             subcommand:
                 RemoteSubcommand::RunStatus {
                     id,
                     with_executions,
+                    orchestrator_url,
                 },
-        } => run_status(id, with_executions).await,
+        } => run_status(id, with_executions, orchestrator_url).await,
 
         Command::Completion { shell } => generate_shell_completions(shell),
 

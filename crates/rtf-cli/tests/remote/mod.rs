@@ -75,6 +75,20 @@ fn remote_run_help_succeeds() {
 }
 
 #[test]
+fn remote_run_bad_orchestrator_url_fails() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "run",
+            "test-plan.yaml",
+            "--orchestrator-url",
+            "not-a-url",
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
 #[ignore = "requires GCP Application Default Credentials and Secret Manager access"]
 fn remote_run_smoke_test_succeeds() {
     cargo_bin_cmd!("rtf")
@@ -99,6 +113,20 @@ fn remote_ci_run_help_succeeds() {
 }
 
 #[test]
+fn remote_ci_run_bad_orchestrator_url_fails() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "ci-run",
+            "test-plan.yaml",
+            "--orchestrator-url",
+            "not-a-url",
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
 #[ignore = "requires GCP Application Default Credentials and Secret Manager access"]
 fn remote_ci_run_smoke_test_succeeds() {
     cargo_bin_cmd!("rtf")
@@ -112,6 +140,34 @@ fn remote_ci_run_smoke_test_succeeds() {
 }
 
 #[test]
+fn remote_execution_log_bad_orchestrator_url_fails() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "execution-log",
+            "00000000-0000-0000-0000-000000000000",
+            "--orchestrator-url",
+            "not-a-url",
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn remote_execution_status_bad_orchestrator_url_fails() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "execution-status",
+            "00000000-0000-0000-0000-000000000000",
+            "--orchestrator-url",
+            "not-a-url",
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
 fn remote_execution_output_help_succeeds() {
     cargo_bin_cmd!("rtf")
         .args(["remote", "execution-output", "--help"])
@@ -120,11 +176,53 @@ fn remote_execution_output_help_succeeds() {
 }
 
 #[test]
+fn remote_execution_output_bad_orchestrator_url_fails() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "execution-output",
+            "00000000-0000-0000-0000-000000000000",
+            "--orchestrator-url",
+            "not-a-url",
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
 fn remote_run_output_help_succeeds() {
     cargo_bin_cmd!("rtf")
         .args(["remote", "run-output", "--help"])
         .assert()
         .success();
+}
+
+#[test]
+fn remote_run_output_bad_orchestrator_url_fails() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "run-output",
+            "00000000-0000-0000-0000-000000000000",
+            "--orchestrator-url",
+            "not-a-url",
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn remote_run_status_bad_orchestrator_url_fails() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "run-status",
+            "00000000-0000-0000-0000-000000000000",
+            "--orchestrator-url",
+            "not-a-url",
+        ])
+        .assert()
+        .failure();
 }
 
 #[test]
