@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
+use rep_orchestrator_shared::payload::PrepareError;
 use rtf_config::formats;
 use serde_json::json;
 use std::io;
@@ -26,6 +27,9 @@ pub enum Error {
 
     #[error(transparent)]
     RtfConfig(#[from] formats::Error),
+
+    #[error(transparent)]
+    Prepare(#[from] PrepareError),
 
     #[error(transparent)]
     Yaml(#[from] serde_yaml::Error),
@@ -65,6 +69,7 @@ impl IntoResponse for Error {
         let raw = match self {
             Self::FileUploadAlreadyRequested
             | Self::InvalidFileProviderUsage { .. }
+            | Self::Prepare(_)
             | Self::Db(db::Error::MissingExitCode)
             | Self::Db(db::Error::InvalidFailedExitCode)
             | Self::Db(db::Error::InvalidExitCode { .. })

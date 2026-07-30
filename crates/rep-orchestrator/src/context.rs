@@ -31,7 +31,7 @@ use tokio::sync::Mutex;
 pub struct RepContext {
     inner: Context,
     relative_files: SourceKeyedArrayMap<String>,
-    custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
+    custom_providers: Arc<CustomProviderDefinitions>,
     inline_cache: Arc<Mutex<HashMap<u64, InlinedProvider>>>,
 }
 
@@ -43,7 +43,7 @@ impl RepContext {
     ) -> Self {
         let mut ctx = Self::new(cfg);
         ctx.relative_files = relative_files;
-        ctx.custom_providers = custom_providers;
+        ctx.custom_providers = Arc::new(custom_providers.into_custom_provider_definitions());
 
         ctx
     }
@@ -57,16 +57,9 @@ impl RepContext {
         Self {
             inner,
             relative_files: SourceKeyedArrayMap::empty(),
-            custom_providers: SourceKeyedArrayMap::empty(),
+            custom_providers: Arc::new(CustomProviderDefinitions::default()),
             inline_cache: Default::default(),
         }
-    }
-
-    pub fn set_custom_provider_definitions(
-        &mut self,
-        custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
-    ) {
-        self.custom_providers = custom_providers;
     }
 
     pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {
@@ -194,10 +187,6 @@ impl ResolutionContext for RepContext {
         src: &StableSource,
         relative_path: &str,
     ) -> providers::Result<String> {
-        if matches!(self.source_dir_for(src), SourceDir::Github { .. }) {
-            return self.inner.read_file_content(src, relative_path).await;
-        }
-
         self.relative_files
             .get(src.clone(), relative_path)
             .cloned()
@@ -205,23 +194,7 @@ impl ResolutionContext for RepContext {
     }
 
     fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
-        let mut defs = CustomProviderDefinitions::default();
-        for sk in &self.custom_providers.keys {
-            let def = self.custom_providers.data[sk.index].clone();
-            match &sk.src {
-                StableSource::TestPlan => {
-                    defs.test_plan.insert(sk.k.clone(), def);
-                }
-                StableSource::Scenario => {
-                    defs.scenario.insert(sk.k.clone(), def);
-                }
-                StableSource::Environment => {
-                    defs.environment.insert(sk.k.clone(), def);
-                }
-                _ => {}
-            }
-        }
-        Arc::new(defs)
+        self.custom_providers.clone()
     }
 
     fn check_path_kind(
@@ -230,10 +203,6 @@ impl ResolutionContext for RepContext {
         str_path: &str,
         err_path: &[String],
     ) -> checks::Result<Option<PathKind>> {
-        if matches!(self.source_dir_for(stable_src), SourceDir::Github { .. }) {
-            return self.inner.check_path_kind(stable_src, str_path, err_path);
-        }
-
         match self.relative_files.get(stable_src.clone(), str_path) {
             Some(_) => Ok(Some(PathKind::File)),
             None => {

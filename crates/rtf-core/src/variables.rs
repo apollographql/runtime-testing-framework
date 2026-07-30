@@ -147,7 +147,7 @@ impl Variables {
 }
 
 /// Result of parsing CLI variables, containing scalar variables, array variables, and their sources.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ParsedVariables {
     pub variables: HashMap<String, Scalar>,
     pub matrix_dimensions: HashMap<String, Vec<Scalar>>,
@@ -155,6 +155,26 @@ pub struct ParsedVariables {
 }
 
 impl ParsedVariables {
+    pub fn from_flat(flat: HashMap<String, ScalarOrArray>) -> Self {
+        let mut vars = Self::default();
+
+        for (k, v) in flat.into_iter() {
+            vars.variable_sources.insert(k.clone(), StableSource::Cli);
+
+            match v {
+                ScalarOrArray::Scalar(s) => {
+                    vars.variables.insert(k, s);
+                }
+
+                ScalarOrArray::Array(arr) => {
+                    vars.matrix_dimensions.insert(k, arr);
+                }
+            }
+        }
+
+        vars
+    }
+
     /// Reconstruct the flat map of runtime overrides — scalars and matrix-dimension arrays in a
     /// single object, mirroring the user's `--vars` / `-v` input. This is the form captured for the
     /// Orchestrator's trigger payload.

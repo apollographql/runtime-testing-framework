@@ -33,5 +33,7 @@ pub async fn prepare_remote_trigger_payload(
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
 
-    PreparedPayload::prepare(test_plan, sources, variables, ctx).await
+    let (parsed, vars_file_src) = variables.parse(&ctx)?;
+
+    Ok(PreparedPayload::prepare(test_plan, sources, parsed, vars_file_src, ctx).await?)
 }

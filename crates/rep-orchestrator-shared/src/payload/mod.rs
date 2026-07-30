@@ -1,11 +1,13 @@
 use crate::status::Status;
-use rtf_config::StableSource;
+use rtf_config::{
+    StableSource, formats::CustomProviderDefinition, templating::CustomProviderDefinitions,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod trigger;
 
-pub use trigger::{GitHubPayload, PreparedPayload, TriggerPayload};
+pub use trigger::{GitHubPayload, PrepareError, PreparedPayload, TriggerPayload};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GenerateUploadUrlsPayload {}
@@ -84,6 +86,31 @@ where
         }
 
         Self { keys, data }
+    }
+}
+
+impl SourceKeyedArrayMap<CustomProviderDefinition> {
+    pub fn into_custom_provider_definitions(self) -> CustomProviderDefinitions {
+        let mut defs = CustomProviderDefinitions::default();
+
+        for sk in self.keys {
+            let def = self.data[sk.index].clone();
+
+            match &sk.src {
+                StableSource::TestPlan => {
+                    defs.test_plan.insert(sk.k.clone(), def);
+                }
+                StableSource::Scenario => {
+                    defs.scenario.insert(sk.k.clone(), def);
+                }
+                StableSource::Environment => {
+                    defs.environment.insert(sk.k.clone(), def);
+                }
+                _ => {}
+            }
+        }
+
+        defs
     }
 }
 
