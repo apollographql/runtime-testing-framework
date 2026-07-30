@@ -49,13 +49,8 @@ impl RepContext {
     }
 
     pub fn new(cfg: &Config) -> Self {
-        let mut inner = Context::new();
-        // apollo_sudo always true; graphos_staging always false for REP
-        inner.with_platform_config(&cfg.apollo_key, false, true);
-        inner.with_github_app_config(cfg.github_app_id, cfg.github_app_private_key_pem.clone());
-
         Self {
-            inner,
+            inner: cfg.server_context(),
             relative_files: SourceKeyedArrayMap::empty(),
             custom_providers: Arc::new(CustomProviderDefinitions::default()),
             inline_cache: Default::default(),
