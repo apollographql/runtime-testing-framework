@@ -13,7 +13,7 @@ mod as_workflow;
 
 const CREATE_NAMESPACE: &str = "create-namespace";
 const CREATE_SERVICE_ACCOUNT: &str = "create-service-account";
-const TTL_SECONDS_AFTER_FINISHED: i32 = 10; // cleanup after 10s
+const TTL_SECONDS_AFTER_FINISHED: i32 = 60; // cleanup after 1m - well clear of the 10s poll interval
 const TTL_SECONDS_AFTER_FAILED: i32 = 120; // cleanup after 2m when failed for debugging
 
 /// Mount point for the workload-cluster kubeconfig secret.
