@@ -4,12 +4,10 @@ use crate::{
 };
 use axum::{Json, extract::State, http::HeaderMap};
 use rep_orchestrator_shared::{
-    payload::{PreparedPayload, TriggerPayload},
+    payload::{PrepareError, PreparedPayload, TriggerPayload},
     summary::TestRunSummary,
 };
-use rtf_config::{context::ResolutionContext, formats};
 use serde_json::Value;
-use std::sync::Arc;
 use tracing::{debug, info};
 
 pub async fn handler(
@@ -67,31 +65,25 @@ pub async fn handler(
 
 async fn as_prepared_payload_with_context(
     trigger_payload: TriggerPayload,
-) -> formats::Result<(PreparedPayload, RepContext)> {
-    match trigger_payload {
-        TriggerPayload::Prepared(payload) => {
-            let ctx = RepContext::new_from_inlined_files(
-                Config::get(),
-                payload.relative_files.clone(),
-                payload.custom_providers.clone(),
-            );
-
-            Ok((payload, ctx))
-        }
+) -> Result<(PreparedPayload, RepContext), PrepareError> {
+    let payload = match trigger_payload {
+        TriggerPayload::Prepared(payload) => payload,
 
         TriggerPayload::GitHub(payload) => {
             info!("attempting to pull test plan details from GitHub");
-            let mut ctx = RepContext::new(Config::get());
-            let (mut payload, sources) = payload.into_prepared_with_sources(&ctx).await?;
-
             payload
-                .set_custom_provider_definitions(Arc::unwrap_or_clone(sources.custom_providers()));
-            ctx.set_sources(sources);
-            ctx.set_custom_provider_definitions(payload.custom_providers.clone());
-
-            Ok((payload, ctx))
+                .into_prepared(RepContext::new(Config::get()))
+                .await?
         }
-    }
+    };
+
+    let ctx = RepContext::new_from_inlined_files(
+        Config::get(),
+        payload.relative_files.clone(),
+        payload.custom_providers.clone(),
+    );
+
+    Ok((payload, ctx))
 }
 
 async fn init_run_and_build_summary(

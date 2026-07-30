@@ -90,7 +90,7 @@ impl TestHelper {
         )
         .await?;
 
-        PreparedPayload::prepare(test_plan, sources, Default::default(), ctx).await
+        Ok(PreparedPayload::prepare(test_plan, sources, Default::default(), None, ctx).await?)
     }
 
     async fn poll_for_condition<F, T>(

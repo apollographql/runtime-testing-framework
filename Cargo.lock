@@ -3794,7 +3794,6 @@ dependencies = [
 name = "rep-orchestrator-shared"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "chrono",
  "rtf-config",
  "rtf-core",
@@ -3802,6 +3801,7 @@ dependencies = [
  "schemars 1.2.1",
  "serde",
  "serde_yaml",
+ "thiserror 2.0.18",
  "tracing",
  "uuid",
 ]

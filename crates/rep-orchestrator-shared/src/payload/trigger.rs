@@ -1,13 +1,13 @@
 use crate::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
 use rtf_config::{
-    StableSource,
+    SourceDir, StableSource,
     context::ResolutionContext,
     formats::{self, CustomProviderDefinition, Sources},
     providers,
     run::RunProviders,
-    templating::{CustomProviderDefinitions, Template, TemplateContext},
+    templating::{self, CustomProviderDefinitions, Template, TemplateContext},
 };
-use rtf_core::variables::{ScalarOrArray, Variables};
+use rtf_core::variables::{self, ParsedVariables, ScalarOrArray};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
@@ -34,28 +34,22 @@ pub struct GitHubPayload {
 }
 
 impl GitHubPayload {
-    pub async fn into_prepared_with_sources(
+    pub async fn into_prepared(
         self,
-        ctx: &impl ResolutionContext,
-    ) -> formats::Result<(PreparedPayload, Sources)> {
+        ctx: impl ResolutionContext,
+    ) -> Result<PreparedPayload, PrepareError> {
         let (test_plan, sources) = RepTestPlan::try_load_and_resolve_from_github(
             &self.org,
             &self.repo,
             &self.path,
             self.git_ref,
-            ctx,
+            &ctx,
         )
         .await?;
 
-        Ok((
-            PreparedPayload {
-                test_plan,
-                relative_files: SourceKeyedArrayMap::empty(),
-                custom_providers: SourceKeyedArrayMap::empty(),
-                variables: self.variables,
-            },
-            sources,
-        ))
+        let variables = ParsedVariables::from_flat(self.variables.unwrap_or_default());
+
+        PreparedPayload::prepare(test_plan, sources, variables, None, ctx).await
     }
 }
 
@@ -72,12 +66,12 @@ impl PreparedPayload {
     pub async fn prepare(
         mut test_plan: RepTestPlan,
         sources: Sources,
-        variables: Variables,
+        variables: ParsedVariables,
+        vars_file_src: Option<SourceDir>,
         mut ctx: impl ResolutionContext,
-    ) -> anyhow::Result<PreparedPayload> {
-        let (parsed, vars_file_src) = variables.parse(&ctx)?;
-        let flat = parsed.as_flat();
-        let variable_sources = parsed.merge_into(&mut test_plan)?;
+    ) -> Result<PreparedPayload, PrepareError> {
+        let flat = variables.as_flat();
+        let variable_sources = variables.merge_into(&mut test_plan)?;
         ctx.set_sources(sources.with_variables_file(vars_file_src));
         let variables = (!flat.is_empty()).then_some(flat);
 
@@ -145,4 +139,19 @@ async fn try_extract_relative_files(
         .await?;
 
     Ok(())
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PrepareError {
+    #[error(transparent)]
+    Format(#[from] formats::Error),
+
+    #[error(transparent)]
+    Providers(#[from] providers::Error),
+
+    #[error(transparent)]
+    Templating(#[from] templating::Errors),
+
+    #[error(transparent)]
+    Variables(#[from] variables::Error),
 }
