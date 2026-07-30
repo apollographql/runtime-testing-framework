@@ -1,4 +1,4 @@
-use reqwest::{Method, Url};
+use reqwest::Method;
 use rtf_integrations::orchestrator::OrchestratorClient;
 use std::io::{Write, stdout};
 
@@ -6,12 +6,8 @@ pub async fn execute_remote_request(
     path: &str,
     method: Method,
     data: Option<&str>,
-    orchestrator_url: Option<Url>,
 ) -> anyhow::Result<()> {
-    let client = match orchestrator_url {
-        Some(url) => OrchestratorClient::new_with_base_url(url).await?,
-        None => OrchestratorClient::new().await?,
-    };
+    let client = OrchestratorClient::new().await?;
 
     let mut req = client.request(method.clone(), path).await?;
 

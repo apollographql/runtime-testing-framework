@@ -1,7 +1,7 @@
 //! Parsing of our command line arguments using Clap's derive API
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
-use reqwest::{Method, Url};
+use reqwest::Method;
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -139,7 +139,10 @@ pub enum Command {
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
 
-    /// Interactions with the RTF Orchestrator Service
+    /// Interactions with the RTF Orchestrator Service.
+    ///
+    /// Set the `RTF_ORCHESTRATOR_URL` environment variable to override the Orchestrator base
+    /// URL used by these subcommands; it defaults to the production Orchestrator when unset.
     Remote {
         #[clap(subcommand)]
         subcommand: RemoteSubcommand,
@@ -332,10 +335,6 @@ pub enum RemoteSubcommand {
         /// Request body as a literal string
         #[arg(short, long)]
         body: Option<String>,
-
-        /// Override the Orchestrator base URL
-        #[arg(long)]
-        orchestrator_url: Option<Url>,
     },
 
     /// Trigger a test run using the Orchestrator.

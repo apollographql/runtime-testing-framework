@@ -17,6 +17,10 @@ pub use client::OrchestratorClient;
 /// The default base URL for the Orchestrator.
 pub const DEFAULT_ORCHESTRATOR_URL: &str = "https://api.rtf.apollographql.com";
 
+/// The environment variable that overrides the
+/// [default Orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
+pub const ORCHESTRATOR_URL_ENV_VAR: &str = "RTF_ORCHESTRATOR_URL";
+
 /// The GCP project that hosts the Orchestrator's Secret Manager secrets.
 const GCP_PROJECT: &str = "runtime-testing-framework";
 

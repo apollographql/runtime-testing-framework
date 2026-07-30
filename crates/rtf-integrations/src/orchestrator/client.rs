@@ -1,14 +1,14 @@
 //! IAP-authenticated HTTP client for the RTF Orchestrator Service.
 use crate::orchestrator::{
     DEFAULT_ORCHESTRATOR_URL, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
-    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result,
+    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, ORCHESTRATOR_URL_ENV_VAR, Result,
     auth::{AdcCredentials, id_token},
 };
 use google_cloud_gax::error::rpc::Code;
 use google_cloud_secretmanager_v1::client::SecretManagerService;
 use reqwest::{Client, Method, RequestBuilder, Url};
 use serde::{Serialize, de::DeserializeOwned};
-use std::str::FromStr;
+use std::{env, str::FromStr};
 
 /// Authenticated HTTP client for the RTF Orchestrator Service, protected by Google Cloud IAP.
 #[derive(Debug)]
@@ -21,15 +21,18 @@ pub struct OrchestratorClient {
 }
 
 impl OrchestratorClient {
-    /// Build a new client using the [default Orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
+    /// Build a new client using the [`ORCHESTRATOR_URL_ENV_VAR`] environment variable, falling
+    /// back to the [default Orchestrator URL][DEFAULT_ORCHESTRATOR_URL] if it is unset.
     ///
     /// Loads Application Default Credentials from disk and fetches the IAP
     /// OAuth client credentials from Secret Manager.
     pub async fn new() -> Result<Self> {
-        Self::new_with_base_url(
-            Url::from_str(DEFAULT_ORCHESTRATOR_URL).expect("default URL is valid"),
-        )
-        .await
+        let base_url = match env::var(ORCHESTRATOR_URL_ENV_VAR) {
+            Ok(url) => Url::from_str(&url).map_err(|e| Error::InvalidUrl(e.to_string()))?,
+            Err(_) => Url::from_str(DEFAULT_ORCHESTRATOR_URL).expect("default URL is valid"),
+        };
+
+        Self::new_with_base_url(base_url).await
     }
 
     /// Build a new client with a custom Orchestrator URL.
