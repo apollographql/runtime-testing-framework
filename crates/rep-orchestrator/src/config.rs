@@ -1,3 +1,4 @@
+use rtf_config::context::Context;
 use serde::Deserialize;
 use std::{net::SocketAddr, sync::LazyLock};
 use tracing::warn;
@@ -63,6 +64,15 @@ impl Config {
             Ok(sa) => sa,
             Err(e) => panic!("invalid socker addr from config: {e}"),
         }
+    }
+
+    pub fn server_context(&self) -> Context {
+        let mut ctx = Context::new();
+        // apollo_sudo always true; graphos_staging always false for REP
+        ctx.with_platform_config(&self.apollo_key, false, true);
+        ctx.with_github_app_config(self.github_app_id, self.github_app_private_key_pem.clone());
+
+        ctx
     }
 }
 

@@ -72,7 +72,7 @@ async fn as_prepared_payload_with_context(
         TriggerPayload::GitHub(payload) => {
             info!("attempting to pull test plan details from GitHub");
             payload
-                .into_prepared(RepContext::new(Config::get()))
+                .into_prepared(Config::get().server_context())
                 .await?
         }
     };
