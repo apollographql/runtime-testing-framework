@@ -12,7 +12,7 @@ const N_PARALLEL_FETCH: usize = 20;
 
 pub async fn pull_run_output(run_id: Uuid, out_dir: &str, force: bool) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let client = OrchestratorClient::new().await?;
+    let client = OrchestratorClient::new_from_env().await?;
 
     let tr: TestRunSummary = client
         .get_json(&format!("test-run/{run_id}/status"))
@@ -51,7 +51,7 @@ pub async fn pull_run_output(run_id: Uuid, out_dir: &str, force: bool) -> anyhow
 
 pub async fn pull_execution_output(ex_id: Uuid, out_dir: &str, force: bool) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let client = OrchestratorClient::new().await?;
+    let client = OrchestratorClient::new_from_env().await?;
 
     let ex: TestExecutionSummary = client
         .get_json(&format!("test-execution/{ex_id}/status"))

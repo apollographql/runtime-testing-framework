@@ -70,7 +70,7 @@ fn remote_request_orchestrator_url_env_var_valid_url_is_used() {
 #[test]
 fn remote_run_bad_orchestrator_url_env_var_fails() {
     // `remote run` proves the env var override applies to every `remote` subcommand, not just
-    // `request` — there is no per-subcommand flag, only `OrchestratorClient::new()`.
+    // `request` — there is no per-subcommand flag, only `OrchestratorClient::new_from_env()`.
     let test_setup = prepare_for_test(FIXTURE);
     cargo_bin_cmd!("rtf")
         .arg("remote")

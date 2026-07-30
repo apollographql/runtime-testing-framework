@@ -7,7 +7,7 @@ pub async fn execute_remote_request(
     method: Method,
     data: Option<&str>,
 ) -> anyhow::Result<()> {
-    let client = OrchestratorClient::new().await?;
+    let client = OrchestratorClient::new_from_env().await?;
 
     let mut req = client.request(method.clone(), path).await?;
 

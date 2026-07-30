@@ -21,12 +21,23 @@ pub struct OrchestratorClient {
 }
 
 impl OrchestratorClient {
+    /// Build a new client using the [default Orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
+    ///
+    /// Loads Application Default Credentials from disk and fetches the IAP
+    /// OAuth client credentials from Secret Manager.
+    pub async fn new() -> Result<Self> {
+        Self::new_with_base_url(
+            Url::from_str(DEFAULT_ORCHESTRATOR_URL).expect("default URL is valid"),
+        )
+        .await
+    }
+
     /// Build a new client using the [`ORCHESTRATOR_URL_ENV_VAR`] environment variable, falling
     /// back to the [default Orchestrator URL][DEFAULT_ORCHESTRATOR_URL] if it is unset.
     ///
     /// Loads Application Default Credentials from disk and fetches the IAP
     /// OAuth client credentials from Secret Manager.
-    pub async fn new() -> Result<Self> {
+    pub async fn new_from_env() -> Result<Self> {
         let base_url = match env::var(ORCHESTRATOR_URL_ENV_VAR) {
             Ok(url) => Url::from_str(&url).map_err(|e| Error::InvalidUrl(e.to_string()))?,
             Err(_) => Url::from_str(DEFAULT_ORCHESTRATOR_URL).expect("default URL is valid"),

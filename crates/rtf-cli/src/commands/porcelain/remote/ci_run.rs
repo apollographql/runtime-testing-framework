@@ -27,7 +27,7 @@ pub async fn ci_run(
 
     let payload =
         prepare_remote_trigger_payload(test_plan_path, github, git_ref, variables).await?;
-    let client = OrchestratorClient::new().await?;
+    let client = OrchestratorClient::new_from_env().await?;
     let poll_interval = Duration::from_secs(poll_interval_seconds);
 
     println!("Triggering test run...\n");
