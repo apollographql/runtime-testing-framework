@@ -18,7 +18,7 @@ pub async fn remote_run(
 
     let payload =
         prepare_remote_trigger_payload(test_plan_path, github, git_ref, variables).await?;
-    let client = OrchestratorClient::new().await?;
+    let client = OrchestratorClient::new_from_env().await?;
 
     println!("Triggering test run...\n");
     let summary: TestRunSummary = client.post_json("test-run/trigger", &payload).await?;

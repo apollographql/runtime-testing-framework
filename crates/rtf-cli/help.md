@@ -336,7 +336,9 @@ Output json schemas for environment configuration
 
 ## `rtf remote`
 
-Interactions with the RTF Orchestrator Service
+Interactions with the RTF Orchestrator Service.
+
+Set the `RTF_ORCHESTRATOR_URL` environment variable to override the Orchestrator base URL used by these subcommands; it defaults to the production Orchestrator when unset.
 
 **Usage:** `rtf remote <COMMAND>`
 
@@ -391,7 +393,6 @@ The response body is written to stdout on success.
 
   Default value: `GET`
 * `-b`, `--body <BODY>` — Request body as a literal string
-* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the Orchestrator base URL
 
 
 

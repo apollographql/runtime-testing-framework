@@ -156,14 +156,8 @@ async fn main() {
         } => resolve_environment(&environment_path, variables.into(), &outdir, force).await,
 
         Command::Remote {
-            subcommand:
-                RemoteSubcommand::Request {
-                    path,
-                    method,
-                    body,
-                    orchestrator_url,
-                },
-        } => execute_remote_request(&path, method, body.as_deref(), orchestrator_url).await,
+            subcommand: RemoteSubcommand::Request { path, method, body },
+        } => execute_remote_request(&path, method, body.as_deref()).await,
 
         Command::Remote {
             subcommand:

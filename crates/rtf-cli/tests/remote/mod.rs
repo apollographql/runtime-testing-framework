@@ -1,8 +1,9 @@
 use crate::common::{prepare_for_test, prepare_rtf_remote_prepare};
 use assert_cmd::cargo::cargo_bin_cmd;
-use predicates::str::contains;
+use predicates::{boolean::PredicateBooleanExt, str::contains};
 
 const FIXTURE: &str = "resources/test-plans/valid/remote-prepare";
+const DUMMY_ID: &str = "11111111-1111-1111-1111-111111111111";
 
 #[test]
 fn remote_prepare_is_successful() {
@@ -44,17 +45,110 @@ fn remote_request_help_succeeds() {
 }
 
 #[test]
-fn remote_request_bad_orchestrator_url_fails() {
+fn remote_request_bad_orchestrator_url_env_var_fails() {
     cargo_bin_cmd!("rtf")
-        .args([
-            "remote",
-            "request",
-            "/health",
-            "--orchestrator-url",
-            "not-a-url",
-        ])
+        .args(["remote", "request", "/health"])
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
         .assert()
-        .failure();
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_request_orchestrator_url_env_var_valid_url_is_used() {
+    // A syntactically valid custom URL should be accepted and used as the base URL, so the
+    // command should get past URL resolution and fail for an unrelated reason (no GCP ADC
+    // credentials on the test machine) rather than an "invalid URL" error.
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "request", "/health"])
+        .env("RTF_ORCHESTRATOR_URL", "https://example.invalid")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL").not());
+}
+
+#[test]
+fn remote_run_bad_orchestrator_url_env_var_fails() {
+    // `remote run` proves the env var override applies to every `remote` subcommand, not just
+    // `request` — there is no per-subcommand flag, only `OrchestratorClient::new_from_env()`.
+    let test_setup = prepare_for_test(FIXTURE);
+    cargo_bin_cmd!("rtf")
+        .arg("remote")
+        .arg("run")
+        .arg(&test_setup.test_plan_file_path)
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_ci_run_bad_orchestrator_url_env_var_fails() {
+    let test_setup = prepare_for_test(FIXTURE);
+    cargo_bin_cmd!("rtf")
+        .arg("remote")
+        .arg("ci-run")
+        .arg(&test_setup.test_plan_file_path)
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_execution_log_bad_orchestrator_url_env_var_fails() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "execution-log", DUMMY_ID])
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_execution_status_bad_orchestrator_url_env_var_fails() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "execution-status", DUMMY_ID])
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_run_status_bad_orchestrator_url_env_var_fails() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "run-status", DUMMY_ID])
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_execution_output_bad_orchestrator_url_env_var_fails() {
+    let test_setup = prepare_for_test(FIXTURE);
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "execution-output", DUMMY_ID])
+        .arg("--outdir")
+        .arg(&test_setup.output_file_path)
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_run_output_bad_orchestrator_url_env_var_fails() {
+    let test_setup = prepare_for_test(FIXTURE);
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "run-output", DUMMY_ID])
+        .arg("--outdir")
+        .arg(&test_setup.output_file_path)
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
 }
 
 #[test]
