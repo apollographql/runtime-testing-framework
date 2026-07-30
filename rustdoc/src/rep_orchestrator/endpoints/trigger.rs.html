@@ -72,7 +72,7 @@
 <a href=#72 id=72 data-nosnippet>72</a>        TriggerPayload::GitHub(payload) =&gt; {
 <a href=#73 id=73 data-nosnippet>73</a>            <span class="macro">info!</span>(<span class="string">"attempting to pull test plan details from GitHub"</span>);
 <a href=#74 id=74 data-nosnippet>74</a>            payload
-<a href=#75 id=75 data-nosnippet>75</a>                .into_prepared(RepContext::new(Config::get()))
+<a href=#75 id=75 data-nosnippet>75</a>                .into_prepared(Config::get().server_context())
 <a href=#76 id=76 data-nosnippet>76</a>                .<span class="kw">await</span><span class="question-mark">?
 <a href=#77 id=77 data-nosnippet>77</a>        </span>}
 <a href=#78 id=78 data-nosnippet>78</a>    };
