@@ -1,8 +1,17 @@
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary};
+use rep_orchestrator_shared::{
+    payload::TriggerPayload,
+    summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary},
+};
 use reqwest::{StatusCode, Url, header::LOCATION, redirect::Policy};
 use thiserror::Error;
 use uuid::Uuid;
+
+/// The header Google IAP attaches to an authenticated request, carrying the caller's identity as
+/// `prefix:email`. Forwarded on outbound trigger requests so the orchestrator can attribute
+/// `initiated_by` to the person who submitted the form, rather than recording every UI-triggered
+/// run as `"unknown"`.
+pub(crate) const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
 
 /// Errors produced when communicating with the orchestrator HTTP API.
 #[derive(Debug, Error)]
@@ -18,6 +27,9 @@ pub enum Error {
 
     #[error("orchestrator returned unexpected status {status} fetching {path}")]
     Download { status: StatusCode, path: String },
+
+    #[error("orchestrator returned {status} triggering a run: {message}")]
+    Trigger { status: StatusCode, message: String },
 
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
@@ -79,6 +91,15 @@ pub trait Client: Send + Sync + Clone + 'static {
         &self,
         filter: &RunListFilter,
     ) -> impl Future<Output = Result<TestRunListResponse, Error>> + Send;
+
+    /// Trigger a new test run. `initiated_by` is the caller's identity (the email portion of the
+    /// inbound `X-Goog-Authenticated-User-Email` header, if present), forwarded on so the
+    /// orchestrator can attribute the run to whoever submitted the form.
+    fn trigger(
+        &self,
+        payload: &TriggerPayload,
+        initiated_by: Option<&str>,
+    ) -> impl Future<Output = Result<TestRunSummary, Error>> + Send;
 }
 
 #[derive(Debug, Clone)]
@@ -147,6 +168,45 @@ impl Client for HttpClient {
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
             status => Err(Error::ListRuns { status }),
+        }
+    }
+
+    async fn trigger(
+        &self,
+        payload: &TriggerPayload,
+        initiated_by: Option<&str>,
+    ) -> Result<TestRunSummary, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/test-run/trigger")
+            .expect("base url should be valid");
+        let mut request = self.client.post(url).json(payload);
+
+        if let Some(initiated_by) = initiated_by {
+            request = request.header(IAP_USER_EMAIL_HEADER, initiated_by);
+        }
+        let response = request.send().await?;
+        let status = response.status();
+
+        if status.is_success() {
+            return Ok(response.json().await?);
+        }
+
+        // The orchestrator's error body is `{"error": "...", "message": "..."}` - fall back to the
+        // bare status if the body isn't that shape (e.g. an intermediary proxy error).
+        let message = response
+            .json::<TriggerErrorBody>()
+            .await
+            .map(|body| body.message)
+            .unwrap_or_else(|_| status.to_string());
+
+        return Err(Error::Trigger { status, message });
+
+        // serde structs
+
+        #[derive(Debug, serde::Deserialize)]
+        struct TriggerErrorBody {
+            message: String,
         }
     }
 }
@@ -298,6 +358,14 @@ pub(crate) mod mocks {
                 runs: vec![self.test_run_summary.clone()],
                 total: 1,
             })
+        }
+
+        async fn trigger(
+            &self,
+            _payload: &TriggerPayload,
+            _initiated_by: Option<&str>,
+        ) -> Result<TestRunSummary, Error> {
+            Ok(self.test_run_summary.clone())
         }
     }
 }

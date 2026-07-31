@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}RTF &middot; Trigger a run{% endblock %}
+
+{% block content %}
+<h2>Trigger a run from GitHub</h2>
+<p>The Orchestrator is able to pull and run RTF Test Plans directly from GitHub.
+   Enter the details of the Test Plan you with to run below.</p>
+
+{% match error %}
+{% when Some with (message) %}
+<p class="muted">{{ message }}</p>
+{% when None %}
+{% endmatch %}
+
+<form method="post" action="/ui/trigger">
+    <p>
+        <label for="org">Org</label><br>
+        <input id="org" name="org" type="text" placeholder="apollographql" value="{{ org }}" required size="40" />
+    </p>
+    <p>
+        <label for="repo">Repo</label><br>
+        <input id="repo" name="repo" type="text" placeholder="runtime-testing-framework" value="{{ repo }}"
+            required size="40" />
+    </p>
+    <p>
+        <label for="path">Path to test-plan.yaml</label><br>
+        <input id="path" name="path" type="text"
+            placeholder="example-test-plans/orchestrator-smoke/test-plan.yaml" value="{{ path }}"
+            required size="60" />
+    </p>
+    <p>
+        <label for="ref">Ref <span class="muted">(optional &mdash; branch, tag, or SHA; defaults to the
+                default branch)</span></label><br>
+        <input id="ref" name="ref" type="text" placeholder="main" value="{{ git_ref }}" size="40" />
+    </p>
+    <p>
+        <label for="variables">Variables <span class="muted">(optional &mdash; JSON object)</span></label><br>
+        <button type="button" popovertarget="variables-help" class="copy-btn" aria-label="Variables help"
+            style="vertical-align: baseline;">&#9432;</button>
+        <div id="variables-help" popover>
+            <p>A JSON object mapping variable names to values. A plain value templates a single
+                variable; an array of values defines a matrix dimension (one variant per element).</p>
+            <pre>{
+  "subject": ["world", "sailor"]
+}</pre>
+        </div><br>
+        <textarea id="variables" name="variables" rows="6" cols="60"
+            placeholder="{ &quot;subject&quot;: [&quot;world&quot;, &quot;sailor&quot;] }">{{ variables }}</textarea>
+    </p>
+    <button type="submit">Trigger run</button>
+</form>
+{% endblock %}

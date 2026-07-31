@@ -39,7 +39,7 @@ where
     C: orchestrator::Client + Clone,
 {
     use endpoints::{
-        execution_detail, execution_log, execution_output_zip, health, index, run_status,
+        execution_detail, execution_log, execution_output_zip, health, index, run_status, trigger,
     };
 
     Router::new()
@@ -54,6 +54,10 @@ where
         .route(
             "/ui/execution/{eid}/output.zip",
             get(execution_output_zip::handler::<C>),
+        )
+        .route(
+            "/ui/trigger",
+            get(trigger::get_handler).post(trigger::post_handler::<C>),
         )
         .route("/ui/static/{*path}", get(assets::serve))
         .layer(Extension(links_cfg))
