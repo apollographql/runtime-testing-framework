@@ -1,8 +1,4 @@
-use crate::{
-    config::Config,
-    endpoints::{execution_detail, execution_log, execution_output_zip, health, index, run_status},
-    links::LinksConfig,
-};
+use crate::{config::Config, links::LinksConfig};
 use axum::{Extension, Router, routing::get};
 use tokio::net::TcpListener;
 use tracing::info;
@@ -42,15 +38,26 @@ fn router<C>(orchestrator_client: C, links_cfg: LinksConfig) -> Router
 where
     C: orchestrator::Client + Clone,
 {
+    use endpoints::{
+        execution_detail, execution_log, execution_output_zip, health, index, run_status, trigger,
+    };
+
     Router::new()
-        .route("/ui", get(index::<C>))
+        .route("/ui", get(index::handler::<C>))
         .route("/ui/health", get(health))
-        .route("/ui/run/{id}", get(run_status::<C>))
-        .route("/ui/execution/{eid}", get(execution_detail::<C>))
-        .route("/ui/execution/{eid}/log.txt", get(execution_log::<C>))
+        .route("/ui/run/{id}", get(run_status::handler::<C>))
+        .route("/ui/execution/{eid}", get(execution_detail::handler::<C>))
+        .route(
+            "/ui/execution/{eid}/log.txt",
+            get(execution_log::handler::<C>),
+        )
         .route(
             "/ui/execution/{eid}/output.zip",
-            get(execution_output_zip::<C>),
+            get(execution_output_zip::handler::<C>),
+        )
+        .route(
+            "/ui/trigger",
+            get(trigger::get_handler).post(trigger::post_handler::<C>),
         )
         .route("/ui/static/{*path}", get(assets::serve))
         .layer(Extension(links_cfg))
