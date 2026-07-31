@@ -138,17 +138,12 @@ fn index_body(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::mocks::{MockClient, sample_summary};
-    use axum::body::to_bytes;
+    use crate::{
+        endpoints::body_text,
+        orchestrator::mocks::{MockClient, sample_summary},
+    };
     use rep_orchestrator_shared::status::Status;
     use uuid::Uuid;
-
-    async fn body_text(resp: Response) -> String {
-        let bytes = to_bytes(resp.into_body(), usize::MAX)
-            .await
-            .expect("response body");
-        String::from_utf8(bytes.to_vec()).expect("utf8 body")
-    }
 
     #[test]
     fn index_renders_the_run_id_form() {
