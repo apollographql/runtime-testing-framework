@@ -1,5 +1,8 @@
 //! Request handlers for the orchestrator axum server
-use crate::Error;
+use crate::{
+    Error,
+    state::{ServerState, UserType},
+};
 use axum::{extract::FromRequestParts, http::request::Parts};
 use axum_extra::{
     TypedHeader,
@@ -14,10 +17,30 @@ pub mod execution_config;
 pub mod execution_status;
 pub mod generate_upload_urls;
 pub mod health;
+pub mod list_known_test_plans;
 pub mod list_runs;
+pub mod register_known_test_plan;
 pub mod run_status;
 pub mod trigger;
 pub mod whoami;
+
+/// Axum extractor that only admits callers [ServerState::identify_user] resolves to
+/// [UserType::Admin], rejecting everyone else with [Error::Unauthorized].
+pub struct AdminUser(pub String);
+
+impl FromRequestParts<ServerState> for AdminUser {
+    type Rejection = Error;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &ServerState,
+    ) -> Result<Self, Self::Rejection> {
+        match state.identify_user(&parts.headers).await? {
+            UserType::Admin(email) => Ok(Self(email)),
+            UserType::User(_) | UserType::Unknown => Err(Error::Unauthorized),
+        }
+    }
+}
 
 /// Axum extractor that parses the `Authorization: Bearer <token>` header.
 ///

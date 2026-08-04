@@ -3,7 +3,7 @@
 use axum::http::HeaderMap;
 use tracing::warn;
 
-const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
+pub const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
 
 /// Reads the `X-Goog-Authenticated-User-Email` header (format `prefix:email`, e.g.
 /// `accounts.google.com:someone@apollographql.com`) and returns the email.

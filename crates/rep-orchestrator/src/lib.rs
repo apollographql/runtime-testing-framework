@@ -64,7 +64,8 @@ fn build_routes(
 ) -> Router {
     use endpoints::{
         admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
-        health, list_runs, run_status, trigger, whoami,
+        health, list_known_test_plans, list_runs, register_known_test_plan, run_status, trigger,
+        whoami,
     };
 
     let mut router = Router::new()
@@ -100,6 +101,11 @@ fn build_routes(
         .route(
             "/test-execution/{id}/status",
             get(execution_status::get_handler).post(execution_status::post_handler),
+        )
+        .route("/test-plan", get(list_known_test_plans::handler))
+        .route(
+            "/test-plan/register",
+            post(register_known_test_plan::handler),
         )
         .route("/test-run", get(list_runs::handler))
         .route("/test-run/{id}/status", get(run_status::handler))
@@ -141,25 +147,43 @@ mod test_helpers {
             Self::new_with_params(
                 Config::get(),
                 GCSClient::new_mock("internal_url", "public_url", "bucket", None),
+                None,
             )
         }
 
         pub fn new_with_gcs_client(gcs_client: GCSClient) -> Self {
-            Self::new_with_params(Config::get(), gcs_client)
+            Self::new_with_params(Config::get(), gcs_client, None)
         }
 
         pub fn new_with_config(cfg: &Config) -> Self {
             Self::new_with_params(
                 cfg,
                 GCSClient::new_mock("internal_url", "public_url", "bucket", None),
+                None,
             )
         }
 
-        pub fn new_with_params(cfg: &Config, gcs_client: GCSClient) -> Self {
+        pub fn new_with_admins(admins: &[&str]) -> Self {
+            Self::new_with_params(
+                Config::get(),
+                GCSClient::new_mock("internal_url", "public_url", "bucket", None),
+                Some(admins),
+            )
+        }
+
+        pub fn new_with_params(
+            cfg: &Config,
+            gcs_client: GCSClient,
+            admins: Option<&[&str]>,
+        ) -> Self {
             let (_, prov_handle, eq_state, resolver_rx) =
                 EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-            let state = ServerState::new(eq_state, gcs_client);
+            let mut state = ServerState::new(eq_state, gcs_client);
+            if let Some(admins) = admins {
+                state.test_admins = Some(admins.iter().map(|s| s.to_string()).collect());
+            }
+
             let test_server = TestServer::new(build_routes(cfg, state.clone(), None));
 
             Self {
