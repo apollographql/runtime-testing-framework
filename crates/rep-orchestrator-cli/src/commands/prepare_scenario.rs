@@ -18,6 +18,10 @@ trap 'touch __EXIT_SENTINEL__' EXIT
 mkdir -p __OUTPUT_DIR__
 
 {
+  # errexit is disabled here so a failing scenario command doesn't abort this
+  # pipe stage before its exit status is captured below - the whole point of
+  # __EXIT_STATUS_FILE__ is to report failures, not just successes.
+  set +e
   (
     set -ex
 __SCENARIO_ENV__
@@ -116,9 +120,35 @@ fn render_run_script(paths: &SharedPaths, scenario_env: &str, command: &str) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::{TempDir, prelude::*};
 
     fn paths() -> SharedPaths {
         SharedPaths::new(&PathBuf::from("/shared"))
+    }
+
+    fn assert_rendered_script_exit_status(command: &str, expected_status: &str) {
+        let shared_dir = TempDir::new().unwrap();
+        let paths = SharedPaths::new(shared_dir.path());
+        let rendered = render_run_script(&paths, "", command);
+
+        let run_script = shared_dir.child("run.sh");
+        run_script.write_str(&rendered).unwrap();
+
+        Command::new("sh").arg(run_script.path()).status().unwrap();
+
+        shared_dir
+            .child("scenario_exit_status")
+            .assert(format!("{expected_status}\n"));
+    }
+
+    #[test]
+    fn run_script_records_exit_status_of_a_failing_scenario_command() {
+        assert_rendered_script_exit_status("exit 1", "1");
+    }
+
+    #[test]
+    fn run_script_records_exit_status_of_a_passing_scenario_command() {
+        assert_rendered_script_exit_status("exit 0", "0");
     }
 
     #[test]
