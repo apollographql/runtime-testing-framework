@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["extract_initiator"]};
+window.SIDEBAR_ITEMS = {"fn":["extract_authenticated_user_email"]};

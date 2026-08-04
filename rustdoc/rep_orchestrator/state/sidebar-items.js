@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ServerState","TestRunWithPayload"]};
+window.SIDEBAR_ITEMS = {"enum":["UserType"],"struct":["ServerState","TestRunWithPayload"]};
