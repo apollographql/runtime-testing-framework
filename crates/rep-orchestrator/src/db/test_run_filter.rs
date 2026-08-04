@@ -1,6 +1,7 @@
 use crate::db::{Result, TestRun, test_run::UNKNOWN_INITIATOR};
 use chrono::{DateTime, Utc};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TestRunFilter {
@@ -8,6 +9,8 @@ pub struct TestRunFilter {
     pub initiated_by: Option<String>,
     pub started_after: Option<DateTime<Utc>>,
     pub started_before: Option<DateTime<Utc>>,
+    pub known_test_plan_uuid: Option<Uuid>,
+    pub known_test_plan_name: Option<String>,
 }
 
 impl TestRunFilter {
@@ -16,6 +19,29 @@ impl TestRunFilter {
             && self.initiated_by.is_none()
             && self.started_after.is_none()
             && self.started_before.is_none()
+            && self.known_test_plan_uuid.is_none()
+            && self.known_test_plan_name.is_none()
+    }
+
+    fn needs_known_test_plan_join(&self) -> bool {
+        self.known_test_plan_uuid.is_some() || self.known_test_plan_name.is_some()
+    }
+
+    fn push_joins(&self, qb: &mut QueryBuilder<'_, Postgres>) {
+        if self.needs_known_test_plan_join() {
+            qb.push(
+                r#"
+                JOIN
+                  known_test_plan_run
+                ON
+                  known_test_plan_run.test_run_id = test_run.id
+                JOIN
+                  known_test_plan
+                ON
+                  known_test_plan.id = known_test_plan_run.known_test_plan_id
+                "#,
+            );
+        }
     }
 
     fn push_where_clause(&self, qb: &mut QueryBuilder<'_, Postgres>) {
@@ -44,6 +70,13 @@ impl TestRunFilter {
         if let Some(dt) = self.started_before {
             qb.push(" AND started_at <= ").push_bind(dt);
         }
+        if let Some(uuid) = &self.known_test_plan_uuid {
+            qb.push(" AND known_test_plan.uuid = ").push_bind(*uuid);
+        }
+        if let Some(name) = &self.known_test_plan_name {
+            qb.push(" AND known_test_plan.name = ")
+                .push_bind(name.clone());
+        }
     }
 
     pub async fn runs_matching(
@@ -52,7 +85,8 @@ impl TestRunFilter {
         offset: i64,
         conn: &mut PgConnection,
     ) -> Result<Vec<TestRun>> {
-        let mut qb = QueryBuilder::new("SELECT * FROM test_run");
+        let mut qb = QueryBuilder::new("SELECT test_run.* FROM test_run");
+        self.push_joins(&mut qb);
         self.push_where_clause(&mut qb);
 
         qb.push(" ORDER BY started_at DESC LIMIT ")
@@ -65,6 +99,7 @@ impl TestRunFilter {
 
     pub async fn n_matching(&self, conn: &mut PgConnection) -> Result<i64> {
         let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM test_run");
+        self.push_joins(&mut qb);
         self.push_where_clause(&mut qb);
 
         Ok(qb.build_query_scalar().fetch_one(conn).await?)
@@ -80,13 +115,17 @@ fn substring_pattern(term: &str) -> String {
         .replace('\\', "\\\\")
         .replace('%', "\\%")
         .replace('_', "\\_");
+
     format!("%{escaped}%")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{conn, db::Queryable};
+    use crate::{
+        conn,
+        db::{KnownTestPlan, KnownTestPlanRun, Queryable},
+    };
     use chrono::Duration;
     use uuid::Uuid;
 
@@ -344,6 +383,72 @@ mod tests {
 
         assert_eq!(runs[0].name(), "second", "{runs:?}");
         assert_eq!(runs[1].name(), "first", "{runs:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_filters_by_known_test_plan_uuid() -> Result<()> {
+        let c = conn!();
+        let known =
+            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
+                .await?;
+        let linked = TestRun::init_unknown_initiator(&unique("linked"), None, c).await?;
+        TestRun::init_unknown_initiator(&unique("unlinked"), None, c).await?;
+        KnownTestPlanRun::link(known.id(), linked.id(), None, c).await?;
+
+        let filter = TestRunFilter {
+            known_test_plan_uuid: Some(known.uuid()),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert_eq!(runs[0].uuid(), linked.uuid());
+        assert_eq!(filter.n_matching(c).await?, 1);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_filters_by_known_test_plan_name() -> Result<()> {
+        let c = conn!();
+        let name = unique("plan-by-name");
+        let known = KnownTestPlan::register(&name, None, "org", "repo", &unique("path"), c).await?;
+        let linked = TestRun::init_unknown_initiator(&unique("linked"), None, c).await?;
+        KnownTestPlanRun::link(known.id(), linked.id(), None, c).await?;
+
+        let filter = TestRunFilter {
+            known_test_plan_name: Some(name),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert_eq!(runs[0].uuid(), linked.uuid());
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_matching_without_known_test_plan_filter_does_not_join() -> Result<()> {
+        // A run with no known_test_plan_run link at all should still show up when no
+        // known-test-plan filter is applied (i.e. the join must not be an implicit INNER JOIN
+        // applied unconditionally).
+        let c = conn!();
+        let name = unique("no-filter-applied");
+        TestRun::init_unknown_initiator(&name, None, c).await?;
+
+        let filter = TestRunFilter {
+            name: Some(name),
+            ..Default::default()
+        };
+        let runs = filter.runs_matching(10, 0, c).await?;
+
+        assert_eq!(runs.len(), 1, "{runs:?}");
 
         Ok(())
     }
