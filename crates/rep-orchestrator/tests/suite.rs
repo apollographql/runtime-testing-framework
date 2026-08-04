@@ -4,6 +4,7 @@ use common::TestHelper;
 use rep_orchestrator::event_loop::{MSG_ARGO_WAIT, MSG_JOB_WAIT};
 use rep_orchestrator_shared::{status::Status::*, summary::TestRunSummary};
 use serial_test::serial;
+use simple_test_case::test_case;
 use std::time::Duration;
 
 #[tokio::test]
@@ -184,4 +185,21 @@ async fn unknown_docker_image_in_scenario_marks_execution_unrunnable() {
         "expected Running in history (sidecar started before image pull failed): {:#?}",
         summary.status_history,
     );
+}
+
+// Valid admin emails are set based on the contents of the ../local-stack/k8s/admins.yaml file
+#[test_case(Some("someone@test.com"), "user: someone@test.com"; "normal user")]
+#[test_case(Some("admin@test.com"), "admin: admin@test.com"; "admin user")]
+#[test_case(None, "unknown"; "header unset")]
+#[tokio::test]
+async fn whoami_correctly_identifies_the_user(email: Option<&'static str>, expected: &str) {
+    let mut t = TestHelper::new();
+
+    if let Some(email) = email {
+        t.set_user_email(email);
+    };
+
+    let body = t.get_text("whoami").await.unwrap();
+
+    assert_eq!(body, expected);
 }

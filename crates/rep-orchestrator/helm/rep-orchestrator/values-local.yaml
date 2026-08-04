@@ -36,3 +36,6 @@ k8s:
     context: "kind-rtf-workload"
     kubeconfigSecretRef:
       name: "orchestrator-kubeconfig"
+
+configMaps:
+  admins: "orchestrator-admins"

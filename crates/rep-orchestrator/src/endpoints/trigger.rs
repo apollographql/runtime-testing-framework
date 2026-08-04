@@ -1,6 +1,6 @@
 use crate::{
     config::Config, conn, context::RepContext, db::TestRun, error::Error, event_loop::SubmitError,
-    iap_identity::extract_initiator, state::ServerState,
+    iap_identity::extract_authenticated_user_email, state::ServerState,
 };
 use axum::{Json, extract::State, http::HeaderMap};
 use rep_orchestrator_shared::{
@@ -34,7 +34,7 @@ pub async fn handler(
         .as_ref()
         .map(|v| serde_json::to_value(v).expect("variables to serialize"));
 
-    let initiated_by = extract_initiator(&headers);
+    let initiated_by = extract_authenticated_user_email(&headers);
 
     debug!("initialising run");
     let (test_run, summary) =

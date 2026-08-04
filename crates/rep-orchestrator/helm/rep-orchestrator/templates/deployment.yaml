@@ -85,6 +85,8 @@ spec:
               {{- else }}
               {{ fail "Either k8s.workload.kubeconfigSecretRef.name or k8s.workload.kubeconfigPath must be set" }}
               {{- end }}
+            - name: RTF_ADMINS_PATH
+              value: "/etc/rep-orchestrator/admins/members"
             - name: RTF_WORKLOAD_CONTEXT
               value: {{ required "k8s.workload.context is required" .Values.k8s.workload.context | quote }}
             - name: RTF_GCS_BUCKET
@@ -121,11 +123,18 @@ spec:
             - name: RTF_MOCK_PUBLIC_GCS_URL
               value: {{ .Values.gcs.mockPublicUrl | quote }}
             {{- end }}
-          {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
+          {{- if or .Values.k8s.workload.kubeconfigSecretRef.name .Values.configMaps.admins }}
           volumeMounts:
+            {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
             - name: kubeconfig
               mountPath: /root/.kube
               readOnly: true
+            {{- end }}
+            {{- if .Values.configMaps.admins }}
+            - name: admins
+              mountPath: /etc/rep-orchestrator/admins
+              readOnly: true
+            {{- end }}
           {{- end }}
           startupProbe:
             httpGet:
@@ -156,12 +165,22 @@ spec:
               cpu: "100m"
               memory: "128Mi"
         {{- end }}
-      {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
+      {{- if or .Values.k8s.workload.kubeconfigSecretRef.name .Values.configMaps.admins }}
       volumes:
+        {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
         - name: kubeconfig
           secret:
             secretName: {{ .Values.k8s.workload.kubeconfigSecretRef.name }}
             items:
               - key: {{ .Values.k8s.workload.kubeconfigSecretRef.key }}
                 path: config
+        {{- end }}
+        {{- if .Values.configMaps.admins }}
+        - name: admins
+          configMap:
+            name: {{ .Values.configMaps.admins }}
+            items:
+              - key: members
+                path: members
+        {{- end }}
       {{- end }}
