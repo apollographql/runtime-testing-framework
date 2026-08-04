@@ -33,6 +33,7 @@ pub struct Config {
     pub kubeconfig_path: String,
     #[serde(default = "default_kubeconfig_secret_name")]
     pub kubeconfig_secret_name: String,
+    pub admins_path: String,
     pub workload_context: String,
     pub orchestrator_url: String,
     pub toolbox_pull_policy: String,

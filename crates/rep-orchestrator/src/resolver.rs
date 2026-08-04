@@ -325,6 +325,7 @@ mod tests {
             body_limit_mb: 50,
             kubeconfig_path: "dummy".to_string(),
             kubeconfig_secret_name: "workload-kubeconfig".to_string(),
+            admins_path: "dummy".to_string(),
             workload_context: "dummy".to_string(),
             orchestrator_url: "http://localhost:8035".to_string(),
             toolbox_pull_policy: "IfNotPresent".to_string(),

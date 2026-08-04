@@ -48,6 +48,9 @@ workload_kubeconfig = str(
 # Namespaces
 k8s_yaml("k8s/namespace.yaml")
 
+# Admins allowlist — mounted into the orchestrator pod for validating admin actions
+k8s_yaml("k8s/admins.yaml")
+
 # Workload kubeconfig — stored as a secret so Argo workflow pods can reach the workload cluster
 k8s_yaml(
     secret_from_dict(
@@ -133,6 +136,7 @@ k8s_resource(
         "orchestrator-kubeconfig:secret:orchestrator",
         "github-app-private-key:secret:orchestrator",
         "rep-orchestrator:secret:orchestrator",
+        "orchestrator-admins:configmap:orchestrator",
         "orchestrator-workflow-submitter:role:cluster-api",
         "orchestrator-workflow-submitter:rolebinding:cluster-api",
     ],

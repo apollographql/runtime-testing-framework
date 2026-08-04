@@ -1,6 +1,5 @@
 //! Reads the caller's identity off the `X-Goog-Authenticated-User-Email` header that Google IAP
 //! attaches to every request once it authenticates the caller.
-
 use axum::http::HeaderMap;
 use tracing::warn;
 
@@ -12,7 +11,7 @@ const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
 /// Returns `None` if the header is missing, not valid UTF-8, has no colon separator, or has an
 /// empty email portion. Every one of those cases is logged at `warn`. This function has no notion
 /// of a default/fallback identity — that's a storage concern the caller owns.
-pub fn extract_initiator(headers: &HeaderMap) -> Option<String> {
+pub fn extract_authenticated_user_email(headers: &HeaderMap) -> Option<String> {
     headers
         .get(IAP_USER_EMAIL_HEADER)
         .or_else(|| {
@@ -62,7 +61,7 @@ mod tests {
         let headers = headers_with("accounts.google.com:someone@apollographql.com");
 
         assert_eq!(
-            extract_initiator(&headers),
+            extract_authenticated_user_email(&headers),
             Some("someone@apollographql.com".to_owned())
         );
     }
@@ -71,21 +70,21 @@ mod tests {
     fn extract_initiator_returns_none_when_header_is_missing() {
         let headers = HeaderMap::new();
 
-        assert_eq!(extract_initiator(&headers), None);
+        assert_eq!(extract_authenticated_user_email(&headers), None);
     }
 
     #[test]
     fn extract_initiator_returns_none_when_header_has_no_colon() {
         let headers = headers_with("someone@apollographql.com");
 
-        assert_eq!(extract_initiator(&headers), None);
+        assert_eq!(extract_authenticated_user_email(&headers), None);
     }
 
     #[test]
     fn extract_initiator_returns_none_when_email_portion_is_empty() {
         let headers = headers_with("accounts.google.com:");
 
-        assert_eq!(extract_initiator(&headers), None);
+        assert_eq!(extract_authenticated_user_email(&headers), None);
     }
 
     #[test]
@@ -95,6 +94,6 @@ mod tests {
             IAP_USER_EMAIL_HEADER,
             HeaderValue::from_bytes(&[0xff, 0xfe]).unwrap(),
         );
-        assert_eq!(extract_initiator(&headers), None);
+        assert_eq!(extract_authenticated_user_email(&headers), None);
     }
 }

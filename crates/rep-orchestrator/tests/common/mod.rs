@@ -34,21 +34,31 @@ macro_rules! assert_status {
 
 pub struct TestHelper {
     client: Client,
+    user_email: Option<&'static str>,
 }
 
 impl TestHelper {
     pub fn new() -> Self {
         Self {
             client: Client::new(),
+            user_email: None,
         }
     }
 
+    pub fn set_user_email(&mut self, email: &'static str) {
+        self.user_email = Some(email);
+    }
+
     pub async fn get(&self, endpoint: impl Display) -> anyhow::Result<Response> {
-        Ok(self
-            .client
-            .get(format!("{SERVER_URL}/{endpoint}"))
-            .send()
-            .await?)
+        let mut req = self.client.get(format!("{SERVER_URL}/{endpoint}"));
+        if let Some(email) = self.user_email {
+            req = req.header(
+                "x-goog-authenticated-user-email",
+                format!("accounts.google.com:{email}"),
+            );
+        }
+
+        Ok(req.send().await?)
     }
 
     pub async fn json_get<T>(&self, endpoint: impl Display) -> anyhow::Result<T>
@@ -62,13 +72,20 @@ impl TestHelper {
     where
         T: Serialize,
     {
-        Ok(self
+        let mut req = self
             .client
             .post(format!("{SERVER_URL}/{endpoint}"))
             .body(serde_json::to_vec(&body)?)
-            .header("Content-Type", "application/json")
-            .send()
-            .await?)
+            .header("Content-Type", "application/json");
+
+        if let Some(email) = self.user_email {
+            req = req.header(
+                "x-goog-authenticated-user-email",
+                format!("accounts.google.com:{email}"),
+            );
+        }
+
+        Ok(req.send().await?)
     }
 
     pub async fn json_post<T, U>(&self, endpoint: impl Display, body: T) -> anyhow::Result<U>
@@ -182,7 +199,7 @@ impl TestHelper {
         .await
     }
 
-    pub async fn get_text(&self, endpoint: String) -> anyhow::Result<String> {
+    pub async fn get_text(&self, endpoint: impl Display) -> anyhow::Result<String> {
         let resp = self
             .get(&endpoint)
             .await

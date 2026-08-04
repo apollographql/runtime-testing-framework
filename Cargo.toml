@@ -41,7 +41,7 @@ serde_yaml = "0.9.34"
 strum = { version = "0.28.0", features = ["derive"] }
 thiserror = "2.0.18"
 tikv-jemallocator = { version = "0.6", features = ["background_threads"] }
-tokio = { version = "1.52.1", features = ["macros", "parking_lot", "rt-multi-thread", "time"] }
+tokio = { version = "1.52.1", features = ["fs", "macros", "parking_lot", "rt-multi-thread", "time"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 url = "2.5.8"

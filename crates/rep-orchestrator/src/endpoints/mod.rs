@@ -17,6 +17,7 @@ pub mod health;
 pub mod list_runs;
 pub mod run_status;
 pub mod trigger;
+pub mod whoami;
 
 /// Axum extractor that parses the `Authorization: Bearer <token>` header.
 ///

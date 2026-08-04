@@ -64,7 +64,7 @@ fn build_routes(
 ) -> Router {
     use endpoints::{
         admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
-        health, list_runs, run_status, trigger,
+        health, list_runs, run_status, trigger, whoami,
     };
 
     let mut router = Router::new()
@@ -104,6 +104,7 @@ fn build_routes(
         .route("/test-run", get(list_runs::handler))
         .route("/test-run/{id}/status", get(run_status::handler))
         .route("/test-run/trigger", post(trigger::handler))
+        .route("/whoami", get(whoami::handler))
         .with_state(state)
         .layer(DefaultBodyLimit::max(cfg.body_limit_mb * 1024 * 1024));
 

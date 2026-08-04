@@ -40,6 +40,11 @@ config:
   # -- How often to poll k8s for the status of a Job or Workflow being waited on
   pollIntervalSecs: "10"
 
+# -- External ConfigMap references for Deployment volumes. Set each value to point at your externally-managed ConfigMap
+configMaps:
+  # -- Name of the ConfigMap containing the admins list (data key: members). When unset, nothing is mounted
+  admins: null
+
 # -- Database connection settings
 db:
   # -- Database host. Set to 127.0.0.1 when using Cloud SQL Proxy. Required
