@@ -60,6 +60,9 @@ pub enum Error {
 
     #[error("{id} is not a known test run ID")]
     UnknownTestRun { id: Uuid },
+
+    #[error("{identifier} is not a registered test plan")]
+    UnknownTestPlan { identifier: String },
 }
 
 impl IntoResponse for Error {
@@ -83,7 +86,7 @@ impl IntoResponse for Error {
                 Json(json!({ "error": "NOT_FOUND", "message": msg })),
             ),
 
-            Self::FileUploadNotReady => (
+            Self::FileUploadNotReady | Self::Db(db::Error::KnownTestPlanAlreadyExists) => (
                 StatusCode::CONFLICT,
                 Json(json!({ "error": "CONFLICT", "message": msg })),
             ),
@@ -106,6 +109,11 @@ impl IntoResponse for Error {
             Self::UnknownTestRun { id } => (
                 StatusCode::NOT_FOUND,
                 Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
+            ),
+
+            Self::UnknownTestPlan { identifier } => (
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "NOT_FOUND", "identifier": identifier, "message": msg })),
             ),
 
             _ => (
