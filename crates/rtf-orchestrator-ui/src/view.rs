@@ -561,58 +561,39 @@ mod tests {
     };
     use askama::Template;
     use chrono::Duration;
+    use simple_test_case::test_case;
 
+    #[test_case(Status::Running, 0, true; "recent running run polls")]
+    #[test_case(Status::Running, MAX_POLL_AGE_SECS + 1, false; "stuck running run stops polling")]
+    #[test_case(Status::Successful, 0, false; "successful run does not poll")]
+    #[test_case(Status::Failed, 0, false; "failed run does not poll")]
+    #[test_case(Status::Unrunnable, 0, false; "unrunnable run does not poll")]
     #[test]
-    fn terminal_runs_do_not_poll() {
+    fn should_poll_cases(status: Status, age_secs: i64, expected: bool) {
         let now = Utc::now();
-        for status in [Status::Successful, Status::Failed, Status::Unrunnable] {
-            assert!(!should_poll(status, now, now), "{status:?} should not poll");
-        }
+        let started = now - Duration::seconds(age_secs);
+        assert_eq!(should_poll(status, started, now), expected);
     }
 
+    #[test_case(Status::Running, false; "hidden while the run is not terminal")]
+    #[test_case(Status::Successful, true; "shown once the run is terminal")]
     #[test]
-    fn recent_non_terminal_runs_poll() {
-        let now = Utc::now();
-        assert!(should_poll(Status::Running, now, now));
-    }
-
-    #[test]
-    fn stuck_non_terminal_runs_stop_polling() {
-        let now = Utc::now();
-        let started = now - Duration::seconds(MAX_POLL_AGE_SECS + 1);
-        assert!(!should_poll(Status::Running, started, now));
-    }
-
-    #[test]
-    fn completed_at_is_hidden_while_the_run_is_not_terminal() {
+    fn completed_at_visibility(status: Status, expect_shown: bool) {
         let now = Utc::now();
         let run = TestRunSummary {
-            current_status: Status::Running,
+            current_status: status,
             started_at: now - Duration::seconds(5),
-            completed_at: Some(now), // inconsistent with a non-terminal status; should be ignored
-            ..Default::default()
-        };
-
-        assert_eq!(
-            RunView::new(run, now, &sample_config(), String::new()).completed_at,
-            None
-        );
-    }
-
-    #[test]
-    fn completed_at_is_shown_once_the_run_is_terminal() {
-        let now = Utc::now();
-        let run = TestRunSummary {
-            current_status: Status::Successful,
-            started_at: now - Duration::seconds(5),
+            // Inconsistent with a non-terminal status in the non-terminal case; should be ignored.
             completed_at: Some(now),
             ..Default::default()
         };
+        let completed_at = RunView::new(run, now, &sample_config(), String::new()).completed_at;
 
-        assert_eq!(
-            RunView::new(run, now, &sample_config(), String::new()).completed_at,
-            Some(format_rfc3339(now))
-        );
+        if expect_shown {
+            assert_eq!(completed_at, Some(format_rfc3339(now)));
+        } else {
+            assert_eq!(completed_at, None);
+        }
     }
 
     #[test]
@@ -994,73 +975,64 @@ mod tests {
         )
     }
 
+    #[test_case(20, 137, 20, 0, true, false; "more rows remain and first page")]
+    #[test_case(20, 20, 20, 0, false, false; "last full page")]
+    #[test_case(0, 15, 20, 40, false, true; "offset landed past the end")]
     #[test]
-    fn has_next_true_when_more_rows_remain() {
-        let view = list_view(20, 137, 20, 0);
-        assert!(view.has_next());
+    fn has_next_and_has_prev(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected_has_next: bool,
+        expected_has_prev: bool,
+    ) {
+        let view = list_view(n_rows, total, limit, offset);
+        assert_eq!(view.has_next(), expected_has_next);
+        assert_eq!(view.has_prev(), expected_has_prev);
     }
 
+    #[test_case(20, 137, 20, 40, "/ui?offset=20"; "steps back by limit normally")]
+    // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
+    #[test_case(0, 137, 20, 500, "/ui?offset=120"; "jumps to the last real page when offset overshot")]
     #[test]
-    fn has_next_false_on_the_last_full_page() {
-        let view = list_view(20, 20, 20, 0);
-        assert!(!view.has_next());
+    fn prev_href_cases(n_rows: usize, total: i64, limit: i64, offset: i64, expected: &str) {
+        let view = list_view(n_rows, total, limit, offset);
+        assert_eq!(view.prev_href(), expected);
     }
 
+    #[test_case(20, 137, 20, 0, None; "rows are present")]
+    #[test_case(0, 0, 20, 0, Some("No runs match these filters."); "no matches at all")]
+    #[test_case(0, 137, 20, 500, Some("No runs on this page."); "offset landed past the end")]
     #[test]
-    fn has_next_false_when_offset_landed_past_the_end() {
-        // `total` shrank (or a stale link was followed) since this offset was generated.
-        let view = list_view(0, 15, 20, 40);
-        assert!(!view.has_next());
-        assert!(view.has_prev());
-    }
-
-    #[test]
-    fn has_prev_false_on_the_first_page() {
-        let view = list_view(20, 137, 20, 0);
-        assert!(!view.has_prev());
-    }
-
-    #[test]
-    fn prev_href_steps_back_by_limit_normally() {
-        let view = list_view(20, 137, 20, 40);
-        assert_eq!(view.prev_href(), "/ui?offset=20");
-    }
-
-    #[test]
-    fn prev_href_jumps_to_the_last_real_page_when_offset_overshot() {
-        // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
-        let view = list_view(0, 137, 20, 500);
-        assert_eq!(view.prev_href(), "/ui?offset=120");
-    }
-
-    #[test]
-    fn empty_message_is_none_when_rows_are_present() {
-        let view = list_view(20, 137, 20, 0);
-        assert_eq!(view.empty_message(), None);
-    }
-
-    #[test]
-    fn empty_message_distinguishes_no_matches_from_past_the_end() {
+    fn empty_message_cases(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected: Option<&str>,
+    ) {
         assert_eq!(
-            list_view(0, 0, 20, 0).empty_message(),
-            Some("No runs match these filters.")
-        );
-        assert_eq!(
-            list_view(0, 137, 20, 500).empty_message(),
-            Some("No runs on this page.")
+            list_view(n_rows, total, limit, offset).empty_message(),
+            expected
         );
     }
 
+    #[test_case(0, 0, 20, 0, None; "no matches at all")]
+    #[test_case(0, 137, 20, 500, None; "offset landed past the end")]
+    #[test_case(17, 137, 20, 120, Some("121-137 of 137"); "formats the current page")]
     #[test]
-    fn showing_range_is_none_when_there_are_no_rows() {
-        assert_eq!(list_view(0, 0, 20, 0).showing_range(), None);
-        assert_eq!(list_view(0, 137, 20, 500).showing_range(), None);
-    }
-
-    #[test]
-    fn showing_range_formats_the_current_page() {
-        let view = list_view(17, 137, 20, 120);
-        assert_eq!(view.showing_range(), Some("121-137 of 137".to_owned()));
+    fn showing_range_cases(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected: Option<&str>,
+    ) {
+        assert_eq!(
+            list_view(n_rows, total, limit, offset).showing_range(),
+            expected.map(str::to_owned)
+        );
     }
 
     #[test]
@@ -1130,75 +1102,70 @@ mod tests {
         );
     }
 
+    #[test_case(20, 42, 20, 0, true, false; "more rows remain and first page")]
+    #[test_case(20, 20, 20, 0, false, false; "last full page")]
+    #[test_case(0, 15, 20, 40, false, true; "offset landed past the end")]
     #[test]
-    fn known_test_plan_list_has_next_true_when_more_rows_remain() {
-        let view = known_test_plan_list_view(20, 42, 20, 0);
-        assert!(view.has_next());
+    fn known_test_plan_list_has_next_and_has_prev(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected_has_next: bool,
+        expected_has_prev: bool,
+    ) {
+        let view = known_test_plan_list_view(n_rows, total, limit, offset);
+        assert_eq!(view.has_next(), expected_has_next);
+        assert_eq!(view.has_prev(), expected_has_prev);
     }
 
+    #[test_case(20, 137, 20, 40, "/ui/test-plans?offset=20"; "steps back by limit normally")]
+    // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
+    #[test_case(0, 137, 20, 500, "/ui/test-plans?offset=120"; "jumps to the last real page when offset overshot")]
     #[test]
-    fn known_test_plan_list_has_next_false_on_the_last_full_page() {
-        let view = known_test_plan_list_view(20, 20, 20, 0);
-        assert!(!view.has_next());
+    fn known_test_plan_list_prev_href_cases(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected: &str,
+    ) {
+        let view = known_test_plan_list_view(n_rows, total, limit, offset);
+        assert_eq!(view.prev_href(), expected);
     }
 
+    #[test_case(20, 42, 20, 0, None; "rows are present")]
+    #[test_case(0, 0, 20, 0, Some("No known test plans are registered."); "no matches at all")]
+    #[test_case(0, 137, 20, 500, Some("No known test plans on this page."); "offset landed past the end")]
     #[test]
-    fn known_test_plan_list_has_next_false_when_offset_landed_past_the_end() {
-        let view = known_test_plan_list_view(0, 15, 20, 40);
-        assert!(!view.has_next());
-        assert!(view.has_prev());
-    }
-
-    #[test]
-    fn known_test_plan_list_has_prev_false_on_the_first_page() {
-        let view = known_test_plan_list_view(20, 42, 20, 0);
-        assert!(!view.has_prev());
-    }
-
-    #[test]
-    fn known_test_plan_list_prev_href_steps_back_by_limit_normally() {
-        let view = known_test_plan_list_view(20, 137, 20, 40);
-        assert_eq!(view.prev_href(), "/ui/test-plans?offset=20");
-    }
-
-    #[test]
-    fn known_test_plan_list_prev_href_jumps_to_the_last_real_page_when_offset_overshot() {
-        // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
-        let view = known_test_plan_list_view(0, 137, 20, 500);
-        assert_eq!(view.prev_href(), "/ui/test-plans?offset=120");
-    }
-
-    #[test]
-    fn known_test_plan_list_empty_message_is_none_when_rows_are_present() {
-        let view = known_test_plan_list_view(20, 42, 20, 0);
-        assert_eq!(view.empty_message(), None);
-    }
-
-    #[test]
-    fn known_test_plan_list_empty_message_distinguishes_no_matches_from_past_the_end() {
+    fn known_test_plan_list_empty_message_cases(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected: Option<&str>,
+    ) {
         assert_eq!(
-            known_test_plan_list_view(0, 0, 20, 0).empty_message(),
-            Some("No known test plans are registered.")
-        );
-        assert_eq!(
-            known_test_plan_list_view(0, 137, 20, 500).empty_message(),
-            Some("No known test plans on this page.")
+            known_test_plan_list_view(n_rows, total, limit, offset).empty_message(),
+            expected
         );
     }
 
+    #[test_case(0, 0, 20, 0, None; "no matches at all")]
+    #[test_case(0, 137, 20, 500, None; "offset landed past the end")]
+    #[test_case(17, 137, 20, 120, Some("121-137 of 137"); "formats the current page")]
     #[test]
-    fn known_test_plan_list_showing_range_is_none_when_there_are_no_rows() {
-        assert_eq!(known_test_plan_list_view(0, 0, 20, 0).showing_range(), None);
+    fn known_test_plan_list_showing_range_cases(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected: Option<&str>,
+    ) {
         assert_eq!(
-            known_test_plan_list_view(0, 137, 20, 500).showing_range(),
-            None
+            known_test_plan_list_view(n_rows, total, limit, offset).showing_range(),
+            expected.map(str::to_owned)
         );
-    }
-
-    #[test]
-    fn known_test_plan_list_showing_range_formats_the_current_page() {
-        let view = known_test_plan_list_view(17, 137, 20, 120);
-        assert_eq!(view.showing_range(), Some("121-137 of 137".to_owned()));
     }
 
     /// Builds a `RunListView` scoped to an arbitrary known test plan (via
@@ -1217,47 +1184,41 @@ mod tests {
         RunListView::for_known_test_plan(response, limit, offset, Uuid::from_u128(1))
     }
 
+    #[test_case(20, 137, 20, 0, true, false; "more rows remain and first page")]
+    #[test_case(20, 20, 20, 0, false, false; "last full page")]
+    #[test_case(0, 15, 20, 40, false, true; "offset landed past the end")]
     #[test]
-    fn run_list_for_known_test_plan_has_next_true_when_more_rows_remain() {
-        let view = run_list_view_for_known_test_plan(20, 137, 20, 0);
-        assert!(view.has_next());
+    fn run_list_for_known_test_plan_has_next_and_has_prev(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected_has_next: bool,
+        expected_has_prev: bool,
+    ) {
+        let view = run_list_view_for_known_test_plan(n_rows, total, limit, offset);
+        assert_eq!(view.has_next(), expected_has_next);
+        assert_eq!(view.has_prev(), expected_has_prev);
     }
 
+    #[test_case(20, 137, 20, 40, 20; "steps back by limit normally")]
+    // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
+    #[test_case(0, 137, 20, 500, 120; "jumps to the last real page when offset overshot")]
     #[test]
-    fn run_list_for_known_test_plan_has_next_false_on_the_last_full_page() {
-        let view = run_list_view_for_known_test_plan(20, 20, 20, 0);
-        assert!(!view.has_next());
-    }
-
-    #[test]
-    fn run_list_for_known_test_plan_has_next_false_when_offset_landed_past_the_end() {
-        let view = run_list_view_for_known_test_plan(0, 15, 20, 40);
-        assert!(!view.has_next());
-        assert!(view.has_prev());
-    }
-
-    #[test]
-    fn run_list_for_known_test_plan_has_prev_false_on_the_first_page() {
-        let view = run_list_view_for_known_test_plan(20, 137, 20, 0);
-        assert!(!view.has_prev());
-    }
-
-    #[test]
-    fn run_list_for_known_test_plan_prev_href_steps_back_by_limit_normally() {
-        let view = run_list_view_for_known_test_plan(20, 137, 20, 40);
+    fn run_list_for_known_test_plan_prev_href_cases(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected_offset: i64,
+    ) {
+        let view = run_list_view_for_known_test_plan(n_rows, total, limit, offset);
         assert_eq!(
             view.prev_href(),
-            format!("/ui/test-plan/{}?offset=20", Uuid::from_u128(1))
-        );
-    }
-
-    #[test]
-    fn run_list_for_known_test_plan_prev_href_jumps_to_the_last_real_page_when_offset_overshot() {
-        // total=137, limit=20 -> last real page starts at offset 120 (rows 121-137).
-        let view = run_list_view_for_known_test_plan(0, 137, 20, 500);
-        assert_eq!(
-            view.prev_href(),
-            format!("/ui/test-plan/{}?offset=120", Uuid::from_u128(1))
+            format!(
+                "/ui/test-plan/{}?offset={expected_offset}",
+                Uuid::from_u128(1)
+            )
         );
     }
 
@@ -1270,15 +1231,19 @@ mod tests {
         );
     }
 
+    #[test_case(0, 0, 20, 0, Some("This test plan has no runs yet."); "no runs at all")]
+    #[test_case(0, 137, 20, 500, Some("No runs on this page."); "offset landed past the end")]
     #[test]
-    fn run_list_for_known_test_plan_empty_message_distinguishes_no_runs_from_past_the_end() {
+    fn run_list_for_known_test_plan_empty_message_cases(
+        n_rows: usize,
+        total: i64,
+        limit: i64,
+        offset: i64,
+        expected: Option<&str>,
+    ) {
         assert_eq!(
-            run_list_view_for_known_test_plan(0, 0, 20, 0).empty_message(),
-            Some("This test plan has no runs yet.")
-        );
-        assert_eq!(
-            run_list_view_for_known_test_plan(0, 137, 20, 500).empty_message(),
-            Some("No runs on this page.")
+            run_list_view_for_known_test_plan(n_rows, total, limit, offset).empty_message(),
+            expected
         );
     }
 
