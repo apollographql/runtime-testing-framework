@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["extract_authenticated_user_email"]};
+window.SIDEBAR_ITEMS = {"constant":["IAP_USER_EMAIL_HEADER"],"fn":["extract_authenticated_user_email"]};

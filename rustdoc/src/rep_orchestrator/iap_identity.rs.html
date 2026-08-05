@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>axum::http::HeaderMap;
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>tracing::warn;
 <a href=#5 id=5 data-nosnippet>5</a>
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">const </span>IAP_USER_EMAIL_HEADER: <span class="kw-2">&amp;</span>str = <span class="string">"x-goog-authenticated-user-email"</span>;
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">pub const </span>IAP_USER_EMAIL_HEADER: <span class="kw-2">&amp;</span>str = <span class="string">"x-goog-authenticated-user-email"</span>;
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="doccomment">/// Reads the `X-Goog-Authenticated-User-Email` header (format `prefix:email`, e.g.
 <a href=#9 id=9 data-nosnippet>9</a>/// `accounts.google.com:someone@apollographql.com`) and returns the email.
