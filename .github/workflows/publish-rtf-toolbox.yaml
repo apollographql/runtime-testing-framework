@@ -23,7 +23,7 @@ permissions:
 jobs:
   publish-toolbox:
     name: Build and publish RTF toolbox image
-    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
     permissions:
       contents: read
       id-token: write
@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: apollographql/release-tooling/rtf-run-test-plan@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
+      - uses: apollographql/release-tooling/rtf-run-test-plan@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
         with:
           test_plan_path: crates/rtf-cli/resources/test-plans/valid/docker-all/test-plan.yaml
           verbose: true

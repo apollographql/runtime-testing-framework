@@ -22,15 +22,17 @@ permissions:
 jobs:
   publish-orchestrator-ui-image:
     name: Build and publish RTF Orchestrator UI image
-    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
     permissions:
       contents: read
       id-token: write
     with:
       image_name: rtf-orchestrator-ui
-      image_description: "RTF orchestrator status UI image — serves server-rendered
+      image_description:
+        "RTF orchestrator status UI image — serves server-rendered
         test-run status pages"
-      platforms: "[{\"platform\":\"linux/amd64\",\"runner\":\"ubuntu-24.04\"},{\"plat\
+      platforms:
+        "[{\"platform\":\"linux/amd64\",\"runner\":\"ubuntu-24.04\"},{\"plat\
         form\":\"linux/arm64\",\"runner\":\"ubuntu-24.04-arm\"}]"
       context: .
       dockerfile_location: crates/rtf-orchestrator-ui/docker/Dockerfile
@@ -57,7 +59,7 @@ jobs:
       # from `.Chart.AppVersion` (values.yaml image.tag is null) — it must match the image published
       # by the build_and_publish job above, which tags with the full SHA.
       - name: "Publish Helm Chart"
-        uses: apollographql/release-tooling/release-helm-internal@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
+        uses: apollographql/release-tooling/release-helm-internal@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
         with:
           chart_path: crates/rtf-orchestrator-ui/helm/rtf-orchestrator-ui
           commit_sha: ${{ steps.short_sha.outputs.sha }}
