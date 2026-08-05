@@ -20,8 +20,17 @@
         <nav>
             <a href="/ui/test-plans">Registered Test Plans</a>
             <a href="/ui/trigger">Trigger from GitHub</a>
+            <a href="https://scaling-dollop-ywevlle.pages.github.io/" target="_blank" rel="noopener noreferrer">RTF Docs</a>
         </nav>
-        <button id="theme-toggle" type="button" aria-label="Toggle color theme">Dark</button>
+        <div class="header-actions">
+            <form class="run-lookup"
+                onsubmit="event.preventDefault(); const id = this.runId.value.trim(); if (id) { window.location.href = '/ui/run/' + encodeURIComponent(id); }">
+                <input name="runId" type="text" placeholder="Test run ID" aria-label="Test run ID" required
+                    size="36" />
+                <button type="submit">View status</button>
+            </form>
+            <button id="theme-toggle" type="button" aria-label="Toggle color theme">Dark</button>
+        </div>
     </header>
     <main>{% block content %}{% endblock %}</main>
     <script>
