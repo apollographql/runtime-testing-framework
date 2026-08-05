@@ -1,22 +1,25 @@
-//! List Test Plans registered with the orchestrator, matching an optional name filter.
-use crate::{Result, conn, db::KnownTestPlanFilter};
-use axum::{Json, extract::Query};
-use rep_orchestrator_shared::known_test_plan::KnownTestPlanListResponse;
-use serde::Deserialize;
+//! List Test Plans registered with the orchestrator, matching an optional name filter, or fetch a
+//! single one by UUID.
+use crate::{
+    Error, Result, conn,
+    db::{KnownTestPlan, KnownTestPlanFilter},
+};
+use axum::{
+    Json,
+    extract::{Path, Query},
+};
+use rep_orchestrator_shared::known_test_plan::{
+    KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanSummary,
+};
+use uuid::Uuid;
 
 const DEFAULT_LIMIT: i64 = 20;
 const MAX_LIMIT: i64 = 100;
 
-#[derive(Debug, Deserialize)]
-pub struct Params {
-    name: Option<String>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-}
-
-pub async fn handler(Query(params): Query<Params>) -> Result<Json<KnownTestPlanListResponse>> {
+pub async fn list_handler(
+    Query(params): Query<KnownTestPlanListParams>,
+) -> Result<Json<KnownTestPlanListResponse>> {
     let conn = conn!();
-
     let filter = KnownTestPlanFilter { name: params.name };
 
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
@@ -31,10 +34,19 @@ pub async fn handler(Query(params): Query<Params>) -> Result<Json<KnownTestPlanL
     }))
 }
 
+pub async fn by_uuid_handler(Path(uuid): Path<Uuid>) -> Result<Json<KnownTestPlanSummary>> {
+    match KnownTestPlan::get_by_uuid(&uuid, conn!()).await? {
+        Some(plan) => Ok(Json(plan.into_summary())),
+        None => Err(Error::UnknownTestPlan {
+            identifier: uuid.to_string(),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{db::KnownTestPlan, test_helpers::TestServerState};
+    use crate::test_helpers::TestServerState;
     use reqwest::StatusCode;
     use uuid::Uuid;
 
@@ -44,7 +56,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn handler_filters_by_name() -> anyhow::Result<()> {
+    async fn list_handler_filters_by_name() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
         let name = unique("match-me");
@@ -77,7 +89,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn handler_respects_limit_and_offset() -> anyhow::Result<()> {
+    async fn list_handler_respects_limit_and_offset() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
         let org = unique("pagination-org");
@@ -98,6 +110,42 @@ mod tests {
         let body: KnownTestPlanListResponse = resp.json();
 
         assert_eq!(body.test_plans.len(), 1, "{body:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn by_uuid_handler_returns_200_for_known_test_plan() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let name = unique("plan");
+        let known =
+            KnownTestPlan::register(&name, None, "org", "repo", &unique("path"), conn!()).await?;
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-plan/{}", known.uuid()))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let body: KnownTestPlanSummary = resp.json();
+
+        assert_eq!(body.uuid, known.uuid());
+        assert_eq!(body.name, name);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn by_uuid_handler_returns_404_for_unknown_test_plan() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let uuid = Uuid::new_v4();
+
+        let resp = tss.test_server.get(&format!("/test-plan/{uuid}")).await;
+
+        assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
 
         Ok(())
     }

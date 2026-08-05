@@ -12,6 +12,8 @@ pub mod execution_log;
 pub mod execution_output_zip;
 pub mod index;
 pub mod run_status;
+pub mod test_plan_detail;
+pub mod test_plans;
 pub mod trigger;
 
 /// Render an askama template to a `(status, body)` pair. Template render errors are mapped to a 500
@@ -86,6 +88,7 @@ fn download_response(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use simple_test_case::test_case;
 
     #[tokio::test]
     async fn health_returns_ok() {
@@ -131,18 +134,13 @@ mod tests {
         );
     }
 
+    #[test_case(Download::NotFound, StatusCode::NOT_FOUND; "not found")]
+    #[test_case(Download::NotReady, StatusCode::CONFLICT; "not ready")]
     #[tokio::test]
-    async fn download_response_returns_404_when_not_found() {
-        let resp = download_response(Ok(Download::NotFound), "text/plain", "f".to_owned());
+    async fn download_response_status_cases(download: Download, expected: StatusCode) {
+        let resp = download_response(Ok(download), "text/plain", "f".to_owned());
 
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn download_response_returns_409_when_not_ready() {
-        let resp = download_response(Ok(Download::NotReady), "text/plain", "f".to_owned());
-
-        assert_eq!(resp.status(), StatusCode::CONFLICT);
+        assert_eq!(resp.status(), expected);
     }
 
     #[tokio::test]

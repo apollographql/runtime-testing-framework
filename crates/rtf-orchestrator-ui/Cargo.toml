@@ -29,3 +29,6 @@ uuid.workspace = true
 # timer, which the glibc allocator used by the Linux runtime image does not.
 [target.'cfg(target_os = "linux")'.dependencies]
 tikv-jemallocator.workspace = true
+
+[dev-dependencies]
+simple_test_case.workspace = true

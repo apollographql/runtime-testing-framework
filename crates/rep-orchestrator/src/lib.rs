@@ -64,8 +64,7 @@ fn build_routes(
 ) -> Router {
     use endpoints::{
         admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
-        health, list_known_test_plans, list_runs, register_known_test_plan, run_status, trigger,
-        whoami,
+        health, known_test_plans, list_runs, register_known_test_plan, run_status, trigger, whoami,
     };
 
     let mut router = Router::new()
@@ -102,7 +101,12 @@ fn build_routes(
             "/test-execution/{id}/status",
             get(execution_status::get_handler).post(execution_status::post_handler),
         )
-        .route("/test-plan", get(list_known_test_plans::handler))
+        .route("/test-plan", get(known_test_plans::list_handler))
+        .route("/test-plan/{uuid}", get(known_test_plans::by_uuid_handler))
+        .route(
+            "/test-plan/{uuid}/runs",
+            get(list_runs::known_test_plan_handler),
+        )
         .route(
             "/test-plan/register",
             post(register_known_test_plan::handler),

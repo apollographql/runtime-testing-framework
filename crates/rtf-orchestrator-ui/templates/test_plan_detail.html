@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}RTF Status &middot; {{ plan.name }}{% endblock %}
+
+{% block content %}
+<p><a href="/ui/test-plans">&larr; Back to known test plans</a></p>
+
+<div class="test-plan-card">
+    <h2>{{ plan.name }}</h2>
+    {% if plan.description != "" %}
+    <p>{{ plan.description }}</p>
+    {% endif %}
+    <p class="muted location">
+        <a href="{{ plan.github_url }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
+    </p>
+</div>
+
+<h2>Trigger a run</h2>
+
+{% match trigger_error %}
+{% when Some with (message) %}
+<p class="muted">{{ message }}</p>
+{% when None %}
+{% endmatch %}
+
+<form method="post" action="/ui/test-plan/{{ plan.uuid }}/trigger">
+    <p>
+        <label for="ref">Ref <span class="muted">(optional &mdash; branch, tag, or SHA; defaults to the
+                default branch)</span></label><br>
+        <input id="ref" name="ref" type="text" placeholder="main" value="{{ trigger_git_ref }}" size="40" />
+    </p>
+    <p>
+        <label for="variables">Variables <span class="muted">(optional &mdash; JSON object)</span></label>
+        <button type="button" popovertarget="known-test-plan-variables-help" class="copy-btn"
+            aria-label="Variables help" style="vertical-align: baseline;">&#9432;</button>
+        <div id="known-test-plan-variables-help" popover>
+            <p>A JSON object mapping variable names to values. A plain value templates a single
+                variable; an array of values defines a matrix dimension (one variant per element).</p>
+            <pre>{
+  "subject": ["world", "sailor"]
+}</pre>
+        </div>
+        <textarea id="variables" name="variables" rows="6" cols="60"
+            placeholder="{ &quot;subject&quot;: [&quot;world&quot;, &quot;sailor&quot;] }">{{ trigger_variables }}</textarea>
+    </p>
+    <button type="submit">Trigger run</button>
+</form>
+
+<h2>Recent runs</h2>
+
+{% match runs_error %}
+{% when Some with (message) %}
+<p class="muted">{{ message }}</p>
+{% when None %}
+{% endmatch %}
+
+{% match runs %}
+{% when Some with (runs) %}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Initiated by</th>
+            <th>Started</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in runs.rows %}
+        <tr>
+            <td><a href="/ui/run/{{ row.id }}">{{ row.name }}</a></td>
+            <td><span class="status {{ row.status_class }}">{{ row.status_label }}</span></td>
+            <td>{{ row.initiated_by }}</td>
+            <td>{{ row.started_at }}</td>
+        </tr>
+        {% endfor %}
+        {% match runs.empty_message() %}
+        {% when Some with (message) %}
+        <tr>
+            <td colspan="4">{{ message }}</td>
+        </tr>
+        {% when None %}
+        {% endmatch %}
+    </tbody>
+</table>
+<p class="muted">
+    {% match runs.showing_range() %}
+    {% when Some with (range) %}
+    {{ range }}
+    {% when None %}
+    {% endmatch %}
+    {% if runs.has_prev() %}
+    &middot; <a href="{{ runs.prev_href() }}">&larr; Prev</a>
+    {% endif %}
+    {% if runs.has_next() %}
+    &middot; <a href="{{ runs.next_href() }}">Next &rarr;</a>
+    {% endif %}
+</p>
+{% when None %}
+{% endmatch %}
+{% endblock %}

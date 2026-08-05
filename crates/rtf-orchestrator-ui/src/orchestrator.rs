@@ -1,5 +1,9 @@
 use chrono::{DateTime, Utc};
 use rep_orchestrator_shared::{
+    known_test_plan::{
+        KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanRunsParams,
+        KnownTestPlanSummary,
+    },
     payload::TriggerPayload,
     summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary},
 };
@@ -24,6 +28,15 @@ pub enum Error {
 
     #[error("orchestrator returned {status} listing test runs")]
     ListRuns { status: StatusCode },
+
+    #[error("orchestrator returned {status} listing known test plans")]
+    ListKnownTestPlans { status: StatusCode },
+
+    #[error("orchestrator returned {status} fetching known test plan id {uuid}")]
+    KnownTestPlanStatus { status: StatusCode, uuid: Uuid },
+
+    #[error("orchestrator returned {status} listing test runs for known test plan id {uuid}")]
+    ListKnownTestPlanRuns { status: StatusCode, uuid: Uuid },
 
     #[error("orchestrator returned unexpected status {status} fetching {path}")]
     Download { status: StatusCode, path: String },
@@ -90,6 +103,25 @@ pub trait Client: Send + Sync + Clone + 'static {
     fn list_runs(
         &self,
         filter: &RunListFilter,
+    ) -> impl Future<Output = Result<TestRunListResponse, Error>> + Send;
+
+    /// List known test plans matching `filter`, ordered by name.
+    fn list_known_test_plans(
+        &self,
+        filter: &KnownTestPlanListParams,
+    ) -> impl Future<Output = Result<KnownTestPlanListResponse, Error>> + Send;
+
+    /// Fetch a single known test plan by UUID, or `None` if it isn't registered.
+    fn known_test_plan_summary(
+        &self,
+        uuid: Uuid,
+    ) -> impl Future<Output = Result<Option<KnownTestPlanSummary>, Error>> + Send;
+
+    /// List historic test runs for a single known test plan matching `filter`, newest-first.
+    fn list_known_test_plan_runs(
+        &self,
+        uuid: Uuid,
+        filter: &KnownTestPlanRunsParams,
     ) -> impl Future<Output = Result<TestRunListResponse, Error>> + Send;
 
     /// Trigger a new test run. `initiated_by` is the caller's identity (the email portion of the
@@ -168,6 +200,50 @@ impl Client for HttpClient {
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
             status => Err(Error::ListRuns { status }),
+        }
+    }
+
+    async fn list_known_test_plans(
+        &self,
+        filter: &KnownTestPlanListParams,
+    ) -> Result<KnownTestPlanListResponse, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/test-plan")
+            .expect("base url should be valid");
+        let response = self.client.get(url).query(filter).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::ListKnownTestPlans { status }),
+        }
+    }
+
+    async fn known_test_plan_summary(
+        &self,
+        uuid: Uuid,
+    ) -> Result<Option<KnownTestPlanSummary>, Error> {
+        let url = known_test_plan_url(&self.orchestrator_url, uuid);
+        let response = self.client.get(url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(Some(response.json().await?)),
+            StatusCode::NOT_FOUND => Ok(None),
+            status => Err(Error::KnownTestPlanStatus { status, uuid }),
+        }
+    }
+
+    async fn list_known_test_plan_runs(
+        &self,
+        uuid: Uuid,
+        filter: &KnownTestPlanRunsParams,
+    ) -> Result<TestRunListResponse, Error> {
+        let url = known_test_plan_runs_url(&self.orchestrator_url, uuid);
+        let response = self.client.get(url).query(filter).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::ListKnownTestPlanRuns { status, uuid }),
         }
     }
 
@@ -262,6 +338,18 @@ fn test_execution_status_url(base_url: &Url, id: Uuid) -> Url {
         .expect("base url should be valid")
 }
 
+fn known_test_plan_url(base_url: &Url, uuid: Uuid) -> Url {
+    base_url
+        .join(&format!("/test-plan/{uuid}"))
+        .expect("base url should be valid")
+}
+
+fn known_test_plan_runs_url(base_url: &Url, uuid: Uuid) -> Url {
+    base_url
+        .join(&format!("/test-plan/{uuid}/runs"))
+        .expect("base url should be valid")
+}
+
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
@@ -314,10 +402,22 @@ pub(crate) mod mocks {
         }
     }
 
-    /// A client that always succeeds with a canned run/execution summary. Since the not-found and
-    /// error branches are now covered directly by `endpoints::run_status_body` and
-    /// `execution_detail_body` (no client involved), this only needs to prove that a handler calls
-    /// its client and renders whatever comes back.
+    /// A known test plan summary, echoing back the requested `uuid` so callers can assert on it.
+    pub(crate) fn sample_known_test_plan(uuid: Uuid) -> KnownTestPlanSummary {
+        KnownTestPlanSummary {
+            uuid,
+            name: "my-known-test-plan".to_owned(),
+            description: Some("a sample known test plan".to_owned()),
+            org: "apollographql".to_owned(),
+            repo: "runtime-testing-framework".to_owned(),
+            path: "test-plans/example.yaml".to_owned(),
+        }
+    }
+
+    /// A client that always succeeds with a canned run/execution/known-test-plan summary. Since
+    /// the not-found and error branches are now covered directly by `endpoints::run_status_body`
+    /// and `execution_detail_body` (no client involved), this only needs to prove that a handler
+    /// calls its client and renders whatever comes back.
     #[derive(Debug, Clone)]
     pub struct MockClient {
         test_run_summary: TestRunSummary,
@@ -354,6 +454,34 @@ pub(crate) mod mocks {
         }
 
         async fn list_runs(&self, _filter: &RunListFilter) -> Result<TestRunListResponse, Error> {
+            Ok(TestRunListResponse {
+                runs: vec![self.test_run_summary.clone()],
+                total: 1,
+            })
+        }
+
+        async fn list_known_test_plans(
+            &self,
+            _filter: &KnownTestPlanListParams,
+        ) -> Result<KnownTestPlanListResponse, Error> {
+            Ok(KnownTestPlanListResponse {
+                test_plans: vec![sample_known_test_plan(Uuid::new_v4())],
+                total: 1,
+            })
+        }
+
+        async fn known_test_plan_summary(
+            &self,
+            uuid: Uuid,
+        ) -> Result<Option<KnownTestPlanSummary>, Error> {
+            Ok(Some(sample_known_test_plan(uuid)))
+        }
+
+        async fn list_known_test_plan_runs(
+            &self,
+            _uuid: Uuid,
+            _filter: &KnownTestPlanRunsParams,
+        ) -> Result<TestRunListResponse, Error> {
             Ok(TestRunListResponse {
                 runs: vec![self.test_run_summary.clone()],
                 total: 1,

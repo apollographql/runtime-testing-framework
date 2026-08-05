@@ -1,8 +1,15 @@
-//! List historic test runs matching a set of optional query filters.
+//! List historic test runs matching a set of optional query filters, either across all known test
+//! plans or scoped to a single one identified by path (a convenience over filtering by
+//! `known_test_plan_uuid` directly).
 use crate::{Result, conn, db::TestRunFilter};
-use axum::{Json, extract::Query};
+use axum::{
+    Json,
+    extract::{Path, Query},
+};
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::summary::TestRunListResponse;
+use rep_orchestrator_shared::{
+    known_test_plan::KnownTestPlanRunsParams, summary::TestRunListResponse,
+};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -22,19 +29,49 @@ pub struct Params {
 }
 
 pub async fn handler(Query(params): Query<Params>) -> Result<Json<TestRunListResponse>> {
+    list_runs(
+        TestRunFilter {
+            name: params.name,
+            initiated_by: params.initiated_by,
+            started_after: params.started_after,
+            started_before: params.started_before,
+            known_test_plan_uuid: params.known_test_plan_uuid,
+            known_test_plan_name: params.known_test_plan_name,
+        },
+        params.limit,
+        params.offset,
+    )
+    .await
+}
+
+pub async fn known_test_plan_handler(
+    Path(uuid): Path<Uuid>,
+    Query(params): Query<KnownTestPlanRunsParams>,
+) -> Result<Json<TestRunListResponse>> {
+    list_runs(
+        TestRunFilter {
+            name: params.name,
+            initiated_by: params.initiated_by,
+            started_after: params.started_after,
+            started_before: params.started_before,
+            known_test_plan_uuid: Some(uuid),
+            known_test_plan_name: None,
+        },
+        params.limit,
+        params.offset,
+    )
+    .await
+}
+
+async fn list_runs(
+    filters: TestRunFilter,
+    limit: Option<i64>,
+    offset: Option<i64>,
+) -> Result<Json<TestRunListResponse>> {
     let conn = conn!();
 
-    let filters = TestRunFilter {
-        name: params.name,
-        initiated_by: params.initiated_by,
-        started_after: params.started_after,
-        started_before: params.started_before,
-        known_test_plan_uuid: params.known_test_plan_uuid,
-        known_test_plan_name: params.known_test_plan_name,
-    };
-
-    let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
-    let offset = params.offset.unwrap_or(0).max(0);
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
+    let offset = offset.unwrap_or(0).max(0);
 
     let runs = filters.runs_matching(limit, offset, conn).await?;
     let total = filters.n_matching(conn).await?;
@@ -347,6 +384,96 @@ mod tests {
 
         assert_eq!(body.total, 1, "{body:?}");
         assert_eq!(body.runs[0].id, linked.uuid());
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn known_test_plan_handler_returns_only_runs_linked_to_the_path_uuid()
+    -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let known =
+            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), conn)
+                .await?;
+        let other =
+            KnownTestPlan::register(&unique("other"), None, "org", "repo", &unique("path"), conn)
+                .await?;
+        let linked = TestRun::init_unknown_initiator(&unique("linked"), None, conn).await?;
+        let unlinked = TestRun::init_unknown_initiator(&unique("unlinked"), None, conn).await?;
+        KnownTestPlanRun::link(known.id(), linked.id(), None, conn).await?;
+        KnownTestPlanRun::link(other.id(), unlinked.id(), None, conn).await?;
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-plan/{}/runs", known.uuid()))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let body: TestRunListResponse = resp.json();
+
+        assert_eq!(body.total, 1, "{body:?}");
+        assert_eq!(body.runs[0].id, linked.uuid());
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn known_test_plan_handler_respects_limit_and_offset() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let known =
+            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), conn)
+                .await?;
+        for name in ["a", "b", "c"] {
+            let run = TestRun::init_unknown_initiator(&unique(name), None, conn).await?;
+            KnownTestPlanRun::link(known.id(), run.id(), None, conn).await?;
+        }
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-plan/{}/runs", known.uuid()))
+            .add_query_param("limit", 1)
+            .add_query_param("offset", 1)
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let body: TestRunListResponse = resp.json();
+
+        assert_eq!(body.runs.len(), 1, "{body:?}");
+        assert_eq!(body.total, 3, "total should ignore pagination: {body:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn known_test_plan_handler_returns_empty_for_a_plan_with_no_runs() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let known = KnownTestPlan::register(
+            &unique("plan"),
+            None,
+            "org",
+            "repo",
+            &unique("path"),
+            conn!(),
+        )
+        .await?;
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-plan/{}/runs", known.uuid()))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let body: TestRunListResponse = resp.json();
+
+        assert_eq!(body.total, 0, "{body:?}");
 
         Ok(())
     }

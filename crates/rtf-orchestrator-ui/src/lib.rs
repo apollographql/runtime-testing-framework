@@ -1,5 +1,8 @@
 use crate::{config::Config, links::LinksConfig};
-use axum::{Extension, Router, routing::get};
+use axum::{
+    Extension, Router,
+    routing::{get, post},
+};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -39,13 +42,20 @@ where
     C: orchestrator::Client + Clone,
 {
     use endpoints::{
-        execution_detail, execution_log, execution_output_zip, health, index, run_status, trigger,
+        execution_detail, execution_log, execution_output_zip, health, index, run_status,
+        test_plan_detail, test_plans, trigger,
     };
 
     Router::new()
         .route("/ui", get(index::handler::<C>))
         .route("/ui/health", get(health))
         .route("/ui/run/{id}", get(run_status::handler::<C>))
+        .route("/ui/test-plans", get(test_plans::handler::<C>))
+        .route("/ui/test-plan/{uuid}", get(test_plan_detail::handler::<C>))
+        .route(
+            "/ui/test-plan/{uuid}/trigger",
+            post(test_plan_detail::post_trigger::<C>),
+        )
         .route("/ui/execution/{eid}", get(execution_detail::handler::<C>))
         .route(
             "/ui/execution/{eid}/log.txt",
