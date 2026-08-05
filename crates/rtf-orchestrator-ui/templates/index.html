@@ -3,36 +3,27 @@
 {% block title %}RTF Status &middot; Recent runs{% endblock %}
 
 {% block content %}
-<p>
-    This is the RTF Orchestrator: it runs
-    <a href="https://scaling-dollop-ywevlle.pages.github.io/explanation/overview.html" target="_blank"
-        rel="noopener noreferrer">RTF &#8599;</a>
-    test plans and tracks their status below.
-</p>
-<p>
-    New here? Start with the
-    <a href="https://scaling-dollop-ywevlle.pages.github.io/" target="_blank" rel="noopener noreferrer">RTF docs
-        &#8599;</a>
-    or jump straight into the
-    <a href="https://scaling-dollop-ywevlle.pages.github.io/tutorials/running-with-the-orchestrator/index.html"
-        target="_blank" rel="noopener noreferrer">tutorial for running on the Orchestrator &#8599;</a>.
-</p>
-
-<br>
-
-<h2>View a test run</h2>
-<p>Paste a test-run ID to see its status and executions.</p>
-<form
-    onsubmit="event.preventDefault(); const id = this.runId.value.trim(); if (id) { window.location.href = '/ui/run/' + encodeURIComponent(id); }">
-    <input name="runId" type="text" placeholder="Test run ID (UUID)" aria-label="Test run ID" required autofocus
-        size="40" />
-    <button type="submit">View status</button>
-</form>
+<div class="info-box">
+    <p>
+        This is the RTF Orchestrator: it runs
+        <a href="https://scaling-dollop-ywevlle.pages.github.io/explanation/overview.html" target="_blank"
+            rel="noopener noreferrer">RTF &#8599;</a>
+        test plans and tracks their status below.
+    </p>
+    <p>
+        New here? Start with the
+        <a href="https://scaling-dollop-ywevlle.pages.github.io/" target="_blank" rel="noopener noreferrer">RTF docs
+            &#8599;</a>
+        or jump straight into the
+        <a href="https://scaling-dollop-ywevlle.pages.github.io/tutorials/running-with-the-orchestrator/index.html"
+            target="_blank" rel="noopener noreferrer">tutorial for running on the Orchestrator &#8599;</a>.
+    </p>
+</div>
 
 <br>
 
 <h2>Recent runs</h2>
-<form method="get" action="/ui">
+<form class="filter-form" method="get" action="/ui">
     <input name="initiated_by" type="text" placeholder="Initiated by" aria-label="Initiated by"
         value="{{ initiated_by }}" />
     <select name="started_within" aria-label="Started within">

@@ -94,49 +94,51 @@
         <a href="/ui/run/{{ run.id }}">Clear</a>
         {% endif %}
     </form>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Status</th>
-                <th class="nowrap"><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code &#8599;</a></th>
-                <th class="nowrap">Started</th>
-                <th class="nowrap">Updated</th>
-                <th>Logs</th>
-                <th>Dashboard</th>
-                <th>Download</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for execution in run.executions %}
-            <tr>
-                <td><a href="/ui/execution/{{ execution.id }}">{{ execution.name }}</a></td>
-                <td><span class="status {{ execution.status_class }}">{{ execution.status_label }}</span></td>
-                <td>
-                    {% match execution.exit_code %}
-                    {% when Some with (code) %}{{ code }}
-                    {% when None %}&mdash;
-                    {% endmatch %}
-                </td>
-                <td class="nowrap">{{ execution.started_at }}</td>
-                <td class="nowrap">{{ execution.updated_at }}</td>
-                <td class="nowrap"><a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">GCP
-                        &#8599;</a></td>
-                <td class="nowrap"><a href="{{ execution.grafana_url }}" target="_blank"
-                        rel="noopener noreferrer">Grafana &#8599;</a></td>
-                <td>
+    <br>
+    <div class="execution-cards">
+        {% for execution in run.executions %}
+        <div class="execution-card">
+            <div class="execution-card__header">
+                <span class="status {{ execution.status_class }}">{{ execution.status_label }}</span>
+                <h4><a href="/ui/execution/{{ execution.id }}">{{ execution.name }}</a></h4>
+            </div>
+            <div class="execution-card__details">
+                <dl class="execution-card__meta">
+                    <div>
+                        <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank"
+                                rel="noopener noreferrer">Exit code &#8599;</a></dt>
+                        <dd>
+                            {% match execution.exit_code %}
+                            {% when Some with (code) %}{{ code }}
+                            {% when None %}&mdash;
+                            {% endmatch %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Started</dt>
+                        <dd>{{ execution.started_at }}</dd>
+                    </div>
+                    <div>
+                        <dt>Updated</dt>
+                        <dd>{{ execution.updated_at }}</dd>
+                    </div>
+                </dl>
+                <p class="execution-card__links">
+                    <a href="{{ execution.logs_url }}" target="_blank" rel="noopener noreferrer">GCP logs &#8599;</a>
+                    &middot;
+                    <a href="{{ execution.grafana_url }}" target="_blank" rel="noopener noreferrer">Grafana
+                        &#8599;</a>
+                    &middot;
                     <a href="/ui/execution/{{ execution.id }}/log.txt">log.txt</a>
                     &middot;
                     <a href="/ui/execution/{{ execution.id }}/output.zip">output.zip</a>
-                </td>
-            </tr>
-            {% endfor %}
-            {% if run.executions.is_empty() %}
-            <tr>
-                <td colspan="8">{{ run.executions_empty_message() }}</td>
-            </tr>
-            {% endif %}
-        </tbody>
-    </table>
+                </p>
+            </div>
+        </div>
+        {% endfor %}
+        {% if run.executions.is_empty() %}
+        <p>{{ run.executions_empty_message() }}</p>
+        {% endif %}
+    </div>
 </div>
 {% endmacro %}
