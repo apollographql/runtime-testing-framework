@@ -1,4 +1,6 @@
-use crate::view::{ExecutionDetailView, KnownTestPlanListView, RunListView, RunView};
+use crate::view::{
+    ExecutionDetailView, KnownTestPlanListView, KnownTestPlanRowView, RunListView, RunView,
+};
 use askama::Template;
 
 /// The landing page: the run-id lookup form plus the recent-runs table.
@@ -19,6 +21,28 @@ pub struct IndexTemplate {
 pub struct TestPlansTemplate {
     pub list: Option<KnownTestPlanListView>,
     pub list_error: Option<String>,
+}
+
+/// The known test plan detail page: the plan's metadata (with a GitHub link) plus a paginated
+/// table of its recent runs.
+#[derive(Template)]
+#[template(path = "test_plan_detail.html")]
+pub struct TestPlanDetailTemplate {
+    pub plan: KnownTestPlanRowView,
+    pub runs: Option<RunListView>,
+    pub runs_error: Option<String>,
+    /// Re-populates the trigger form's "Ref" field after a failed submission.
+    pub trigger_git_ref: String,
+    /// Re-populates the trigger form's "Variables" field after a failed submission.
+    pub trigger_variables: String,
+    pub trigger_error: Option<String>,
+}
+
+/// Shown when a well-formed uuid does not correspond to any registered known test plan.
+#[derive(Template)]
+#[template(path = "test_plan_not_found.html")]
+pub struct TestPlanNotFoundTemplate {
+    pub uuid: String,
 }
 
 /// The run status page: overall status banner plus the executions table.

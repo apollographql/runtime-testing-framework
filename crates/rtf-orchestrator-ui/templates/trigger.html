@@ -35,7 +35,7 @@
         <input id="ref" name="ref" type="text" placeholder="main" value="{{ git_ref }}" size="40" />
     </p>
     <p>
-        <label for="variables">Variables <span class="muted">(optional &mdash; JSON object)</span></label><br>
+        <label for="variables">Variables <span class="muted">(optional &mdash; JSON object)</span></label>
         <button type="button" popovertarget="variables-help" class="copy-btn" aria-label="Variables help"
             style="vertical-align: baseline;">&#9432;</button>
         <div id="variables-help" popover>
@@ -44,7 +44,7 @@
             <pre>{
   "subject": ["world", "sailor"]
 }</pre>
-        </div><br>
+        </div>
         <textarea id="variables" name="variables" rows="6" cols="60"
             placeholder="{ &quot;subject&quot;: [&quot;world&quot;, &quot;sailor&quot;] }">{{ variables }}</textarea>
     </p>

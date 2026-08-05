@@ -12,6 +12,7 @@ pub mod execution_log;
 pub mod execution_output_zip;
 pub mod index;
 pub mod run_status;
+pub mod test_plan_detail;
 pub mod test_plans;
 pub mod trigger;
 

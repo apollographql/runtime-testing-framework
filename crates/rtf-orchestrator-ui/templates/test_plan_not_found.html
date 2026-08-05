@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Known test plan not found{% endblock %}
+
+{% block content %}
+<h2>Known test plan not found</h2>
+<p>No known test plan with UUID <code>{{ uuid }}</code> was found.</p>
+<p><a href="/ui/test-plans">&larr; Back to known test plans</a></p>
+{% endblock %}
