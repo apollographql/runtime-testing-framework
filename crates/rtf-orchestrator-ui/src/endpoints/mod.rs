@@ -12,6 +12,7 @@ pub mod execution_log;
 pub mod execution_output_zip;
 pub mod index;
 pub mod run_status;
+pub mod test_plans;
 pub mod trigger;
 
 /// Render an askama template to a `(status, body)` pair. Template render errors are mapped to a 500

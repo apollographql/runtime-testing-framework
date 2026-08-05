@@ -39,13 +39,15 @@ where
     C: orchestrator::Client + Clone,
 {
     use endpoints::{
-        execution_detail, execution_log, execution_output_zip, health, index, run_status, trigger,
+        execution_detail, execution_log, execution_output_zip, health, index, run_status,
+        test_plans, trigger,
     };
 
     Router::new()
         .route("/ui", get(index::handler::<C>))
         .route("/ui/health", get(health))
         .route("/ui/run/{id}", get(run_status::handler::<C>))
+        .route("/ui/test-plans", get(test_plans::handler::<C>))
         .route("/ui/execution/{eid}", get(execution_detail::handler::<C>))
         .route(
             "/ui/execution/{eid}/log.txt",

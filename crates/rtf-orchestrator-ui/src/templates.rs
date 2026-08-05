@@ -1,4 +1,4 @@
-use crate::view::{ExecutionDetailView, RunListView, RunView};
+use crate::view::{ExecutionDetailView, KnownTestPlanListView, RunListView, RunView};
 use askama::Template;
 
 /// The landing page: the run-id lookup form plus the recent-runs table.
@@ -10,6 +10,14 @@ pub struct IndexTemplate {
     /// Which `started_within` preset is selected ("", "hour", "day", "week", "month").
     pub started_within: String,
     pub list: Option<RunListView>,
+    pub list_error: Option<String>,
+}
+
+/// The known test plans page: a paginated table of test plans registered with the orchestrator.
+#[derive(Template)]
+#[template(path = "test_plans.html")]
+pub struct TestPlansTemplate {
+    pub list: Option<KnownTestPlanListView>,
     pub list_error: Option<String>,
 }
 
