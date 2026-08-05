@@ -24,7 +24,7 @@ mod docker_compose;
 mod null;
 mod script;
 
-pub use docker_compose::{DockerComposeEnvironment, FileProviderServices};
+pub use docker_compose::{DockerComposeEnvironment, FileProviderServices, PullPolicyServices};
 pub use null::NullEnvironment;
 pub use script::ScriptEnvironment;
 

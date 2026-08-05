@@ -7,6 +7,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use rep_orchestrator_shared::{OtelConfig, status::Status};
+use rtf_config::formats::PullPolicyServices;
 use std::{
     collections::HashMap, env::temp_dir, fs, io, path::Path, process::Command, time::Duration,
 };
@@ -128,9 +129,29 @@ async fn setup_env(
             source,
         })?;
 
+    let compose_contents: Vec<String> = compose_files_content
+        .lines()
+        .filter_map(|path| fs::read_to_string(path).ok())
+        .collect();
+
+    let mut kompose_input = compose_files_content.clone();
+
+    // kompose doesn't read compose's native `pull_policy` field (see
+    // https://github.com/kubernetes/kompose/issues/1923), so translate it into the
+    // `kompose.image-pull-policy` label it does read via an extra compose overlay file.
+    if let Some(overlay) =
+        PullPolicyServices::overlay_from_compose_files(compose_contents.iter().map(String::as_str))
+    {
+        let overlay_path = k8s_dir_path.join("pull-policy-overlay.yaml");
+        ctx.write_file(&overlay_path, overlay.as_bytes())?;
+
+        kompose_input.push('\n');
+        kompose_input.push_str(&overlay_path.to_string_lossy());
+    }
+
     info!("converting to kubernetes manifests");
     let mut kompose = build_kompose_command(
-        &compose_files_content,
+        &kompose_input,
         &k8s_dir_path.join("kompose-output.yaml"),
         &env_vars,
     );
@@ -257,8 +278,12 @@ async fn wait_for_deployments(
 mod tests {
     use super::*;
     use crate::context::mocks::MockContext;
+    use assert_fs::{TempDir, prelude::*};
+    use indoc::indoc;
+    use serde::Deserialize;
+    use serde_yaml::{Deserializer, Value};
     use simple_test_case::test_case;
-    use std::path::PathBuf;
+    use std::{iter::once, path::PathBuf};
 
     #[test]
     fn parse_env_preserves_values_containing_equals() -> anyhow::Result<()> {
@@ -345,6 +370,61 @@ mod tests {
         let args = extract_kompose_args(&cmd);
         let f_count = args.iter().filter(|a| a.as_str() == "-f").count();
         assert_eq!(f_count, 3);
+    }
+
+    #[test]
+    #[ignore = "requires kompose on the PATH"]
+    fn kompose_convert_applies_translated_pull_policy_label() {
+        let tmp = TempDir::new().unwrap();
+
+        let compose_content = indoc! {r#"
+            services:
+              web:
+                image: nginx:alpine
+                pull_policy: always
+            "#};
+
+        let compose_file = tmp.child("compose.yaml");
+        compose_file.write_str(compose_content).unwrap();
+
+        let overlay = PullPolicyServices::overlay_from_compose_files(once(compose_content))
+            .expect("expected a pull-policy overlay for a service with pull_policy set");
+
+        let overlay_file = tmp.child("pull-policy-overlay.yaml");
+        overlay_file.write_str(&overlay).unwrap();
+
+        let compose_files_content = format!(
+            "{}\n{}",
+            compose_file.path().display(),
+            overlay_file.path().display()
+        );
+
+        let output_file = tmp.child("kompose-output.yaml");
+        let mut kompose =
+            build_kompose_command(&compose_files_content, output_file.path(), &HashMap::new());
+        let status = kompose
+            .status()
+            .expect("failed to run kompose - is it on the PATH?");
+        assert!(status.success(), "kompose convert failed");
+
+        let output = fs::read_to_string(output_file.path()).unwrap();
+
+        let deployment = Deserializer::from_str(&output)
+            .map(|doc| Value::deserialize(doc).expect("valid yaml document"))
+            .find(|doc| doc.get("kind").and_then(|k| k.as_str()) == Some("Deployment"))
+            .expect("expected kompose to produce a Deployment");
+
+        let image_pull_policy = deployment
+            .get("spec")
+            .and_then(|v| v.get("template"))
+            .and_then(|v| v.get("spec"))
+            .and_then(|v| v.get("containers"))
+            .and_then(|v| v.as_sequence())
+            .and_then(|containers| containers.first())
+            .and_then(|c| c.get("imagePullPolicy"))
+            .and_then(|v| v.as_str());
+
+        assert_eq!(image_pull_policy, Some("Always"));
     }
 
     #[tokio::test]
