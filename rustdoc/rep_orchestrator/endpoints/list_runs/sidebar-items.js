@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["handler"],"struct":["Params"]};
+window.SIDEBAR_ITEMS = {"fn":["handler","known_test_plan_handler"],"struct":["Params"]};

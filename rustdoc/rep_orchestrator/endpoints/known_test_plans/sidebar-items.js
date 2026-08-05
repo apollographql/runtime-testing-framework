@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["by_uuid_handler","list_handler"]};
