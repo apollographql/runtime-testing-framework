@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 use rep_orchestrator_shared::{
-    known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary},
+    known_test_plan::{
+        KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanRunsParams,
+        KnownTestPlanSummary,
+    },
     payload::TriggerPayload,
     summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary},
 };
@@ -58,24 +61,6 @@ pub struct RunListFilter {
     pub offset: i64,
 }
 
-/// Query filters accepted by the orchestrator's `GET /test-plan` endpoint. Field names match the
-/// orchestrator's query params exactly, since this is serialized directly as the request's query
-/// string.
-#[derive(Debug, Clone, Default, serde::Serialize)]
-pub struct KnownTestPlanListFilter {
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub name: String,
-    pub limit: i64,
-    pub offset: i64,
-}
-
-/// Query filters accepted by the orchestrator's `GET /test-plan/{uuid}/runs` endpoint.
-#[derive(Debug, Clone, Default, serde::Serialize)]
-pub struct KnownTestPlanRunsFilter {
-    pub limit: i64,
-    pub offset: i64,
-}
-
 /// Outcome of proxying a file download from the orchestrator.
 #[derive(Debug, Clone)]
 pub enum Download {
@@ -123,7 +108,7 @@ pub trait Client: Send + Sync + Clone + 'static {
     /// List known test plans matching `filter`, ordered by name.
     fn list_known_test_plans(
         &self,
-        filter: &KnownTestPlanListFilter,
+        filter: &KnownTestPlanListParams,
     ) -> impl Future<Output = Result<KnownTestPlanListResponse, Error>> + Send;
 
     /// Fetch a single known test plan by UUID, or `None` if it isn't registered.
@@ -136,7 +121,7 @@ pub trait Client: Send + Sync + Clone + 'static {
     fn list_known_test_plan_runs(
         &self,
         uuid: Uuid,
-        filter: &KnownTestPlanRunsFilter,
+        filter: &KnownTestPlanRunsParams,
     ) -> impl Future<Output = Result<TestRunListResponse, Error>> + Send;
 
     /// Trigger a new test run. `initiated_by` is the caller's identity (the email portion of the
@@ -220,7 +205,7 @@ impl Client for HttpClient {
 
     async fn list_known_test_plans(
         &self,
-        filter: &KnownTestPlanListFilter,
+        filter: &KnownTestPlanListParams,
     ) -> Result<KnownTestPlanListResponse, Error> {
         let url = self
             .orchestrator_url
@@ -251,7 +236,7 @@ impl Client for HttpClient {
     async fn list_known_test_plan_runs(
         &self,
         uuid: Uuid,
-        filter: &KnownTestPlanRunsFilter,
+        filter: &KnownTestPlanRunsParams,
     ) -> Result<TestRunListResponse, Error> {
         let url = known_test_plan_runs_url(&self.orchestrator_url, uuid);
         let response = self.client.get(url).query(filter).send().await?;
@@ -477,7 +462,7 @@ pub(crate) mod mocks {
 
         async fn list_known_test_plans(
             &self,
-            _filter: &KnownTestPlanListFilter,
+            _filter: &KnownTestPlanListParams,
         ) -> Result<KnownTestPlanListResponse, Error> {
             Ok(KnownTestPlanListResponse {
                 test_plans: vec![sample_known_test_plan(Uuid::new_v4())],
@@ -495,7 +480,7 @@ pub(crate) mod mocks {
         async fn list_known_test_plan_runs(
             &self,
             _uuid: Uuid,
-            _filter: &KnownTestPlanRunsFilter,
+            _filter: &KnownTestPlanRunsParams,
         ) -> Result<TestRunListResponse, Error> {
             Ok(TestRunListResponse {
                 runs: vec![self.test_run_summary.clone()],

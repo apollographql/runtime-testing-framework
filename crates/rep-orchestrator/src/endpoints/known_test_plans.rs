@@ -8,21 +8,17 @@ use axum::{
     Json,
     extract::{Path, Query},
 };
-use rep_orchestrator_shared::known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary};
-use serde::Deserialize;
+use rep_orchestrator_shared::known_test_plan::{
+    KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanSummary,
+};
 use uuid::Uuid;
 
 const DEFAULT_LIMIT: i64 = 20;
 const MAX_LIMIT: i64 = 100;
 
-#[derive(Debug, Deserialize)]
-pub struct Params {
-    name: Option<String>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-}
-
-pub async fn list_handler(Query(params): Query<Params>) -> Result<Json<KnownTestPlanListResponse>> {
+pub async fn list_handler(
+    Query(params): Query<KnownTestPlanListParams>,
+) -> Result<Json<KnownTestPlanListResponse>> {
     let conn = conn!();
     let filter = KnownTestPlanFilter { name: params.name };
 

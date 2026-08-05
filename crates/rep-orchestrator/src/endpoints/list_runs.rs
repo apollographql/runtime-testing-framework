@@ -7,7 +7,9 @@ use axum::{
     extract::{Path, Query},
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::summary::TestRunListResponse;
+use rep_orchestrator_shared::{
+    known_test_plan::KnownTestPlanRunsParams, summary::TestRunListResponse,
+};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -42,19 +44,9 @@ pub async fn handler(Query(params): Query<Params>) -> Result<Json<TestRunListRes
     .await
 }
 
-#[derive(Debug, Deserialize)]
-pub struct KnownTestPlanParams {
-    name: Option<String>,
-    initiated_by: Option<String>,
-    started_after: Option<DateTime<Utc>>,
-    started_before: Option<DateTime<Utc>>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-}
-
 pub async fn known_test_plan_handler(
     Path(uuid): Path<Uuid>,
-    Query(params): Query<KnownTestPlanParams>,
+    Query(params): Query<KnownTestPlanRunsParams>,
 ) -> Result<Json<TestRunListResponse>> {
     list_runs(
         TestRunFilter {

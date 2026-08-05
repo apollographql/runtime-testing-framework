@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -30,4 +31,36 @@ pub struct RegisterTestPlanRequest {
     pub org: String,
     pub repo: String,
     pub path: String,
+}
+
+/// Query parameters accepted by `GET /test-plan`. Shared between the orchestrator's `axum` `Query`
+/// extractor (deserializing an inbound request) and the UI's outbound request builder
+/// (serializing these as the request's query string) so the two sides can't drift apart.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct KnownTestPlanListParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<i64>,
+}
+
+/// Query parameters accepted by `GET /test-plan/{uuid}/runs`. Shared between the orchestrator's
+/// `axum` `Query` extractor and the UI's outbound request builder, as with
+/// [KnownTestPlanListParams].
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct KnownTestPlanRunsParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiated_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_after: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_before: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<i64>,
 }
