@@ -22,7 +22,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Mapping, Value};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fs::read_dir,
     path::{Path, PathBuf},
     pin::Pin,
@@ -30,6 +30,13 @@ use std::{
 use tracing::warn;
 
 const PROVIDERS_CONTAINER_PATH: &str = "/providers";
+
+/// The label kompose reads to set a container's `imagePullPolicy`.
+///
+/// kompose does not read compose's native `pull_policy` field itself (tracked upstream at
+/// https://github.com/kubernetes/kompose/issues/1923, open and unresolved) -- it only derives
+/// `imagePullPolicy` from this label.
+const KOMPOSE_IMAGE_PULL_POLICY_LABEL: &str = "kompose.image-pull-policy";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct DockerComposeEnvironment {
@@ -526,6 +533,119 @@ impl FileProviderServices {
 
         serde_yaml::to_string(&Value::Mapping(root))
             .expect("yaml mapping should always convert to valid string")
+    }
+}
+
+/// Collects docker compose `pull_policy` values per service so they can be translated into
+/// the `kompose.image-pull-policy` label kompose reads when converting to Kubernetes manifests.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct PullPolicyServices {
+    policies: BTreeMap<String, &'static str>,
+}
+
+impl PullPolicyServices {
+    /// Scan the given compose file contents and build a kompose label overlay for any
+    /// service-level `pull_policy` with a Kubernetes equivalent. Returns `None` if none exist.
+    pub fn overlay_from_compose_files<'a>(
+        compose_contents: impl Iterator<Item = &'a str>,
+    ) -> Option<String> {
+        let mut services = Self::default();
+        for content in compose_contents {
+            services.add_services_from(content);
+        }
+
+        if services.is_empty() {
+            None
+        } else {
+            Some(services.kompose_label_overlay())
+        }
+    }
+
+    /// Scan a compose file's YAML content, recording any service-level `pull_policy` that has
+    /// a Kubernetes equivalent. Unsupported values are skipped with a warning.
+    fn add_services_from(&mut self, yaml_content: &str) -> Option<()> {
+        // Cheap pre-check to skip parsing and walking the tree for the common case where the
+        // file has no `pull_policy` field at all.
+        if !yaml_content.contains("pull_policy") {
+            return Some(());
+        }
+
+        let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
+        let services = value.get("services").and_then(|s| s.as_mapping())?;
+
+        for (name, service) in services.into_iter() {
+            self.add_service(name, service);
+        }
+
+        Some(())
+    }
+
+    fn add_service(&mut self, name: &Value, service: &Value) -> Option<()> {
+        let name = name.as_str().map(str::to_string)?;
+        let policy = service.get("pull_policy").and_then(|v| v.as_str())?;
+
+        match kompose_pull_policy(policy) {
+            Some(mapped) => {
+                self.policies.insert(name, mapped);
+            }
+            None => warn!(
+                "service '{name}' has pull_policy '{policy}' with no Kubernetes equivalent; skipping for kompose conversion"
+            ),
+        }
+
+        Some(())
+    }
+
+    fn is_empty(&self) -> bool {
+        self.policies.is_empty()
+    }
+
+    /// Build a compose overlay that labels each service so kompose sets a matching
+    /// `imagePullPolicy` on its generated container.
+    fn kompose_label_overlay(&self) -> String {
+        let mut services_map = Mapping::new();
+
+        for (service, policy) in &self.policies {
+            let mut labels = Mapping::new();
+            labels.insert(
+                Value::String(KOMPOSE_IMAGE_PULL_POLICY_LABEL.into()),
+                Value::String((*policy).into()),
+            );
+
+            let mut service_override = Mapping::new();
+            service_override.insert(Value::String("labels".into()), Value::Mapping(labels));
+
+            services_map.insert(
+                Value::String(service.clone()),
+                Value::Mapping(service_override),
+            );
+        }
+
+        let mut root = Mapping::new();
+        root.insert(
+            Value::String("services".into()),
+            Value::Mapping(services_map),
+        );
+
+        serde_yaml::to_string(&Value::Mapping(root))
+            .expect("yaml mapping should always convert to valid string")
+    }
+}
+
+/// Map a compose `pull_policy` value to the Kubernetes `imagePullPolicy` kompose's label expects.
+///
+/// Returns `None` for values with no Kubernetes equivalent (e.g. `build`, a build-vs-pull-time
+/// concept that doesn't apply to a pre-built container image).
+/// https://docs.docker.com/reference/compose-file/services/#pull_policy
+fn kompose_pull_policy(policy: &str) -> Option<&'static str> {
+    match policy {
+        "always" => Some("Always"),
+        "never" => Some("Never"),
+        "if_not_present" | "missing" => Some("IfNotPresent"),
+        "daily" | "weekly" => Some("Always"),
+        p if p.contains("every") => Some("Always"),
+        "build" => None,
+        _ => None,
     }
 }
 
@@ -1320,6 +1440,109 @@ pub(crate) mod tests {
             env_vars.get("SECRET_FILE"),
             Some(&"/providers/secret.txt".to_string()),
         );
+    }
+
+    #[test]
+    fn pull_policy_overlay_maps_known_values_for_multiple_services() {
+        let yaml = indoc!(
+            r#"
+            services:
+              always-svc:
+                pull_policy: always
+              never-svc:
+                pull_policy: never
+              if-not-present-svc:
+                pull_policy: if_not_present
+              missing-svc:
+                pull_policy: missing
+              daily-svc:
+                pull_policy: daily
+              weekly-svc:
+                pull_policy: weekly
+              every-svc:
+                pull_policy: every_6h
+            "#
+        );
+
+        let mut services = PullPolicyServices::default();
+        services.add_services_from(yaml);
+
+        let expected = indoc!(
+            r#"
+            services:
+              always-svc:
+                labels:
+                  kompose.image-pull-policy: Always
+              daily-svc:
+                labels:
+                  kompose.image-pull-policy: Always
+              every-svc:
+                labels:
+                  kompose.image-pull-policy: Always
+              if-not-present-svc:
+                labels:
+                  kompose.image-pull-policy: IfNotPresent
+              missing-svc:
+                labels:
+                  kompose.image-pull-policy: IfNotPresent
+              never-svc:
+                labels:
+                  kompose.image-pull-policy: Never
+              weekly-svc:
+                labels:
+                  kompose.image-pull-policy: Always
+            "#
+        );
+
+        assert_eq!(services.kompose_label_overlay(), expected);
+    }
+
+    #[test]
+    fn pull_policy_overlay_skips_unsupported_and_unset_policies() {
+        let yaml = indoc!(
+            r#"
+            services:
+              build-svc:
+                pull_policy: build
+              plain-svc:
+                image: nginx
+            "#
+        );
+
+        let mut services = PullPolicyServices::default();
+        services.add_services_from(yaml);
+
+        assert!(services.is_empty());
+    }
+
+    #[test]
+    fn overlay_from_compose_files_returns_none_without_pull_policy() {
+        let compose = "services:\n  web:\n    image: nginx\n";
+
+        assert!(PullPolicyServices::overlay_from_compose_files(std::iter::once(compose)).is_none());
+    }
+
+    #[test]
+    fn overlay_from_compose_files_merges_across_multiple_compose_files() {
+        let base = "services:\n  web:\n    pull_policy: always\n";
+        let extra = "services:\n  worker:\n    pull_policy: never\n";
+
+        let overlay = PullPolicyServices::overlay_from_compose_files([base, extra].into_iter())
+            .expect("overlay expected");
+
+        let expected = indoc!(
+            r#"
+            services:
+              web:
+                labels:
+                  kompose.image-pull-policy: Always
+              worker:
+                labels:
+                  kompose.image-pull-policy: Never
+            "#
+        );
+
+        assert_eq!(overlay, expected);
     }
 
     #[test]
