@@ -4,6 +4,7 @@ use thiserror::Error;
 use tracing::error;
 use uuid::Uuid;
 
+mod known_test_plan;
 pub mod pool;
 mod status;
 mod test_execution;
@@ -11,6 +12,7 @@ mod test_run;
 mod test_run_filter;
 mod variables;
 
+pub use known_test_plan::{KnownTestPlan, KnownTestPlanFilter, KnownTestPlanRun};
 pub use status::{Status, StatusTracked, StatusUpdate};
 pub use test_execution::TestExecution;
 pub use test_run::TestRun;
@@ -51,6 +53,9 @@ pub enum Error {
 
     #[error("FAILED status updates must include an exit code")]
     MissingExitCode,
+
+    #[error("a known test plan with this name, or this org/repo/path, is already registered")]
+    KnownTestPlanAlreadyExists,
 }
 
 /// Helper trait for common queries and semantics when interacting with the DB.

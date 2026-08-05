@@ -11,6 +11,7 @@ use rtf_core::variables::{self, ParsedVariables, ScalarOrArray};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -20,6 +21,10 @@ pub enum TriggerPayload {
     Prepared(PreparedPayload),
     /// Details for pulling a test plan from GitHub
     GitHub(GitHubPayload),
+    /// A test plan registered with the orchestrator, identified by its UUID
+    KnownTestPlanUuid(KnownTestPlanUuidPayload),
+    /// A test plan registered with the orchestrator, identified by its name
+    KnownTestPlanName(KnownTestPlanNamePayload),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -27,6 +32,26 @@ pub struct GitHubPayload {
     pub org: String,
     pub repo: String,
     pub path: String,
+    #[serde(default, rename = "ref")]
+    pub git_ref: Option<String>,
+    #[serde(default)]
+    pub variables: Option<HashMap<String, ScalarOrArray>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KnownTestPlanUuidPayload {
+    pub test_plan_uuid: Uuid,
+    /// Overrides the registered test plan's default branch, if supplied.
+    #[serde(default, rename = "ref")]
+    pub git_ref: Option<String>,
+    #[serde(default)]
+    pub variables: Option<HashMap<String, ScalarOrArray>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KnownTestPlanNamePayload {
+    pub test_plan_name: String,
+    /// Overrides the registered test plan's default branch, if supplied.
     #[serde(default, rename = "ref")]
     pub git_ref: Option<String>,
     #[serde(default)]

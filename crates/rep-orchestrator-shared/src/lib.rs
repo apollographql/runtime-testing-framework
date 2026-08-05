@@ -1,6 +1,7 @@
 use rtf_config::formats::PrometheusQuery;
 use serde::{Deserialize, Serialize};
 
+pub mod known_test_plan;
 pub mod payload;
 pub mod status;
 pub mod summary;

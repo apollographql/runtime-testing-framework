@@ -12,6 +12,11 @@ use tracing::error;
 pub struct ServerState {
     pub eq_state: EventQueueState,
     pub gcs_client: Arc<GCSClient>,
+    /// Overrides [ServerState::admins] with a fixed list for tests, bypassing the admins file
+    /// entirely so admin-gated endpoints can be exercised without touching the filesystem.
+    /// `None` (the default) falls through to the file-based lookup.
+    #[cfg(test)]
+    pub test_admins: Option<Vec<String>>,
 }
 
 impl ServerState {
@@ -19,12 +24,19 @@ impl ServerState {
         Self {
             eq_state,
             gcs_client: Arc::new(gcs_client),
+            #[cfg(test)]
+            test_admins: None,
         }
     }
 
     /// Load and parse the admins list (one email per line) if the admins file exists.
     /// A missing file is treated as an empty admins list rather than a hard error.
     pub async fn admins(&self) -> Result<Vec<String>> {
+        #[cfg(test)]
+        if let Some(admins) = &self.test_admins {
+            return Ok(admins.clone());
+        }
+
         let path = &Config::get().admins_path;
 
         match fs::read_to_string(path).await {

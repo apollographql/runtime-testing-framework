@@ -1,21 +1,34 @@
 use crate::{
-    config::Config, conn, context::RepContext, db::TestRun, error::Error, event_loop::SubmitError,
-    iap_identity::extract_authenticated_user_email, state::ServerState,
+    config::Config,
+    conn,
+    context::RepContext,
+    db::{KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
+    error::Error,
+    event_loop::SubmitError,
+    iap_identity::extract_authenticated_user_email,
+    state::ServerState,
 };
 use axum::{Json, extract::State, http::HeaderMap};
 use rep_orchestrator_shared::{
-    payload::{PrepareError, PreparedPayload, TriggerPayload},
+    payload::{GitHubPayload, PreparedPayload, TriggerPayload},
     summary::TestRunSummary,
 };
 use serde_json::Value;
 use tracing::{debug, info};
+
+/// Bookkeeping for a run triggered from a registered [KnownTestPlan], recorded in the
+/// `known_test_plan_run` junction table once the run itself has been created.
+struct KnownTestPlanLink {
+    known_test_plan_id: i32,
+    git_sha: Option<String>,
+}
 
 pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
     headers: HeaderMap,
     Json(trigger_payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
-    let (payload, ctx) = as_prepared_payload_with_context(trigger_payload).await?;
+    let (payload, ctx, known_link) = as_prepared_payload_with_context(trigger_payload).await?;
 
     debug!("validating test plan file provider usage");
     ctx.validate_environment_file_provider_usage(&payload.test_plan)
@@ -46,6 +59,14 @@ pub async fn handler(
             }
         };
 
+    if let Some(link) = known_link {
+        debug!("linking run to known test plan");
+        if let Err(e) = link_known_test_plan(&test_run, link).await {
+            eq_state.release_pending_execution_claim(claim).await;
+            return Err(e);
+        }
+    }
+
     debug!("submitting test plan");
     match eq_state
         .try_submit_test_plan(claim, test_run, payload)
@@ -65,7 +86,9 @@ pub async fn handler(
 
 async fn as_prepared_payload_with_context(
     trigger_payload: TriggerPayload,
-) -> Result<(PreparedPayload, RepContext), PrepareError> {
+) -> Result<(PreparedPayload, RepContext, Option<KnownTestPlanLink>), Error> {
+    let mut known_link = None;
+
     let payload = match trigger_payload {
         TriggerPayload::Prepared(payload) => payload,
 
@@ -75,6 +98,54 @@ async fn as_prepared_payload_with_context(
                 .into_prepared(Config::get().server_context())
                 .await?
         }
+
+        TriggerPayload::KnownTestPlanUuid(kp) => {
+            info!("attempting to pull a known test plan by UUID");
+            let known = KnownTestPlan::get_by_uuid(&kp.test_plan_uuid, conn!())
+                .await?
+                .ok_or_else(|| Error::UnknownTestPlan {
+                    identifier: kp.test_plan_uuid.to_string(),
+                })?;
+
+            known_link = Some(KnownTestPlanLink {
+                known_test_plan_id: known.id(),
+                git_sha: kp.git_ref.clone(),
+            });
+
+            GitHubPayload {
+                org: known.org().to_owned(),
+                repo: known.repo().to_owned(),
+                path: known.path().to_owned(),
+                git_ref: kp.git_ref,
+                variables: kp.variables,
+            }
+            .into_prepared(Config::get().server_context())
+            .await?
+        }
+
+        TriggerPayload::KnownTestPlanName(kp) => {
+            info!("attempting to pull a known test plan by name");
+            let known = KnownTestPlan::get_by_name(&kp.test_plan_name, conn!())
+                .await?
+                .ok_or_else(|| Error::UnknownTestPlan {
+                    identifier: kp.test_plan_name.clone(),
+                })?;
+
+            known_link = Some(KnownTestPlanLink {
+                known_test_plan_id: known.id(),
+                git_sha: kp.git_ref.clone(),
+            });
+
+            GitHubPayload {
+                org: known.org().to_owned(),
+                repo: known.repo().to_owned(),
+                path: known.path().to_owned(),
+                git_ref: kp.git_ref,
+                variables: kp.variables,
+            }
+            .into_prepared(Config::get().server_context())
+            .await?
+        }
     };
 
     let ctx = RepContext::new_from_inlined_files(
@@ -83,7 +154,19 @@ async fn as_prepared_payload_with_context(
         payload.custom_providers.clone(),
     );
 
-    Ok((payload, ctx))
+    Ok((payload, ctx, known_link))
+}
+
+async fn link_known_test_plan(test_run: &TestRun, link: KnownTestPlanLink) -> Result<(), Error> {
+    KnownTestPlanRun::link(
+        link.known_test_plan_id,
+        test_run.id(),
+        link.git_sha.as_deref(),
+        conn!(),
+    )
+    .await?;
+
+    Ok(())
 }
 
 async fn init_run_and_build_summary(

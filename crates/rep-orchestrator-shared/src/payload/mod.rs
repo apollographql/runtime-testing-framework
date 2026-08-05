@@ -7,7 +7,10 @@ use std::collections::HashMap;
 
 mod trigger;
 
-pub use trigger::{GitHubPayload, PrepareError, PreparedPayload, TriggerPayload};
+pub use trigger::{
+    GitHubPayload, KnownTestPlanNamePayload, KnownTestPlanUuidPayload, PrepareError,
+    PreparedPayload, TriggerPayload,
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GenerateUploadUrlsPayload {}
