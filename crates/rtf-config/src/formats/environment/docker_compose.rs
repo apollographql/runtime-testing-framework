@@ -564,6 +564,12 @@ impl PullPolicyServices {
     /// Scan a compose file's YAML content, recording any service-level `pull_policy` that has
     /// a Kubernetes equivalent. Unsupported values are skipped with a warning.
     fn add_services_from(&mut self, yaml_content: &str) -> Option<()> {
+        // Cheap pre-check to skip parsing and walking the tree for the common case where the
+        // file has no `pull_policy` field at all.
+        if !yaml_content.contains("pull_policy") {
+            return Some(());
+        }
+
         let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
         let services = value.get("services").and_then(|s| s.as_mapping())?;
 
