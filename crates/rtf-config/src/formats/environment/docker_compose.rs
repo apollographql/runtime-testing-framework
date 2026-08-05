@@ -636,11 +636,15 @@ impl PullPolicyServices {
 ///
 /// Returns `None` for values with no Kubernetes equivalent (e.g. `build`, a build-vs-pull-time
 /// concept that doesn't apply to a pre-built container image).
+/// https://docs.docker.com/reference/compose-file/services/#pull_policy
 fn kompose_pull_policy(policy: &str) -> Option<&'static str> {
     match policy {
         "always" => Some("Always"),
         "never" => Some("Never"),
         "if_not_present" | "missing" => Some("IfNotPresent"),
+        "daily" | "weekly" => Some("Always"),
+        p if p.contains("every") => Some("Always"),
+        "build" => None,
         _ => None,
     }
 }
@@ -1451,6 +1455,12 @@ pub(crate) mod tests {
                 pull_policy: if_not_present
               missing-svc:
                 pull_policy: missing
+              daily-svc:
+                pull_policy: daily
+              weekly-svc:
+                pull_policy: weekly
+              every-svc:
+                pull_policy: every_6h
             "#
         );
 
@@ -1463,6 +1473,12 @@ pub(crate) mod tests {
               always-svc:
                 labels:
                   kompose.image-pull-policy: Always
+              daily-svc:
+                labels:
+                  kompose.image-pull-policy: Always
+              every-svc:
+                labels:
+                  kompose.image-pull-policy: Always
               if-not-present-svc:
                 labels:
                   kompose.image-pull-policy: IfNotPresent
@@ -1472,6 +1488,9 @@ pub(crate) mod tests {
               never-svc:
                 labels:
                   kompose.image-pull-policy: Never
+              weekly-svc:
+                labels:
+                  kompose.image-pull-policy: Always
             "#
         );
 
