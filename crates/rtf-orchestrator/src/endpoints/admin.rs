@@ -1,7 +1,7 @@
 //! Admin routes are _not_ externally accessible. They can only be hit from inside of the
-//! REP clusters themselves.
+//! clusters themselves.
 //!
-//!   See: <https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/runtime-env-provisioner/external_lb.tf#L56-L65>
+//!   See: <https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/kanaveral/external_lb.tf#L71-L87>
 use crate::{Result, event_loop::Snapshot, state::ServerState};
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use std::str::FromStr;

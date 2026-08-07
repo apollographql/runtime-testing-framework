@@ -7,6 +7,6 @@ services:
     environment:
       POSTGRES_USER: service_user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: rtf_rep
+      POSTGRES_DB: rtf_orchestrator
     ports:
       - "5432:5432"

@@ -3,7 +3,7 @@ postgresql:
   auth:
     username: service_user
     password: password
-    database: rtf_rep
+    database: rtf_orchestrator
     postgresPassword: postgres_admin_password
   primary:
     resources:

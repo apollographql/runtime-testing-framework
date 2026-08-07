@@ -1,7 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
-/// CLI for the REP (Runtime Environment Provisioner) orchestrator.
+/// CLI for the RTF Orchestrator.
 ///
 /// Provides first-class commands for provisioning and tearing down
 /// RTF environments on Kubernetes.

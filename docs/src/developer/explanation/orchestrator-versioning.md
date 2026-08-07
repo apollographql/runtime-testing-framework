@@ -18,8 +18,7 @@ not be edited after the fact.**
 > pinned chart version guarantees a pinned image via the `appVersion` fallback in the Deployment
 > template. Production overrides `image.tag: edge` and `pullPolicy: Always` in the ArgoCD
 > `valuesObject`, so pods pick up the latest image on every rollout without a chart bump PR.
-> Production is still updated by manually opening a PR on `runtime-environment-provisioner` to bump
-> `targetRevision`.
+> Production is still updated by manually opening a PR on `kanaveral` to bump `targetRevision`.
 
 ## Design intent
 
@@ -65,8 +64,7 @@ automated and semantically correct as the service matures.
 - Image published with tags: full git SHA, `main-<short-sha>`, and mutable `edge`.
 - `values.yaml` hardcodes `image.tag: edge` — every chart version deploys whatever `edge` points to
   at rollout time, regardless of the chart's own SHA.
-- Production updated by manually opening a PR on `runtime-environment-provisioner` to bump
-  `targetRevision`.
+- Production updated by manually opening a PR on `kanaveral` to bump `targetRevision`.
 
 **Problems that motivated moving to Phase 1:**
 
@@ -104,7 +102,7 @@ values, which is used in Phase 2.
 
 **What changed:**
 
-- The ArgoCD `valuesObject` in `runtime-environment-provisioner` adds:
+- The ArgoCD `valuesObject` in `kanaveral` adds:
   ```yaml
   image:
     tag: edge
@@ -120,7 +118,7 @@ deployed image is not pinned. This is acceptable while there are no consumers; i
 before the service takes on production traffic (Phase 3).
 
 > **Note:** Phases 1 and 2 are a single implementation effort, listed separately because Phase 1 is
-> a change in this repo and Phase 2 is a values change in `runtime-environment-provisioner`.
+> a change in this repo and Phase 2 is a values change in `kanaveral`.
 
 ---
 
@@ -131,23 +129,23 @@ before the service takes on production traffic (Phase 3).
 **What changed:**
 
 - The `image.tag: edge` and `pullPolicy: Always` overrides are removed from the production
-  `valuesObject` in `runtime-environment-provisioner`.
+  `valuesObject` in `kanaveral`.
 - The chart's `appVersion` (the git SHA baked in at publish time) becomes the live image tag.
-- Deploying a new image now requires a chart bump PR to `runtime-environment-provisioner`.
+- Deploying a new image now requires a chart bump PR to `kanaveral`.
 
 **Result:** The lockstep intent is fully enforced in production. Every code change produces a new
-chart version; bumping to that version in `runtime-environment-provisioner` is the single operation
-that updates the running Orchestrator.
+chart version; bumping to that version in `kanaveral` is the single operation that updates the
+running Orchestrator.
 
 ---
 
 ## Summary
 
-| Phase | Image tag in production      | Lockstep enforced?         | Automation                                             |
-| ----- | ---------------------------- | -------------------------- | ------------------------------------------------------ |
-| 0     | `edge` (hardcoded in values) | No                         | None — manual PRs to `runtime-environment-provisioner` |
-| 1 + 2 | `edge` (values override)     | No — intentional deviation | None — manual PRs to `runtime-environment-provisioner` |
-| 3     | Git SHA (`appVersion`)       | Yes                        | None — manual PRs to `runtime-environment-provisioner` |
+| Phase | Image tag in production      | Lockstep enforced?         | Automation                       |
+| ----- | ---------------------------- | -------------------------- | -------------------------------- |
+| 0     | `edge` (hardcoded in values) | No                         | None — manual PRs to `kanaveral` |
+| 1 + 2 | `edge` (values override)     | No — intentional deviation | None — manual PRs to `kanaveral` |
+| 3     | Git SHA (`appVersion`)       | Yes                        | None — manual PRs to `kanaveral` |
 
 [0]: ../../reference/glossary.md
 [1]: #current-phase

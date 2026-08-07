@@ -69,7 +69,7 @@ pub(crate) type Result<T> = std::result::Result<T, ResolverError>;
 ///
 /// # Differences compared to `rtf_cli`
 /// The resolution logic used here only supports processing a [OrchestratorTestPlan] that has been submitted
-/// as part of a [PreparedPayload] (prepared using `rtf rep prepare` on the command line). That
+/// as part of a [PreparedPayload] (prepared using `rtf remote prepare` on the command line). That
 /// preparation logic handles all filesystem operations on the client side and provides the
 /// required local file data for us to construct a [OrchestratorContext] that can then handle resolving
 /// what's left.

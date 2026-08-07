@@ -21,7 +21,7 @@ pub const SCENARIO_JOB_NAME: &str = "scenario-execution";
 pub const RTF_OTEL_COLLECTOR_GRPC_VAR: &str = "RTF_OTEL_COLLECTOR_GRPC";
 pub const RTF_OTEL_COLLECTOR_HTTP_VAR: &str = "RTF_OTEL_COLLECTOR_HTTP";
 
-// Re-exported so other rep crates do not need to depend directly on rtf-config
+// Re-exported so other orchestrator crates do not need to depend directly on rtf-config
 pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
 
 /// OTEL collector endpoints injected into workload pods by the orchestrator.

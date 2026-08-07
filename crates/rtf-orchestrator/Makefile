@@ -15,7 +15,7 @@ cluster-teardown:
 db-tests:
 	@RTF_DB_HOST=localhost \
 		RTF_DB_PORT=5432 \
-		RTF_DB_NAME=rtf_rep \
+		RTF_DB_NAME=rtf_orchestrator \
 		RTF_DB_USER=service_user \
 		RTF_DB_PASS=password \
 		RTF_APOLLO_KEY=dummy \
@@ -37,7 +37,7 @@ db-tests:
 integration-tests: clear-db-data
 	@RTF_DB_HOST=localhost \
 		RTF_DB_PORT=5432 \
-		RTF_DB_NAME=rtf_rep \
+		RTF_DB_NAME=rtf_orchestrator \
 		RTF_DB_USER=service_user \
 		RTF_DB_PASS=password \
 		RTF_APOLLO_KEY=dummy \
@@ -97,7 +97,7 @@ db-down:
 
 .PHONY: db-shell
 db-shell:
-	@docker exec -it db psql -U service_user rtf_rep
+	@docker exec -it db psql -U service_user rtf_orchestrator
 
 
 # Management of the test DB container
@@ -105,10 +105,10 @@ db-shell:
 .PHONY: clear-db-data
 tilt-db-shell:
 	@kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
-		env PGPASSWORD=password psql -U service_user rtf_rep
+		env PGPASSWORD=password psql -U service_user rtf_orchestrator
 
 .PHONY: clear-db-data
 clear-db-data:
 	@kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
-		env PGPASSWORD=password psql -U service_user rtf_rep \
+		env PGPASSWORD=password psql -U service_user rtf_orchestrator \
 		< local-stack/db/clear.sql

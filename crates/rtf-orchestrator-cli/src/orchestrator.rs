@@ -11,7 +11,7 @@ use thiserror::Error;
 use tracing::info;
 use uuid::Uuid;
 
-/// Errors produced when communicating with the REP orchestrator HTTP API.
+/// Errors produced when communicating with the RTF Orchestrator HTTP API.
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("failed to fetch {kind} config: {message}")]

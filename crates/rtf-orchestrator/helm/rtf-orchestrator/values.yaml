@@ -52,7 +52,7 @@ db:
   # -- Database port
   port: "5432"
   # -- Database name
-  name: "rtf_rep"
+  name: "rtf_orchestrator"
   # -- Database user
   user: "service_user"
   # -- Set to a non-null value to enable password authentication; RTF_DB_PASS will be mounted from secrets.dbPassword. Omit when using Cloud SQL Proxy IAM auth
@@ -98,7 +98,7 @@ k8s:
 # -- Overrides the chart name
 nameOverride: ""
 
-# -- OpenTelemetry collector configuration for REP workload pods
+# -- OpenTelemetry collector configuration for RTF Orchestrator workload pods
 otel:
   # -- gRPC endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_GRPC
   collectorGrpc: "http://otel-collector.monitoring:4317"
@@ -108,7 +108,7 @@ otel:
 # -- Annotations to add to the pod template
 podAnnotations: {}
 
-# -- Prometheus endpoint configuration for REP workload pods
+# -- Prometheus endpoint configuration for RTF Orchestrator workload pods
 prometheus:
   # -- Endpoint for retrieving prometheus metrics during output collection
   endpoint: "http://observability-kube-prometh-prometheus.monitoring.svc.cluster.local:9090"

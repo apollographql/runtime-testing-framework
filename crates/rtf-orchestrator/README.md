@@ -1,8 +1,8 @@
-# Rep Orchestrator - k8s based execution of RTF Test Plans
+# RTF Orchestrator - k8s based execution of RTF Test Plans
 
 This crate contains the `rtf-orchestrator` server that we use to execute RTF test plans inside of
-kubernetes clusters managed by REP (the "Runtime Environment Provisioner"). As this is a webserver,
-working with this crate is a little different from the others found within this cargo workspace.
+kubernetes clusters managed by Kanaveral. As this is a webserver, working with this crate is a
+little different from the others found within this cargo workspace.
 
 ## Testing and the local stack
 

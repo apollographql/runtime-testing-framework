@@ -27,7 +27,7 @@
       "description": "",
       "variable_definitions": [],
       "custom_providers": [],
-      "project_name": "rep-prepare",
+      "project_name": "rtf-prepare",
       "compose_files": [
         {
           "name": "compose.yaml",

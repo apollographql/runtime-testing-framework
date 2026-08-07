@@ -16,7 +16,7 @@ pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
 };
 
-/// Binary name of the REP orchestrator CLI, available on `PATH` inside [TOOLBOX_IMAGE].
+/// Binary name of the RTF Orchestrator CLI, available on `PATH` inside [TOOLBOX_IMAGE].
 const CLI_BINARY: &str = "rtf-orchestrator-cli";
 pub(crate) const OUTPUT_COLLECTOR: &str = "output-collector";
 pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";

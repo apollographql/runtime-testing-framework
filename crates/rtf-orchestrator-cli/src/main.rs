@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
 
     let ctx = match EnvironmentContext::from_environment(command.kubeconfig()).await {
         Err(e) => {
-            bail!("unable to initialize REP Orchestrator CLI: {e}");
+            bail!("unable to initialize RTF Orchestrator CLI: {e}");
         }
         Ok(context) => context,
     };

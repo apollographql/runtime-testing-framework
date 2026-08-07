@@ -69,7 +69,7 @@ impl Config {
 
     pub fn server_context(&self) -> Context {
         let mut ctx = Context::new();
-        // apollo_sudo always true; graphos_staging always false for REP
+        // apollo_sudo always true; graphos_staging always false for the orchestrator
         ctx.with_platform_config(&self.apollo_key, false, true);
         ctx.with_github_app_config(self.github_app_id, self.github_app_private_key_pem.clone());
 

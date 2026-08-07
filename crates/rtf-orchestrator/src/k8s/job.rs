@@ -17,7 +17,7 @@ const SHARED_DIR_PATH: &str = "/shared";
 const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
 const VOLUME_MOUNT_NAME_SHARED: &str = "shared";
 
-/// Build a [JobSpec] that runs a `DockerScenario` under REP.
+/// Build a [JobSpec] that runs a `DockerScenario` under the RTF Orchestrator.
 ///
 /// Layout:
 /// - Init container `rtf-resolve` (toolbox image) resolves the scenario config and writes
