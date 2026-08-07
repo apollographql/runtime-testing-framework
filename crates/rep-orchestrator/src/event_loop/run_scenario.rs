@@ -3,7 +3,7 @@ use crate::{
     event_loop::{Error, Event, EventData, Result},
     k8s::{WatchOutcome, WorkloadClient, scenario_job},
 };
-use rep_orchestrator_shared::SCENARIO_JOB_NAME;
+use rtf_orchestrator_shared::SCENARIO_JOB_NAME;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 

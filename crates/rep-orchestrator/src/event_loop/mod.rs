@@ -16,7 +16,7 @@ use crate::{
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
 };
-use rep_orchestrator_shared::OtelConfig;
+use rtf_orchestrator_shared::OtelConfig;
 use serde::Serialize;
 use std::time::Duration;
 use tokio::{spawn, time::sleep};
@@ -393,7 +393,6 @@ mod tests {
         db::{MockUpdateHandle, TestExecution},
         k8s::mock_client::MockClient,
     };
-    use rep_orchestrator_shared::test_plan::{RepEnvironment, RepTestPlan};
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
@@ -401,6 +400,7 @@ mod tests {
         },
         templating::Field,
     };
+    use rtf_orchestrator_shared::test_plan::{RepEnvironment, RepTestPlan};
 
     pub fn stub_environment() -> DockerComposeEnvironment {
         DockerComposeEnvironment {

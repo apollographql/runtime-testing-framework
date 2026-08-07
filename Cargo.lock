@@ -3740,11 +3740,11 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kube-runtime",
- "rep-orchestrator-shared",
  "reqwest 0.13.3",
  "rtf-config",
  "rtf-core",
  "rtf-integrations",
+ "rtf-orchestrator-shared",
  "rustls",
  "schemars 1.2.1",
  "serde",
@@ -3775,11 +3775,11 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "predicates",
- "rep-orchestrator-shared",
  "reqwest 0.13.3",
  "rtf-cli-shared",
  "rtf-config",
  "rtf-integrations",
+ "rtf-orchestrator-shared",
  "rustls",
  "serde",
  "serde_json",
@@ -3790,22 +3790,6 @@ dependencies = [
  "tracing",
  "uuid",
  "zip",
-]
-
-[[package]]
-name = "rep-orchestrator-shared"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "rtf-config",
- "rtf-core",
- "rtf-derive",
- "schemars 1.2.1",
- "serde",
- "serde_yaml",
- "thiserror 2.0.18",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -3962,12 +3946,12 @@ dependencies = [
  "indoc",
  "open",
  "predicates",
- "rep-orchestrator-shared",
  "reqwest 0.13.3",
  "rtf-cli-shared",
  "rtf-config",
  "rtf-core",
  "rtf-integrations",
+ "rtf-orchestrator-shared",
  "rustls",
  "schemars 1.2.1",
  "serde",
@@ -4091,6 +4075,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rtf-orchestrator-shared"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "rtf-config",
+ "rtf-core",
+ "rtf-derive",
+ "schemars 1.2.1",
+ "serde",
+ "serde_yaml",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "rtf-orchestrator-ui"
 version = "0.1.0"
 dependencies = [
@@ -4100,9 +4100,9 @@ dependencies = [
  "chrono",
  "envy",
  "humantime",
- "rep-orchestrator-shared",
  "reqwest 0.13.3",
  "rtf-core",
+ "rtf-orchestrator-shared",
  "rust-embed",
  "rustls",
  "serde",

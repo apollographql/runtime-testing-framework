@@ -1,5 +1,5 @@
 use crate::db::{self, Queryable, Result};
-use rep_orchestrator_shared::known_test_plan::KnownTestPlanSummary;
+use rtf_orchestrator_shared::known_test_plan::KnownTestPlanSummary;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
 

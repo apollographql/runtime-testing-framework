@@ -8,10 +8,10 @@ use axum::{
     extract::{Query, State},
     response::Response,
 };
-use rep_orchestrator_shared::known_test_plan::{
+use reqwest::StatusCode;
+use rtf_orchestrator_shared::known_test_plan::{
     KnownTestPlanListParams, KnownTestPlanListResponse,
 };
-use reqwest::StatusCode;
 use tracing::error;
 
 const DEFAULT_LIMIT: i64 = 20;
@@ -74,7 +74,7 @@ fn test_plans_body(
 mod tests {
     use super::*;
     use crate::{endpoints::body_text, orchestrator::mocks::MockClient};
-    use rep_orchestrator_shared::{known_test_plan::KnownTestPlanSummary, status::Status};
+    use rtf_orchestrator_shared::{known_test_plan::KnownTestPlanSummary, status::Status};
     use uuid::Uuid;
 
     #[test]

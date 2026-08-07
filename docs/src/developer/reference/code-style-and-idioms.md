@@ -177,7 +177,7 @@ When namespacing is required in order to resolving name collisions there are two
 
 ```rust
 // Correct
-use rep_orchestrator_shared::status::Status as SharedStatus;
+use rtf_orchestrator_shared::status::Status as SharedStatus;
 use std::io
 
 fn example_1() -> SharedStatus { ... }
@@ -185,7 +185,7 @@ fn example_2() -> io::Result<()> { ... }
 
 
 // Incorrect - ambiguous qualifier
-use rep_orchestrator_shared::status;
+use rtf_orchestrator_shared::status;
 
 // Incorrect - inline fully qualified paths
 fn example_2() -> std::io::Result<()> {

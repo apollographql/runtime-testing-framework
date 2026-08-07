@@ -5,9 +5,9 @@ use crate::{
     orchestrator::Client as _,
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::{PrometheusQueries, status::Status};
 use rtf_config::formats::PrometheusQuery;
 use rtf_integrations::prometheus::{Client as PrometheusClientTrait, PrometheusClient};
+use rtf_orchestrator_shared::{PrometheusQueries, status::Status};
 use std::{
     io::{self, Cursor, Write},
     os::unix::process::ExitStatusExt,

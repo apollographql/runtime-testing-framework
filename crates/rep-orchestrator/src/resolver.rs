@@ -6,13 +6,13 @@ use crate::{
     event_loop::{EventData, ProvisioningHandle},
     state::TestRunWithPayload,
 };
-use rep_orchestrator_shared::{payload::PreparedPayload, test_plan::RepTestPlan};
 use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
     templating::{Template, TemplateContext},
 };
+use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::RepTestPlan};
 use std::{
     collections::{HashMap, VecDeque},
     mem::take,
@@ -294,10 +294,6 @@ mod tests {
         state::TestRunWithPayload,
     };
     use indoc::indoc;
-    use rep_orchestrator_shared::{
-        payload::{PreparedPayload, SourceKeyedArrayMap},
-        test_plan::{RepEnvironment, RepTestPlan},
-    };
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
@@ -305,6 +301,10 @@ mod tests {
         },
         providers::file::compose::NamedComposeFileProvider,
         templating::{Field, Scalar},
+    };
+    use rtf_orchestrator_shared::{
+        payload::{PreparedPayload, SourceKeyedArrayMap},
+        test_plan::{RepEnvironment, RepTestPlan},
     };
     use simple_test_case::test_case;
 
@@ -465,11 +465,11 @@ mod tests {
 
         let ctx = crate::context::RepContext::new_from_inlined_files(
             &cfg,
-            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
+            rtf_orchestrator_shared::payload::SourceKeyedArrayMap {
                 keys: vec![],
                 data: vec![],
             },
-            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
+            rtf_orchestrator_shared::payload::SourceKeyedArrayMap {
                 keys: vec![],
                 data: vec![],
             },

@@ -4,8 +4,8 @@ use crate::k8s::{
     workflow::{KUBECONFIG_PATH, kubeconfig_volume_mount},
 };
 use k8s_openapi::api::core::v1::EnvVar;
-use rep_orchestrator_shared::{OtelConfig, test_plan::RepEnvironment};
 use rtf_config::formats::{DockerComposeEnvironment, NullEnvironment};
+use rtf_orchestrator_shared::{OtelConfig, test_plan::RepEnvironment};
 
 pub const DEPLOY_ENVIRONMENT: &str = "deploy-environment";
 

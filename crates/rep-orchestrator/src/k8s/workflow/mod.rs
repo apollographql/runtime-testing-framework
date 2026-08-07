@@ -5,7 +5,7 @@ use crate::{
 };
 use k8s_openapi::api::core::v1::{Container, EnvVar, SecretVolumeSource, Volume, VolumeMount};
 use kube::CustomResource;
-use rep_orchestrator_shared::{OtelConfig, test_plan::RepEnvironment};
+use rtf_orchestrator_shared::{OtelConfig, test_plan::RepEnvironment};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

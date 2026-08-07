@@ -2,7 +2,7 @@ mod common;
 
 use common::TestHelper;
 use rep_orchestrator::event_loop::{MSG_ARGO_WAIT, MSG_JOB_WAIT};
-use rep_orchestrator_shared::{status::Status::*, summary::TestRunSummary};
+use rtf_orchestrator_shared::{status::Status::*, summary::TestRunSummary};
 use serial_test::serial;
 use simple_test_case::test_case;
 use std::time::Duration;

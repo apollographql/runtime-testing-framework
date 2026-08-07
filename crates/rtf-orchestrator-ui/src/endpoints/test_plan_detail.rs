@@ -10,12 +10,12 @@ use axum::{
     http::HeaderMap,
     response::{IntoResponse, Redirect, Response},
 };
-use rep_orchestrator_shared::{
+use reqwest::StatusCode;
+use rtf_orchestrator_shared::{
     known_test_plan::{KnownTestPlanRunsParams, KnownTestPlanSummary},
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
     summary::TestRunListResponse,
 };
-use reqwest::StatusCode;
 use tracing::error;
 use url::form_urlencoded;
 use uuid::Uuid;
@@ -235,8 +235,8 @@ mod tests {
     use super::*;
     use crate::{endpoints::body_text, orchestrator::mocks::MockClient};
     use axum::http::header::LOCATION;
-    use rep_orchestrator_shared::status::Status;
     use rtf_core::variables::ScalarOrArray;
+    use rtf_orchestrator_shared::status::Status;
     use std::assert_matches;
 
     fn sample_plan(uuid: Uuid) -> KnownTestPlanSummary {

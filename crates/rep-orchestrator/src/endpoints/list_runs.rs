@@ -7,7 +7,7 @@ use axum::{
     extract::{Path, Query},
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::{
+use rtf_orchestrator_shared::{
     known_test_plan::KnownTestPlanRunsParams, summary::TestRunListResponse,
 };
 use serde::Deserialize;

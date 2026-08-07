@@ -10,7 +10,7 @@ use k8s_openapi::api::{
     },
 };
 use kube::api::ObjectMeta;
-use rep_orchestrator_shared::{EXECUTION_ID_LABEL, LOG_COLLECTION_LABEL};
+use rtf_orchestrator_shared::{EXECUTION_ID_LABEL, LOG_COLLECTION_LABEL};
 use std::collections::BTreeMap;
 
 const SHARED_DIR_PATH: &str = "/shared";

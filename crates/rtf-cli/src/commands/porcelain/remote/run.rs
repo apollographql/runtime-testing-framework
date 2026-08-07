@@ -1,7 +1,7 @@
 use crate::commands::plumbing::prepare_remote_trigger_payload;
-use rep_orchestrator_shared::summary::TestRunSummary;
 use rtf_core::variables::Variables;
 use rtf_integrations::orchestrator::OrchestratorClient;
+use rtf_orchestrator_shared::summary::TestRunSummary;
 
 pub async fn remote_run(
     test_plan_path: &str,

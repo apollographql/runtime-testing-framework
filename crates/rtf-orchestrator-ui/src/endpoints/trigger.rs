@@ -10,11 +10,11 @@ use axum::{
     http::HeaderMap,
     response::{IntoResponse, Redirect, Response},
 };
-use rep_orchestrator_shared::{
+use reqwest::StatusCode;
+use rtf_orchestrator_shared::{
     payload::{GitHubPayload, TriggerPayload},
     summary::TestRunSummary,
 };
-use reqwest::StatusCode;
 use serde::Deserialize;
 use tracing::error;
 
@@ -146,8 +146,8 @@ mod tests {
         orchestrator::mocks::{MockClient, sample_summary},
     };
     use axum::http::header::LOCATION;
-    use rep_orchestrator_shared::status::Status;
     use rtf_core::variables::ScalarOrArray;
+    use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
     fn sample_form() -> TriggerForm {

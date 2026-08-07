@@ -14,7 +14,7 @@ use kube::{
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
-use rep_orchestrator_shared::EXECUTION_ID_LABEL;
+use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
 use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
 use tracing::{error, warn};

@@ -1,5 +1,5 @@
 [package]
-name = "rep-orchestrator-shared"
+name = "rtf-orchestrator-shared"
 version.workspace = true
 edition.workspace = true
 

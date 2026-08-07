@@ -6,11 +6,6 @@ use crate::{
     resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
 };
-use rep_orchestrator_shared::{
-    OutputCollectionResponse, PrometheusQueries,
-    payload::PreparedPayload,
-    test_plan::{RepEnvironment, RepTestPlan},
-};
 use rtf_config::{
     StableSource,
     checks::Check,
@@ -18,6 +13,11 @@ use rtf_config::{
     inlining::InlineMode,
     run::RunProviders,
     templating::{Template, TemplateContext},
+};
+use rtf_orchestrator_shared::{
+    OutputCollectionResponse, PrometheusQueries,
+    payload::PreparedPayload,
+    test_plan::{RepEnvironment, RepTestPlan},
 };
 use serde::Serialize;
 use sqlx::PgConnection;
@@ -918,8 +918,8 @@ mod tests {
         db::{MockUpdateHandle, Queryable},
         event_loop::tests::stub_test_plan,
     };
-    use rep_orchestrator_shared::payload::SourceKeyedArrayMap;
     use rtf_config::{formats::NullEnvironment, templating::Scalar};
+    use rtf_orchestrator_shared::payload::SourceKeyedArrayMap;
     use simple_test_case::test_case;
     use std::{collections::HashMap, time::Duration};
 

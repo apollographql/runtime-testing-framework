@@ -1,11 +1,11 @@
-use rep_orchestrator_shared::{
+use reqwest::Url;
+use rtf_orchestrator_shared::{
     FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, OtelConfig, OutputCollectionResponse,
     RTF_OTEL_COLLECTOR_GRPC_VAR, RTF_OTEL_COLLECTOR_HTTP_VAR,
     payload::{GenerateUploadUrlsPayload, SetStatusPayload},
     status::Status,
     upload_urls::UploadUrls,
 };
-use reqwest::Url;
 use std::{path::Path, process::ExitStatus};
 use thiserror::Error;
 use tracing::info;
@@ -328,7 +328,7 @@ impl Client for HttpClient {
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
-    use rep_orchestrator_shared::{PrometheusQueries, status::Status};
+    use rtf_orchestrator_shared::{PrometheusQueries, status::Status};
     use std::{
         process::ExitStatus,
         sync::{RwLock, RwLockReadGuard},

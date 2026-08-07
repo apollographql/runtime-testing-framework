@@ -4,7 +4,7 @@ use crate::db::{
     test_execution::TestExecution,
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::{payload::PreparedPayload, summary::TestRunSummary};
+use rtf_orchestrator_shared::{payload::PreparedPayload, summary::TestRunSummary};
 use serde_json::Value;
 use sqlx::{FromRow, PgConnection};
 use std::collections::HashMap;
@@ -373,16 +373,16 @@ mod tests {
         db::status::{Status, StatusTracked},
     };
     use Status::*;
-    use rep_orchestrator_shared::{
-        payload::SourceKeyedArrayMap,
-        test_plan::{RepEnvironment, RepTestPlan},
-    };
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
             OutputCollection, ScenarioConfig,
         },
         templating::Field,
+    };
+    use rtf_orchestrator_shared::{
+        payload::SourceKeyedArrayMap,
+        test_plan::{RepEnvironment, RepTestPlan},
     };
     use serde_json::json;
     use simple_test_case::test_case;

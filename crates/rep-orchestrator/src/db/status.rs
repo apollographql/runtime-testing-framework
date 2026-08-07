@@ -1,6 +1,6 @@
 use crate::db::{Error, Queryable, Result};
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::status::{Status as SharedStatus, StatusUpdate as SharedStatusUpdate};
+use rtf_orchestrator_shared::status::{Status as SharedStatus, StatusUpdate as SharedStatusUpdate};
 use sqlx::{Executor, FromRow, PgConnection};
 use std::{cmp::Ordering, fmt};
 

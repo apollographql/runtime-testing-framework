@@ -25,10 +25,10 @@ name = "suite"
 required-features = ["k8s_tests"]
 
 [dependencies]
-rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
 rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
 rtf-integrations = { path = "../rtf-integrations" }
+rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
 
 axum.workspace = true
 axum-extra = { version = "0.12", features = ["typed-header"] }

@@ -4,7 +4,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use rep_orchestrator_shared::OutputCollectionResponse;
+use rtf_orchestrator_shared::OutputCollectionResponse;
 use uuid::Uuid;
 
 pub async fn env_handler(
@@ -67,9 +67,9 @@ mod tests {
     use super::*;
     use crate::{config::Config, context::RepContext, db::TestRun, test_helpers::TestServerState};
     use axum::http::{HeaderValue, header::AUTHORIZATION};
-    use rep_orchestrator_shared::payload::PreparedPayload;
     use reqwest::StatusCode;
     use rtf_config::formats::{OutputCollection, PrometheusQuery};
+    use rtf_orchestrator_shared::payload::PreparedPayload;
     use simple_test_case::test_case;
 
     fn bearer(token: Uuid) -> HeaderValue {

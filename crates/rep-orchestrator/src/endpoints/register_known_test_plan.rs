@@ -3,7 +3,7 @@
 //! Gated to admins only (see [super::AdminUser]).
 use crate::{Result, conn, db::KnownTestPlan, endpoints::AdminUser};
 use axum::Json;
-use rep_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, RegisterTestPlanRequest};
+use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, RegisterTestPlanRequest};
 
 pub async fn handler(
     _admin: AdminUser,

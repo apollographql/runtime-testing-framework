@@ -5,7 +5,7 @@ use crate::{
     endpoints::BearerToken,
 };
 use axum::{Json, extract::Path};
-use rep_orchestrator_shared::{
+use rtf_orchestrator_shared::{
     payload::SetStatusPayload,
     status::{Status as SharedStatus, StatusUpdate as SharedStatusUpdate},
     summary::TestExecutionSummary,

@@ -8,7 +8,7 @@ use axum::{
     Json,
     extract::{Path, Query},
 };
-use rep_orchestrator_shared::known_test_plan::{
+use rtf_orchestrator_shared::known_test_plan::{
     KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanSummary,
 };
 use uuid::Uuid;

@@ -6,8 +6,8 @@ use crate::{
     orchestrator::Client as OrchestratorClient,
 };
 use anyhow::anyhow;
-use rep_orchestrator_shared::{OtelConfig, status::Status};
 use rtf_config::formats::PullPolicyServices;
+use rtf_orchestrator_shared::{OtelConfig, status::Status};
 use std::{
     collections::HashMap, env::temp_dir, fs, io, path::Path, process::Command, time::Duration,
 };

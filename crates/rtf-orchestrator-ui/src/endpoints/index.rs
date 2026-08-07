@@ -9,8 +9,8 @@ use axum::{
     response::Response,
 };
 use chrono::{Duration, Utc};
-use rep_orchestrator_shared::summary::TestRunListResponse;
 use reqwest::StatusCode;
+use rtf_orchestrator_shared::summary::TestRunListResponse;
 use tracing::error;
 
 const DEFAULT_LIMIT: i64 = 20;
@@ -142,7 +142,7 @@ mod tests {
         endpoints::body_text,
         orchestrator::mocks::{MockClient, sample_summary},
     };
-    use rep_orchestrator_shared::status::Status;
+    use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
     #[test]

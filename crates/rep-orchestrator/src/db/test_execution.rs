@@ -5,7 +5,7 @@ use crate::db::{
 };
 use chrono::{DateTime, Utc};
 use k8s_openapi::api::core::v1::EnvVar;
-use rep_orchestrator_shared::{
+use rtf_orchestrator_shared::{
     EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR,
     status::StatusUpdate as SharedStatusUpdate, summary::TestExecutionSummary,
 };

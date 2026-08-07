@@ -1,6 +1,6 @@
 use crate::{cli::Command, context::CliContext, orchestrator::Client};
 use anyhow::anyhow;
-use rep_orchestrator_shared::{OtelConfig, status::Status};
+use rtf_orchestrator_shared::{OtelConfig, status::Status};
 use tracing::error;
 
 mod cli;
@@ -102,7 +102,7 @@ mod tests {
         context::mocks::MockContext, kubernetes::mocks::MockClient as MockKubeClient,
         orchestrator::mocks::MockClient as MockOrchestrator,
     };
-    use rep_orchestrator_shared::status::Status;
+    use rtf_orchestrator_shared::status::Status;
     use simple_test_case::test_case;
     use std::path::PathBuf;
 

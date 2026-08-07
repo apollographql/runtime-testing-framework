@@ -6,7 +6,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use rep_orchestrator_shared::{payload::GenerateUploadUrlsPayload, upload_urls::UploadUrls};
+use rtf_orchestrator_shared::{payload::GenerateUploadUrlsPayload, upload_urls::UploadUrls};
 use uuid::Uuid;
 
 pub async fn handler(

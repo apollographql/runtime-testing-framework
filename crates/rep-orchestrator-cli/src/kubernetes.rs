@@ -12,7 +12,7 @@ use kube::{
     api::{ListParams, LogParams, ObjectMeta, Patch, PatchParams, Request},
     config::{KubeConfigOptions, Kubeconfig, KubeconfigError},
 };
-use rep_orchestrator_shared::{LOG_COLLECTION_LABEL, SCENARIO_JOB_NAME};
+use rtf_orchestrator_shared::{LOG_COLLECTION_LABEL, SCENARIO_JOB_NAME};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},

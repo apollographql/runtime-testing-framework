@@ -11,8 +11,8 @@ use axum::{
     response::Response,
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::summary::TestRunSummary;
 use reqwest::StatusCode;
+use rtf_orchestrator_shared::summary::TestRunSummary;
 use tracing::error;
 use uuid::Uuid;
 
@@ -93,7 +93,7 @@ mod tests {
         links::sample_config,
         orchestrator::mocks::{MockClient, sample_summary},
     };
-    use rep_orchestrator_shared::status::Status;
+    use rtf_orchestrator_shared::status::Status;
 
     #[test]
     fn run_status_body_renders_banner_and_executions_for_a_known_run() {

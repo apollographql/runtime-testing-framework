@@ -2,7 +2,6 @@ use crate::{
     config::Config,
     resolver::{self, ResolverError},
 };
-use rep_orchestrator_shared::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
 use rtf_config::{
     SourceDir, StableSource,
     checks::{self, Check},
@@ -17,6 +16,7 @@ use rtf_integrations::{
     ReqwestClient, github,
     graphos::{self, supergraph::SupergraphDetails},
 };
+use rtf_orchestrator_shared::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
 use std::{
     collections::{HashMap, HashSet},
     io,

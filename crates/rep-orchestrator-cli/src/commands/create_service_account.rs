@@ -1,5 +1,5 @@
 use crate::{context::CliContext, info_status, kubernetes::Client};
-use rep_orchestrator_shared::status::Status;
+use rtf_orchestrator_shared::status::Status;
 
 pub async fn create_service_account(namespace: &str, ctx: &impl CliContext) -> crate::Result<()> {
     info_status!(
@@ -27,7 +27,7 @@ mod tests {
         kubernetes::mocks::{KubeCall, MockClient as MockKubeClient},
         orchestrator::mocks::MockClient as MockOrchestrator,
     };
-    use rep_orchestrator_shared::status::Status;
+    use rtf_orchestrator_shared::status::Status;
 
     #[tokio::test]
     async fn full_status_transition() {

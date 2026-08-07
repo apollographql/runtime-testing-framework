@@ -1,5 +1,5 @@
 use crate::{context::CliContext, info_status, orchestrator::Client as OrchestratorClient};
-use rep_orchestrator_shared::status::Status;
+use rtf_orchestrator_shared::status::Status;
 use std::{
     env::temp_dir,
     path::{Path, PathBuf},

@@ -9,7 +9,7 @@ use crate::{
     state::ServerState,
 };
 use axum::{Json, extract::State, http::HeaderMap};
-use rep_orchestrator_shared::{
+use rtf_orchestrator_shared::{
     payload::{GitHubPayload, PreparedPayload, TriggerPayload},
     summary::TestRunSummary,
 };
@@ -188,8 +188,8 @@ async fn init_run_and_build_summary(
 mod tests {
     use super::*;
     use crate::{config::Config, test_helpers::TestServerState};
-    use rep_orchestrator_shared::status::Status;
     use reqwest::StatusCode;
+    use rtf_orchestrator_shared::status::Status;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]

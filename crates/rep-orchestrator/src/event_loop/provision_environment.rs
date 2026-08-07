@@ -3,7 +3,7 @@ use crate::{
     event_loop::{Error, Event, EventData, EventLoopConfig, Result},
     k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec},
 };
-use rep_orchestrator_shared::test_plan::RepEnvironment;
+use rtf_orchestrator_shared::test_plan::RepEnvironment;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
@@ -164,8 +164,8 @@ mod tests {
             mock_client::{MockClient, Resp},
         },
     };
-    use rep_orchestrator_shared::OtelConfig;
     use rtf_config::formats::DockerComposeEnvironment;
+    use rtf_orchestrator_shared::OtelConfig;
     use simple_test_case::test_case;
     use tokio::sync::mpsc;
 

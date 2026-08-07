@@ -4,7 +4,7 @@ use axum::{
     Json,
     extract::{Path, Query},
 };
-use rep_orchestrator_shared::summary::TestRunSummary;
+use rtf_orchestrator_shared::summary::TestRunSummary;
 use serde::Deserialize;
 use uuid::Uuid;
 
