@@ -1,0 +1,41 @@
+image:
+  repository: rtf-orchestrator
+  tag: latest
+  pullPolicy: Never
+
+service:
+  type: NodePort
+  nodePort: 30035
+
+gcs:
+  bucket: "rtf-local"
+  mockPublicUrl: "http://localhost:8080/gcs"
+  # mockInternalUrl, config.orchestratorUrl, and prometheus.endpoint are set by the Tiltfile using
+  # the mgmt cluster container IP
+
+config:
+  logLevel: "info,hyper=error,rtf_orchestrator=debug"
+  toolboxPullPolicy: "IfNotPresent"
+  failedExecutionTtlSecs: "60"
+
+secrets:
+  apolloKey:
+    name: "rtf-orchestrator"
+  githubAppId:
+    name: "rtf-orchestrator"
+  githubPrivateKey:
+    name: "github-app-private-key"
+  dbPassword:
+    name: "rtf-orchestrator"
+
+db:
+  password: password
+
+k8s:
+  workload:
+    context: "kind-rtf-workload"
+    kubeconfigSecretRef:
+      name: "orchestrator-kubeconfig"
+
+configMaps:
+  admins: "orchestrator-admins"

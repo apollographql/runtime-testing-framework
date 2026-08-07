@@ -58,8 +58,8 @@ jobs:
     - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
       with:
         shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
-    - name: Run tests excluding the rep-orchestrator crate
-      run: cargo test --workspace --exclude rep-orchestrator
+    - name: Run tests excluding the rtf-orchestrator crate
+      run: cargo test --workspace --exclude rtf-orchestrator
 
   rustfmt:
     name: Ensure rustfmt is happy
@@ -140,7 +140,7 @@ jobs:
     - run: ./scripts/check-doc-types.sh
 
   check-helm-docs:
-    name: Check rep-orchestrator helm chart README is in sync
+    name: Check rtf-orchestrator helm chart README is in sync
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8

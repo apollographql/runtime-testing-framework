@@ -2,7 +2,7 @@
 
 # Orchestrator Helm chart versioning policy
 
-This document records the decisions behind how we version and deploy the `rep-orchestrator` Helm
+This document records the decisions behind how we version and deploy the `rtf-orchestrator` Helm
 chart for the [RTF Orchestrator Service][0], the rationale for the phased approach, and the options
 that were considered and rejected.
 

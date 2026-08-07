@@ -1,0 +1,163 @@
+# -- Cloud SQL proxy sidecar configuration
+cloudSqlProxy:
+  # -- Whether to enable the Cloud SQL proxy sidecar
+  enabled: false
+  # -- Cloud SQL instance connection name (format: project:region:instance). Required when enabled
+  instanceConnectionName: "runtime-testing-framework:us-central1:orchestrator-postgres"
+  # -- Docker image for the Cloud SQL proxy
+  image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2"
+  # -- Extra flags passed to the Cloud SQL proxy, ahead of the port and instance connection name
+  args:
+    - "--structured-logs"
+    - "--auto-iam-authn"
+    - "--private-ip"
+
+# -- Override the container command
+command: []
+
+# -- Application configuration
+config:
+  # -- Host address the server listens on
+  host: "0.0.0.0"
+  # -- Port the server listens on
+  port: "8035"
+  # -- Log level for the RUST_LOG environment variable
+  logLevel: "warn"
+  # -- Maximum number of concurrent test executions
+  maxConcurrentExecutions: "10"
+  # -- Maximum number of queued test executions
+  maxQueuedExecutions: "100"
+  # -- Maximum accepted request body size, in megabytes. The axum default is 2; this should never be set lower
+  bodyLimitMb: "50"
+  # -- URL for this orchestrator instance, reachable from both management and workload cluster pods. Required
+  orchestratorUrl: ""
+  # -- Image pull policy for toolbox images
+  toolboxPullPolicy: "Always"
+  # -- The ttl of a namespace after its execution fails
+  failedExecutionTtlSecs: "600"
+  # -- Maximum time to keep retrying a k8s watch after consecutive transient errors before giving up
+  retryWindowSecs: "300"
+  # -- How often to poll k8s for the status of a Job or Workflow being waited on
+  pollIntervalSecs: "10"
+
+# -- External ConfigMap references for Deployment volumes. Set each value to point at your externally-managed ConfigMap
+configMaps:
+  # -- Name of the ConfigMap containing the admins list (data key: members). When unset, nothing is mounted
+  admins: null
+
+# -- Database connection settings
+db:
+  # -- Database host. Set to 127.0.0.1 when using Cloud SQL Proxy. Required
+  host: ""
+  # -- Database port
+  port: "5432"
+  # -- Database name
+  name: "rtf_rep"
+  # -- Database user
+  user: "service_user"
+  # -- Set to a non-null value to enable password authentication; RTF_DB_PASS will be mounted from secrets.dbPassword. Omit when using Cloud SQL Proxy IAM auth
+  password: null
+
+# -- Overrides the fully qualified app name
+fullnameOverride: ""
+
+# -- Google Cloud Storage configuration
+gcs:
+  # -- GCS bucket name. Required
+  bucket: ""
+  # -- Signed URL TTL in seconds
+  urlTtlSecs: "300"
+
+# -- Container image configuration
+image:
+  # -- Image repository
+  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-orchestrator"
+  # -- Image tag. Defaults to the chart appVersion when not set
+  tag: null
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- List of image pull secrets
+imagePullSecrets: []
+
+# -- Kubernetes cluster configuration
+k8s:
+  # -- Workload cluster configuration
+  workload:
+    # -- Kubernetes context name for the workload cluster. Required
+    context: ""
+    # -- Reference to a Secret containing the kubeconfig; the file is mounted at /root/.kube/config
+    kubeconfigSecretRef:
+      # -- Secret name. When set, the kubeconfig is mounted from this Secret
+      name: null
+      # -- Key within the Secret
+      key: "config"
+    # -- Path to a kubeconfig file already present in the container. Ignored when kubeconfigSecretRef.name is set
+    kubeconfigPath: ""
+
+# -- Overrides the chart name
+nameOverride: ""
+
+# -- OpenTelemetry collector configuration for REP workload pods
+otel:
+  # -- gRPC endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_GRPC
+  collectorGrpc: "http://otel-collector.monitoring:4317"
+  # -- HTTP endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_HTTP
+  collectorHttp: "http://otel-collector.monitoring:4318"
+
+# -- Annotations to add to the pod template
+podAnnotations: {}
+
+# -- Prometheus endpoint configuration for REP workload pods
+prometheus:
+  # -- Endpoint for retrieving prometheus metrics during output collection
+  endpoint: "http://observability-kube-prometh-prometheus.monitoring.svc.cluster.local:9090"
+
+# -- Resource requests and limits for the rtf-orchestrator container
+resources: {}
+
+# -- External Secret references for Deployment environment variables. Set name on each block to point at your externally-managed Secret
+secrets:
+  # -- Apollo key secret reference
+  apolloKey:
+    # -- Name of the Secret containing the Apollo key. Required
+    name: ""
+    # -- Key within the Secret
+    key: "apollo-key"
+  # -- GitHub App ID secret reference
+  githubAppId:
+    # -- Name of the Secret containing the GitHub App ID. Required
+    name: ""
+    # -- Key within the Secret
+    key: "github-app-id"
+  # -- GitHub App private key secret reference
+  githubPrivateKey:
+    # -- Name of the Secret containing the GitHub App private key. Required
+    name: ""
+    # -- Key within the Secret
+    key: "private-key-pem"
+  # -- Database password secret reference. Required when db.password is set
+  dbPassword:
+    # -- Name of the Secret containing the database password
+    name: ""
+    # -- Key within the Secret
+    key: "db-pass"
+
+# -- Kubernetes Service configuration
+service:
+  # -- Whether to create a Service resource
+  create: true
+  # -- Service port
+  port: 8035
+  # -- Service type
+  type: ClusterIP
+
+# -- Service account configuration
+serviceAccount:
+  # -- Whether to create a ServiceAccount
+  create: false
+  # -- Name of the ServiceAccount. Defaults to the chart fullname when create is true
+  name: ""
+  # -- Annotations to add to the ServiceAccount.
+  # e.g. iam.gke.io/gcp-service-account: sa@project.iam.gserviceaccount.com
+  annotations: {}

@@ -1,6 +1,0 @@
-apiVersion: v2
-name: rep-orchestrator
-description: Helm chart for the REP orchestrator service
-type: application
-version: 0.1.0
-appVersion: "latest"

@@ -1,0 +1,69 @@
+[package]
+name = "rtf-orchestrator"
+version.workspace = true
+edition.workspace = true
+
+[features]
+# Used to prevent tests that need a running database from executing unless
+# explicitly requested. Annotate such tests with the following:
+#   #[cfg_attr(not(feature = "db_tests"), ignore)]
+#
+# Execute the tests using "cargo test --features db_tests"
+db_tests = []
+# Used to prevent tests that need a full running Tilt stack (DB + k8s) from
+# executing unless explicitly requested. Annotate such tests with the
+# following:
+#   #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+#
+# Execute the tests using "cargo test --features k8s_tests"
+k8s_tests = ["db_tests"]
+
+# Mark all integration tests as being k8s tests.
+# -> This needs to be done for each test file in /tests/ but not for each individual test
+[[test]]
+name = "suite"
+required-features = ["k8s_tests"]
+
+[dependencies]
+rtf-config = { path = "../rtf-config" }
+rtf-core = { path = "../rtf-core" }
+rtf-integrations = { path = "../rtf-integrations" }
+rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
+
+axum.workspace = true
+axum-extra = { version = "0.12", features = ["typed-header"] }
+chrono.workspace = true
+envy.workspace = true
+google-cloud-auth.workspace = true
+google-cloud-storage.workspace = true
+k8s-openapi.workspace = true
+kube-runtime = "3.1.0"
+kube.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+schemars.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+serde.workspace = true
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "migrate", "chrono", "json", "uuid"] }
+thiserror.workspace = true
+tokio-stream = "0.1.18"
+tokio.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+# jemalloc returns freed pages to the OS on a decay timer via background threads,
+# which glibc malloc does not do. Linux-only so local (macOS) dev builds keep the
+# system allocator and gain no C-build dependency.
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true 
+axum-test = "20.0.0"
+indoc.workspace = true
+reqwest.workspace = true
+serial_test = "3.4.0"
+simple_test_case.workspace = true
+zip.workspace = true

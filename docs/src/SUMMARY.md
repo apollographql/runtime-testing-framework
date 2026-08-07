@@ -56,7 +56,7 @@
 
 - [How-to Guides](developer/howto/index.md)
   - [PR Checks](developer/howto/pr-checks.md)
-  - [Run rep-orchestrator tests](developer/howto/run-rep-orchestrator-tests.md)
+  - [Run rtf-orchestrator tests](developer/howto/run-rtf-orchestrator-tests.md)
   - [Run a test coverage report](developer/howto/run-coverage-reports.md)
   - [Update trybuild .stderr files](developer/howto/update-trybuild-stderr-files.md)
 
@@ -78,7 +78,7 @@
     - [rtf-integrations](developer/reference/testing/crates/rtf-integrations.md)
     - [rtf-derive](developer/reference/testing/crates/rtf-derive.md)
     - [rtf-cli](developer/reference/testing/crates/rtf-cli.md)
-    - [rep-orchestrator](developer/reference/testing/crates/rep-orchestrator.md)
+    - [rtf-orchestrator](developer/reference/testing/crates/rtf-orchestrator.md)
     - [rtf-orchestrator-cli](developer/reference/testing/crates/rtf-orchestrator-cli.md)
   - [Data Structures](developer/reference/data-structures/index.md)
     - [Templating Fields](developer/reference/data-structures/fields.md)

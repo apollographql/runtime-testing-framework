@@ -3725,45 +3725,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
-name = "rep-orchestrator"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "axum-extra",
- "axum-test",
- "chrono",
- "envy",
- "google-cloud-auth",
- "google-cloud-storage",
- "indoc",
- "k8s-openapi",
- "kube",
- "kube-runtime",
- "reqwest 0.13.3",
- "rtf-config",
- "rtf-core",
- "rtf-integrations",
- "rtf-orchestrator-shared",
- "rustls",
- "schemars 1.2.1",
- "serde",
- "serde_json",
- "serde_yaml",
- "serial_test",
- "simple_test_case",
- "sqlx",
- "thiserror 2.0.18",
- "tikv-jemallocator",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "zip",
-]
-
-[[package]]
 name = "reqwest"
 version = "0.12.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4043,6 +4004,45 @@ dependencies = [
  "tokio",
  "tracing",
  "xdg",
+]
+
+[[package]]
+name = "rtf-orchestrator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-extra",
+ "axum-test",
+ "chrono",
+ "envy",
+ "google-cloud-auth",
+ "google-cloud-storage",
+ "indoc",
+ "k8s-openapi",
+ "kube",
+ "kube-runtime",
+ "reqwest 0.13.3",
+ "rtf-config",
+ "rtf-core",
+ "rtf-integrations",
+ "rtf-orchestrator-shared",
+ "rustls",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "serial_test",
+ "simple_test_case",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tikv-jemallocator",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "zip",
 ]
 
 [[package]]

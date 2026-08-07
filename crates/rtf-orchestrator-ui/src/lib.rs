@@ -23,7 +23,7 @@ pub async fn run_server() -> anyhow::Result<()> {
     info!(
         version = env!("CARGO_PKG_VERSION"),
         %addr,
-        "starting rep-orchestrator-ui"
+        "starting rtf-orchestrator-ui"
     );
 
     let client = orchestrator::HttpClient::try_new(cfg.orchestrator_url.clone())?;

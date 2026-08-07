@@ -21,7 +21,7 @@ The `rtf-config` crate is the heart of RTF. It handles:
 The crate exposes a [ResolutionContext][2] trait that abstracts all IO operations, enabling
 testability and CLI control over execution.
 
-The `rep-orchestrator` crate is a server-side orchestration layer for RTF. It manages the lifecycle
+The `rtf-orchestrator` crate is a server-side orchestration layer for RTF. It manages the lifecycle
 of test runs and individual test executions across Kubernetes clusters: a management cluster (Argo
 workflows for environment provisioning) and workload clusters (scenario jobs). It uses the
 `rtf-orchestrator-shared` crate for types shared between it and the `rtf-orchestrator-cli` which

@@ -5,7 +5,7 @@ image:
 
 config:
   logLevel: "info,rtf_orchestrator_ui=debug"
-  orchestratorUrl: "http://rep-orchestrator:8035"
+  orchestratorUrl: "http://rtf-orchestrator:8035"
 
 # Dummy values: the local/tilt stack has no route from this cluster to real GCP or Grafana
 # instances, so these links will never resolve locally. They only need to satisfy the chart's
