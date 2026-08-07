@@ -24,11 +24,11 @@ patches:
                   - --outdir
                   - __OUTDIR__
                 env:
-                  - name: APOLLO_REP_ORCHESTRATOR_URL
+                  - name: APOLLO_RTF_ORCHESTRATOR_URL
                     value: __ORCHESTRATOR_URL__
-                  - name: APOLLO_REP_ORCHESTRATOR_EXECUTION_ID
+                  - name: APOLLO_RTF_ORCHESTRATOR_EXECUTION_ID
                     value: __EXECUTION_ID__
-                  - name: APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN
+                  - name: APOLLO_RTF_ORCHESTRATOR_EXECUTION_TOKEN
                     value: __EXECUTION_TOKEN__
                 volumeMounts:
                   - mountPath: __OUTDIR__
@@ -66,9 +66,9 @@ patches:
         path: /spec/template/spec/containers/0/envFrom
         value:
           - configMapRef:
-              name: rep-otel-config
+              name: rtf-otel-config
 configMapGenerator:
-  - name: rep-otel-config
+  - name: rtf-otel-config
     literals:
       - __RTF_OTEL_COLLECTOR_GRPC_VAR__=__RTF_OTEL_COLLECTOR_GRPC__
       - __RTF_OTEL_COLLECTOR_HTTP_VAR__=__RTF_OTEL_COLLECTOR_HTTP__

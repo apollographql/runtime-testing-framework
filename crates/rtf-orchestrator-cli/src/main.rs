@@ -3,7 +3,7 @@ use clap::Parser;
 use rtf_orchestrator_cli::{Args, EnvironmentContext, run_command};
 use rustls::crypto::aws_lc_rs;
 
-const LOG_LEVEL_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_LOG";
+const LOG_LEVEL_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_LOG";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
