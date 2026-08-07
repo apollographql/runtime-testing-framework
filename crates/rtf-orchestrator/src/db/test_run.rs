@@ -382,7 +382,7 @@ mod tests {
     };
     use rtf_orchestrator_shared::{
         payload::SourceKeyedArrayMap,
-        test_plan::{RepEnvironment, RepTestPlan},
+        test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
     };
     use serde_json::json;
     use simple_test_case::test_case;
@@ -643,7 +643,7 @@ mod tests {
     fn stub_payload() -> PreparedPayload {
         PreparedPayload {
             variables: None,
-            test_plan: RepTestPlan {
+            test_plan: OrchestratorTestPlan {
                 name: String::new(),
                 description: String::new(),
                 variables: Default::default(),
@@ -670,7 +670,7 @@ mod tests {
                     description: String::new(),
                     variable_definitions: vec![],
                     custom_providers: vec![],
-                    execution: RepEnvironment::DockerCompose(DockerComposeEnvironment {
+                    execution: OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
                         project_name: None,
                         compose_files: vec![],
                         file_providers: vec![],
@@ -713,7 +713,7 @@ mod tests {
         let uuid = tr.uuid();
 
         // We don't expose an API for storing an arbitrary JSON blob like this, but we need to
-        // guard against structural changes in RepTestPlan meaning that we somehow manage to have
+        // guard against structural changes in OrchestratorTestPlan meaning that we somehow manage to have
         // old data that no longer parses present in the cache.
         sqlx::query("INSERT INTO payload_cache (run_id, payload) VALUES ($1, $2::jsonb)")
             .bind(tr.id())

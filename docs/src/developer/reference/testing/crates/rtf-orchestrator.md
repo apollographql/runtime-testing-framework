@@ -78,11 +78,11 @@ pub struct TestHelper {
 }
 ```
 
-| Method                   | Purpose                                                              |
-| ------------------------ | -------------------------------------------------------------------- |
-| `prepare_rep_payload`    | Prepares a `TriggerPayload` from a test plan directory               |
-| `json_get` / `json_post` | Typed helpers that deserialize JSON responses into the expected type |
-| `get` / `post`           | Raw helpers returning `Response` for status-code assertions          |
+| Method                         | Purpose                                                              |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `prepare_orchestrator_payload` | Prepares a `TriggerPayload` from a test plan directory               |
+| `json_get` / `json_post`       | Typed helpers that deserialize JSON responses into the expected type |
+| `get` / `post`                 | Raw helpers returning `Response` for status-code assertions          |
 
 Shared logic between tests should be added as further methods on `TestHelper`.
 

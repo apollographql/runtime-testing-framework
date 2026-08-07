@@ -110,14 +110,14 @@ There must always be a blank line before implicit function returns.
 
 ```rust
 // Correct
-fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepContext, RepTestPlan)> {
+fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(OrchestratorContext, OrchestratorTestPlan)> {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&HashMap::new(), &ctx)
         .map_err(ResolverError::TemplatingCheck)?;
@@ -126,14 +126,14 @@ fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepConte
 }
 
 // Incorrect
-fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepContext, RepTestPlan)> {
+fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(OrchestratorContext, OrchestratorTestPlan)> {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&HashMap::new(), &ctx)
         .map_err(ResolverError::TemplatingCheck)?;

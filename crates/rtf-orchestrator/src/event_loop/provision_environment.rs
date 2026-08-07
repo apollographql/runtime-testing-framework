@@ -3,7 +3,7 @@ use crate::{
     event_loop::{Error, Event, EventData, EventLoopConfig, Result},
     k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec},
 };
-use rtf_orchestrator_shared::test_plan::RepEnvironment;
+use rtf_orchestrator_shared::test_plan::OrchestratorEnvironment;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
@@ -14,7 +14,7 @@ pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
 
 pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
-    environment: &RepEnvironment,
+    environment: &OrchestratorEnvironment,
     cfg: &EventLoopConfig<'_>,
     clients: K,
     conn: &mut H,
@@ -169,8 +169,8 @@ mod tests {
     use simple_test_case::test_case;
     use tokio::sync::mpsc;
 
-    fn stub_docker_compose_environment() -> RepEnvironment {
-        RepEnvironment::DockerCompose(DockerComposeEnvironment {
+    fn stub_docker_compose_environment() -> OrchestratorEnvironment {
+        OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
             project_name: None,
             compose_files: vec![],
             file_providers: vec![],

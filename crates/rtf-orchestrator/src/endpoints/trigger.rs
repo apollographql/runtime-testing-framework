@@ -1,7 +1,7 @@
 use crate::{
     config::Config,
     conn,
-    context::RepContext,
+    context::OrchestratorContext,
     db::{KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
     error::Error,
     event_loop::SubmitError,
@@ -86,7 +86,14 @@ pub async fn handler(
 
 async fn as_prepared_payload_with_context(
     trigger_payload: TriggerPayload,
-) -> Result<(PreparedPayload, RepContext, Option<KnownTestPlanLink>), Error> {
+) -> Result<
+    (
+        PreparedPayload,
+        OrchestratorContext,
+        Option<KnownTestPlanLink>,
+    ),
+    Error,
+> {
     let mut known_link = None;
 
     let payload = match trigger_payload {
@@ -148,7 +155,7 @@ async fn as_prepared_payload_with_context(
         }
     };
 
-    let ctx = RepContext::new_from_inlined_files(
+    let ctx = OrchestratorContext::new_from_inlined_files(
         Config::get(),
         payload.relative_files.clone(),
         payload.custom_providers.clone(),

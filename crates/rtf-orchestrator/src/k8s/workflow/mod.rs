@@ -5,7 +5,7 @@ use crate::{
 };
 use k8s_openapi::api::core::v1::{Container, EnvVar, SecretVolumeSource, Volume, VolumeMount};
 use kube::CustomResource;
-use rtf_orchestrator_shared::{OtelConfig, test_plan::RepEnvironment};
+use rtf_orchestrator_shared::{OtelConfig, test_plan::OrchestratorEnvironment};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -60,7 +60,7 @@ pub struct WorkflowSpec {
 impl WorkflowSpec {
     pub fn for_execution(
         ex: &TestExecution,
-        env: &RepEnvironment,
+        env: &OrchestratorEnvironment,
         orchestrator_url: &str,
         toolbox_pull_policy: &str,
         otel: &OtelConfig,
@@ -125,7 +125,7 @@ pub struct MainTemplate {
 }
 
 impl MainTemplate {
-    pub fn new(env: &RepEnvironment) -> Self {
+    pub fn new(env: &OrchestratorEnvironment) -> Self {
         let mut tasks = vec![
             TaskSpec::new(CREATE_NAMESPACE, &[]),
             TaskSpec::new(CREATE_SERVICE_ACCOUNT, &[CREATE_NAMESPACE]),
@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn main_template_includes_deploy_environment_for_docker_compose() {
-        let env = RepEnvironment::DockerCompose(DockerComposeEnvironment {
+        let env = OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
             project_name: None,
             compose_files: vec![],
             file_providers: vec![],
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn main_template_omits_deploy_environment_for_null() {
-        let env = RepEnvironment::Null(NullEnvironment { skip: true });
+        let env = OrchestratorEnvironment::Null(NullEnvironment { skip: true });
         let main = MainTemplate::new(&env);
 
         let names: Vec<&str> = main.dag.tasks.iter().map(|t| t.name.as_str()).collect();

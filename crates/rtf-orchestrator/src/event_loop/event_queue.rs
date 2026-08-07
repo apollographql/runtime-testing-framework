@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    context::RepContext,
+    context::OrchestratorContext,
     db::{self, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
     event_loop::{Event, EventData},
     resolver::{self, ResolverError, ResolverInput},
@@ -17,7 +17,7 @@ use rtf_config::{
 use rtf_orchestrator_shared::{
     OutputCollectionResponse, PrometheusQueries,
     payload::PreparedPayload,
-    test_plan::{RepEnvironment, RepTestPlan},
+    test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
 };
 use serde::Serialize;
 use sqlx::PgConnection;
@@ -227,7 +227,7 @@ impl EventQueue {
     pub(crate) async fn resolved_environment_for_execution(
         &self,
         ex_id: Uuid,
-    ) -> Option<RepEnvironment> {
+    ) -> Option<OrchestratorEnvironment> {
         self.with_shared(|shared| {
             shared
                 .resolved_execution_cache
@@ -273,7 +273,8 @@ impl EventQueue {
                 custom_providers,
                 ..
             } = payload;
-            let ctx = RepContext::new_from_inlined_files(cfg, relative_files, custom_providers);
+            let ctx =
+                OrchestratorContext::new_from_inlined_files(cfg, relative_files, custom_providers);
             h.cache_for_test_run(run_uuid, ctx, test_plan).await;
 
             let executions = conn.executions_for_run(&tr).await?;
@@ -463,8 +464,8 @@ impl ProvisioningHandle {
     pub(crate) async fn cache_for_test_run(
         &self,
         run_uuid: Uuid,
-        ctx: RepContext,
-        test_plan: RepTestPlan,
+        ctx: OrchestratorContext,
+        test_plan: OrchestratorTestPlan,
     ) {
         self.with_shared(|shared| {
             shared
@@ -519,7 +520,7 @@ impl ProvisioningHandle {
     async fn templated_and_checked_version(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<(RepTestPlan, Arc<RepContext>)> {
+    ) -> resolver::Result<(OrchestratorTestPlan, Arc<OrchestratorContext>)> {
         let (mut test_plan, ctx) = self
             .with_shared(|shared| shared.variant_with_context(ex))
             .await?;
@@ -765,7 +766,7 @@ impl EventQueueState {
     /// Attempt to reserve the requested number of executions if there is capacity.
     ///
     /// Returns `true` if the claim was successful, otherwise `false`.
-    pub async fn try_reserve_pending_executions(&self, tp: &RepTestPlan) -> Option<Claim> {
+    pub async fn try_reserve_pending_executions(&self, tp: &OrchestratorTestPlan) -> Option<Claim> {
         let n = tp.matrix.n_variants();
 
         self.with_shared(|shared| {
@@ -836,7 +837,7 @@ struct ResolvedExecutionConfig {
     output_collection: OutputCollectionResponse,
     docker_image: String,
     docker_command: String,
-    environment: RepEnvironment,
+    environment: OrchestratorEnvironment,
 }
 
 #[derive(Debug)]
@@ -844,7 +845,7 @@ struct Shared {
     /// Map of TestExecution uuid to parent TestRun uuid
     execution_map: HashMap<Uuid, Uuid>,
     /// Map of TestRun uuid to payload data
-    payload_cache: HashMap<Uuid, (Arc<RepContext>, RepTestPlan)>,
+    payload_cache: HashMap<Uuid, (Arc<OrchestratorContext>, OrchestratorTestPlan)>,
     /// Executions active for each run.
     active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
     /// Pre-resolved config keyed by execution UUID
@@ -867,7 +868,7 @@ impl Shared {
     fn variant_with_context(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<(RepTestPlan, Arc<RepContext>)> {
+    ) -> resolver::Result<(OrchestratorTestPlan, Arc<OrchestratorContext>)> {
         let run_uuid = match self.execution_map.get(&ex.uuid()) {
             Some(id) => id,
             None => return Err(ResolverError::UnknownExecution(ex.uuid())),
@@ -914,7 +915,7 @@ mod tests {
     use super::*;
     use crate::{
         config::Config,
-        context::RepContext,
+        context::OrchestratorContext,
         db::{MockUpdateHandle, Queryable},
         event_loop::tests::stub_test_plan,
     };
@@ -970,7 +971,11 @@ mod tests {
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        let ctx = RepContext::new_from_inlined_files(&cfg, empty_source_map(), empty_source_map());
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            empty_source_map(),
+            empty_source_map(),
+        );
         ph.cache_for_test_run(run_uuid, ctx, stub_test_plan()).await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
@@ -1308,7 +1313,10 @@ mod tests {
                 "scenario docker command should be cached"
             );
             assert!(
-                matches!(cached.environment, RepEnvironment::DockerCompose(_)),
+                matches!(
+                    cached.environment,
+                    OrchestratorEnvironment::DockerCompose(_)
+                ),
                 "expected the typed environment to be cached, got {:?}",
                 cached.environment
             );
@@ -1324,9 +1332,14 @@ mod tests {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let mut test_plan = stub_test_plan();
-        test_plan.environment.execution = RepEnvironment::Null(NullEnvironment { skip: true });
+        test_plan.environment.execution =
+            OrchestratorEnvironment::Null(NullEnvironment { skip: true });
 
-        let ctx = RepContext::new_from_inlined_files(&cfg, empty_source_map(), empty_source_map());
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            empty_source_map(),
+            empty_source_map(),
+        );
         ph.cache_for_test_run(run_uuid, ctx, test_plan).await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
@@ -1341,7 +1354,7 @@ mod tests {
                 .expect("execution config should be cached");
 
             assert!(
-                matches!(cached.environment, RepEnvironment::Null(_)),
+                matches!(cached.environment, OrchestratorEnvironment::Null(_)),
                 "expected a null environment to be cached, got {:?}",
                 cached.environment
             );
@@ -1378,7 +1391,7 @@ mod tests {
                     },
                     docker_image: "image".to_string(),
                     docker_command: "command".to_string(),
-                    environment: RepEnvironment::Null(NullEnvironment { skip: true }),
+                    environment: OrchestratorEnvironment::Null(NullEnvironment { skip: true }),
                 },
             );
         })
@@ -1386,7 +1399,7 @@ mod tests {
 
         let res = eq.resolved_environment_for_execution(ex.uuid()).await;
         assert!(
-            matches!(res, Some(RepEnvironment::Null(_))),
+            matches!(res, Some(OrchestratorEnvironment::Null(_))),
             "expected the cached null environment to be returned, got {res:?}"
         );
     }
@@ -1412,7 +1425,7 @@ mod tests {
                     },
                     docker_image: "image".to_string(),
                     docker_command: "command".to_string(),
-                    environment: RepEnvironment::Null(NullEnvironment { skip: true }),
+                    environment: OrchestratorEnvironment::Null(NullEnvironment { skip: true }),
                 },
             );
         })

@@ -18,15 +18,15 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path, pin::Pin};
 
 /// Test plan restricted to Orchestrator compatible scenarios and environments
-pub type RepTestPlan = TestPlan<Rep>;
+pub type OrchestratorTestPlan = TestPlan<Orchestrator>;
 
 /// Marker for the Orchestrator test plan variant.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Rep;
+pub struct Orchestrator;
 
-impl Execution for Rep {
+impl Execution for Orchestrator {
     type Scenario = DockerScenario;
-    type Environment = RepEnvironment;
+    type Environment = OrchestratorEnvironment;
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
@@ -35,18 +35,18 @@ impl Execution for Rep {
     expecting = "expected null or docker-compose environment when running via the Orchestrator"
 )]
 #[allow(clippy::large_enum_variant)] // We only ever allocate one of these, not multiples
-pub enum RepEnvironment {
+pub enum OrchestratorEnvironment {
     // Null needs to be the first variant in this enum to ensure that any time `skip: true` is
     // set, we resolve to a NullEnvironment.
     Null(NullEnvironment),
     DockerCompose(DockerComposeEnvironment),
 }
 
-impl RepEnvironment {
+impl OrchestratorEnvironment {
     pub fn prometheus_queries(&self) -> &[PrometheusQuery] {
         match self {
-            RepEnvironment::Null(_) => &[],
-            RepEnvironment::DockerCompose(dce) => &dce.output_collection.prometheus,
+            OrchestratorEnvironment::Null(_) => &[],
+            OrchestratorEnvironment::DockerCompose(dce) => &dce.output_collection.prometheus,
         }
     }
 
@@ -56,22 +56,24 @@ impl RepEnvironment {
         cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
         match self {
-            RepEnvironment::Null(_) => Ok(()),
-            RepEnvironment::DockerCompose(dce) => dce.inline_compose_files(ctx, cache).await,
+            OrchestratorEnvironment::Null(_) => Ok(()),
+            OrchestratorEnvironment::DockerCompose(dce) => {
+                dce.inline_compose_files(ctx, cache).await
+            }
         }
     }
 
     pub fn file_provider_services_from_inline(&self) -> FileProviderServices {
         match self {
-            RepEnvironment::Null(_) => FileProviderServices::default(),
-            RepEnvironment::DockerCompose(dce) => FileProviderServices::from_inline(dce),
+            OrchestratorEnvironment::Null(_) => FileProviderServices::default(),
+            OrchestratorEnvironment::DockerCompose(dce) => FileProviderServices::from_inline(dce),
         }
     }
 }
 
-enum_impl_check!(RepEnvironment => Null, DockerCompose);
+enum_impl_check!(OrchestratorEnvironment => Null, DockerCompose);
 
-impl RunEnvironment for RepEnvironment {
+impl RunEnvironment for OrchestratorEnvironment {
     async fn execute_setup(
         &self,
         name: &str,
@@ -79,8 +81,10 @@ impl RunEnvironment for RepEnvironment {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         match self {
-            RepEnvironment::Null(inner) => inner.execute_setup(name, out_dir, ctx).await,
-            RepEnvironment::DockerCompose(inner) => inner.execute_setup(name, out_dir, ctx).await,
+            OrchestratorEnvironment::Null(inner) => inner.execute_setup(name, out_dir, ctx).await,
+            OrchestratorEnvironment::DockerCompose(inner) => {
+                inner.execute_setup(name, out_dir, ctx).await
+            }
         }
     }
 
@@ -91,19 +95,21 @@ impl RunEnvironment for RepEnvironment {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         match self {
-            RepEnvironment::Null(inner) => inner.execute_teardown(name, out_dir, ctx).await,
-            RepEnvironment::DockerCompose(inner) => {
+            OrchestratorEnvironment::Null(inner) => {
+                inner.execute_teardown(name, out_dir, ctx).await
+            }
+            OrchestratorEnvironment::DockerCompose(inner) => {
                 inner.execute_teardown(name, out_dir, ctx).await
             }
         }
     }
 }
 
-impl RunProviders for RepEnvironment {
+impl RunProviders for OrchestratorEnvironment {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         match self {
-            RepEnvironment::Null(inner) => inner.named_providers(),
-            RepEnvironment::DockerCompose(inner) => inner.named_providers(),
+            OrchestratorEnvironment::Null(inner) => inner.named_providers(),
+            OrchestratorEnvironment::DockerCompose(inner) => inner.named_providers(),
         }
     }
 
@@ -114,19 +120,19 @@ impl RunProviders for RepEnvironment {
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
-            RepEnvironment::Null(inner) => inner.inline(mode, ctx, cache),
-            RepEnvironment::DockerCompose(inner) => inner.inline(mode, ctx, cache),
+            OrchestratorEnvironment::Null(inner) => inner.inline(mode, ctx, cache),
+            OrchestratorEnvironment::DockerCompose(inner) => inner.inline(mode, ctx, cache),
         }
     }
 }
 
-impl CheckArrayDuplicates for RepEnvironment {
+impl CheckArrayDuplicates for OrchestratorEnvironment {
     const BASE_PATH: &str = "environment_execution";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
         match self {
-            RepEnvironment::Null(inner) => inner.deduplicated_arrays(),
-            RepEnvironment::DockerCompose(inner) => inner.deduplicated_arrays(),
+            OrchestratorEnvironment::Null(inner) => inner.deduplicated_arrays(),
+            OrchestratorEnvironment::DockerCompose(inner) => inner.deduplicated_arrays(),
         }
     }
 }
@@ -136,8 +142,8 @@ mod tests {
     use super::*;
     use rtf_config::context::Context;
 
-    fn null_env() -> RepEnvironment {
-        RepEnvironment::Null(NullEnvironment { skip: true })
+    fn null_env() -> OrchestratorEnvironment {
+        OrchestratorEnvironment::Null(NullEnvironment { skip: true })
     }
 
     fn docker_compose_env() -> DockerComposeEnvironment {
@@ -154,7 +160,7 @@ mod tests {
     fn null_environment_round_trips() {
         let env = null_env();
         let yaml = serde_yaml::to_string(&env).expect("null environment should serialize");
-        let parsed: RepEnvironment =
+        let parsed: OrchestratorEnvironment =
             serde_yaml::from_str(&yaml).expect("null environment should round-trip");
 
         assert_eq!(parsed, env);
@@ -162,10 +168,10 @@ mod tests {
 
     #[test]
     fn docker_compose_environment_round_trips() {
-        let env = RepEnvironment::DockerCompose(docker_compose_env());
+        let env = OrchestratorEnvironment::DockerCompose(docker_compose_env());
         let yaml =
             serde_yaml::to_string(&env).expect("docker-compose environment should serialize");
-        let parsed: RepEnvironment =
+        let parsed: OrchestratorEnvironment =
             serde_yaml::from_str(&yaml).expect("docker-compose environment should round-trip");
 
         assert_eq!(parsed, env);
@@ -188,7 +194,7 @@ teardown:
     content: "echo bye"
 "#;
 
-        let res = serde_yaml::from_str::<RepEnvironment>(yaml);
+        let res = serde_yaml::from_str::<OrchestratorEnvironment>(yaml);
         assert!(res.is_err(), "expected a script environment to be rejected");
 
         let err = res.unwrap_err().to_string();
@@ -213,7 +219,7 @@ teardown:
             step: "15s".to_string(),
             query: "up".to_string(),
         });
-        let env = RepEnvironment::DockerCompose(dce);
+        let env = OrchestratorEnvironment::DockerCompose(dce);
 
         assert_eq!(env.prometheus_queries().len(), 1);
     }

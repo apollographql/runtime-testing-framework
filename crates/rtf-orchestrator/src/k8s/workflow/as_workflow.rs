@@ -5,7 +5,7 @@ use crate::k8s::{
 };
 use k8s_openapi::api::core::v1::EnvVar;
 use rtf_config::formats::{DockerComposeEnvironment, NullEnvironment};
-use rtf_orchestrator_shared::{OtelConfig, test_plan::RepEnvironment};
+use rtf_orchestrator_shared::{OtelConfig, test_plan::OrchestratorEnvironment};
 
 pub const DEPLOY_ENVIRONMENT: &str = "deploy-environment";
 
@@ -35,7 +35,7 @@ pub trait AsWorkflowTasks {
     }
 }
 
-impl AsWorkflowTasks for RepEnvironment {
+impl AsWorkflowTasks for OrchestratorEnvironment {
     fn specs(&self, parent: &str) -> Vec<TaskSpec> {
         match self {
             Self::DockerCompose(inner) => inner.specs(parent),

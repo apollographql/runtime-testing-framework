@@ -400,7 +400,7 @@ mod tests {
         },
         templating::Field,
     };
-    use rtf_orchestrator_shared::test_plan::{RepEnvironment, RepTestPlan};
+    use rtf_orchestrator_shared::test_plan::{OrchestratorEnvironment, OrchestratorTestPlan};
 
     pub fn stub_environment() -> DockerComposeEnvironment {
         DockerComposeEnvironment {
@@ -454,8 +454,8 @@ mod tests {
         );
     }
 
-    pub fn stub_test_plan() -> RepTestPlan {
-        RepTestPlan {
+    pub fn stub_test_plan() -> OrchestratorTestPlan {
+        OrchestratorTestPlan {
             name: String::new(),
             description: String::new(),
             variables: Default::default(),
@@ -473,7 +473,7 @@ mod tests {
                 description: String::new(),
                 variable_definitions: vec![],
                 custom_providers: vec![],
-                execution: RepEnvironment::DockerCompose(stub_environment()),
+                execution: OrchestratorEnvironment::DockerCompose(stub_environment()),
             },
         }
     }

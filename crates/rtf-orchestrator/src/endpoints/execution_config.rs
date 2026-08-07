@@ -65,7 +65,9 @@ pub async fn output_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config::Config, context::RepContext, db::TestRun, test_helpers::TestServerState};
+    use crate::{
+        config::Config, context::OrchestratorContext, db::TestRun, test_helpers::TestServerState,
+    };
     use axum::http::{HeaderValue, header::AUTHORIZATION};
     use reqwest::StatusCode;
     use rtf_config::formats::{OutputCollection, PrometheusQuery};
@@ -107,8 +109,11 @@ mod tests {
             ..
         } = serde_json::from_value(payload).unwrap();
 
-        let ctx =
-            RepContext::new_from_inlined_files(Config::get(), relative_files, custom_providers);
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            Config::get(),
+            relative_files,
+            custom_providers,
+        );
 
         tss.state
             .eq_state

@@ -8,7 +8,7 @@ use rtf_config::{
 use rtf_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
-    {payload::PreparedPayload, test_plan::Rep},
+    {payload::PreparedPayload, test_plan::Orchestrator},
 };
 use serde::{Serialize, de::DeserializeOwned};
 use std::{
@@ -96,12 +96,12 @@ impl TestHelper {
         Ok(self.post(endpoint, body).await?.json().await?)
     }
 
-    pub async fn prepare_rep_payload(
+    pub async fn prepare_orchestrator_payload(
         &self,
         test_plan_dir: &str,
     ) -> anyhow::Result<PreparedPayload> {
         let ctx = Context::new_from_env_vars(&env::vars().collect());
-        let (test_plan, sources) = TestPlan::<Rep>::try_load_and_resolve_from_path(
+        let (test_plan, sources) = TestPlan::<Orchestrator>::try_load_and_resolve_from_path(
             format!("{test_plan_dir}/test-plan.yaml"),
             &ctx,
         )

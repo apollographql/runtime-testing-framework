@@ -16,7 +16,7 @@ use rtf_integrations::{
     ReqwestClient, github,
     graphos::{self, supergraph::SupergraphDetails},
 };
-use rtf_orchestrator_shared::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
+use rtf_orchestrator_shared::{payload::SourceKeyedArrayMap, test_plan::OrchestratorTestPlan};
 use std::{
     collections::{HashMap, HashSet},
     io,
@@ -28,14 +28,14 @@ use tokio::sync::Mutex;
 
 /// A [ResolutionContext] that reads relative files from a map rather than the filesystem.
 #[derive(Debug, Clone)]
-pub struct RepContext {
+pub struct OrchestratorContext {
     inner: Context,
     relative_files: SourceKeyedArrayMap<String>,
     custom_providers: Arc<CustomProviderDefinitions>,
     inline_cache: Arc<Mutex<HashMap<u64, InlinedProvider>>>,
 }
 
-impl RepContext {
+impl OrchestratorContext {
     pub fn new_from_inlined_files(
         cfg: &Config,
         relative_files: SourceKeyedArrayMap<String>,
@@ -70,7 +70,7 @@ impl RepContext {
     /// event loop.
     pub async fn validate_environment_file_provider_usage(
         &self,
-        test_plan: &RepTestPlan,
+        test_plan: &OrchestratorTestPlan,
     ) -> crate::Result<()> {
         let mut inline_cache = HashMap::new();
         let mut invalid = HashSet::new();
@@ -101,7 +101,7 @@ impl RepContext {
 
     async fn inline_and_check_variant(
         &self,
-        mut variant: RepTestPlan,
+        mut variant: OrchestratorTestPlan,
         inline_cache: &mut HashMap<u64, InlinedProvider>,
     ) -> resolver::Result<FileProviderServices> {
         let variables = take(&mut variant.variables);
@@ -129,7 +129,7 @@ impl RepContext {
     }
 }
 
-impl ResolutionContext for RepContext {
+impl ResolutionContext for OrchestratorContext {
     type PlatformClient = graphos::PlatformClient;
     type GithubClient = github::GithubClient;
     type HttpClient = ReqwestClient;

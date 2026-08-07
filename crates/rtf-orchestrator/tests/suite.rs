@@ -14,7 +14,7 @@ async fn full_test_run_happy_path_completes_successfully() {
     let run: TestRunSummary = t
         .json_post(
             "test-run/trigger",
-            t.prepare_rep_payload("resources/test-plans/valid/minimal")
+            t.prepare_orchestrator_payload("resources/test-plans/valid/minimal")
                 .await
                 .unwrap(),
         )
@@ -64,7 +64,7 @@ async fn full_test_run_happy_path_completes_successfully_with_null_environment()
     let run: TestRunSummary = t
         .json_post(
             "test-run/trigger",
-            t.prepare_rep_payload("resources/test-plans/valid/null-environment")
+            t.prepare_orchestrator_payload("resources/test-plans/valid/null-environment")
                 .await
                 .unwrap(),
         )
@@ -113,7 +113,7 @@ async fn unknown_docker_image_in_environment_marks_execution_unrunnable() {
     let run: TestRunSummary = t
         .json_post(
             "test-run/trigger",
-            t.prepare_rep_payload("resources/test-plans/error/unknown-docker-image-env")
+            t.prepare_orchestrator_payload("resources/test-plans/error/unknown-docker-image-env")
                 .await
                 .unwrap(),
         )
@@ -153,9 +153,11 @@ async fn unknown_docker_image_in_scenario_marks_execution_unrunnable() {
     let run: TestRunSummary = t
         .json_post(
             "test-run/trigger",
-            t.prepare_rep_payload("resources/test-plans/error/unknown-docker-image-scenario")
-                .await
-                .unwrap(),
+            t.prepare_orchestrator_payload(
+                "resources/test-plans/error/unknown-docker-image-scenario",
+            )
+            .await
+            .unwrap(),
         )
         .await
         .unwrap();

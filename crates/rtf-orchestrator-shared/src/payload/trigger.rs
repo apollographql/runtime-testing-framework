@@ -1,4 +1,4 @@
-use crate::{payload::SourceKeyedArrayMap, test_plan::RepTestPlan};
+use crate::{payload::SourceKeyedArrayMap, test_plan::OrchestratorTestPlan};
 use rtf_config::{
     SourceDir, StableSource,
     context::ResolutionContext,
@@ -63,7 +63,7 @@ impl GitHubPayload {
         self,
         ctx: impl ResolutionContext,
     ) -> Result<PreparedPayload, PrepareError> {
-        let (test_plan, sources) = RepTestPlan::try_load_and_resolve_from_github(
+        let (test_plan, sources) = OrchestratorTestPlan::try_load_and_resolve_from_github(
             &self.org,
             &self.repo,
             &self.path,
@@ -80,7 +80,7 @@ impl GitHubPayload {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PreparedPayload {
-    pub test_plan: RepTestPlan,
+    pub test_plan: OrchestratorTestPlan,
     pub relative_files: SourceKeyedArrayMap<String>,
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
     #[serde(default)]
@@ -89,7 +89,7 @@ pub struct PreparedPayload {
 
 impl PreparedPayload {
     pub async fn prepare(
-        mut test_plan: RepTestPlan,
+        mut test_plan: OrchestratorTestPlan,
         sources: Sources,
         variables: ParsedVariables,
         vars_file_src: Option<SourceDir>,
@@ -148,7 +148,7 @@ impl PreparedPayload {
 }
 
 async fn try_extract_relative_files(
-    test_plan: &RepTestPlan,
+    test_plan: &OrchestratorTestPlan,
     files: &mut HashMap<(StableSource, String), String>,
     ctx: &impl ResolutionContext,
 ) -> providers::Result<()> {
