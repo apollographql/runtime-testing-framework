@@ -21,12 +21,12 @@ const VOLUME_MOUNT_NAME_SHARED: &str = "shared";
 ///
 /// Layout:
 /// - Init container `rtf-resolve` (toolbox image) resolves the scenario config and writes
-///   `run.sh` into the shared volume via `rep-orchestrator-cli prepare-scenario`.
+///   `run.sh` into the shared volume via `rtf-orchestrator-cli prepare-scenario`.
 /// - Regular container `scenario-runner` (user image) executes `run.sh`. On exit, the script
 ///   touches a sentinel file in the shared volume so the `output-collector` running in
 ///   parallel can detect completion.
 /// - Regular container `output-collector` (toolbox image) polls for the sentinel, uploads
-///   artifacts, and posts the terminal status via `rep-orchestrator-cli collect-output`.
+///   artifacts, and posts the terminal status via `rtf-orchestrator-cli collect-output`.
 pub fn scenario_job(
     ex: &TestExecution,
     scenario_image: String,

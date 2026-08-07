@@ -24,7 +24,7 @@ testability and CLI control over execution.
 The `rep-orchestrator` crate is a server-side orchestration layer for RTF. It manages the lifecycle
 of test runs and individual test executions across Kubernetes clusters: a management cluster (Argo
 workflows for environment provisioning) and workload clusters (scenario jobs). It uses the
-`rtf-orchestrator-shared` crate for types shared between it and the `rep-orchestrator-cli` which
+`rtf-orchestrator-shared` crate for types shared between it and the `rtf-orchestrator-cli` which
 submits updates to the clusters.
 
 The `rtf-integrations` crate provides the `rtf-config` crate with clients to make various HTTP

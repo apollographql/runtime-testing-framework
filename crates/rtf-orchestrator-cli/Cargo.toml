@@ -1,5 +1,5 @@
 [package]
-name = "rep-orchestrator-cli"
+name = "rtf-orchestrator-cli"
 version.workspace = true
 edition.workspace = true
 

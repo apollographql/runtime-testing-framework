@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 /// Provides first-class commands for provisioning and tearing down
 /// RTF environments on Kubernetes.
 #[derive(Debug, Parser)]
-#[clap(about, name = "rep-orchestrator-cli", long_about = None)]
+#[clap(about, name = "rtf-orchestrator-cli", long_about = None)]
 pub struct Args {
     #[clap(subcommand)]
     pub command: Command,

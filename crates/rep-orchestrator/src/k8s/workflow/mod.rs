@@ -170,7 +170,7 @@ pub struct TaskTemplate {
 }
 
 impl TaskTemplate {
-    /// Build a task container that runs `rep-orchestrator-cli <args...>` inside the toolbox image.
+    /// Build a task container that runs `rtf-orchestrator-cli <args...>` inside the toolbox image.
     fn new(
         name: &str,
         toolbox_pull_policy: &str,

@@ -3764,35 +3764,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rep-orchestrator-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_fs",
- "chrono",
- "clap",
- "indoc",
- "k8s-openapi",
- "kube",
- "predicates",
- "reqwest 0.13.3",
- "rtf-cli-shared",
- "rtf-config",
- "rtf-integrations",
- "rtf-orchestrator-shared",
- "rustls",
- "serde",
- "serde_json",
- "serde_yaml",
- "simple_test_case",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
- "zip",
-]
-
-[[package]]
 name = "reqwest"
 version = "0.12.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4072,6 +4043,35 @@ dependencies = [
  "tokio",
  "tracing",
  "xdg",
+]
+
+[[package]]
+name = "rtf-orchestrator-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_fs",
+ "chrono",
+ "clap",
+ "indoc",
+ "k8s-openapi",
+ "kube",
+ "predicates",
+ "reqwest 0.13.3",
+ "rtf-cli-shared",
+ "rtf-config",
+ "rtf-integrations",
+ "rtf-orchestrator-shared",
+ "rustls",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "simple_test_case",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+ "zip",
 ]
 
 [[package]]

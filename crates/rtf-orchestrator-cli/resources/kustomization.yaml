@@ -19,7 +19,7 @@ patches:
                 image: us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge
                 imagePullPolicy: __IMAGE_PULL_POLICY__
                 command:
-                  - rep-orchestrator-cli
+                  - rtf-orchestrator-cli
                   - resolve-environment
                   - --outdir
                   - __OUTDIR__

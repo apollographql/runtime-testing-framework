@@ -21,7 +21,7 @@ use std::{
 use tokio::fs;
 use tracing::warn;
 
-const MANAGER_NAME: &str = "rep-orchestrator-cli";
+const MANAGER_NAME: &str = "rtf-orchestrator-cli";
 const SA_NAME: &str = "results-writer";
 const SA_PREFIX: &str = "iam.gke.io/gcp-service-account";
 const WIF_ANNOTATION: &str = "results-writer@runtime-testing-framework.iam.gserviceaccount.com";

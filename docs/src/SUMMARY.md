@@ -79,7 +79,7 @@
     - [rtf-derive](developer/reference/testing/crates/rtf-derive.md)
     - [rtf-cli](developer/reference/testing/crates/rtf-cli.md)
     - [rep-orchestrator](developer/reference/testing/crates/rep-orchestrator.md)
-    - [rep-orchestrator-cli](developer/reference/testing/crates/rep-orchestrator-cli.md)
+    - [rtf-orchestrator-cli](developer/reference/testing/crates/rtf-orchestrator-cli.md)
   - [Data Structures](developer/reference/data-structures/index.md)
     - [Templating Fields](developer/reference/data-structures/fields.md)
     - [File Providers](developer/reference/data-structures/file-providers.md)

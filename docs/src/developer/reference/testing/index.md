@@ -27,7 +27,7 @@ Testing guidance is split into two areas:
 - [rtf-derive](crates/rtf-derive.md)
 - [rtf-cli](crates/rtf-cli.md)
 - [rep-orchestrator](crates/rep-orchestrator.md)
-- [rep-orchestrator-cli](crates/rep-orchestrator-cli.md)
+- [rtf-orchestrator-cli](crates/rtf-orchestrator-cli.md)
 
 ## Organizing tests
 
