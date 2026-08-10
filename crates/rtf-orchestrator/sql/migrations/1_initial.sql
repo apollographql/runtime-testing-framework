@@ -1,4 +1,4 @@
--- Initial schema for the REP orchestrator service
+-- Initial schema for the RTF REP orchestrator service
 
 -- Test Runs represent to a single user request to execute tests written as an RTF test plan.
 -- Each run contains one or more Test Executions.
