@@ -110,14 +110,14 @@ There must always be a blank line before implicit function returns.
 
 ```rust
 // Correct
-fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepContext, RepTestPlan)> {
+fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(OrchestratorContext, OrchestratorTestPlan)> {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&HashMap::new(), &ctx)
         .map_err(ResolverError::TemplatingCheck)?;
@@ -126,14 +126,14 @@ fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepConte
 }
 
 // Incorrect
-fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepContext, RepTestPlan)> {
+fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(OrchestratorContext, OrchestratorTestPlan)> {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&HashMap::new(), &ctx)
         .map_err(ResolverError::TemplatingCheck)?;
@@ -177,7 +177,7 @@ When namespacing is required in order to resolving name collisions there are two
 
 ```rust
 // Correct
-use rep_orchestrator_shared::status::Status as SharedStatus;
+use rtf_orchestrator_shared::status::Status as SharedStatus;
 use std::io
 
 fn example_1() -> SharedStatus { ... }
@@ -185,7 +185,7 @@ fn example_2() -> io::Result<()> { ... }
 
 
 // Incorrect - ambiguous qualifier
-use rep_orchestrator_shared::status;
+use rtf_orchestrator_shared::status;
 
 // Incorrect - inline fully qualified paths
 fn example_2() -> std::io::Result<()> {

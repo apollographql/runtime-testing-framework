@@ -1,0 +1,12 @@
+# This is a minimal way of bringing up a local postgres database for backing DB
+# tests without requiring the full Tilt stack.
+services:
+  db:
+    container_name: db
+    image: postgres:18
+    environment:
+      POSTGRES_USER: service_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rtf_orchestrator
+    ports:
+      - "5432:5432"

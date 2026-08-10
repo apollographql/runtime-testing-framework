@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::{
+use reqwest::{StatusCode, Url, header::LOCATION, redirect::Policy};
+use rtf_orchestrator_shared::{
     known_test_plan::{
         KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanRunsParams,
         KnownTestPlanSummary,
@@ -7,7 +8,6 @@ use rep_orchestrator_shared::{
     payload::TriggerPayload,
     summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary},
 };
-use reqwest::{StatusCode, Url, header::LOCATION, redirect::Policy};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -354,7 +354,7 @@ fn known_test_plan_runs_url(base_url: &Url, uuid: Uuid) -> Url {
 pub(crate) mod mocks {
     use super::*;
     use chrono::Utc;
-    use rep_orchestrator_shared::{
+    use rtf_orchestrator_shared::{
         status::{Status, StatusUpdate},
         summary::TestExecutionSummary,
     };

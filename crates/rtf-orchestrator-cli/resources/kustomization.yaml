@@ -1,0 +1,76 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - kompose-output.yaml
+patches:
+  - target:
+      kind: Deployment
+      annotationSelector: "__FILE_PROVIDERS_LABEL__=true"
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: placeholder  # overridden by target selector
+      spec:
+        template:
+          spec:
+            initContainers:
+              - name: toolbox-init
+                image: us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge
+                imagePullPolicy: __IMAGE_PULL_POLICY__
+                command:
+                  - rtf-orchestrator-cli
+                  - resolve-environment
+                  - --outdir
+                  - __OUTDIR__
+                env:
+                  - name: APOLLO_RTF_ORCHESTRATOR_URL
+                    value: __ORCHESTRATOR_URL__
+                  - name: APOLLO_RTF_ORCHESTRATOR_EXECUTION_ID
+                    value: __EXECUTION_ID__
+                  - name: APOLLO_RTF_ORCHESTRATOR_EXECUTION_TOKEN
+                    value: __EXECUTION_TOKEN__
+                volumeMounts:
+                  - mountPath: __OUTDIR__
+                    name: providers
+            volumes:
+              - name: providers
+                emptyDir: {}
+  - target:
+      kind: Deployment
+      annotationSelector: "__FILE_PROVIDERS_LABEL__=true"
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: providers
+            mountPath: __OUTDIR__
+  - target:
+      kind: Deployment
+      annotationSelector: "__LOG_COLLECTION_LABEL__=true"
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: placeholder  # overridden by target selector
+      spec:
+        template:
+          metadata:
+            labels:
+              __LOG_COLLECTION_LABEL__: "true"
+  - target:
+      kind: Deployment
+      annotationSelector: "__OTEL_LABEL__=true"
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom
+        value:
+          - configMapRef:
+              name: rtf-otel-config
+configMapGenerator:
+  - name: rtf-otel-config
+    literals:
+      - __RTF_OTEL_COLLECTOR_GRPC_VAR__=__RTF_OTEL_COLLECTOR_GRPC__
+      - __RTF_OTEL_COLLECTOR_HTTP_VAR__=__RTF_OTEL_COLLECTOR_HTTP__
+    options:
+      disableNameSuffixHash: true

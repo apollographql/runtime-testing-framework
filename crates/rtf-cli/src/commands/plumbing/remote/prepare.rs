@@ -1,8 +1,8 @@
 use crate::commands::{
     get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
 };
-use rep_orchestrator_shared::payload::PreparedPayload;
 use rtf_core::variables::Variables;
+use rtf_orchestrator_shared::payload::PreparedPayload;
 use tracing::info;
 
 pub async fn write_remote_trigger_payload_to_stdout(

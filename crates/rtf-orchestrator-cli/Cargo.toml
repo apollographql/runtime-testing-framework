@@ -1,0 +1,32 @@
+[package]
+name = "rtf-orchestrator-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rtf-cli-shared = { path = "../rtf-cli-shared" }
+rtf-config = { path = "../rtf-config" }
+rtf-integrations = { path = "../rtf-integrations" }
+rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
+
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+reqwest.workspace = true
+k8s-openapi.workspace = true
+kube.workspace = true
+rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+assert_fs.workspace = true
+indoc.workspace = true
+predicates.workspace = true
+serde_yaml.workspace = true
+simple_test_case.workspace = true

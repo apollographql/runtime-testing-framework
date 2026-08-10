@@ -9,11 +9,11 @@ name = "rtf"
 path = "src/main.rs"
 
 [dependencies]
-rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
 rtf-cli-shared = { path = "../rtf-cli-shared" }
 rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
 rtf-integrations = { path = "../rtf-integrations" }
+rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
 
 anyhow.workspace = true 
 assert_fs.workspace = true

@@ -1,0 +1,12 @@
+postgresql:
+  fullnameOverride: postgres
+  auth:
+    username: service_user
+    password: password
+    database: rtf_orchestrator
+    postgresPassword: postgres_admin_password
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi

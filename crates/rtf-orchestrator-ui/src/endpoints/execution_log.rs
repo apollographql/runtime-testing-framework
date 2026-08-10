@@ -24,8 +24,8 @@ pub async fn handler<C: Client>(
 mod tests {
     use super::*;
     use crate::{endpoints::body_text, orchestrator::mocks::MockClient};
-    use rep_orchestrator_shared::status::Status;
     use reqwest::StatusCode;
+    use rtf_orchestrator_shared::status::Status;
 
     #[tokio::test]
     async fn execution_log_calls_the_client_and_streams_its_result() {

@@ -1,0 +1,67 @@
+name: Publish RTF Orchestrator Docker Image and Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-rtf-orchestrator.yaml"
+      - "crates/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+jobs:
+  publish-orchestrator-image:
+    name: Build and publish RTF Orchestrator image
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      image_name: rtf-orchestrator
+      image_description:
+        "RTF orchestrator image used to run the service that orchestrates
+        RTF test plans"
+      platforms:
+        "[{\"platform\":\"linux/amd64\",\"runner\":\"ubuntu-24.04\"},{\"plat\
+        form\":\"linux/arm64\",\"runner\":\"ubuntu-24.04-arm\"}]"
+      context: .
+      dockerfile_location: crates/rtf-orchestrator/docker/Dockerfile
+      build_args: GIT_SHA=${{ github.sha }}
+    secrets: inherit
+
+  publish-helm-chart:
+    name: "Build and publish RTF Orchestrator Helm Chart"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      # Chart version uses a short SHA so `0.0.0+<sha>` stays well under the 63-byte
+      # Kubernetes label limit once it's folded into the chart's helm.sh/chart label.
+      - name: Compute short SHA
+        id: short_sha
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Publishes the chart to apollo-private-helm as `0.0.0+<short-sha>`.
+      # app_version is set to the full SHA because the deployment template resolves the image tag
+      # from `.Chart.AppVersion` (values.yaml image.tag is null) — it must match the image published
+      # by the build_and_publish job above, which tags with the full SHA.
+      - name: "Publish Helm Chart"
+        uses: apollographql/release-tooling/release-helm-internal@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
+        with:
+          chart_path: crates/rtf-orchestrator/helm/rtf-orchestrator
+          commit_sha: ${{ steps.short_sha.outputs.sha }}
+          app_version: ${{ github.sha }}

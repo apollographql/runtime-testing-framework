@@ -1,4 +1,4 @@
-name: REP orchestrator tests
+name: RTF orchestrator tests
 
 on:
   push:
@@ -45,7 +45,7 @@ jobs:
         fi
 
   orchestrator-test:
-    name: REP orchestrator tests
+    name: RTF orchestrator tests
     runs-on: rust-8c
     needs: [read-rust-version, check-for-updated-files]
     if: ${{ needs.check-for-updated-files.outputs.should_run_tests == 'true' }}
@@ -66,7 +66,7 @@ jobs:
       with:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - name: Run integration tests
-      run: cd crates/rep-orchestrator && make ci-tests 2>&1 | tee /tmp/tilt.log; exit ${PIPESTATUS[0]}
+      run: cd crates/rtf-orchestrator && make ci-tests 2>&1 | tee /tmp/tilt.log; exit ${PIPESTATUS[0]}
     - name: Collect cluster diagnostics
       if: failure()
       run: |
@@ -96,7 +96,7 @@ jobs:
         # Helm release status
         helm list -A --kube-context kind-rtf-mgmt \
           2>&1 | tee /tmp/helm-releases.txt || true
-        helm status rep-orchestrator -n orchestrator --kube-context kind-rtf-mgmt \
+        helm status rtf-orchestrator -n orchestrator --kube-context kind-rtf-mgmt \
           2>&1 >> /tmp/helm-releases.txt || true
 
         # Application logs
@@ -128,4 +128,4 @@ jobs:
           /tmp/argo-logs.txt
     - name: Tear down clusters
       if: always()
-      run: cd crates/rep-orchestrator && make cluster-teardown
+      run: cd crates/rtf-orchestrator && make cluster-teardown

@@ -1,0 +1,34 @@
+name: dc739bed-ff86-4b82-99c9-e4a6978f666e
+description: ""
+variable_definitions: []
+
+project_name: rtf-prepare
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml
+
+file_providers:
+  - name: nginx.conf
+    env_var: NGINX_CONF_FILE
+    kind: inline
+    content: |
+      pid /tmp/nginx.pid;
+      events {}
+      http {
+        server {
+          listen 80;
+          location / {
+            return 200 "ok\n";
+          }
+        }
+      }
+
+env_vars: {}
+
+output_collection:
+  prometheus:
+    - name: environment_up
+      step: 15s
+      query: up

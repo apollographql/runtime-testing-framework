@@ -175,7 +175,7 @@ fn remote_run_smoke_test_succeeds() {
         .args([
             "remote",
             "run",
-            "../rep-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml",
+            "../rtf-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml",
         ])
         .assert()
         .success()
@@ -199,7 +199,7 @@ fn remote_ci_run_smoke_test_succeeds() {
         .args([
             "remote",
             "ci-run",
-            "../rep-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml",
+            "../rtf-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml",
         ])
         .assert()
         .success();

@@ -12,8 +12,8 @@ run = "$(git rev-parse --show-toplevel)/scripts/generate-docs.sh"
 
 [tasks.generate-helm-docs]
 run = [
-    "helm-docs -c crates/rep-orchestrator/helm/rep-orchestrator",
-    "dprint fmt crates/rep-orchestrator/helm/rep-orchestrator/README.md",
+    "helm-docs -c crates/rtf-orchestrator/helm/rtf-orchestrator",
+    "dprint fmt crates/rtf-orchestrator/helm/rtf-orchestrator/README.md",
     "helm-docs -c crates/rtf-orchestrator-ui/helm/rtf-orchestrator-ui",
     "dprint fmt crates/rtf-orchestrator-ui/helm/rtf-orchestrator-ui/README.md",
 ]

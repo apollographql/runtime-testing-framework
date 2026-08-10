@@ -1,4 +1,4 @@
-use rep_orchestrator_shared::status::{Status, StatusCategory};
+use rtf_orchestrator_shared::status::{Status, StatusCategory};
 
 /// CSS modifier class for a status, used to colour-code the UI.
 pub fn css_class(status: Status) -> &'static str {

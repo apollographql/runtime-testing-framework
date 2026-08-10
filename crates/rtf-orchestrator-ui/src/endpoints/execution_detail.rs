@@ -10,8 +10,8 @@ use axum::{
     extract::{Path, State},
     response::Response,
 };
-use rep_orchestrator_shared::summary::TestExecutionSummary;
 use reqwest::StatusCode;
+use rtf_orchestrator_shared::summary::TestExecutionSummary;
 use tracing::error;
 use uuid::Uuid;
 
@@ -72,7 +72,7 @@ mod tests {
         links::sample_config,
         orchestrator::mocks::{MockClient, sample_execution},
     };
-    use rep_orchestrator_shared::status::Status;
+    use rtf_orchestrator_shared::status::Status;
 
     #[test]
     fn execution_detail_body_renders_a_known_execution() {

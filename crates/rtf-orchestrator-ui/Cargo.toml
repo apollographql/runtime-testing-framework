@@ -4,8 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
 rtf-core = { path = "../rtf-core" }
+rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
 
 anyhow.workspace = true
 askama = "0.16.0"

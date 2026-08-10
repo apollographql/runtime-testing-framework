@@ -19,17 +19,17 @@ used by the CLI.
 files from the filesystem, executing commands, making HTTP requests to GraphOS and GitHub. When the
 CLI runs `rtf run`, it constructs a `Context` and passes it through to all provider logic.
 
-### `RepContext` (RTF Orchestrator Service)
+### `OrchestratorContext` (RTF Orchestrator Service)
 
-[`RepContext`][3] is the concrete implementation used by the [RTF Orchestrator Service][4]
-(`rep-orchestrator`). It wraps an inner `Context` but overrides the file IO behaviour: instead of
+[`OrchestratorContext`][3] is the concrete implementation used by the [RTF Orchestrator Service][4]
+(`rtf-orchestrator`). It wraps an inner `Context` but overrides the file IO behaviour: instead of
 reading from the filesystem, it reads from an in-memory map of file contents that was pre-bundled by
 `rtf remote prepare` into the [Trigger Payload][4].
 
 This is a deliberate design constraint. The Orchestrator is a server — it has no access to the
 filesystem paths that existed on the developer's machine when the test plan was prepared. The
-Trigger Payload carries everything the server needs, and `RepContext` enforces that only that
-content is accessible.
+Trigger Payload carries everything the server needs, and `OrchestratorContext` enforces that only
+that content is accessible.
 
 As a consequence, any `ResolutionContext` methods that would touch the filesystem directly are
 implemented as panics:
@@ -50,5 +50,5 @@ the inner `Context`.
 [0]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs
 [1]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L35
 [2]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157
-[3]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rep-orchestrator/src/context.rs
+[3]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-orchestrator/src/context.rs
 [4]: ../../reference/glossary.md

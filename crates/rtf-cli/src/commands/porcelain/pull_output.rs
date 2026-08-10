@@ -1,9 +1,9 @@
 use crate::commands::get_context_and_check_outdir;
 use futures::future::try_join_all;
-use rep_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
 use reqwest::{Method, StatusCode};
 use rtf_config::context::ResolutionContext;
 use rtf_integrations::orchestrator::OrchestratorClient;
+use rtf_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
 use std::path::Path;
 use tracing::{info, warn};
 use uuid::Uuid;
