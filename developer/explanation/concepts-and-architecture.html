@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-0c7a59a9.js";
+            window.path_to_searchindex_js = "../../searchindex-24eec283.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-3b257163.js"></script>
+        <script src="../../toc-9b5efe91.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -194,10 +194,10 @@ into strongly typed Rust structs</li>
 </ul>
 <p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
 testability and CLI control over execution.</p>
-<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for RTF. It manages the lifecycle
+<p>The <code>rtf-orchestrator</code> crate is a server-side orchestration layer for RTF. It manages the lifecycle
 of test runs and individual test executions across Kubernetes clusters: a management cluster (Argo
 workflows for environment provisioning) and workload clusters (scenario jobs). It uses the
-<code>rep-orchestrator-shared</code> crate for types shared between it and the <code>rep-orchestrator-cli</code> which
+<code>rtf-orchestrator-shared</code> crate for types shared between it and the <code>rtf-orchestrator-cli</code> which
 submits updates to the clusters.</p>
 <p>The <code>rtf-integrations</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP
 requests.</p>

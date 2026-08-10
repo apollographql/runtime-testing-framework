@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0c7a59a9.js";
+            window.path_to_searchindex_js = "searchindex-24eec283.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-3b257163.js"></script>
+        <script src="toc-9b5efe91.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -6110,10 +6110,10 @@ into strongly typed Rust structs</li>
 </ul>
 <p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
 testability and CLI control over execution.</p>
-<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for RTF. It manages the lifecycle
+<p>The <code>rtf-orchestrator</code> crate is a server-side orchestration layer for RTF. It manages the lifecycle
 of test runs and individual test executions across Kubernetes clusters: a management cluster (Argo
 workflows for environment provisioning) and workload clusters (scenario jobs). It uses the
-<code>rep-orchestrator-shared</code> crate for types shared between it and the <code>rep-orchestrator-cli</code> which
+<code>rtf-orchestrator-shared</code> crate for types shared between it and the <code>rtf-orchestrator-cli</code> which
 submits updates to the clusters.</p>
 <p>The <code>rtf-integrations</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP
 requests.</p>
@@ -6324,15 +6324,15 @@ used by the CLI.</p>
 <p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157"><code>Context</code></a> is the concrete implementation used by the RTF CLI. It performs real IO: reading
 files from the filesystem, executing commands, making HTTP requests to GraphOS and GitHub. When the
 CLI runs <code>rtf run</code>, it constructs a <code>Context</code> and passes it through to all provider logic.</p>
-<h3 id="repcontext-rtf-orchestrator-service"><a class="header" href="#repcontext-rtf-orchestrator-service"><code>RepContext</code> (RTF Orchestrator Service)</a></h3>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rep-orchestrator/src/context.rs"><code>RepContext</code></a> is the concrete implementation used by the <a href="#glossary">RTF Orchestrator Service</a>
-(<code>rep-orchestrator</code>). It wraps an inner <code>Context</code> but overrides the file IO behaviour: instead of
+<h3 id="orchestratorcontext-rtf-orchestrator-service"><a class="header" href="#orchestratorcontext-rtf-orchestrator-service"><code>OrchestratorContext</code> (RTF Orchestrator Service)</a></h3>
+<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-orchestrator/src/context.rs"><code>OrchestratorContext</code></a> is the concrete implementation used by the <a href="#glossary">RTF Orchestrator Service</a>
+(<code>rtf-orchestrator</code>). It wraps an inner <code>Context</code> but overrides the file IO behaviour: instead of
 reading from the filesystem, it reads from an in-memory map of file contents that was pre-bundled by
 <code>rtf remote prepare</code> into the <a href="#glossary">Trigger Payload</a>.</p>
 <p>This is a deliberate design constraint. The Orchestrator is a server — it has no access to the
 filesystem paths that existed on the developer’s machine when the test plan was prepared. The
-Trigger Payload carries everything the server needs, and <code>RepContext</code> enforces that only that
-content is accessible.</p>
+Trigger Payload carries everything the server needs, and <code>OrchestratorContext</code> enforces that only
+that content is accessible.</p>
 <p>As a consequence, any <code>ResolutionContext</code> methods that would touch the filesystem directly are
 implemented as panics:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -6364,7 +6364,7 @@ test a portion of their configuration ahead of running a porcelain command.</p>
 inline logic at the CLI struct level.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="orchestrator-helm-chart-versioning-policy"><a class="header" href="#orchestrator-helm-chart-versioning-policy">Orchestrator Helm chart versioning policy</a></h1>
-<p>This document records the decisions behind how we version and deploy the <code>rep-orchestrator</code> Helm
+<p>This document records the decisions behind how we version and deploy the <code>rtf-orchestrator</code> Helm
 chart for the <a href="#glossary">RTF Orchestrator Service</a>, the rationale for the phased approach, and the options
 that were considered and rejected.</p>
 <p><strong>When a phase is completed, update the <a href="#current-phase">Current phase</a> section to reflect actual state. The
@@ -6377,8 +6377,7 @@ not be edited after the fact.</strong></p>
 pinned chart version guarantees a pinned image via the <code>appVersion</code> fallback in the Deployment
 template. Production overrides <code>image.tag: edge</code> and <code>pullPolicy: Always</code> in the ArgoCD
 <code>valuesObject</code>, so pods pick up the latest image on every rollout without a chart bump PR.
-Production is still updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
-<code>targetRevision</code>.</p>
+Production is still updated by manually opening a PR on <code>kanaveral</code> to bump <code>targetRevision</code>.</p>
 </blockquote>
 <h2 id="design-intent"><a class="header" href="#design-intent">Design intent</a></h2>
 <p>The chart and image are published together on every code merge by design. The intent is that
@@ -6410,8 +6409,7 @@ automated and semantically correct as the service matures.</p>
 <li>Image published with tags: full git SHA, <code>main-&lt;short-sha&gt;</code>, and mutable <code>edge</code>.</li>
 <li><code>values.yaml</code> hardcodes <code>image.tag: edge</code> — every chart version deploys whatever <code>edge</code> points to
 at rollout time, regardless of the chart’s own SHA.</li>
-<li>Production updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
-<code>targetRevision</code>.</li>
+<li>Production updated by manually opening a PR on <code>kanaveral</code> to bump <code>targetRevision</code>.</li>
 </ul>
 <p><strong>Problems that motivated moving to Phase 1:</strong></p>
 <ul>
@@ -6444,7 +6442,7 @@ values, which is used in Phase 2.</p>
 <h3 id="phase-2--production-uses-edge-for-fast-iteration"><a class="header" href="#phase-2--production-uses-edge-for-fast-iteration">Phase 2 — production uses <code>edge</code> for fast iteration</a></h3>
 <p><strong>What changed:</strong></p>
 <ul>
-<li>The ArgoCD <code>valuesObject</code> in <code>runtime-environment-provisioner</code> adds:
+<li>The ArgoCD <code>valuesObject</code> in <code>kanaveral</code> adds:
 <pre><code class="language-yaml">image:
   tag: edge
   pullPolicy: Always
@@ -6459,7 +6457,7 @@ deployed image is not pinned. This is acceptable while there are no consumers; i
 before the service takes on production traffic (Phase 3).</p>
 <blockquote>
 <p><strong>Note:</strong> Phases 1 and 2 are a single implementation effort, listed separately because Phase 1 is
-a change in this repo and Phase 2 is a values change in <code>runtime-environment-provisioner</code>.</p>
+a change in this repo and Phase 2 is a values change in <code>kanaveral</code>.</p>
 </blockquote>
 <hr>
 <h3 id="phase-3--remove-edge-override-enforce-lockstep-in-production"><a class="header" href="#phase-3--remove-edge-override-enforce-lockstep-in-production">Phase 3 — remove <code>edge</code> override (enforce lockstep in production)</a></h3>
@@ -6467,13 +6465,13 @@ a change in this repo and Phase 2 is a values change in <code>runtime-environmen
 <p><strong>What changed:</strong></p>
 <ul>
 <li>The <code>image.tag: edge</code> and <code>pullPolicy: Always</code> overrides are removed from the production
-<code>valuesObject</code> in <code>runtime-environment-provisioner</code>.</li>
+<code>valuesObject</code> in <code>kanaveral</code>.</li>
 <li>The chart’s <code>appVersion</code> (the git SHA baked in at publish time) becomes the live image tag.</li>
-<li>Deploying a new image now requires a chart bump PR to <code>runtime-environment-provisioner</code>.</li>
+<li>Deploying a new image now requires a chart bump PR to <code>kanaveral</code>.</li>
 </ul>
 <p><strong>Result:</strong> The lockstep intent is fully enforced in production. Every code change produces a new
-chart version; bumping to that version in <code>runtime-environment-provisioner</code> is the single operation
-that updates the running Orchestrator.</p>
+chart version; bumping to that version in <code>kanaveral</code> is the single operation that updates the
+running Orchestrator.</p>
 <hr>
 <h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <div class="table-wrapper">
@@ -6482,9 +6480,9 @@ that updates the running Orchestrator.</p>
 <tr><th>Phase</th><th>Image tag in production</th><th>Lockstep enforced?</th><th>Automation</th></tr>
 </thead>
 <tbody>
-<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
-<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
-<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
+<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to <code>kanaveral</code></td></tr>
+<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to <code>kanaveral</code></td></tr>
+<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to <code>kanaveral</code></td></tr>
 </tbody>
 </table>
 </div>
@@ -6493,7 +6491,7 @@ that updates the running Orchestrator.</p>
 <p>Task-oriented guides for common development workflows.</p>
 <ul>
 <li><a href="#running-pr-checks">Run PR checks</a> - running CI checks locally</li>
-<li><a href="#how-to-run-rep-orchestrator-tests">Run rep-orchestrator tests</a> - running unit, DB, and integration tests for the Orchestrator</li>
+<li><a href="#how-to-run-rtf-orchestrator-tests">Run rtf-orchestrator tests</a> - running unit, DB, and integration tests for the Orchestrator</li>
 <li><a href="#how-to-run-a-test-coverage-report">Run a test coverage report</a> - generating and inspecting a full workspace coverage report</li>
 <li><a href="#how-to-update-trybuild-stderr-files-for-rtf-derive">Update trybuild .stderr files</a> - refreshing expected compiler output after a Rust version
 change</li>
@@ -6573,8 +6571,8 @@ page is intentionally categorised.</p>
 </code></pre>
 <p>This will print the path of any file that is missing or has an invalid annotation.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
-<h1 id="how-to-run-rep-orchestrator-tests"><a class="header" href="#how-to-run-rep-orchestrator-tests">How to run rep-orchestrator tests</a></h1>
-<p>The <code>rep-orchestrator</code> crate partitions its tests into three categories, each requiring a different
+<h1 id="how-to-run-rtf-orchestrator-tests"><a class="header" href="#how-to-run-rtf-orchestrator-tests">How to run rtf-orchestrator tests</a></h1>
+<p>The <code>rtf-orchestrator</code> crate partitions its tests into three categories, each requiring a different
 level of infrastructure. This guide explains how to run each category.</p>
 <blockquote>
 <p><strong>Prerequisites</strong></p>
@@ -6588,13 +6586,13 @@ level of infrastructure. This guide explains how to run each category.</p>
 </blockquote>
 <h2 id="unit-tests"><a class="header" href="#unit-tests">Unit tests</a></h2>
 <p>Unit tests require no external infrastructure and run via the standard workspace test command:</p>
-<pre><code class="language-bash">cargo test -p rep-orchestrator --lib
+<pre><code class="language-bash">cargo test -p rtf-orchestrator --lib
 </code></pre>
 <p>Stack-dependent tests are skipped automatically and reported as ignored in the output.</p>
 <h2 id="db-tests"><a class="header" href="#db-tests">DB tests</a></h2>
 <p>DB tests require a running PostgreSQL instance.</p>
 <p>Start the lightweight database stack:</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
+<pre><code class="language-bash">cd crates/rtf-orchestrator
 make db-up
 </code></pre>
 <p>In a second terminal, run the DB tests:</p>
@@ -6608,7 +6606,7 @@ make db-up
 <p>Integration tests exercise the full HTTP API and require the complete tilt stack (Orchestrator
 server + database).</p>
 <p>Set up the cluster:</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
+<pre><code class="language-bash">cd crates/rtf-orchestrator
 make cluster-setup
 </code></pre>
 <p>Then start the tilt stack (and view the status of the resources via the link provided in the
@@ -6623,7 +6621,7 @@ output):</p>
 </code></pre>
 <h2 id="running-all-tests-as-ci-does"><a class="header" href="#running-all-tests-as-ci-does">Running all tests as CI does</a></h2>
 <p>To replicate the full CI flow — start stack, wait for readiness, run all tests, tear down:</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
+<pre><code class="language-bash">cd crates/rtf-orchestrator
 make ci-tests
 </code></pre>
 <h2 id="feature-flags-reference"><a class="header" href="#feature-flags-reference">Feature flags reference</a></h2>
@@ -6820,14 +6818,14 @@ returned and isolates it from the rest of the function so it can be easily read.
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Correct
-fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(RepContext, RepTestPlan)&gt; {
+fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(OrchestratorContext, OrchestratorTestPlan)&gt; {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&amp;HashMap::new(), &amp;ctx)
         .map_err(ResolverError::TemplatingCheck)?;
@@ -6836,14 +6834,14 @@ fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt
 }
 
 // Incorrect
-fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(RepContext, RepTestPlan)&gt; {
+fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(OrchestratorContext, OrchestratorTestPlan)&gt; {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&amp;HashMap::new(), &amp;ctx)
         .map_err(ResolverError::TemplatingCheck)?;
@@ -6885,7 +6883,7 @@ the top of the file.</li>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Correct
-use rep_orchestrator_shared::status::Status as SharedStatus;
+use rtf_orchestrator_shared::status::Status as SharedStatus;
 use std::io
 
 fn example_1() -&gt; SharedStatus { ... }
@@ -6893,7 +6891,7 @@ fn example_2() -&gt; io::Result&lt;()&gt; { ... }
 
 
 // Incorrect - ambiguous qualifier
-use rep_orchestrator_shared::status;
+use rtf_orchestrator_shared::status;
 
 // Incorrect - inline fully qualified paths
 fn example_2() -&gt; std::io::Result&lt;()&gt; {
@@ -7617,8 +7615,8 @@ the relevant style</li>
 <li><a href="#rtf-integrations">rtf-integrations</a></li>
 <li><a href="#rtf-derive">rtf-derive</a></li>
 <li><a href="#rtf-cli">rtf-cli</a></li>
-<li><a href="#rep-orchestrator">rep-orchestrator</a></li>
-<li><a href="#rep-orchestrator-cli">rep-orchestrator-cli</a></li>
+<li><a href="#rtf-orchestrator">rtf-orchestrator</a></li>
+<li><a href="#rtf-orchestrator-cli">rtf-orchestrator-cli</a></li>
 </ul>
 <h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing tests</a></h2>
 <p>Each style page and crate-specific page describes a naming hierarchy for its test category. The key
@@ -8097,14 +8095,14 @@ fn github_flag_completes() { ... }
 <p>Tests are grouped by their credential requirement into separate files (e.g. <code>tests/github/</code>,
 <code>tests/graphos/</code>), making it easy to run only the tests relevant to a given credential.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="rep-orchestrator"><a class="header" href="#rep-orchestrator">rep-orchestrator</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator"><code>rep-orchestrator</code></a> crate are organized and implemented.
+<h1 id="rtf-orchestrator"><a class="header" href="#rtf-orchestrator">rtf-orchestrator</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-orchestrator"><code>rtf-orchestrator</code></a> crate are organized and implemented.
 The crate uses two test styles:</p>
 <ul>
 <li>Unit tests follow the <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a></li>
 <li>HTTP API integration tests follow the <a href="developer/reference/testing/crates/http-tests.html">HTTP API integration test style</a></li>
 </ul>
-<p>See <a href="developer/reference/howto/run-rep-orchestrator-tests.html">Run rep-orchestrator tests</a> for a step-by-step guide to running each category locally.</p>
+<p>See <a href="developer/reference/howto/run-rtf-orchestrator-tests.html">Run rtf-orchestrator tests</a> for a step-by-step guide to running each category locally.</p>
 <h2 id="categories"><a class="header" href="#categories">Categories</a></h2>
 <div class="table-wrapper">
 <table>
@@ -8173,7 +8171,7 @@ variations</li>
 <tr><th>Method</th><th>Purpose</th></tr>
 </thead>
 <tbody>
-<tr><td><code>prepare_rep_payload</code></td><td>Prepares a <code>TriggerPayload</code> from a test plan directory</td></tr>
+<tr><td><code>prepare_orchestrator_payload</code></td><td>Prepares a <code>TriggerPayload</code> from a test plan directory</td></tr>
 <tr><td><code>json_get</code> / <code>json_post</code></td><td>Typed helpers that deserialize JSON responses into the expected type</td></tr>
 <tr><td><code>get</code> / <code>post</code></td><td>Raw helpers returning <code>Response</code> for status-code assertions</td></tr>
 </tbody>
@@ -8196,8 +8194,8 @@ variations</li>
 </table>
 </div>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="rep-orchestrator-cli"><a class="header" href="#rep-orchestrator-cli">rep-orchestrator-cli</a></h1>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator-cli"><code>rep-orchestrator-cli</code></a> crate follows the standard <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a> for any unit tests.
+<h1 id="rtf-orchestrator-cli"><a class="header" href="#rtf-orchestrator-cli">rtf-orchestrator-cli</a></h1>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-orchestrator-cli"><code>rtf-orchestrator-cli</code></a> crate follows the standard <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a> for any unit tests.
 CLI behavior tests, if added, should follow the <a href="developer/reference/testing/crates/cli-tests.html">CLI integration test style</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="data-structures"><a class="header" href="#data-structures">Data structures</a></h1>

@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-0c7a59a9.js";
+            window.path_to_searchindex_js = "../../searchindex-24eec283.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-3b257163.js"></script>
+        <script src="../../toc-9b5efe91.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -282,14 +282,14 @@ returned and isolates it from the rest of the function so it can be easily read.
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Correct
-fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(RepContext, RepTestPlan)&gt; {
+fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(OrchestratorContext, OrchestratorTestPlan)&gt; {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&amp;HashMap::new(), &amp;ctx)
         .map_err(ResolverError::TemplatingCheck)?;
@@ -298,14 +298,14 @@ fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt
 }
 
 // Incorrect
-fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(RepContext, RepTestPlan)&gt; {
+fn prepare_resolution(cfg: &amp;Config, payload: TriggerPayload) -&gt; Result&lt;(OrchestratorContext, OrchestratorTestPlan)&gt; {
     let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
     } = payload;
 
-    let ctx = RepContext::new(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new(cfg, relative_files, custom_providers);
     test_plan
         .check_templating_will_work(&amp;HashMap::new(), &amp;ctx)
         .map_err(ResolverError::TemplatingCheck)?;
@@ -347,7 +347,7 @@ the top of the file.</li>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Correct
-use rep_orchestrator_shared::status::Status as SharedStatus;
+use rtf_orchestrator_shared::status::Status as SharedStatus;
 use std::io
 
 fn example_1() -&gt; SharedStatus { ... }
@@ -355,7 +355,7 @@ fn example_2() -&gt; io::Result&lt;()&gt; { ... }
 
 
 // Incorrect - ambiguous qualifier
-use rep_orchestrator_shared::status;
+use rtf_orchestrator_shared::status;
 
 // Incorrect - inline fully qualified paths
 fn example_2() -&gt; std::io::Result&lt;()&gt; {

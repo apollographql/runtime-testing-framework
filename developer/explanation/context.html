@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-0c7a59a9.js";
+            window.path_to_searchindex_js = "../../searchindex-24eec283.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-3b257163.js"></script>
+        <script src="../../toc-9b5efe91.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -191,15 +191,15 @@ used by the CLI.</p>
 <p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157"><code>Context</code></a> is the concrete implementation used by the RTF CLI. It performs real IO: reading
 files from the filesystem, executing commands, making HTTP requests to GraphOS and GitHub. When the
 CLI runs <code>rtf run</code>, it constructs a <code>Context</code> and passes it through to all provider logic.</p>
-<h3 id="repcontext-rtf-orchestrator-service"><a class="header" href="#repcontext-rtf-orchestrator-service"><code>RepContext</code> (RTF Orchestrator Service)</a></h3>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rep-orchestrator/src/context.rs"><code>RepContext</code></a> is the concrete implementation used by the <a href="../../reference/glossary.html">RTF Orchestrator Service</a>
-(<code>rep-orchestrator</code>). It wraps an inner <code>Context</code> but overrides the file IO behaviour: instead of
+<h3 id="orchestratorcontext-rtf-orchestrator-service"><a class="header" href="#orchestratorcontext-rtf-orchestrator-service"><code>OrchestratorContext</code> (RTF Orchestrator Service)</a></h3>
+<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-orchestrator/src/context.rs"><code>OrchestratorContext</code></a> is the concrete implementation used by the <a href="../../reference/glossary.html">RTF Orchestrator Service</a>
+(<code>rtf-orchestrator</code>). It wraps an inner <code>Context</code> but overrides the file IO behaviour: instead of
 reading from the filesystem, it reads from an in-memory map of file contents that was pre-bundled by
 <code>rtf remote prepare</code> into the <a href="../../reference/glossary.html">Trigger Payload</a>.</p>
 <p>This is a deliberate design constraint. The Orchestrator is a server — it has no access to the
 filesystem paths that existed on the developer’s machine when the test plan was prepared. The
-Trigger Payload carries everything the server needs, and <code>RepContext</code> enforces that only that
-content is accessible.</p>
+Trigger Payload carries everything the server needs, and <code>OrchestratorContext</code> enforces that only
+that content is accessible.</p>
 <p>As a consequence, any <code>ResolutionContext</code> methods that would touch the filesystem directly are
 implemented as panics:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]

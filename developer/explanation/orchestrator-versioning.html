@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-0c7a59a9.js";
+            window.path_to_searchindex_js = "../../searchindex-24eec283.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-3b257163.js"></script>
+        <script src="../../toc-9b5efe91.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,7 +179,7 @@
                     <main>
                         <!-- diataxis-type: explanation -->
 <h1 id="orchestrator-helm-chart-versioning-policy"><a class="header" href="#orchestrator-helm-chart-versioning-policy">Orchestrator Helm chart versioning policy</a></h1>
-<p>This document records the decisions behind how we version and deploy the <code>rep-orchestrator</code> Helm
+<p>This document records the decisions behind how we version and deploy the <code>rtf-orchestrator</code> Helm
 chart for the <a href="../../reference/glossary.html">RTF Orchestrator Service</a>, the rationale for the phased approach, and the options
 that were considered and rejected.</p>
 <p><strong>When a phase is completed, update the <a href="#current-phase">Current phase</a> section to reflect actual state. The
@@ -192,8 +192,7 @@ not be edited after the fact.</strong></p>
 pinned chart version guarantees a pinned image via the <code>appVersion</code> fallback in the Deployment
 template. Production overrides <code>image.tag: edge</code> and <code>pullPolicy: Always</code> in the ArgoCD
 <code>valuesObject</code>, so pods pick up the latest image on every rollout without a chart bump PR.
-Production is still updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
-<code>targetRevision</code>.</p>
+Production is still updated by manually opening a PR on <code>kanaveral</code> to bump <code>targetRevision</code>.</p>
 </blockquote>
 <h2 id="design-intent"><a class="header" href="#design-intent">Design intent</a></h2>
 <p>The chart and image are published together on every code merge by design. The intent is that
@@ -225,8 +224,7 @@ automated and semantically correct as the service matures.</p>
 <li>Image published with tags: full git SHA, <code>main-&lt;short-sha&gt;</code>, and mutable <code>edge</code>.</li>
 <li><code>values.yaml</code> hardcodes <code>image.tag: edge</code> — every chart version deploys whatever <code>edge</code> points to
 at rollout time, regardless of the chart’s own SHA.</li>
-<li>Production updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
-<code>targetRevision</code>.</li>
+<li>Production updated by manually opening a PR on <code>kanaveral</code> to bump <code>targetRevision</code>.</li>
 </ul>
 <p><strong>Problems that motivated moving to Phase 1:</strong></p>
 <ul>
@@ -259,7 +257,7 @@ values, which is used in Phase 2.</p>
 <h3 id="phase-2--production-uses-edge-for-fast-iteration"><a class="header" href="#phase-2--production-uses-edge-for-fast-iteration">Phase 2 — production uses <code>edge</code> for fast iteration</a></h3>
 <p><strong>What changed:</strong></p>
 <ul>
-<li>The ArgoCD <code>valuesObject</code> in <code>runtime-environment-provisioner</code> adds:
+<li>The ArgoCD <code>valuesObject</code> in <code>kanaveral</code> adds:
 <pre><code class="language-yaml">image:
   tag: edge
   pullPolicy: Always
@@ -274,7 +272,7 @@ deployed image is not pinned. This is acceptable while there are no consumers; i
 before the service takes on production traffic (Phase 3).</p>
 <blockquote>
 <p><strong>Note:</strong> Phases 1 and 2 are a single implementation effort, listed separately because Phase 1 is
-a change in this repo and Phase 2 is a values change in <code>runtime-environment-provisioner</code>.</p>
+a change in this repo and Phase 2 is a values change in <code>kanaveral</code>.</p>
 </blockquote>
 <hr>
 <h3 id="phase-3--remove-edge-override-enforce-lockstep-in-production"><a class="header" href="#phase-3--remove-edge-override-enforce-lockstep-in-production">Phase 3 — remove <code>edge</code> override (enforce lockstep in production)</a></h3>
@@ -282,13 +280,13 @@ a change in this repo and Phase 2 is a values change in <code>runtime-environmen
 <p><strong>What changed:</strong></p>
 <ul>
 <li>The <code>image.tag: edge</code> and <code>pullPolicy: Always</code> overrides are removed from the production
-<code>valuesObject</code> in <code>runtime-environment-provisioner</code>.</li>
+<code>valuesObject</code> in <code>kanaveral</code>.</li>
 <li>The chart’s <code>appVersion</code> (the git SHA baked in at publish time) becomes the live image tag.</li>
-<li>Deploying a new image now requires a chart bump PR to <code>runtime-environment-provisioner</code>.</li>
+<li>Deploying a new image now requires a chart bump PR to <code>kanaveral</code>.</li>
 </ul>
 <p><strong>Result:</strong> The lockstep intent is fully enforced in production. Every code change produces a new
-chart version; bumping to that version in <code>runtime-environment-provisioner</code> is the single operation
-that updates the running Orchestrator.</p>
+chart version; bumping to that version in <code>kanaveral</code> is the single operation that updates the
+running Orchestrator.</p>
 <hr>
 <h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
 <div class="table-wrapper">
@@ -297,9 +295,9 @@ that updates the running Orchestrator.</p>
 <tr><th>Phase</th><th>Image tag in production</th><th>Lockstep enforced?</th><th>Automation</th></tr>
 </thead>
 <tbody>
-<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
-<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
-<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to <code>runtime-environment-provisioner</code></td></tr>
+<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to <code>kanaveral</code></td></tr>
+<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to <code>kanaveral</code></td></tr>
+<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to <code>kanaveral</code></td></tr>
 </tbody>
 </table>
 </div>
