@@ -44,7 +44,7 @@ create_cluster "rtf-workload"
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 echo "Building toolbox image..."
-docker build -t rtf-toolbox:edge -f "$REPO_ROOT/toolbox/Dockerfile" "$REPO_ROOT"
+docker build -t rtf-toolbox:main-0f0d20c -f "$REPO_ROOT/toolbox/Dockerfile" "$REPO_ROOT"
 echo ""
 echo "  Management cluster context: kind-rtf-mgmt"
 echo "  Workload cluster context:   kind-rtf-workload"

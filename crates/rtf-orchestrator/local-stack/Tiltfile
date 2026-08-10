@@ -99,7 +99,7 @@ k8s_yaml(
 # even though it was built locally as rtf-toolbox:edge.
 # We split this into three so we can load the images to each cluster in parallel and show the explicit
 # dependency between the image tagging and loading commands
-TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge"
+TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:main-0f0d20c"
 local_resource(
     "toolbox-image-tag",
     cmd="docker tag rtf-toolbox:edge {img}".format(img=TOOLBOX_IMAGE),
