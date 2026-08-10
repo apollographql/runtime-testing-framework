@@ -3,6 +3,8 @@ use serde::Deserialize;
 use std::{net::SocketAddr, sync::LazyLock};
 use tracing::warn;
 
+use crate::k8s::{DEFAULT_TOOLBOX_IMAGE_REPOSITORY, DEFAULT_TOOLBOX_IMAGE_TAG};
+
 static CONFIG: LazyLock<Config> =
     LazyLock::new(|| match envy::prefixed("RTF_").from_env::<Config>() {
         Ok(cfg) => cfg,
@@ -37,6 +39,10 @@ pub struct Config {
     pub workload_context: String,
     pub orchestrator_url: String,
     pub toolbox_pull_policy: String,
+    #[serde(default = "default_toolbox_image_repository")]
+    pub toolbox_image_repository: String,
+    #[serde(default = "default_toolbox_image_tag")]
+    pub toolbox_image_tag: String,
     pub otel_collector_grpc: String,
     pub otel_collector_http: String,
     pub prometheus_endpoint: String,
@@ -65,6 +71,15 @@ impl Config {
             Ok(sa) => sa,
             Err(e) => panic!("invalid socker addr from config: {e}"),
         }
+    }
+
+    /// The full rtf-toolbox image reference (`repository:tag`) to use for toolbox init/sidecar
+    /// containers and Argo workflow tasks.
+    pub fn toolbox_image(&self) -> String {
+        format!(
+            "{}:{}",
+            self.toolbox_image_repository, self.toolbox_image_tag
+        )
     }
 
     pub fn server_context(&self) -> Context {
@@ -99,6 +114,14 @@ fn default_body_limit_mb() -> usize {
 
 fn default_gcs_url_ttl_secs() -> u64 {
     300
+}
+
+fn default_toolbox_image_repository() -> String {
+    DEFAULT_TOOLBOX_IMAGE_REPOSITORY.to_owned()
+}
+
+fn default_toolbox_image_tag() -> String {
+    DEFAULT_TOOLBOX_IMAGE_TAG.to_owned()
 }
 
 fn default_kubeconfig_secret_name() -> String {

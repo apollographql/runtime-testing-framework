@@ -15,6 +15,7 @@ pub(crate) struct CreateJobConfig<'a> {
     pub(crate) orchestrator_url: &'a str,
     pub(crate) prometheus_endpoint: &'a str,
     pub(crate) toolbox_pull_policy: &'a str,
+    pub(crate) toolbox_image: &'a str,
 }
 
 pub(super) async fn create_job<K, H>(
@@ -48,6 +49,7 @@ where
                 config.orchestrator_url,
                 config.prometheus_endpoint,
                 config.toolbox_pull_policy,
+                config.toolbox_image,
             ),
         )
         .await
@@ -196,6 +198,7 @@ mod tests {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
+                toolbox_image: "rtf-toolbox:edge",
             },
             &mut clients,
             &mut handle,
@@ -236,6 +239,7 @@ mod tests {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
+                toolbox_image: "rtf-toolbox:edge",
             },
             &mut clients,
             &mut handle,
