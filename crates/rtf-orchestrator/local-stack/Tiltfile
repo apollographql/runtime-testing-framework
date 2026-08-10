@@ -94,23 +94,14 @@ k8s_yaml(
     )
 )
 
-# Make sure the rtf-toolbox image is available on both clusters under its full registry name.
-# The workflow spec references the full GCR path, so the image must be loaded under that name
-# even though it was built locally as rtf-toolbox:edge.
-# We split this into three so we can load the images to each cluster in parallel and show the explicit
-# dependency between the image tagging and loading commands
-TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge"
-local_resource(
-    "toolbox-image-tag",
-    cmd="docker tag rtf-toolbox:edge {img}".format(img=TOOLBOX_IMAGE),
-    allow_parallel=True,
-    labels=["infra"],
-)
-
+# Make sure the rtf-toolbox image is available on both clusters under its local tag.
+# values-local.yaml points toolboxImage.repository/tag at this same "rtf-toolbox:edge" image, so
+# no re-tagging to the full registry path is needed.
+# We split this into two so we can load the image to each cluster in parallel.
+TOOLBOX_IMAGE = "rtf-toolbox:edge"
 local_resource(
     "toolbox-image-mgmt",
     cmd="kind load docker-image {img} --name rtf-mgmt".format(img=TOOLBOX_IMAGE),
-    resource_deps=["toolbox-image-tag"],
     allow_parallel=True,
     labels=["infra"],
 )
@@ -118,7 +109,6 @@ local_resource(
 local_resource(
     "toolbox-image-workload",
     cmd="kind load docker-image {img} --name rtf-workload".format(img=TOOLBOX_IMAGE),
-    resource_deps=["toolbox-image-tag"],
     allow_parallel=True,
     labels=["infra"],
 )

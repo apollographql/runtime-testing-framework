@@ -103,6 +103,10 @@ spec:
               value: {{ required "config.orchestratorUrl is required" .Values.config.orchestratorUrl | quote }}
             - name: RTF_TOOLBOX_PULL_POLICY
               value: {{ required "config.toolboxPullPolicy is required" .Values.config.toolboxPullPolicy | quote }}
+            - name: RTF_TOOLBOX_IMAGE_REPOSITORY
+              value: {{ required "toolboxImage.repository is required" .Values.toolboxImage.repository | quote }}
+            - name: RTF_TOOLBOX_IMAGE_TAG
+              value: {{ required "toolboxImage.tag is required" .Values.toolboxImage.tag | quote }}
             - name: RTF_FAILED_EXECUTION_TTL_SECS
               value: {{ .Values.config.failedExecutionTtlSecs | quote }}
             - name: RTF_RETRY_WINDOW_SECS
