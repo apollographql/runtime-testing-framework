@@ -1,6 +1,6 @@
 use crate::{
     db::TestExecution,
-    k8s::{CLI_BINARY, OUTPUT_COLLECTOR, SCENARIO_RUNNER_CONTAINER, TOOLBOX_IMAGE},
+    k8s::{CLI_BINARY, OUTPUT_COLLECTOR, SCENARIO_RUNNER_CONTAINER},
 };
 use k8s_openapi::api::{
     batch::v1::JobSpec,
@@ -34,6 +34,7 @@ pub fn scenario_job(
     orchestrator_url: &str,
     prometheus_endpoint: &str,
     toolbox_pull_policy: &str,
+    toolbox_image: &str,
 ) -> JobSpec {
     let env = ex.toolbox_env_vars(orchestrator_url);
 
@@ -53,11 +54,17 @@ pub fn scenario_job(
                 init_containers: Some(vec![rtf_resolve_container_spec(
                     scenario_command,
                     toolbox_pull_policy,
+                    toolbox_image,
                     &env,
                 )]),
                 containers: vec![
                     scenario_run_container_spec(scenario_image),
-                    output_collector_container_spec(toolbox_pull_policy, prometheus_endpoint, &env),
+                    output_collector_container_spec(
+                        toolbox_pull_policy,
+                        toolbox_image,
+                        prometheus_endpoint,
+                        &env,
+                    ),
                 ],
                 volumes: Some(scenario_volumes()),
                 service_account_name: Some(OUTPUT_COLLECTOR.to_owned()),
@@ -71,11 +78,12 @@ pub fn scenario_job(
 fn rtf_resolve_container_spec(
     scenario_command: String,
     toolbox_pull_policy: &str,
+    toolbox_image: &str,
     env: &[EnvVar],
 ) -> Container {
     Container {
         name: "rtf-resolve".to_owned(),
-        image: Some(TOOLBOX_IMAGE.to_owned()),
+        image: Some(toolbox_image.to_owned()),
         image_pull_policy: Some(toolbox_pull_policy.to_owned()),
         command: Some(vec![CLI_BINARY.to_owned()]),
         args: Some(vec![
@@ -131,12 +139,13 @@ fn scenario_run_container_spec(scenario_image: String) -> Container {
 
 fn output_collector_container_spec(
     toolbox_pull_policy: &str,
+    toolbox_image: &str,
     prometheus_endpoint: &str,
     env: &[EnvVar],
 ) -> Container {
     Container {
         name: OUTPUT_COLLECTOR.to_owned(),
-        image: Some(TOOLBOX_IMAGE.to_owned()),
+        image: Some(toolbox_image.to_owned()),
         image_pull_policy: Some(toolbox_pull_policy.to_owned()),
         command: Some(vec![CLI_BINARY.to_owned()]),
         args: Some(vec![

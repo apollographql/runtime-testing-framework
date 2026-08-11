@@ -945,6 +945,8 @@ mod tests {
             workload_context: "dummy".to_string(),
             orchestrator_url: "http://localhost:8035".to_string(),
             toolbox_pull_policy: "IfNotPresent".to_string(),
+            toolbox_image_repository: "rtf-toolbox".to_string(),
+            toolbox_image_tag: "edge".to_string(),
             otel_collector_grpc: "http://otel:4317".to_string(),
             otel_collector_http: "http://otel:4318".to_string(),
             prometheus_endpoint: "http://prometheus:9090".to_string(),

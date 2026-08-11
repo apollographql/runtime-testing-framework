@@ -161,3 +161,10 @@ serviceAccount:
   # -- Annotations to add to the ServiceAccount.
   # e.g. iam.gke.io/gcp-service-account: sa@project.iam.gserviceaccount.com
   annotations: {}
+
+# -- Container image configuration for the rtf-toolbox image used by toolbox init/sidecar containers and Argo workflow tasks
+toolboxImage:
+  # -- Image repository
+  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox"
+  # -- Image tag
+  tag: "edge"

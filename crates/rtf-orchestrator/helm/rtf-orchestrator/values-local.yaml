@@ -39,3 +39,9 @@ k8s:
 
 configMaps:
   admins: "orchestrator-admins"
+
+# Tiltfile builds the toolbox image locally as rtf-toolbox:edge, not the full registry path/tag
+# in values.yaml
+toolboxImage:
+  repository: "rtf-toolbox"
+  tag: "edge"

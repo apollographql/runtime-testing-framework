@@ -38,6 +38,7 @@ struct EventLoopConfig<'a> {
     orchestrator_url: &'a str,
     prometheus_endpoint: &'a str,
     toolbox_pull_policy: &'a str,
+    toolbox_image: &'a str,
     otel: &'a OtelConfig,
     kubeconfig_secret_name: &'a str,
     failed_execution_ttl_seconds: u64,
@@ -64,11 +65,13 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         poll_interval_secs,
         ..
     } = Config::get();
+    let toolbox_image = Config::get().toolbox_image();
 
     let cfg = EventLoopConfig {
         orchestrator_url,
         prometheus_endpoint,
         toolbox_pull_policy,
+        toolbox_image: &toolbox_image,
         otel: &OtelConfig {
             grpc: otel_collector_grpc.to_string(),
             http: otel_collector_http.to_string(),
@@ -280,6 +283,7 @@ impl Event {
                                 orchestrator_url: cfg.orchestrator_url,
                                 prometheus_endpoint: cfg.prometheus_endpoint,
                                 toolbox_pull_policy: cfg.toolbox_pull_policy,
+                                toolbox_image: cfg.toolbox_image,
                             },
                             &mut clients,
                             conn,
@@ -442,6 +446,7 @@ mod tests {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
+                toolbox_image: "rtf-toolbox:edge",
             },
             &mut clients,
             &mut handle,

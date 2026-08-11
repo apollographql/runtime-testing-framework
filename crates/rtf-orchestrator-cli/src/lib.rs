@@ -1,4 +1,4 @@
-use crate::{cli::Command, context::CliContext, orchestrator::Client};
+use crate::{cli::Command, commands::ToolboxSettings, context::CliContext, orchestrator::Client};
 use anyhow::anyhow;
 use rtf_orchestrator_shared::{OtelConfig, status::Status};
 use tracing::error;
@@ -31,6 +31,7 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
             timeout,
             provider_dir,
             toolbox_pull_policy,
+            toolbox_image,
             otel_collector_grpc,
             otel_collector_http,
         } => {
@@ -38,10 +39,13 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
                 &namespace,
                 &kubeconfig_path,
                 &provider_dir,
-                &toolbox_pull_policy,
-                &OtelConfig {
-                    grpc: otel_collector_grpc.clone(),
-                    http: otel_collector_http.clone(),
+                &ToolboxSettings {
+                    pull_policy: &toolbox_pull_policy,
+                    image: &toolbox_image,
+                    otel: &OtelConfig {
+                        grpc: otel_collector_grpc.clone(),
+                        http: otel_collector_http.clone(),
+                    },
                 },
                 timeout,
                 ctx,

@@ -19,12 +19,18 @@ const DUPLICATE_ERROR: &str =
 const MALFORMED_ERROR: &str = "Encountered a malformed line in the resolved RTF environment";
 const MISSING_EXPORT_ERROR: &str = "Expected leading 'export ' prefix to env file line";
 
+/// Toolbox-related settings needed to deploy an RTF environment's file-provider init container.
+pub struct ToolboxSettings<'a> {
+    pub pull_policy: &'a str,
+    pub image: &'a str,
+    pub otel: &'a OtelConfig,
+}
+
 pub async fn deploy_environment(
     namespace: &str,
     kubeconfig_path: &Path,
     provider_dir_path: &Path,
-    toolbox_pull_policy: &str,
-    otel: &OtelConfig,
+    toolbox: &ToolboxSettings<'_>,
     timeout: u64,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
@@ -61,14 +67,7 @@ pub async fn deploy_environment(
     ]))
     .await?;
 
-    setup_env(
-        &k8s_dir_path,
-        provider_dir_path,
-        toolbox_pull_policy,
-        otel,
-        ctx,
-    )
-    .await?;
+    setup_env(&k8s_dir_path, provider_dir_path, toolbox, ctx).await?;
 
     info!("applying manifests to namespace '{namespace}'");
     ctx.run_shell(Command::new("kubectl").args([
@@ -96,8 +95,7 @@ pub async fn deploy_environment(
 async fn setup_env(
     k8s_dir_path: &Path,
     provider_dir_path: &Path,
-    toolbox_pull_policy: &str,
-    otel: &OtelConfig,
+    toolbox: &ToolboxSettings<'_>,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
     let setup_env = provider_dir_path.join("setup/setup.env");
@@ -161,7 +159,12 @@ async fn setup_env(
     ctx.write_file(
         &k8s_dir_path.join("kustomization.yaml"),
         ctx.orchestrator_client()
-            .kustomize_patch_for_execution(provider_dir_path, toolbox_pull_policy, otel)
+            .kustomize_patch_for_execution(
+                provider_dir_path,
+                toolbox.pull_policy,
+                toolbox.image,
+                toolbox.otel,
+            )
             .as_bytes(),
     )?;
 

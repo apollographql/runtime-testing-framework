@@ -1,7 +1,6 @@
 use crate::{
     db::TestExecution,
-    k8s::workflow::as_workflow::AsWorkflowTasks,
-    k8s::{CLI_BINARY, TOOLBOX_IMAGE},
+    k8s::{CLI_BINARY, workflow::as_workflow::AsWorkflowTasks},
 };
 use k8s_openapi::api::core::v1::{Container, EnvVar, SecretVolumeSource, Volume, VolumeMount};
 use kube::CustomResource;
@@ -63,6 +62,7 @@ impl WorkflowSpec {
         env: &OrchestratorEnvironment,
         orchestrator_url: &str,
         toolbox_pull_policy: &str,
+        toolbox_image: &str,
         otel: &OtelConfig,
         kubeconfig_secret_name: &str,
     ) -> Self {
@@ -75,15 +75,23 @@ impl WorkflowSpec {
             TemplateDef::Task(create_namespace(
                 &namespace,
                 toolbox_pull_policy,
+                toolbox_image,
                 env_vars.clone(),
             )),
             TemplateDef::Task(create_service_account(
                 &namespace,
                 toolbox_pull_policy,
+                toolbox_image,
                 env_vars.clone(),
             )),
         ];
-        templates.extend(env.tasks(&namespace, toolbox_pull_policy, otel, env_vars.clone()));
+        templates.extend(env.tasks(
+            &namespace,
+            toolbox_pull_policy,
+            toolbox_image,
+            otel,
+            env_vars.clone(),
+        ));
 
         Self {
             service_account_name: "argo-workflow".to_owned(),
@@ -174,6 +182,7 @@ impl TaskTemplate {
     fn new(
         name: &str,
         toolbox_pull_policy: &str,
+        toolbox_image: &str,
         cli_args: Vec<String>,
         volume_mounts: Vec<VolumeMount>,
         volumes: Option<Vec<Volume>>,
@@ -183,7 +192,7 @@ impl TaskTemplate {
             name: name.into(),
             container: Container {
                 name: name.into(),
-                image: Some(TOOLBOX_IMAGE.into()),
+                image: Some(toolbox_image.into()),
                 image_pull_policy: Some(toolbox_pull_policy.into()),
                 command: Some(vec![CLI_BINARY.to_owned()]),
                 args: Some(cli_args),
@@ -205,10 +214,16 @@ fn kubeconfig_volume_mount() -> VolumeMount {
     }
 }
 
-fn create_namespace(namespace: &str, toolbox_pull_policy: &str, env: Vec<EnvVar>) -> TaskTemplate {
+fn create_namespace(
+    namespace: &str,
+    toolbox_pull_policy: &str,
+    toolbox_image: &str,
+    env: Vec<EnvVar>,
+) -> TaskTemplate {
     TaskTemplate::new(
         CREATE_NAMESPACE,
         toolbox_pull_policy,
+        toolbox_image,
         vec![
             "create-namespace".into(),
             "--namespace".into(),
@@ -225,11 +240,13 @@ fn create_namespace(namespace: &str, toolbox_pull_policy: &str, env: Vec<EnvVar>
 fn create_service_account(
     namespace: &str,
     toolbox_pull_policy: &str,
+    toolbox_image: &str,
     env: Vec<EnvVar>,
 ) -> TaskTemplate {
     TaskTemplate::new(
         CREATE_SERVICE_ACCOUNT,
         toolbox_pull_policy,
+        toolbox_image,
         vec![
             "create-service-account".into(),
             "--namespace".into(),

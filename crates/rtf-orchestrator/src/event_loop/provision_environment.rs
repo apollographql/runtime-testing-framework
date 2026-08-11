@@ -37,6 +37,7 @@ where
                 environment,
                 cfg.orchestrator_url,
                 cfg.toolbox_pull_policy,
+                cfg.toolbox_image,
                 cfg.otel,
                 cfg.kubeconfig_secret_name,
             ),
@@ -194,6 +195,7 @@ mod tests {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "",
                 toolbox_pull_policy: "IfNotPresent",
+                toolbox_image: "rtf-toolbox:edge",
                 otel: &OtelConfig {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),
@@ -241,6 +243,7 @@ mod tests {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "",
                 toolbox_pull_policy: "IfNotPresent",
+                toolbox_image: "rtf-toolbox:edge",
                 otel: &OtelConfig {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),

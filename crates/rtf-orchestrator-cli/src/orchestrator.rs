@@ -37,6 +37,7 @@ pub trait Client: Send + Sync {
         &self,
         outdir: &Path,
         toolbox_image_pull_policy: &str,
+        toolbox_image: &str,
         otel: &OtelConfig,
     ) -> String;
 
@@ -144,6 +145,7 @@ impl Client for HttpClient {
         &self,
         outdir: &Path,
         toolbox_image_pull_policy: &str,
+        toolbox_image: &str,
         otel: &OtelConfig,
     ) -> String {
         KUSTOMIZE_PATCH
@@ -152,6 +154,7 @@ impl Client for HttpClient {
             .replace("__EXECUTION_TOKEN__", &self.execution_token.to_string())
             .replace("__OUTDIR__", &outdir.to_string_lossy())
             .replace("__IMAGE_PULL_POLICY__", toolbox_image_pull_policy)
+            .replace("__TOOLBOX_IMAGE__", toolbox_image)
             .replace("__FILE_PROVIDERS_LABEL__", FILE_PROVIDERS_LABEL)
             .replace("__LOG_COLLECTION_LABEL__", LOG_COLLECTION_LABEL)
             .replace("__OTEL_LABEL__", OTEL_LABEL)
@@ -414,6 +417,7 @@ pub(crate) mod mocks {
             &self,
             _outdir: &Path,
             _pull_policy: &str,
+            _toolbox_image: &str,
             _otel: &OtelConfig,
         ) -> String {
             KUSTOMIZE_PATCH.to_string()

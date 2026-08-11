@@ -18,6 +18,7 @@ pub trait AsWorkflowTasks {
         &self,
         namespace: &str,
         toolbox_pull_policy: &str,
+        toolbox_image: &str,
         otel: &OtelConfig,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate>;
@@ -26,10 +27,11 @@ pub trait AsWorkflowTasks {
         &self,
         namespace: &str,
         toolbox_pull_policy: &str,
+        toolbox_image: &str,
         otel: &OtelConfig,
         env: Vec<EnvVar>,
     ) -> impl Iterator<Item = TemplateDef> {
-        self.templates(namespace, toolbox_pull_policy, otel, env)
+        self.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
             .into_iter()
             .map(TemplateDef::Task)
     }
@@ -47,14 +49,17 @@ impl AsWorkflowTasks for OrchestratorEnvironment {
         &self,
         namespace: &str,
         toolbox_pull_policy: &str,
+        toolbox_image: &str,
         otel: &OtelConfig,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
         match self {
             Self::DockerCompose(inner) => {
-                inner.templates(namespace, toolbox_pull_policy, otel, env)
+                inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
             }
-            Self::Null(inner) => inner.templates(namespace, toolbox_pull_policy, otel, env),
+            Self::Null(inner) => {
+                inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
+            }
         }
     }
 }
@@ -68,12 +73,14 @@ impl AsWorkflowTasks for DockerComposeEnvironment {
         &self,
         namespace: &str,
         toolbox_pull_policy: &str,
+        toolbox_image: &str,
         otel: &OtelConfig,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
         vec![TaskTemplate::new(
             DEPLOY_ENVIRONMENT,
             toolbox_pull_policy,
+            toolbox_image,
             vec![
                 "deploy-environment".into(),
                 "--namespace".into(),
@@ -82,6 +89,8 @@ impl AsWorkflowTasks for DockerComposeEnvironment {
                 KUBECONFIG_PATH.into(),
                 "--toolbox-pull-policy".into(),
                 toolbox_pull_policy.into(),
+                "--toolbox-image".into(),
+                toolbox_image.into(),
                 "--provider-dir".into(),
                 "/providers".into(),
                 "--otel-collector-grpc".into(),
@@ -105,6 +114,7 @@ impl AsWorkflowTasks for NullEnvironment {
         &self,
         _namespace: &str,
         _toolbox_pull_policy: &str,
+        _toolbox_image: &str,
         _otel: &OtelConfig,
         _env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
@@ -148,10 +158,20 @@ mod tests {
 
     #[test]
     fn docker_compose_templates_build_deploy_environment_container() {
-        let templates = docker_compose_env().templates("ns", "IfNotPresent", &otel(), vec![]);
+        let templates = docker_compose_env().templates(
+            "ns",
+            "IfNotPresent",
+            "rtf-toolbox:edge",
+            &otel(),
+            vec![],
+        );
 
         assert_eq!(templates.len(), 1, "expected exactly one task template");
         assert_eq!(templates[0].name, DEPLOY_ENVIRONMENT);
+        assert_eq!(
+            templates[0].container.image.as_deref(),
+            Some("rtf-toolbox:edge")
+        );
 
         let args = templates[0]
             .container
@@ -162,6 +182,7 @@ mod tests {
         assert!(args.contains(&"deploy-environment".to_string()));
         assert!(args.contains(&"ns".to_string()));
         assert!(args.contains(&"IfNotPresent".to_string()));
+        assert!(args.contains(&"rtf-toolbox:edge".to_string()));
         assert!(args.contains(&"http://otel:4317".to_string()));
         assert!(args.contains(&"http://otel:4318".to_string()));
     }
@@ -172,7 +193,7 @@ mod tests {
 
         assert!(env.specs(CREATE_SERVICE_ACCOUNT).is_empty());
         assert!(
-            env.templates("ns", "IfNotPresent", &otel(), vec![])
+            env.templates("ns", "IfNotPresent", "rtf-toolbox:edge", &otel(), vec![])
                 .is_empty()
         );
     }

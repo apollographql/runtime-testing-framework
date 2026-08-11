@@ -63,6 +63,13 @@ pub enum Command {
         #[arg(long, default_value = "Always")]
         toolbox_pull_policy: String,
 
+        /// The rtf-toolbox image to use for the file-provider init container deployed alongside the environment
+        #[arg(
+            long,
+            default_value = "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge"
+        )]
+        toolbox_image: String,
+
         /// gRPC endpoint for the OTEL collector
         #[arg(long)]
         otel_collector_grpc: String,
