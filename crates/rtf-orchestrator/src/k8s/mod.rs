@@ -20,7 +20,7 @@ pub use workflow::{
 const CLI_BINARY: &str = "rtf-orchestrator-cli";
 pub(crate) const OUTPUT_COLLECTOR: &str = "output-collector";
 pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";
-pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
+pub const ORCHESTRATOR_NAMESPACE: &str = "orchestrator";
 /// Default rtf-toolbox image repository, used as the [Config](crate::config::Config) default when
 /// `RTF_TOOLBOX_IMAGE_REPOSITORY` isn't set (e.g. via the Helm chart's `toolboxImage.repository`).
 pub(crate) const DEFAULT_TOOLBOX_IMAGE_REPOSITORY: &str =

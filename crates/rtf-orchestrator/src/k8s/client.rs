@@ -1,5 +1,5 @@
 use crate::k8s::{
-    CLUSTER_API_NAMESPACE, Error, FullClient, ManagementClient, OUTPUT_COLLECTOR, Result,
+    Error, FullClient, ManagementClient, ORCHESTRATOR_NAMESPACE, OUTPUT_COLLECTOR, Result,
     SCENARIO_RUNNER_CONTAINER, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient, workflow_name,
 };
 use chrono::{DateTime, Duration, Utc};
@@ -315,13 +315,13 @@ impl<W: Clone + Send + Sync + 'static> ManagementClient for ClusterClients<Avail
         spec: WorkflowSpec,
     ) -> Result<Workflow> {
         let wf = self
-            .management_api(CLUSTER_API_NAMESPACE)
+            .management_api(ORCHESTRATOR_NAMESPACE)
             .create(
                 &Default::default(),
                 &Workflow {
                     metadata: ObjectMeta {
                         name: Some(workflow_name(execution_id)),
-                        namespace: Some(CLUSTER_API_NAMESPACE.to_owned()),
+                        namespace: Some(ORCHESTRATOR_NAMESPACE.to_owned()),
                         labels: Some(BTreeMap::from([(
                             EXECUTION_ID_LABEL.to_owned(),
                             execution_id.to_string(),
@@ -448,8 +448,8 @@ impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {
         loop {
             sleep(poll_interval).await;
 
-            let wf_api: Api<Workflow> = self.management_api(CLUSTER_API_NAMESPACE);
-            let mgmt_pod_api: Api<Pod> = self.management_api(CLUSTER_API_NAMESPACE);
+            let wf_api: Api<Workflow> = self.management_api(ORCHESTRATOR_NAMESPACE);
+            let mgmt_pod_api: Api<Pod> = self.management_api(ORCHESTRATOR_NAMESPACE);
 
             let result = async {
                 let workload_pod_api: Api<Pod> = self.workload_api(&workload_ns);
