@@ -87,6 +87,21 @@ pub trait Client: Send + Sync {
             Ok(String::from_utf8(bytes.to_vec())?)
         }
     }
+
+    /// Resolve a git ref (branch, tag, or SHA) to the commit SHA it points at. [None] resolves the
+    /// repo's default branch.
+    fn commit_sha<G: AsRef<str> + Send>(
+        &self,
+        org: &str,
+        repo: &str,
+        git_ref: Option<G>,
+    ) -> impl Future<Output = Result<String, Error>> + Send;
+}
+
+fn commit_url(base_url: &str, org: &str, repo: &str, git_ref: Option<&str>) -> String {
+    let git_ref = git_ref.unwrap_or("HEAD");
+
+    format!("{base_url}/repos/{org}/{repo}/commits/{git_ref}")
 }
 
 /// A lightweight GitHub API client for the subset of REST endpoints we need to work with.
@@ -193,6 +208,31 @@ impl Client for GithubClient {
             .error_for_status()?;
 
         Ok(res.bytes().await?)
+    }
+
+    async fn commit_sha<G: AsRef<str> + Send>(
+        &self,
+        org: &str,
+        repo: &str,
+        git_ref: Option<G>,
+    ) -> Result<String, Error> {
+        let url = commit_url(
+            &self.base_url,
+            org,
+            repo,
+            git_ref.as_ref().map(|r| r.as_ref()),
+        );
+
+        let token = self.bearer_token(org).await?;
+        let res = with_common_headers(self.inner.get(url))
+            .bearer_auth(token.as_ref())
+            // Returns the bare SHA as the body rather than the whole commit as JSON.
+            .header("accept", "application/vnd.github.sha")
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(res.text().await?.trim().to_owned())
     }
 }
 
@@ -374,6 +414,7 @@ mod tests {
     use jsonwebtoken::{dangerous::insecure_decode, decode_header};
     use rand_core::OsRng;
     use rsa::{RsaPrivateKey, pkcs1::EncodeRsaPrivateKey};
+    use simple_test_case::test_case;
     use std::sync::LazyLock;
 
     const APP_ID: u64 = 12345;
@@ -567,5 +608,20 @@ mod tests {
 
         assert_eq!(token_a.as_ref(), "ghs_org_a");
         assert_eq!(token_b.as_ref(), "ghs_org_b");
+    }
+
+    #[test_case(
+        Some("my-branch"),
+        "https://api.github.com/repos/org/repo/commits/my-branch";
+        "explicit ref"
+    )]
+    #[test_case(
+        None,
+        "https://api.github.com/repos/org/repo/commits/HEAD";
+        "default branch"
+    )]
+    #[test]
+    fn commit_url_resolves_the_ref(git_ref: Option<&str>, expected: &str) {
+        assert_eq!(commit_url(GITHUB_API_URL, "org", "repo", git_ref), expected);
     }
 }

@@ -254,6 +254,17 @@ impl github::Client for MockGithubClient {
             .unwrap_or_else(|| panic!("unknown key: {key}"))
             .to_owned())
     }
+
+    async fn commit_sha<G: AsRef<str> + Send>(
+        &self,
+        _org: &str,
+        _repo: &str,
+        _git_ref: Option<G>,
+    ) -> Result<String, github::Error> {
+        unimplemented!(
+            "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
+        )
+    }
 }
 
 /// Used to implement [ResolutionContext] in tests where no client is needed.
@@ -284,6 +295,15 @@ impl github::Client for NullClient {
         _path: &str,
         _git_ref: Option<G>,
     ) -> Result<bytes::Bytes, github::Error> {
+        panic!("a NullClient can not be used to make requests")
+    }
+
+    async fn commit_sha<G: AsRef<str> + Send>(
+        &self,
+        _org: &str,
+        _repo: &str,
+        _git_ref: Option<G>,
+    ) -> Result<String, github::Error> {
         panic!("a NullClient can not be used to make requests")
     }
 }
