@@ -6,6 +6,7 @@ pub mod payload;
 pub mod status;
 pub mod summary;
 pub mod test_plan;
+pub mod test_plan_details;
 pub mod upload_urls;
 
 pub const ORCHESTRATOR_URL_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_URL";
