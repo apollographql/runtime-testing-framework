@@ -253,6 +253,40 @@ impl DockerComposeEnvironment {
 
         errs.into_result(())
     }
+
+    /// The content of every compose file, in the order `docker compose` would read them: provider
+    /// order, and within a directory provider the order its files were resolved in.
+    ///
+    /// Exists so that callers outside this crate can inspect compose file content without needing
+    /// access to the inlined providers' private fields.
+    ///
+    /// Requires that every provider has already been resolved by
+    /// [inline_compose_files](DockerComposeEnvironment::inline_compose_files), and errors with
+    /// [providers::Error::ComposeFileNotInlined] if one has not: returning a partial list instead
+    /// would mean reporting a compose environment that silently omits some of its services.
+    pub fn inline_compose_contents(&self) -> providers::Result<Vec<&str>> {
+        let mut contents = Vec::new();
+
+        for ncfp in self.compose_files.iter() {
+            match &ncfp.provider {
+                ComposeFileProvider::Inline(InlineFile { content }) => {
+                    contents.push(content.as_str())
+                }
+
+                ComposeFileProvider::InlineDir(InlineDir { files }) => {
+                    contents.extend(files.iter().map(|f| f.content.as_str()));
+                }
+
+                _ => {
+                    return Err(providers::Error::ComposeFileNotInlined {
+                        name: ncfp.name.clone(),
+                    });
+                }
+            }
+        }
+
+        Ok(contents)
+    }
 }
 
 impl RunEnvironment for DockerComposeEnvironment {

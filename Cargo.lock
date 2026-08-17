@@ -4079,6 +4079,7 @@ name = "rtf-orchestrator-shared"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "indoc",
  "rtf-config",
  "rtf-core",
  "rtf-derive",
