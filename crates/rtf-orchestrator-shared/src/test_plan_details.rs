@@ -219,14 +219,14 @@ pub enum VariableValue {
     Dimension(Vec<Scalar>),
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatrixSummary {
     pub n_executions: usize,
     pub dimensions: BTreeMap<String, Vec<Scalar>>,
     pub include_groups: Vec<BTreeMap<String, Scalar>>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnvironmentSummary {
     pub services: Vec<EnvironmentService>,
     pub has_variable_replicas: bool,
@@ -260,7 +260,7 @@ pub struct TestPlanHistory {
     pub execution_durations: DurationHistogram,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DayCounts {
     pub successful: u64,
     pub failed: u64,
@@ -275,7 +275,7 @@ impl DayCounts {
 
 /// Durations are whole seconds, rounded to nearest. An empty histogram has no bins and a `total` of
 /// zero, so its bounds are both zero.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DurationHistogram {
     pub bins: Vec<DurationBin>,
     pub min_secs: u64,

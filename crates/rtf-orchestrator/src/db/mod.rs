@@ -8,6 +8,7 @@ mod known_test_plan;
 pub mod pool;
 mod status;
 mod test_execution;
+pub mod test_plan_history;
 mod test_run;
 mod test_run_filter;
 mod variables;
