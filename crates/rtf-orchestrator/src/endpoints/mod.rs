@@ -21,6 +21,7 @@ pub mod known_test_plans;
 pub mod list_runs;
 pub mod register_known_test_plan;
 pub mod run_status;
+pub mod test_plan_details;
 pub mod trigger;
 pub mod whoami;
 
