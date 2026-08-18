@@ -76,7 +76,7 @@ impl TestPlanDetailsParams {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HistoryWindow {
     pub from: DateTime<Utc>,
     pub to: DateTime<Utc>,
@@ -335,7 +335,7 @@ fn services_vary_by_matrix(test_plan: &OrchestratorTestPlan) -> bool {
         .any(|name| matrix_keys.contains(name))
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TestPlanHistory {
     #[serde(flatten)]
     pub window: HistoryWindow,

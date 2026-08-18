@@ -1,10 +1,14 @@
 //! Summary details for a registered test plan: the variables a run can be triggered with, the
 //! services each execution deploys, and how previous runs have gone.
+//!
+//! See the comment on `build_details_without_history` for more information around caching
+//! behaviour.
 use crate::{Error, Result, config::Config, conn, db::KnownTestPlan};
 use axum::{
     Json,
     extract::{Path, Query},
 };
+use cached::cached;
 use chrono::Utc;
 use rtf_config::context::ResolutionContext;
 use rtf_integrations::github::Client as _;
@@ -46,18 +50,38 @@ async fn build_details(
     known: &KnownTestPlan,
     git_ref: Option<String>,
     history: TestPlanHistory,
-    mut ctx: impl ResolutionContext,
+    ctx: impl ResolutionContext,
 ) -> Result<TestPlanDetails> {
-    let (org, repo, path) = (known.org(), known.repo(), known.path());
-
     // Resolving the ref up front pins every file we go on to read to a single commit, rather than
     // racing a branch that could move mid-request.
     let sha = ctx
         .github_client()
         .expect("to have a github client")
-        .commit_sha(org, repo, git_ref.as_deref())
+        .commit_sha(known.org(), known.repo(), git_ref.as_deref())
         .await?;
 
+    let mut details = build_details_without_history(known, git_ref, sha, ctx).await?;
+    details.history = history;
+
+    Ok(details)
+}
+
+// We cache the details data pulled from GitHub based on the SHA the test plan was pulled from and
+// the Test Plan UUID. DB data is pulled every time as it changes more frequently and the queries
+// against our own DB are cheap. The max size here is effectively arbitrary but in place to avoid
+// unbounded growth of the cache if we end up registering a large number of test plans.
+#[cached(
+    max_size = 50,
+    key = "String",
+    convert = r#"{ format!("{}-{sha}", known.uuid()) }"#
+)]
+async fn build_details_without_history(
+    known: &KnownTestPlan,
+    git_ref: Option<String>,
+    sha: String,
+    mut ctx: impl ResolutionContext,
+) -> Result<TestPlanDetails> {
+    let (org, repo, path) = (known.org(), known.repo(), known.path());
     let (test_plan, sources) = OrchestratorTestPlan::try_load_and_resolve_from_github(
         org,
         repo,
@@ -83,7 +107,7 @@ async fn build_details(
         variables: TestPlanVariable::from_test_plan(&test_plan),
         matrix: MatrixSummary::new(&test_plan.matrix),
         environment: EnvironmentSummary::try_from_test_plan(&test_plan, &ctx).await?,
-        history,
+        history: Default::default(),
     })
 }
 
