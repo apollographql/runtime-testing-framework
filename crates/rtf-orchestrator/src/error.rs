@@ -1,10 +1,11 @@
-use crate::db;
+use crate::{db, resolver::ResolverError};
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
 use rtf_config::formats;
-use rtf_orchestrator_shared::payload::PrepareError;
+use rtf_integrations::github;
+use rtf_orchestrator_shared::{payload::PrepareError, test_plan_details::EnvironmentSummaryError};
 use serde_json::json;
 use std::io;
 use uuid::Uuid;
@@ -20,10 +21,13 @@ pub enum Error {
     Gcs(#[from] crate::gcs::Error),
 
     #[error(transparent)]
+    GitHub(#[from] github::Error),
+
+    #[error(transparent)]
     Io(#[from] io::Error),
 
     #[error(transparent)]
-    Resolve(#[from] crate::resolver::ResolverError),
+    Resolve(#[from] ResolverError),
 
     #[error(transparent)]
     RtfConfig(#[from] formats::Error),
@@ -123,5 +127,15 @@ impl IntoResponse for Error {
         };
 
         raw.into_response()
+    }
+}
+
+impl From<EnvironmentSummaryError> for Error {
+    fn from(err: EnvironmentSummaryError) -> Self {
+        match err {
+            EnvironmentSummaryError::Formats(e) => e.into(),
+            EnvironmentSummaryError::Inlining(e) => ResolverError::Inlining(e).into(),
+            EnvironmentSummaryError::Templating(e) => ResolverError::TemplatingCheck(e).into(),
+        }
     }
 }

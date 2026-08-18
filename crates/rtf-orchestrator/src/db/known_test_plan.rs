@@ -33,6 +33,10 @@ impl KnownTestPlan {
         &self.name
     }
 
+    pub fn description(&self) -> Option<String> {
+        self.description.clone()
+    }
+
     pub fn org(&self) -> &str {
         &self.org
     }
