@@ -3,7 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ include "rtf-orchestrator.fullname" . }}
-  namespace: cluster-api
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "rtf-orchestrator.labels" . | nindent 4 }}
 rules:
@@ -21,7 +21,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ include "rtf-orchestrator.fullname" . }}
-  namespace: cluster-api
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "rtf-orchestrator.labels" . | nindent 4 }}
 subjects:

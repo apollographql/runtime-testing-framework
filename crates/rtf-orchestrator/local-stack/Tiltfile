@@ -51,22 +51,14 @@ k8s_yaml("k8s/namespace.yaml")
 # Admins allowlist — mounted into the orchestrator pod for validating admin actions
 k8s_yaml("k8s/admins.yaml")
 
-# Workload kubeconfig — stored as a secret so Argo workflow pods can reach the workload cluster
-k8s_yaml(
-    secret_from_dict(
-        "orchestrator-kubeconfig",
-        namespace="cluster-api",
-        inputs={"value": workload_kubeconfig},
-    )
-)
-
-# Workload kubeconfig — mounted into the orchestrator pod so it can reach the workload cluster
-#                       (access to the management cluster uses the in-cluster config)
+# Workload kubeconfig —  mounted into the orchestrator pod via kubeconfigSecretRef.key so it can reach the
+# workload cluster, and into Argo Workflow step pods, which mount the whole secret and read it
+# straight from KUBECONFIG_PATH.
 k8s_yaml(
     secret_from_dict(
         "orchestrator-kubeconfig",
         namespace="orchestrator",
-        inputs={"config": workload_kubeconfig},
+        inputs={"value": workload_kubeconfig},
     )
 )
 
@@ -113,22 +105,20 @@ local_resource(
     labels=["infra"],
 )
 
-# Argo workflow service account + RBAC in cluster-api
+# Argo workflow service account + RBAC in orchestrator
 k8s_yaml("k8s/service-account.yaml")
 k8s_resource(
     objects=[
-        "cluster-api:namespace",
         "orchestrator:namespace",
-        "argo-workflow:serviceaccount:cluster-api",
-        "argo-workflow:role:cluster-api",
-        "argo-workflow:rolebinding:cluster-api",
-        "orchestrator-kubeconfig:secret:cluster-api",
+        "argo-workflow:serviceaccount:orchestrator",
+        "argo-workflow:role:orchestrator",
+        "argo-workflow:rolebinding:orchestrator",
         "orchestrator-kubeconfig:secret:orchestrator",
         "github-app-private-key:secret:orchestrator",
         "rtf-orchestrator:secret:orchestrator",
         "orchestrator-admins:configmap:orchestrator",
-        "orchestrator-workflow-submitter:role:cluster-api",
-        "orchestrator-workflow-submitter:rolebinding:cluster-api",
+        "orchestrator-workflow-submitter:role:orchestrator",
+        "orchestrator-workflow-submitter:rolebinding:orchestrator",
     ],
     new_name="cluster-setup",
     labels=["infra"],

@@ -6,9 +6,4 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: cluster-api
----
-apiVersion: v1
-kind: Namespace
-metadata:
   name: argo
