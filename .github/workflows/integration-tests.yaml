@@ -103,9 +103,6 @@ jobs:
         kubectl get pods -n orchestrator -o name $CTX 2>&1 \
           | xargs -r -I{} kubectl logs {} -n orchestrator --all-containers --timestamps $CTX \
           2>&1 | tee /tmp/orchestrator-logs.txt || true
-        kubectl get pods -n cluster-api -o name $CTX 2>&1 \
-          | xargs -r -I{} kubectl logs {} -n cluster-api --all-containers --timestamps $CTX \
-          2>&1 | tee /tmp/cluster-api-logs.txt || true
         kubectl get pods -n argo -o name $CTX 2>&1 \
           | xargs -r -I{} kubectl logs {} -n argo --all-containers --timestamps $CTX \
           2>&1 | tee /tmp/argo-logs.txt || true
@@ -124,7 +121,6 @@ jobs:
           /tmp/pod-descriptions.txt
           /tmp/helm-releases.txt
           /tmp/orchestrator-logs.txt
-          /tmp/cluster-api-logs.txt
           /tmp/argo-logs.txt
     - name: Tear down clusters
       if: always()
