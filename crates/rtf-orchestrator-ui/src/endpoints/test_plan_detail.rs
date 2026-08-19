@@ -45,6 +45,36 @@ pub struct TestPlanDetailParams {
     days: Option<u32>,
 }
 
+struct TestPlanDetailPage {
+    limit: i64,
+    offset: i64,
+    trigger_git_ref: String,
+    trigger_variables: String,
+    trigger_error: Option<String>,
+    days_back: u32,
+    days: u32,
+}
+
+impl Default for TestPlanDetailPage {
+    fn default() -> Self {
+        Self {
+            limit: DEFAULT_LIMIT,
+            offset: 0,
+            trigger_git_ref: String::new(),
+            trigger_variables: String::new(),
+            trigger_error: None,
+            days_back: DEFAULT_DAYS_BACK,
+            days: DEFAULT_DAYS,
+        }
+    }
+}
+
+struct TestPlanDetailResults {
+    plan: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
+    runs: Result<TestRunListResponse, orchestrator::Error>,
+    details: Result<Option<TestPlanDetails>, orchestrator::Error>,
+}
+
 /// `GET /ui/test-plan/{uuid}` — the plan's metadata (with a GitHub link), the executions
 /// overview/services table/trigger form/history charts built from the orchestrator's details
 /// endpoint, and a paginated table of its recent runs. The plan, its details, and its runs are all
@@ -68,7 +98,7 @@ pub async fn handler<C: Client>(
         git_ref: params.trigger_git_ref.clone(),
     };
 
-    let (plan_result, runs_result, details_result) = tokio::join!(
+    let (plan, runs, details) = tokio::join!(
         orchestrator_client.known_test_plan_summary(uuid),
         orchestrator_client.list_known_test_plan_runs(uuid, &runs_params),
         orchestrator_client.test_plan_details(uuid, &details_params)
@@ -76,16 +106,20 @@ pub async fn handler<C: Client>(
 
     to_response(test_plan_detail_body(
         uuid,
-        plan_result,
-        runs_result,
-        details_result,
-        DEFAULT_LIMIT,
-        offset,
-        params.trigger_git_ref.unwrap_or_default(),
-        params.trigger_variables.unwrap_or_default(),
-        params.trigger_error,
-        days_back,
-        days,
+        TestPlanDetailResults {
+            plan,
+            runs,
+            details,
+        },
+        TestPlanDetailPage {
+            limit: DEFAULT_LIMIT,
+            offset,
+            trigger_git_ref: params.trigger_git_ref.unwrap_or_default(),
+            trigger_variables: params.trigger_variables.unwrap_or_default(),
+            trigger_error: params.trigger_error,
+            days_back,
+            days,
+        },
     ))
 }
 
@@ -93,24 +127,15 @@ pub async fn handler<C: Client>(
 /// trigger form, and runs table on success, a "not found" page for an unknown uuid, or an error
 /// page for a plan-fetch failure. A runs-list failure still renders the page - with the plan header
 /// and GitHub link intact and an inline error in place of the runs table - mirroring the home
-/// page's `index_body`. `runs_result` is only rendered when `plan_result` is `Ok(Some(_))`; kept as
-/// a plain parameter (rather than only fetched conditionally) so this whole mapping stays a single
+/// page's `index_body`. `fetch.runs` is only rendered when `fetch.plan` is `Ok(Some(_))`; kept as
+/// a plain field (rather than only fetched conditionally) so this whole mapping stays a single
 /// pure, directly-testable function, matching `run_status_body`/`execution_detail_body`.
-#[allow(clippy::too_many_arguments)]
 fn test_plan_detail_body(
     uuid: Uuid,
-    plan_result: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
-    runs_result: Result<TestRunListResponse, orchestrator::Error>,
-    details_result: Result<Option<TestPlanDetails>, orchestrator::Error>,
-    limit: i64,
-    offset: i64,
-    trigger_git_ref: String,
-    trigger_variables: String,
-    trigger_error: Option<String>,
-    days_back: u32,
-    days: u32,
+    fetch: TestPlanDetailResults,
+    page: TestPlanDetailPage,
 ) -> (StatusCode, String) {
-    let plan = match plan_result {
+    let plan = match fetch.plan {
         Ok(Some(plan)) => plan,
         Ok(None) => {
             return render_body(
@@ -134,9 +159,9 @@ fn test_plan_detail_body(
 
     let plan_view = KnownTestPlanRowView::from(plan);
 
-    let (details, details_error) = match details_result {
+    let (details, details_error) = match fetch.details {
         Ok(Some(details)) => (
-            Some(TestPlanDetailsView::new(details, days_back, days)),
+            Some(TestPlanDetailsView::new(details, page.days_back, page.days)),
             None,
         ),
         Ok(None) => {
@@ -155,7 +180,7 @@ fn test_plan_detail_body(
         }
     };
 
-    match runs_result {
+    match fetch.runs {
         Ok(response) => render_body(
             StatusCode::OK,
             TestPlanDetailTemplate {
@@ -163,14 +188,17 @@ fn test_plan_detail_body(
                 details,
                 details_error,
                 runs: Some(RunListView::for_known_test_plan(
-                    response, limit, offset, uuid,
+                    response,
+                    page.limit,
+                    page.offset,
+                    uuid,
                 )),
                 runs_error: None,
-                trigger_git_ref,
-                trigger_variables,
-                trigger_error,
-                days_back,
-                days,
+                trigger_git_ref: page.trigger_git_ref,
+                trigger_variables: page.trigger_variables,
+                trigger_error: page.trigger_error,
+                days_back: page.days_back,
+                days: page.days,
             },
         ),
         Err(error) => {
@@ -183,11 +211,11 @@ fn test_plan_detail_body(
                     details_error,
                     runs: None,
                     runs_error: Some("Could not load recent runs for this test plan.".to_owned()),
-                    trigger_git_ref,
-                    trigger_variables,
-                    trigger_error,
-                    days_back,
-                    days,
+                    trigger_git_ref: page.trigger_git_ref,
+                    trigger_variables: page.trigger_variables,
+                    trigger_error: page.trigger_error,
+                    days_back: page.days_back,
+                    days: page.days,
                 },
             )
         }
@@ -309,16 +337,12 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_known_test_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::OK);
@@ -347,16 +371,12 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(None),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(None),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::NOT_FOUND);
@@ -368,19 +388,15 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Err(orchestrator::Error::KnownTestPlanStatus {
-                status: StatusCode::BAD_GATEWAY,
-                uuid,
-            }),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Err(orchestrator::Error::KnownTestPlanStatus {
+                    status: StatusCode::BAD_GATEWAY,
+                    uuid,
+                }),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::BAD_GATEWAY);
@@ -392,19 +408,15 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_known_test_plan(uuid))),
-            Err(orchestrator::Error::ListKnownTestPlanRuns {
-                status: StatusCode::BAD_GATEWAY,
-                uuid,
-            }),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Err(orchestrator::Error::ListKnownTestPlanRuns {
+                    status: StatusCode::BAD_GATEWAY,
+                    uuid,
+                }),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(
@@ -421,19 +433,15 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_known_test_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Err(orchestrator::Error::TestPlanDetailsStatus {
-                status: StatusCode::BAD_GATEWAY,
-                uuid,
-            }),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Err(orchestrator::Error::TestPlanDetailsStatus {
+                    status: StatusCode::BAD_GATEWAY,
+                    uuid,
+                }),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(
@@ -456,16 +464,12 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_known_test_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::OK);
@@ -481,16 +485,17 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_known_test_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            "a-branch".to_owned(),
-            r#"{"key": "value"}"#.to_owned(),
-            Some("unknown test plan".to_owned()),
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage {
+                trigger_git_ref: "a-branch".to_owned(),
+                trigger_variables: r#"{"key": "value"}"#.to_owned(),
+                trigger_error: Some("unknown test plan".to_owned()),
+                ..Default::default()
+            },
         );
 
         assert_eq!(status, StatusCode::OK);
