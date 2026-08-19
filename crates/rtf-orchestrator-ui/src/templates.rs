@@ -1,5 +1,6 @@
 use crate::view::{
     ExecutionDetailView, KnownTestPlanListView, KnownTestPlanRowView, RunListView, RunView,
+    TestPlanDetailsView,
 };
 use askama::Template;
 
@@ -29,11 +30,13 @@ pub struct TestPlansTemplate {
 #[template(path = "test_plan_detail.html")]
 pub struct TestPlanDetailTemplate {
     pub plan: KnownTestPlanRowView,
+    pub details: Option<TestPlanDetailsView>,
+    pub details_error: Option<String>,
     pub runs: Option<RunListView>,
     pub runs_error: Option<String>,
-    /// Re-populates the trigger form's "Ref" field after a failed submission.
     pub trigger_git_ref: String,
-    /// Re-populates the trigger form's "Variables" field after a failed submission.
+    pub days_back: u32,
+    pub days: u32,
     pub trigger_variables: String,
     pub trigger_error: Option<String>,
 }

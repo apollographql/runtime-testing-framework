@@ -11,8 +11,104 @@
     <p>{{ plan.description }}</p>
     {% endif %}
     <p class="muted location">
+        {% match details %}
+        {% when Some with (d) %}
+        <a href="{{ d.github_url }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
+        {% when None %}
         <a href="{{ plan.github_url }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
+        {% endmatch %}
     </p>
+    {% match details %}
+    {% when Some with (d) %}
+    <dl>
+        <dt>Commit</dt>
+        <dd><code>{{ d.source_sha }}</code></dd>
+    </dl>
+    {% when None %}
+    {% endmatch %}
+</div>
+
+{% match details %}
+{% when Some with (d) %}
+
+<div class="detail-grid">
+    <div class="detail-main">
+
+        <section class="banner">
+            <h2>Overview</h2>
+            <dl>
+                <dt>Number of executions per run</dt>
+                <dd id="stat-executions">{{ d.n_executions }}</dd>
+                <dd class="muted" id="stat-formula">{{ d.matrix_formula }}</dd>
+
+                <dt>Services / execution</dt>
+                <dd>{{ d.n_services }}</dd>
+
+                {% if !d.fixed_groups.is_empty() %}
+                <dt>Include groups (fixed &mdash; not alterable per trigger)</dt>
+                <dd>
+                    {% for group in d.fixed_groups %}{% if !loop.first %}; {% endif %}{% for kv in group %}{% if !loop.first %} &middot; {% endif %}{{ kv.0 }}: {{ kv.1 }}{% endfor %}{% endfor %}
+                </dd>
+                {% endif %}
+            </dl>
+        </section>
+
+        <h2>Services deployed per execution</h2>
+        {% if d.services_vary_by_matrix %}
+        <p class="muted">Different matrix combinations may deploy different services or replica counts.</p>
+        {% else %}
+        <p class="muted">Every matrix combination stands up this same environment.</p>
+        {% endif %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Image</th>
+                    <th>Replicas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in d.services %}
+                <tr>
+                    <td><code>{{ s.name }}</code></td>
+                    <td><code>{{ s.image }}</code></td>
+                    <td class="nowrap">{{ s.replicas_label }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% match d.n_containers_per_execution %}
+        {% when Some with (n) %}
+        <p class="muted"><strong>{{ n }}</strong> containers per execution</p>
+        {% when None %}
+        {% endmatch %}
+
+    </div>
+
+    <div class="detail-side">
+        <div class="test-plan-card">
+            <h3>Previous runs</h3>
+            <p class="muted">
+                <a href="{{ d.prev_history_href(trigger_git_ref) }}" aria-label="Previous history window">&larr;</a>
+                {{ d.history_from_label }} &ndash; {{ d.history_to_label }}
+                {% if d.has_next_history() %}
+                <a href="{{ d.next_history_href(trigger_git_ref) }}" aria-label="Next history window">&rarr;</a>
+                {% endif %}
+            </p>
+            <canvas id="chart-status" height="170"></canvas>
+        </div>
+        <div class="test-plan-card">
+            <h3>Historic execution duration (mm:ss)</h3>
+            <p class="muted">
+                <a href="{{ d.prev_history_href(trigger_git_ref) }}" aria-label="Previous history window">&larr;</a>
+                {{ d.sampled_runs }} runs in the last {{ days }} days
+                {% if d.has_next_history() %}
+                <a href="{{ d.next_history_href(trigger_git_ref) }}" aria-label="Next history window">&rarr;</a>
+                {% endif %}
+            </p>
+            <canvas id="chart-duration" height="170"></canvas>
+        </div>
+    </div>
 </div>
 
 <h2>Trigger a run</h2>
@@ -23,28 +119,94 @@
 {% when None %}
 {% endmatch %}
 
-<form method="post" action="/ui/test-plan/{{ plan.uuid }}/trigger">
-    <p>
-        <label for="ref">Ref <span class="muted">(optional &mdash; branch, tag, or SHA; defaults to the
-                default branch)</span></label><br>
-        <input id="ref" name="ref" type="text" placeholder="main" value="{{ trigger_git_ref }}" size="40" />
+<form method="post" action="/ui/test-plan/{{ plan.uuid }}/trigger" id="trigger-form">
+    <p class="trigger-actions">
+        <button type="submit" class="primary" id="trigger-btn">Trigger <span id="trigger-count">{{ d.n_executions }}</span> executions</button>
+        <span class="muted">Runs every variable at its current value below unless you customize it.</span>
     </p>
-    <p>
-        <label for="variables">Variables <span class="muted">(optional &mdash; JSON object)</span></label>
-        <button type="button" popovertarget="known-test-plan-variables-help" class="copy-btn"
-            aria-label="Variables help" style="vertical-align: baseline;">&#9432;</button>
-        <div id="known-test-plan-variables-help" popover>
-            <p>A JSON object mapping variable names to values. A plain value templates a single
-                variable; an array of values defines a matrix dimension (one variant per element).</p>
-            <pre>{
-  "subject": ["world", "sailor"]
-}</pre>
-        </div>
-        <textarea id="variables" name="variables" rows="6" cols="60"
-            placeholder="{ &quot;subject&quot;: [&quot;world&quot;, &quot;sailor&quot;] }">{{ trigger_variables }}</textarea>
-    </p>
-    <button type="submit">Trigger run</button>
+    <input type="hidden" name="ref" value="{{ trigger_git_ref }}" />
+    <input type="hidden" name="days_back" value="{{ days_back }}" />
+    <input type="hidden" name="days" value="{{ days }}" />
 </form>
+
+<details id="customize-trigger" class="test-plan-card">
+    <summary>Customize ref &amp; variables</summary>
+
+    <form method="get" action="/ui/test-plan/{{ plan.uuid }}">
+        <input type="hidden" name="days_back" value="{{ days_back }}" />
+        <input type="hidden" name="days" value="{{ days }}" />
+        <p>
+            <label for="ref-preview">Ref <span class="muted">(optional &mdash; branch, tag, or SHA; defaults
+                    to the default branch)</span></label><br>
+            <input id="ref-preview" name="trigger_ref" type="text" placeholder="main" value="{{ trigger_git_ref }}" size="40" />
+            <button type="submit">Preview</button>
+        </p>
+    </form>
+
+    <p class="muted">Leave a field blank to run it at the current value shown as ghost text
+        &mdash; if that's cut off, use the button beside a field to see and copy the full value.
+        Enter a single value to fix it, or a comma-separated list to run it as a matrix dimension
+        &mdash; any variable can be either.</p>
+
+    <div id="all-vars" class="var-field-grid">
+        {% for v in d.variables %}
+        <div class="var-field">
+            <label for="var-{{ v.name }}">
+                <code>{{ v.name }}</code>
+                {% if !v.sections.is_empty() %}
+                <span class="muted">({% for s in v.sections %}{% if !loop.first %}, {% endif %}{{ s }}{% endfor %})</span>
+                {% endif %}
+                <button type="button" class="copy-btn" popovertarget="value-popover-{{ v.name }}"
+                    data-copy="{{ v.ghost_text }}" aria-label="View and copy current value of {{ v.name }}"
+                    title="View and copy full current value">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"></path>
+                        <circle cx="8" cy="8" r="2"></circle>
+                    </svg>
+                </button>
+            </label><br>
+            {% if v.description != "" %}
+            <span class="muted">{{ v.description }}</span><br>
+            {% endif %}
+            {% match v.allowed_values %}
+            {% when Some with (values) %}
+            <select multiple id="var-{{ v.name }}" data-var-name="{{ v.name }}">
+                {% for value in values %}
+                <option value="{{ value }}" {% if v.full_values.contains(value) %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+            {% when None %}
+            <input type="text" id="var-{{ v.name }}" data-var-name="{{ v.name }}" placeholder="{{ v.ghost_text }}" />
+            {% endmatch %}
+            <div id="value-popover-{{ v.name }}" popover>
+                <p class="muted" style="margin-top:0;">Current value of <code>{{ v.name }}</code></p>
+                <pre><code>{{ v.full_values_multiline }}</code></pre>
+                <p><button type="button" popovertarget="value-popover-{{ v.name }}" popovertargetaction="hide">Close</button></p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <details>
+        <summary>Advanced: raw variables JSON</summary>
+        <p class="muted" style="margin-bottom:0.3rem;">Auto-generated from the fields above &mdash;
+            edit directly for anything not covered by them.</p>
+        <textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60">{{ trigger_variables }}</textarea>
+    </details>
+</details>
+
+<script type="application/json" id="test-plan-details-data">{{ d.js_data()|json|safe }}</script>
+<script src="/ui/static/chart.min.js"></script>
+<script src="/ui/static/test-plan-detail.js"></script>
+
+{% when None %}
+{% match details_error %}
+{% when Some with (message) %}
+<p class="muted">{{ message }}</p>
+{% when None %}
+{% endmatch %}
+{% endmatch %}
 
 <h2>Recent runs</h2>
 
