@@ -297,30 +297,19 @@ mod tests {
     use super::*;
     use crate::{
         endpoints::body_text,
-        orchestrator::mocks::{MockClient, sample_test_plan_details},
+        orchestrator::mocks::{MockClient, sample_known_test_plan, sample_test_plan_details},
     };
     use axum::http::header::LOCATION;
     use rtf_core::variables::ScalarOrArray;
     use rtf_orchestrator_shared::status::Status;
     use std::assert_matches;
 
-    fn sample_plan(uuid: Uuid) -> KnownTestPlanSummary {
-        KnownTestPlanSummary {
-            uuid,
-            name: "my-known-plan".to_owned(),
-            description: Some("a sample plan".to_owned()),
-            org: "apollographql".to_owned(),
-            repo: "runtime-testing-framework".to_owned(),
-            path: "test-plans/example.yaml".to_owned(),
-        }
-    }
-
     #[test]
     fn test_plan_detail_body_renders_the_plan_and_its_runs() {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
+            Ok(Some(sample_known_test_plan(uuid))),
             Ok(TestRunListResponse::default()),
             Ok(Some(sample_test_plan_details(uuid))),
             DEFAULT_LIMIT,
@@ -333,9 +322,12 @@ mod tests {
         );
 
         assert_eq!(status, StatusCode::OK);
-        assert!(body.contains("my-known-plan"), "plan name should render");
         assert!(
-            body.contains("a sample plan"),
+            body.contains("my-known-test-plan"),
+            "plan name should render"
+        );
+        assert!(
+            body.contains("a sample known test plan"),
             "plan description should render"
         );
         assert!(
@@ -400,7 +392,7 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
+            Ok(Some(sample_known_test_plan(uuid))),
             Err(orchestrator::Error::ListKnownTestPlanRuns {
                 status: StatusCode::BAD_GATEWAY,
                 uuid,
@@ -420,7 +412,7 @@ mod tests {
             StatusCode::OK,
             "the plan header should still render"
         );
-        assert!(body.contains("my-known-plan"));
+        assert!(body.contains("my-known-test-plan"));
         assert!(body.contains("Could not load recent runs"));
     }
 
@@ -429,7 +421,7 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
+            Ok(Some(sample_known_test_plan(uuid))),
             Ok(TestRunListResponse::default()),
             Err(orchestrator::Error::TestPlanDetailsStatus {
                 status: StatusCode::BAD_GATEWAY,
@@ -449,7 +441,7 @@ mod tests {
             StatusCode::OK,
             "the plan header and runs table should still render"
         );
-        assert!(body.contains("my-known-plan"));
+        assert!(body.contains("my-known-test-plan"));
         assert!(body.contains("Could not load details for this test plan"));
         assert!(
             body.contains(
@@ -464,7 +456,7 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
+            Ok(Some(sample_known_test_plan(uuid))),
             Ok(TestRunListResponse::default()),
             Ok(Some(sample_test_plan_details(uuid))),
             DEFAULT_LIMIT,
@@ -489,7 +481,7 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
+            Ok(Some(sample_known_test_plan(uuid))),
             Ok(TestRunListResponse::default()),
             Ok(Some(sample_test_plan_details(uuid))),
             DEFAULT_LIMIT,

@@ -73,22 +73,21 @@ fn test_plans_body(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{endpoints::body_text, orchestrator::mocks::MockClient};
-    use rtf_orchestrator_shared::{known_test_plan::KnownTestPlanSummary, status::Status};
+    use crate::{
+        endpoints::body_text,
+        orchestrator::mocks::{MockClient, sample_known_test_plan},
+    };
+    use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
     #[test]
     fn test_plans_body_renders_the_table() {
+        // Row-field mapping (name, description, GitHub URL) is already covered by
+        // `KnownTestPlanRowView` unit tests; this only needs to prove the response was threaded
+        // through to `TestPlansTemplate`.
         let (status, body) = test_plans_body(
             Ok(KnownTestPlanListResponse {
-                test_plans: vec![KnownTestPlanSummary {
-                    uuid: Uuid::new_v4(),
-                    name: "my-known-plan".to_owned(),
-                    description: None,
-                    org: "apollographql".to_owned(),
-                    repo: "runtime-testing-framework".to_owned(),
-                    path: "test-plans/example.yaml".to_owned(),
-                }],
+                test_plans: vec![sample_known_test_plan(Uuid::new_v4())],
                 total: 1,
             }),
             DEFAULT_LIMIT,
@@ -97,14 +96,8 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
         assert!(
-            body.contains("my-known-plan"),
+            body.contains("my-known-test-plan"),
             "known test plan row should render"
-        );
-        assert!(
-            body.contains(
-                r#"href="https://github.com/apollographql/runtime-testing-framework/blob/HEAD/test-plans/example.yaml""#
-            ),
-            "known test plan row should link to its file on GitHub, got: {body}"
         );
     }
 
