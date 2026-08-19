@@ -196,8 +196,12 @@ mod tests {
         templates::RunTemplate,
     };
     use askama::Template;
-    use chrono::Duration;
+    use chrono::{Duration, TimeZone};
     use simple_test_case::test_case;
+
+    fn fixed_now() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2024, 3, 15, 12, 30, 0).unwrap()
+    }
 
     #[test_case(Status::Running, 0, true; "recent running run polls")]
     #[test_case(Status::Running, MAX_POLL_AGE_SECS + 1, false; "stuck running run stops polling")]
@@ -484,5 +488,78 @@ mod tests {
              (the filter <select> always lists UNRUNNABLE as an option, so that text alone isn't \
              a safe check)"
         );
+    }
+
+    #[test]
+    fn run_template_snapshot_running_with_mixed_statuses_and_active_filter() {
+        let run_id = Uuid::from_u128(1);
+        let started = Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0).unwrap();
+        let run = TestRunSummary {
+            id: run_id,
+            name: "nightly-smoke".to_owned(),
+            current_status: Status::Running,
+            initiated_by: "someone@apollographql.com".to_owned(),
+            started_at: started,
+            updated_at: started + Duration::minutes(5),
+            executions: vec![
+                TestExecutionSummary {
+                    id: Uuid::from_u128(10),
+                    name: "exec-ok".to_owned(),
+                    current_status: Status::Successful,
+                    exit_code: Some(0),
+                    started_at: started,
+                    updated_at: started + Duration::minutes(3),
+                    completed_at: Some(started + Duration::minutes(3)),
+                    ..Default::default()
+                },
+                TestExecutionSummary {
+                    id: Uuid::from_u128(11),
+                    name: "exec-broke".to_owned(),
+                    current_status: Status::Failed,
+                    exit_code: Some(1),
+                    started_at: started,
+                    updated_at: started + Duration::minutes(4),
+                    completed_at: Some(started + Duration::minutes(4)),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        let view = RunView::new(run, fixed_now(), &sample_config(), "FAILED".to_owned());
+        let body = RunTemplate { run: view }.render().expect("template renders");
+
+        insta::assert_snapshot!(body);
+    }
+
+    #[test]
+    fn run_template_snapshot_terminal_run_with_completed_at() {
+        let run_id = Uuid::from_u128(2);
+        let ex_id = Uuid::from_u128(20);
+        let started = Utc.with_ymd_and_hms(2024, 3, 15, 9, 0, 0).unwrap();
+        let completed = started + Duration::minutes(12);
+        let run = TestRunSummary {
+            id: run_id,
+            name: "release-check".to_owned(),
+            current_status: Status::Successful,
+            initiated_by: "someone@apollographql.com".to_owned(),
+            started_at: started,
+            updated_at: completed,
+            completed_at: Some(completed),
+            executions: vec![TestExecutionSummary {
+                id: ex_id,
+                name: "exec-alpha".to_owned(),
+                current_status: Status::Successful,
+                exit_code: Some(0),
+                started_at: started,
+                updated_at: completed,
+                completed_at: Some(completed),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let view = RunView::new(run, fixed_now(), &sample_config(), String::new());
+        let body = RunTemplate { run: view }.render().expect("template renders");
+
+        insta::assert_snapshot!(body);
     }
 }

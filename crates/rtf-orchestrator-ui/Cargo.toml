@@ -33,4 +33,5 @@ tikv-jemallocator.workspace = true
 
 [dev-dependencies]
 rtf-config = { path = "../rtf-config" }
+insta.workspace = true
 simple_test_case.workspace = true

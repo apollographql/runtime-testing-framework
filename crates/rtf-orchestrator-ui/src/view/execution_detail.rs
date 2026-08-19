@@ -81,6 +81,35 @@ mod tests {
         links::sample_config, orchestrator::mocks::sample_execution, templates::ExecutionTemplate,
     };
     use askama::Template;
+    use chrono::TimeZone;
+    use rtf_orchestrator_shared::status::Status;
+
+    fn snapshot_execution(run_id: Option<Uuid>, ex_id: Uuid) -> TestExecutionSummary {
+        let started = Utc.with_ymd_and_hms(2024, 3, 15, 9, 0, 0).unwrap();
+        let completed = started + chrono::Duration::minutes(5);
+        TestExecutionSummary {
+            id: ex_id,
+            test_run_id: run_id,
+            name: "exec-alpha".to_owned(),
+            current_status: Status::Successful,
+            exit_code: Some(0),
+            started_at: started,
+            updated_at: completed,
+            completed_at: Some(completed),
+            status_history: vec![
+                StatusUpdate {
+                    status: Status::Successful,
+                    message: Some("execution finished".to_owned()),
+                    updated_at: completed,
+                },
+                StatusUpdate {
+                    status: Status::Running,
+                    message: None,
+                    updated_at: started,
+                },
+            ],
+        }
+    }
 
     #[test]
     fn execution_template_renders_status_history_and_metadata() {
@@ -123,5 +152,28 @@ mod tests {
         let view = ExecutionDetailView::new(execution, &sample_config());
 
         assert_eq!(view.run_id, None);
+    }
+
+    #[test]
+    fn execution_template_snapshot_with_parent_run() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let view = ExecutionDetailView::new(snapshot_execution(Some(run_id), ex_id), &sample_config());
+        let body = ExecutionTemplate { execution: view }
+            .render()
+            .expect("template renders");
+
+        insta::assert_snapshot!(body);
+    }
+
+    #[test]
+    fn execution_template_snapshot_without_parent_run() {
+        let ex_id = Uuid::from_u128(2);
+        let view = ExecutionDetailView::new(snapshot_execution(None, ex_id), &sample_config());
+        let body = ExecutionTemplate { execution: view }
+            .render()
+            .expect("template renders");
+
+        insta::assert_snapshot!(body);
     }
 }

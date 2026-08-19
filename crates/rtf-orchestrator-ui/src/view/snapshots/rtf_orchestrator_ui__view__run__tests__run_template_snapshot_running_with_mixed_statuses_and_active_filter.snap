@@ -1,0 +1,201 @@
+---
+source: crates/rtf-orchestrator-ui/src/view/run.rs
+assertion_line: 531
+expression: body
+---
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Run 00000000-0000-0000-0000-000000000001</title>
+    <link rel="icon" type="image/png" href="/ui/static/gongphin.png" />
+    <link rel="stylesheet" href="/ui/static/theme.css" />
+    <script src="/ui/static/theme-toggle.js"></script>
+    <script src="/ui/static/htmx.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <a class="brand" href="/ui">
+            <img class="logo" src="/ui/static/gongphin.png" alt="" />
+            <h1>RTF Orchestrator</h1>
+        </a>
+        <nav>
+            <a href="/ui/test-plans">Registered Test Plans</a>
+            <a href="/ui/trigger">Trigger from GitHub</a>
+            <a href="https://scaling-dollop-ywevlle.pages.github.io/" target="_blank" rel="noopener noreferrer">RTF Docs</a>
+        </nav>
+        <div class="header-actions">
+            <form class="run-lookup"
+                onsubmit="event.preventDefault(); const id = this.runId.value.trim(); if (id) { window.location.href = '/ui/run/' + encodeURIComponent(id); }">
+                <input name="runId" type="text" placeholder="Test run ID" aria-label="Test run ID" required
+                    size="36" />
+                <button type="submit">View status</button>
+            </form>
+            <button id="theme-toggle" type="button" aria-label="Toggle color theme">Dark</button>
+        </div>
+    </header>
+    <main>
+<p><a href="/ui">&larr; Find another run</a></p>
+
+<div id="run"  hx-get="/ui/run/00000000-0000-0000-0000-000000000001?execution_status=FAILED" hx-select="#run" hx-trigger="every 10s"
+    hx-swap="outerHTML" >
+    <section class="banner">
+        <h2>nightly-smoke</h2>
+        <p><span class="status status--active">RUNNING</span></p>
+        <p class="muted">
+            Auto-refreshing every 10s
+            &middot; last updated 12:30:00 UTC
+            <button type="button" hx-get="/ui/run/00000000-0000-0000-0000-000000000001?execution_status=FAILED" hx-select="#run" hx-target="#run"
+                hx-swap="outerHTML">
+                Refresh now</button>
+        </p>
+        <dl>
+            <dt>Run ID</dt>
+            <dd><code>00000000-0000-0000-0000-000000000001</code> <button type="button" class="copy-btn" data-copy="00000000-0000-0000-0000-000000000001"
+                    aria-label="Copy run ID" title="Copy to clipboard">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="1.3" stroke-linejoin="round">
+                        <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
+                        <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
+                    </svg>
+                </button></dd>
+            <dt>Initiated by</dt>
+            <dd>someone@apollographql.com</dd>
+            <dt>Started</dt>
+            <dd>2024-03-15T12:00:00Z</dd>
+            <dt>Updated</dt>
+            <dd>2024-03-15T12:05:00Z</dd>
+            <dt>Elapsed</dt>
+            <dd>30m</dd>
+            
+            
+        </dl>
+        <p>
+            <button type="button" popovertarget="run-output-cmd">Download full run output</button>
+        </p>
+        <div id="run-output-cmd" popover>
+            <p>The Orchestrator doesn't bundle a whole run's output for download. Run this locally
+                instead:</p>
+            <pre><code>rtf remote run-output 00000000-0000-0000-0000-000000000001</code></pre>
+            <p class="muted">This downloads a <code>run-summary.json</code> plus each execution's
+                <code>log.txt</code> and <code>output.zip</code> into an <code>output/</code>
+                directory.
+            </p>
+            <button type="button" popovertarget="run-output-cmd" popovertargetaction="hide">Close</button>
+        </div>
+    </section>
+
+    <h3>Status breakdown</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+            <tr>
+                <td><span class="status status--success">SUCCESSFUL</span></td>
+                <td>1</td>
+            </tr>
+            
+            <tr>
+                <td><span class="status status--failed">FAILED</span></td>
+                <td>1</td>
+            </tr>
+            
+        </tbody>
+    </table>
+
+    <h3>Executions (2)</h3>
+    <form method="get" action="/ui/run/00000000-0000-0000-0000-000000000001">
+        <select name="execution_status" aria-label="Filter by status">
+            <option value="" >All statuses</option>
+            <option value="INITIALISING" >
+                INITIALISING</option>
+            <option value="RESOLVING" >RESOLVING
+            </option>
+            <option value="PROVISIONING" >
+                PROVISIONING</option>
+            <option value="ENV_READY" >ENV_READY
+            </option>
+            <option value="RUNNING" >RUNNING
+            </option>
+            <option value="SUCCESSFUL" >
+                SUCCESSFUL</option>
+            <option value="FAILED" selected>FAILED</option>
+            <option value="UNRUNNABLE" >
+                UNRUNNABLE</option>
+        </select>
+        <button type="submit">Filter</button>
+        
+        <a href="/ui/run/00000000-0000-0000-0000-000000000001">Clear</a>
+        
+    </form>
+    <br>
+    <div class="execution-cards">
+        
+        <div class="execution-card">
+            <div class="execution-card__header">
+                <span class="status status--failed">FAILED</span>
+                <h4><a href="/ui/execution/00000000-0000-0000-0000-00000000000b">exec-broke</a></h4>
+            </div>
+            <div class="execution-card__details">
+                <dl class="execution-card__meta">
+                    <div>
+                        <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank"
+                                rel="noopener noreferrer">Exit code &#8599;</a></dt>
+                        <dd>
+                            1
+                            
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Started</dt>
+                        <dd>2024-03-15T12:00:00Z</dd>
+                    </div>
+                    <div>
+                        <dt>Updated</dt>
+                        <dd>2024-03-15T12:04:00Z</dd>
+                    </div>
+                </dl>
+                <p class="execution-card__links">
+                    <a href="https://console.cloud.google.com/logs/query;query=resource.labels.cluster_name%3D%22cluster_name%22%0Aresource.labels.namespace_name%3D%2200000000-0000-0000-0000-00000000000b%22;cursorTimestamp=2024-03-15T12:00:00.000Z;startTime=2024-03-15T12:00:00.000Z;endTime=2024-03-15T12:04:00.000Z?referrer=search&#38;project=gcp-project&#38;supportedpurview=project" target="_blank" rel="noopener noreferrer">GCP logs &#8599;</a>
+                    &middot;
+                    <a href="http://grafana.com/d/dash-uuid/dash-slug?orgId=1&#38;from=2024-03-15T12:00:00.000Z&#38;to=2024-03-15T12:04:00.000Z&#38;timezone=utc&#38;var-datasource=data-uuid&#38;var-cluster=&#38;var-namespace=00000000-0000-0000-0000-00000000000b&#38;refresh=10s" target="_blank" rel="noopener noreferrer">Grafana
+                        &#8599;</a>
+                    &middot;
+                    <a href="/ui/execution/00000000-0000-0000-0000-00000000000b/log.txt">log.txt</a>
+                    &middot;
+                    <a href="/ui/execution/00000000-0000-0000-0000-00000000000b/output.zip">output.zip</a>
+                </p>
+            </div>
+        </div>
+        
+        
+    </div>
+</div>
+
+</main>
+    <script>
+        const COPY_BTN_CHECK_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8.5 6.5 12 13 4"></polyline></svg>';
+
+        document.addEventListener("click", (event) => {
+            const button = event.target.closest(".copy-btn");
+            if (!button) return;
+            navigator.clipboard.writeText(button.dataset.copy).then(() => {
+                const original = button.innerHTML;
+                button.innerHTML = COPY_BTN_CHECK_ICON;
+                setTimeout(() => {
+                    button.innerHTML = original;
+                }, 1200);
+            });
+        });
+    </script>
+</body>
+
+</html>
