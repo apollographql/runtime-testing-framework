@@ -3,7 +3,7 @@
     hx-swap="outerHTML" {% endif %}>
     <section class="banner">
         <h2>{{ run.name }}</h2>
-        <p><span class="status {{ run.status_class }}">{{ run.status_label }}</span></p>
+        <p><span class="status {{ run.status.class }}">{{ run.status.label }}</span></p>
         <p class="muted">
             {% if run.should_poll %}Auto-refreshing every 10s{% else %}Auto-refresh stopped{% endif %}
             &middot; last updated {{ run.last_updated }}
@@ -62,7 +62,7 @@
         <tbody>
             {% for row in run.status_breakdown %}
             <tr>
-                <td><span class="status {{ row.status_class }}">{{ row.status_label }}</span></td>
+                <td><span class="status {{ row.status.class }}">{{ row.status.label }}</span></td>
                 <td>{{ row.count }}</td>
             </tr>
             {% endfor %}
@@ -99,7 +99,7 @@
         {% for execution in run.executions %}
         <div class="execution-card">
             <div class="execution-card__header">
-                <span class="status {{ execution.status_class }}">{{ execution.status_label }}</span>
+                <span class="status {{ execution.status.class }}">{{ execution.status.label }}</span>
                 <h4><a href="/ui/execution/{{ execution.id }}">{{ execution.name }}</a></h4>
             </div>
             <div class="execution-card__details">

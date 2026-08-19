@@ -10,8 +10,10 @@ pub use run::RunView;
 pub use run_list::RunListView;
 pub use test_plan_details::TestPlanDetailsView;
 
+use crate::status;
 use chrono::{DateTime, Utc};
 use humantime::format_rfc3339_seconds;
+use rtf_orchestrator_shared::status::Status;
 use std::time::{Duration, SystemTime};
 
 /// Renders a timestamp as RFC 3339 at second precision (e.g. `2026-07-27T14:23:01Z`), the format
@@ -21,6 +23,20 @@ fn format_rfc3339(dt: DateTime<Utc>) -> String {
     let system_time = SystemTime::UNIX_EPOCH + Duration::from_secs(seconds_since_epoch);
 
     format_rfc3339_seconds(system_time).to_string()
+}
+
+pub struct StatusView {
+    pub label: String,
+    pub class: &'static str,
+}
+
+impl From<Status> for StatusView {
+    fn from(value: Status) -> Self {
+        Self {
+            label: value.to_string(),
+            class: status::css_class(value),
+        }
+    }
 }
 
 struct Pagination {

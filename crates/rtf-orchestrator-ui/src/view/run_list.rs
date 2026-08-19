@@ -1,5 +1,4 @@
-use super::{Pagination, format_rfc3339};
-use crate::status;
+use super::{Pagination, StatusView, format_rfc3339};
 use rtf_orchestrator_shared::summary::{TestRunListResponse, TestRunSummary};
 use url::form_urlencoded;
 use uuid::Uuid;
@@ -8,8 +7,7 @@ use uuid::Uuid;
 pub struct RunListRowView {
     pub id: Uuid,
     pub name: String,
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub initiated_by: String,
     pub started_at: String,
 }
@@ -19,8 +17,7 @@ impl From<TestRunSummary> for RunListRowView {
         Self {
             id: run.id,
             name: run.name,
-            status_label: run.current_status.to_string(),
-            status_class: status::css_class(run.current_status),
+            status: run.current_status.into(),
             initiated_by: run.initiated_by,
             started_at: format_rfc3339(run.started_at),
         }

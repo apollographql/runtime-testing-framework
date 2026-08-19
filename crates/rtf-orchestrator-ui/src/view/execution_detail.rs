@@ -1,4 +1,4 @@
-use super::format_rfc3339;
+use super::{StatusView, format_rfc3339};
 use crate::{
     links::{LinksConfig, gcp_logs, grafana},
     status,
@@ -13,8 +13,7 @@ pub struct ExecutionDetailView {
     /// The parent test run's id, used for the "back to run" link.
     pub run_id: Option<Uuid>,
     pub name: String,
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub exit_code: Option<i32>,
     pub started_at: String,
     pub updated_at: String,
@@ -38,8 +37,7 @@ impl ExecutionDetailView {
             id: execution.id,
             run_id: execution.test_run_id,
             name: execution.name,
-            status_label: execution.current_status.to_string(),
-            status_class: status::css_class(execution.current_status),
+            status: execution.current_status.into(),
             exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
             started_at: format_rfc3339(execution.started_at),
             updated_at: format_rfc3339(execution.updated_at),
@@ -57,8 +55,7 @@ impl ExecutionDetailView {
 
 /// A single entry in an execution's status-history timeline.
 pub struct StatusEntryView {
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub message: Option<String>,
     pub updated_at: String,
 }
@@ -66,8 +63,7 @@ pub struct StatusEntryView {
 impl From<StatusUpdate> for StatusEntryView {
     fn from(update: StatusUpdate) -> Self {
         Self {
-            status_label: update.status.to_string(),
-            status_class: status::css_class(update.status),
+            status: update.status.into(),
             message: update.message,
             updated_at: format_rfc3339(update.updated_at),
         }

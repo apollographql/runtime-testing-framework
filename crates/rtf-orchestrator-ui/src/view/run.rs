@@ -1,4 +1,4 @@
-use super::format_rfc3339;
+use super::{StatusView, format_rfc3339};
 use crate::{
     links::{LinksConfig, gcp_logs, grafana},
     status,
@@ -25,8 +25,7 @@ const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 pub struct RunView {
     pub id: Uuid,
     pub name: String,
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub initiated_by: String,
     pub started_at: String,
     pub updated_at: String,
@@ -57,8 +56,7 @@ impl RunView {
         Self {
             id: run.id,
             name: run.name,
-            status_label: run.current_status.to_string(),
-            status_class: status::css_class(run.current_status),
+            status: run.current_status.into(),
             initiated_by: run.initiated_by,
             started_at: format_rfc3339(run.started_at),
             updated_at: format_rfc3339(run.updated_at),
@@ -122,8 +120,7 @@ const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
 
 /// One row in the run's status-breakdown summary.
 pub struct StatusCountView {
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub count: usize,
 }
 
@@ -139,8 +136,7 @@ fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView>
                 .count();
 
             (count > 0).then(|| StatusCountView {
-                status_label: candidate.to_string(),
-                status_class: status::css_class(candidate),
+                status: candidate.into(),
                 count,
             })
         })
@@ -151,8 +147,7 @@ fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView>
 pub struct ExecutionView {
     pub id: Uuid,
     pub name: String,
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub exit_code: Option<i32>,
     pub started_at: String,
     pub updated_at: String,
@@ -170,8 +165,7 @@ impl ExecutionView {
         Self {
             id: execution.id,
             name: execution.name,
-            status_label: execution.current_status.to_string(),
-            status_class: status::css_class(execution.current_status),
+            status: execution.current_status.into(),
             exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
             started_at: format_rfc3339(execution.started_at),
             updated_at: format_rfc3339(execution.updated_at),
@@ -454,7 +448,7 @@ mod tests {
         let labels_and_counts: Vec<(&str, usize)> = view
             .status_breakdown
             .iter()
-            .map(|row| (row.status_label.as_str(), row.count))
+            .map(|row| (row.status.label.as_str(), row.count))
             .collect();
         assert_eq!(
             labels_and_counts,
