@@ -1,3 +1,4 @@
+use cached::cached;
 use chrono::{DateTime, Utc};
 use reqwest::{StatusCode, Url, header::LOCATION, redirect::Policy};
 use rtf_orchestrator_shared::{
@@ -7,6 +8,7 @@ use rtf_orchestrator_shared::{
     },
     payload::TriggerPayload,
     summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary},
+    test_plan_details::{TestPlanDetails, TestPlanDetailsParams},
 };
 use thiserror::Error;
 use uuid::Uuid;
@@ -34,6 +36,9 @@ pub enum Error {
 
     #[error("orchestrator returned {status} fetching known test plan id {uuid}")]
     KnownTestPlanStatus { status: StatusCode, uuid: Uuid },
+
+    #[error("orchestrator returned {status} fetching details for known test plan id {uuid}")]
+    TestPlanDetailsStatus { status: StatusCode, uuid: Uuid },
 
     #[error("orchestrator returned {status} listing test runs for known test plan id {uuid}")]
     ListKnownTestPlanRuns { status: StatusCode, uuid: Uuid },
@@ -116,6 +121,15 @@ pub trait Client: Send + Sync + Clone + 'static {
         &self,
         uuid: Uuid,
     ) -> impl Future<Output = Result<Option<KnownTestPlanSummary>, Error>> + Send;
+
+    /// Fetch the rich details (variables, matrix, environment, history) for a single known test
+    /// plan by UUID, or `None` if it isn't registered. Responses are cached for a short TTL (see
+    /// the `HttpClient` impl) since this is fetched on every load of the test plan detail page.
+    fn test_plan_details(
+        &self,
+        uuid: Uuid,
+        params: &TestPlanDetailsParams,
+    ) -> impl Future<Output = Result<Option<TestPlanDetails>, Error>> + Send;
 
     /// List historic test runs for a single known test plan matching `filter`, newest-first.
     fn list_known_test_plan_runs(
@@ -233,6 +247,20 @@ impl Client for HttpClient {
         }
     }
 
+    async fn test_plan_details(
+        &self,
+        uuid: Uuid,
+        params: &TestPlanDetailsParams,
+    ) -> Result<Option<TestPlanDetails>, Error> {
+        fetch_test_plan_details(
+            self.client.clone(),
+            self.orchestrator_url.clone(),
+            uuid,
+            params.clone(),
+        )
+        .await
+    }
+
     async fn list_known_test_plan_runs(
         &self,
         uuid: Uuid,
@@ -284,6 +312,31 @@ impl Client for HttpClient {
         struct TriggerErrorBody {
             message: String,
         }
+    }
+}
+
+// Cached for a 5-minute TTL, keyed on the uuid plus the params that change what the orchestrator
+// returns (git_ref, days_back, days) - the test plan detail page fetches this on every load, and a
+// short-lived cache avoids re-resolving the whole test plan (and re-querying run history) on every
+// request in that window.
+#[cached(
+    ttl = 300,
+    key = "String",
+    convert = r#"{ format!("{uuid}-{:?}-{}-{}", params.git_ref, params.days_back, params.days) }"#
+)]
+async fn fetch_test_plan_details(
+    client: reqwest::Client,
+    orchestrator_url: Url,
+    uuid: Uuid,
+    params: TestPlanDetailsParams,
+) -> Result<Option<TestPlanDetails>, Error> {
+    let url = test_plan_details_url(&orchestrator_url, uuid);
+    let response = client.get(url).query(&params).send().await?;
+
+    match response.status() {
+        StatusCode::OK => Ok(Some(response.json().await?)),
+        StatusCode::NOT_FOUND => Ok(None),
+        status => Err(Error::TestPlanDetailsStatus { status, uuid }),
     }
 }
 
@@ -350,14 +403,27 @@ fn known_test_plan_runs_url(base_url: &Url, uuid: Uuid) -> Url {
         .expect("base url should be valid")
 }
 
+fn test_plan_details_url(base_url: &Url, uuid: Uuid) -> Url {
+    base_url
+        .join(&format!("/test-plan/{uuid}/details"))
+        .expect("base url should be valid")
+}
+
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
     use chrono::Utc;
+    use rtf_config::templating::Scalar;
     use rtf_orchestrator_shared::{
         status::{Status, StatusUpdate},
         summary::TestExecutionSummary,
+        test_plan::{EnvironmentService, ServiceReplicas},
+        test_plan_details::{
+            ConfigSection, EnvironmentSummary, MatrixSummary, TestPlanHistory, TestPlanSource,
+            TestPlanVariable, VariableDeclaration, VariableValue,
+        },
     };
+    use std::collections::BTreeMap;
 
     /// A single execution, carrying a status history so the detail view has something to render.
     pub(crate) fn sample_execution(run_id: Uuid, ex_id: Uuid) -> TestExecutionSummary {
@@ -411,6 +477,89 @@ pub(crate) mod mocks {
             org: "apollographql".to_owned(),
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
+        }
+    }
+
+    pub(crate) fn sample_test_plan_details(uuid: Uuid) -> TestPlanDetails {
+        TestPlanDetails {
+            uuid,
+            name: "my-known-test-plan".to_owned(),
+            description: Some("a sample known test plan".to_owned()),
+            source: TestPlanSource {
+                org: "apollographql".to_owned(),
+                repo: "runtime-testing-framework".to_owned(),
+                path: "test-plans/example.yaml".to_owned(),
+                git_ref: None,
+                sha: "abc1234def5678".to_owned(),
+            },
+            variables: vec![
+                TestPlanVariable {
+                    name: "duration".to_owned(),
+                    declarations: vec![VariableDeclaration {
+                        section: ConfigSection::Scenario,
+                        description: "Main test duration".to_owned(),
+                        default: Some(Scalar::from("5m")),
+                        allowed_values: None,
+                    }],
+                    current_value: Some(VariableValue::Scalar(Scalar::from("60s"))),
+                    required: false,
+                },
+                TestPlanVariable {
+                    name: "region".to_owned(),
+                    declarations: vec![VariableDeclaration {
+                        section: ConfigSection::Environment,
+                        description: "Where to run".to_owned(),
+                        default: None,
+                        allowed_values: None,
+                    }],
+                    current_value: Some(VariableValue::Dimension(vec![
+                        Scalar::from("us-east-1"),
+                        Scalar::from("eu-west-1"),
+                    ])),
+                    required: false,
+                },
+                TestPlanVariable {
+                    name: "tier".to_owned(),
+                    declarations: vec![VariableDeclaration {
+                        section: ConfigSection::Environment,
+                        description: "Service tier".to_owned(),
+                        default: Some(Scalar::from("free")),
+                        allowed_values: Some(vec![
+                            Scalar::from("free"),
+                            Scalar::from("paid"),
+                            Scalar::from("enterprise"),
+                        ]),
+                    }],
+                    current_value: None,
+                    required: false,
+                },
+            ],
+            matrix: MatrixSummary {
+                n_executions: 2,
+                dimensions: BTreeMap::from([(
+                    "region".to_owned(),
+                    vec![Scalar::from("us-east-1"), Scalar::from("eu-west-1")],
+                )]),
+                include_groups: Vec::new(),
+            },
+            environment: EnvironmentSummary {
+                services: vec![
+                    EnvironmentService {
+                        name: "web".to_owned(),
+                        image: Some("nginx:1.25".to_owned()),
+                        replicas: ServiceReplicas::Fixed(1),
+                    },
+                    EnvironmentService {
+                        name: "worker".to_owned(),
+                        image: Some("my-worker:latest".to_owned()),
+                        replicas: ServiceReplicas::Variable("${WORKER_REPLICAS}".to_owned()),
+                    },
+                ],
+                has_variable_replicas: true,
+                services_vary_by_matrix: false,
+                resolved_for_variant: Some("region_us-east-1".to_owned()),
+            },
+            history: TestPlanHistory::default(),
         }
     }
 
@@ -475,6 +624,14 @@ pub(crate) mod mocks {
             uuid: Uuid,
         ) -> Result<Option<KnownTestPlanSummary>, Error> {
             Ok(Some(sample_known_test_plan(uuid)))
+        }
+
+        async fn test_plan_details(
+            &self,
+            uuid: Uuid,
+            _params: &TestPlanDetailsParams,
+        ) -> Result<Option<TestPlanDetails>, Error> {
+            Ok(Some(sample_test_plan_details(uuid)))
         }
 
         async fn list_known_test_plan_runs(

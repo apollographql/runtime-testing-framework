@@ -31,8 +31,8 @@ rtf-integrations = { path = "../rtf-integrations" }
 rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
 
 axum.workspace = true
-cached = { version = "2.0.2", features = ["async", "async_tokio_rt_multi_thread"] }
 axum-extra = { version = "0.12", features = ["typed-header"] }
+cached.workspace = true
 chrono.workspace = true
 envy.workspace = true
 google-cloud-auth.workspace = true

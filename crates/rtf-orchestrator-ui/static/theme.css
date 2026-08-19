@@ -458,3 +458,55 @@ button[type="submit"]:hover, button.primary:hover {
     align-items: center;
     gap: 0.6rem;
 }
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 860px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.detail-side {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+#stat-executions {
+    font-size: 1.4rem;
+    font-weight: 650;
+}
+
+.warn {
+    color: var(--status-failed-text);
+}
+
+.trigger-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.var-field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.9rem 1.5rem;
+}
+
+@media (max-width: 700px) {
+    .var-field-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.var-field input,
+.var-field select {
+    width: 100%;
+}

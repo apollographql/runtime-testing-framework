@@ -8,8 +8,9 @@ rtf-core = { path = "../rtf-core" }
 rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
 
 anyhow.workspace = true
-askama = "0.16.0"
+askama = { version = "0.16.0", features = ["serde_json"] }
 axum.workspace = true
+cached.workspace = true
 chrono.workspace = true
 envy.workspace = true
 humantime.workspace = true
@@ -31,4 +32,5 @@ uuid.workspace = true
 tikv-jemallocator.workspace = true
 
 [dev-dependencies]
+rtf-config = { path = "../rtf-config" }
 simple_test_case.workspace = true
