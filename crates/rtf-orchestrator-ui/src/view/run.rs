@@ -526,7 +526,9 @@ mod tests {
             ..Default::default()
         };
         let view = RunView::new(run, fixed_now(), &sample_config(), "FAILED".to_owned());
-        let body = RunTemplate { run: view }.render().expect("template renders");
+        let body = RunTemplate { run: view }
+            .render()
+            .expect("template renders");
 
         insta::assert_snapshot!(body);
     }
@@ -558,7 +560,9 @@ mod tests {
             ..Default::default()
         };
         let view = RunView::new(run, fixed_now(), &sample_config(), String::new());
-        let body = RunTemplate { run: view }.render().expect("template renders");
+        let body = RunTemplate { run: view }
+            .render()
+            .expect("template renders");
 
         insta::assert_snapshot!(body);
     }

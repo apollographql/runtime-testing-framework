@@ -158,7 +158,8 @@ mod tests {
     fn execution_template_snapshot_with_parent_run() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let view = ExecutionDetailView::new(snapshot_execution(Some(run_id), ex_id), &sample_config());
+        let view =
+            ExecutionDetailView::new(snapshot_execution(Some(run_id), ex_id), &sample_config());
         let body = ExecutionTemplate { execution: view }
             .render()
             .expect("template renders");

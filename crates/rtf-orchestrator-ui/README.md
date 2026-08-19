@@ -5,12 +5,12 @@ execution status, browsing registered test plans, and triggering new runs.
 
 ## Testing
 
-Run tests as usual with `cargo test`. Most Askama template rendering (`src/view/`) is
-unit-tested by asserting on the view structs directly; a small set of full-page renders are
-instead covered by [`insta`][insta] snapshot tests, to catch unintended rendering regressions
-without hand-writing per-field assertions against the HTML output.
+Run tests as usual with `cargo test`. Most Askama template rendering (`src/view/`) is unit-tested by
+asserting on the view structs directly; a small set of full-page renders are instead covered by
+[`insta`][0] snapshot tests, to catch unintended rendering regressions without hand-writing
+per-field assertions against the HTML output.
 
-Install the [`cargo-insta`][cargo-insta] CLI to review snapshot changes:
+Install the [`cargo-insta`][1] CLI to review snapshot changes:
 
 ```bash
 cargo install cargo-insta
@@ -26,5 +26,5 @@ cargo insta review  # interactively accept or reject each diff
 Accepted snapshots live alongside their test module under `src/view/snapshots/*.snap` and are
 committed to the repo.
 
-[insta]: https://insta.rs
-[cargo-insta]: https://insta.rs/docs/cli/
+[0]: https://insta.rs
+[1]: https://insta.rs/docs/cli/
