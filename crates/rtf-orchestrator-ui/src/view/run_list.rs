@@ -1,9 +1,8 @@
-use super::{Pagination, StatusView, format_rfc3339};
+use crate::view::{Pagination, StatusView, format_rfc3339};
 use rtf_orchestrator_shared::summary::{TestRunListResponse, TestRunSummary};
 use url::form_urlencoded;
 use uuid::Uuid;
 
-/// One row in the recent-runs table on the home page.
 pub struct RunListRowView {
     pub id: Uuid,
     pub name: String,
@@ -32,8 +31,6 @@ enum RunListScope {
     KnownTestPlan(Uuid),
 }
 
-/// The recent-runs table shared by the home page and a known test plan's detail page: the current
-/// page of rows plus enough state to render Prev/Next pagination links.
 pub struct RunListView {
     pub rows: Vec<RunListRowView>,
     pagination: Pagination,

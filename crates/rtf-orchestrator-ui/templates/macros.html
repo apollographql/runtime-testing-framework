@@ -1,9 +1,77 @@
+{% macro error_message(message) %}
+{% match message %}
+{% when Some with (m) %}
+<p class="muted">{{ m }}</p>
+{% when None %}
+{% endmatch %}
+{% endmacro %}
+
+{% macro status_pill(status) %}<span class="status {{ status.class }}">{{ status.label }}</span>{% endmacro %}
+
+{% macro copy_button(value, label) %}
+<button type="button" class="copy-btn" data-copy="{{ value }}" aria-label="Copy {{ label }}"
+    title="Copy to clipboard">
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"
+        stroke-linejoin="round">
+        <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
+        <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
+    </svg>
+</button>
+{% endmacro %}
+
+{% macro pagination_footer(list) %}
+<p class="muted">
+    {% match list.showing_range() %}
+    {% when Some with (range) %}
+    {{ range }}
+    {% when None %}
+    {% endmatch %}
+    {% if list.has_prev() %}
+    &middot; <a href="{{ list.prev_href() }}">&larr; Prev</a>
+    {% endif %}
+    {% if list.has_next() %}
+    &middot; <a href="{{ list.next_href() }}">Next &rarr;</a>
+    {% endif %}
+</p>
+{% endmacro %}
+
+{% macro run_list_table(list) %}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Initiated by</th>
+            <th>Started</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in list.rows %}
+        <tr>
+            <td><a href="/ui/run/{{ row.id }}">{{ row.name }}</a></td>
+            <td>{% call status_pill(row.status) %}{% endcall %}</td>
+            <td>{{ row.initiated_by }}</td>
+            <td>{{ row.started_at }}</td>
+        </tr>
+        {% endfor %}
+        {% match list.empty_message() %}
+        {% when Some with (message) %}
+        <tr>
+            <td colspan="4">{{ message }}</td>
+        </tr>
+        {% when None %}
+        {% endmatch %}
+    </tbody>
+</table>
+{% call pagination_footer(list) %}{% endcall %}
+{% endmacro %}
+
 {% macro run_content(run) %}
 <div id="run" {% if run.should_poll %} hx-get="{{ run.poll_url() }}" hx-select="#run" hx-trigger="every 10s"
     hx-swap="outerHTML" {% endif %}>
     <section class="banner">
         <h2>{{ run.name }}</h2>
-        <p><span class="status {{ run.status.class }}">{{ run.status.label }}</span></p>
+        <p>{% call status_pill(run.status) %}{% endcall %}</p>
         <p class="muted">
             {% if run.should_poll %}Auto-refreshing every 10s{% else %}Auto-refresh stopped{% endif %}
             &middot; last updated {{ run.last_updated }}
@@ -13,14 +81,7 @@
         </p>
         <dl>
             <dt>Run ID</dt>
-            <dd><code>{{ run.id }}</code> <button type="button" class="copy-btn" data-copy="{{ run.id }}"
-                    aria-label="Copy run ID" title="Copy to clipboard">
-                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
-                        stroke-width="1.3" stroke-linejoin="round">
-                        <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
-                        <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
-                    </svg>
-                </button></dd>
+            <dd><code>{{ run.id }}</code> {% call copy_button(run.id, "run ID") %}{% endcall %}</dd>
             <dt>Initiated by</dt>
             <dd>{{ run.initiated_by }}</dd>
             <dt>Started</dt>
@@ -62,7 +123,7 @@
         <tbody>
             {% for row in run.status_breakdown %}
             <tr>
-                <td><span class="status {{ row.status.class }}">{{ row.status.label }}</span></td>
+                <td>{% call status_pill(row.status) %}{% endcall %}</td>
                 <td>{{ row.count }}</td>
             </tr>
             {% endfor %}
@@ -99,7 +160,7 @@
         {% for execution in run.executions %}
         <div class="execution-card">
             <div class="execution-card__header">
-                <span class="status {{ execution.status.class }}">{{ execution.status.label }}</span>
+                {% call status_pill(execution.status) %}{% endcall %}
                 <h4><a href="/ui/execution/{{ execution.id }}">{{ execution.name }}</a></h4>
             </div>
             <div class="execution-card__details">
@@ -107,12 +168,7 @@
                     <div>
                         <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank"
                                 rel="noopener noreferrer">Exit code &#8599;</a></dt>
-                        <dd>
-                            {% match execution.exit_code %}
-                            {% when Some with (code) %}{{ code }}
-                            {% when None %}&mdash;
-                            {% endmatch %}
-                        </dd>
+                        <dd>{{ execution.exit_code_label }}</dd>
                     </div>
                     <div>
                         <dt>Started</dt>

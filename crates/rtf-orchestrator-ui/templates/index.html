@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block title %}RTF Status &middot; Recent runs{% endblock %}
 
@@ -38,54 +39,11 @@
 </form>
 <br>
 
-{% match list_error %}
-{% when Some with (message) %}
-<p class="muted">{{ message }}</p>
-{% when None %}
-{% endmatch %}
+{% call macros::error_message(list_error) %}{% endcall %}
 
 {% match list %}
 {% when Some with (list) %}
-<table>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Initiated by</th>
-            <th>Started</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for row in list.rows %}
-        <tr>
-            <td><a href="/ui/run/{{ row.id }}">{{ row.name }}</a></td>
-            <td><span class="status {{ row.status.class }}">{{ row.status.label }}</span></td>
-            <td>{{ row.initiated_by }}</td>
-            <td>{{ row.started_at }}</td>
-        </tr>
-        {% endfor %}
-        {% match list.empty_message() %}
-        {% when Some with (message) %}
-        <tr>
-            <td colspan="4">{{ message }}</td>
-        </tr>
-        {% when None %}
-        {% endmatch %}
-    </tbody>
-</table>
-<p class="muted">
-    {% match list.showing_range() %}
-    {% when Some with (range) %}
-    {{ range }}
-    {% when None %}
-    {% endmatch %}
-    {% if list.has_prev() %}
-    &middot; <a href="{{ list.prev_href() }}">&larr; Prev</a>
-    {% endif %}
-    {% if list.has_next() %}
-    &middot; <a href="{{ list.next_href() }}">Next &rarr;</a>
-    {% endif %}
-</p>
+{% call macros::run_list_table(list) %}{% endcall %}
 {% when None %}
 {% endmatch %}
 {% endblock %}

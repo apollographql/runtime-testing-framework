@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block title %}RTF &middot; Trigger a run{% endblock %}
 
@@ -7,11 +8,7 @@
 <p>The Orchestrator is able to pull and run RTF Test Plans directly from GitHub.
    Enter the details of the Test Plan you with to run below.</p>
 
-{% match error %}
-{% when Some with (message) %}
-<p class="muted">{{ message }}</p>
-{% when None %}
-{% endmatch %}
+{% call macros::error_message(error) %}{% endcall %}
 
 <form method="post" action="/ui/trigger">
     <p>

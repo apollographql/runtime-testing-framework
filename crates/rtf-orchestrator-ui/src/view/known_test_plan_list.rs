@@ -1,18 +1,15 @@
-use super::Pagination;
+use crate::view::Pagination;
 use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary};
 use url::form_urlencoded;
 use uuid::Uuid;
 
-/// One row in the known-test-plans table.
 pub struct KnownTestPlanRowView {
     pub uuid: Uuid,
     pub name: String,
-    /// Empty when the plan has no description, so the template can render it plainly.
     pub description: String,
     pub org: String,
     pub repo: String,
     pub path: String,
-    /// Link to the test plan file on GitHub.
     pub github_url: String,
 }
 
@@ -30,15 +27,10 @@ impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
     }
 }
 
-/// The test plan file's URL on GitHub. Resolved against `blob/HEAD/...` (the repo's default
-/// branch) rather than a specific ref, since no ref is persisted on a [`KnownTestPlanSummary`] —
-/// only the run it produced (via `known_test_plan_run.git_sha`) records the ref actually used.
 fn known_test_plan_github_url(org: &str, repo: &str, path: &str) -> String {
     format!("https://github.com/{org}/{repo}/blob/HEAD/{path}")
 }
 
-/// The known-test-plans page's table: the current page of rows plus enough state to render
-/// Prev/Next pagination links, mirroring [`super::RunListView`].
 pub struct KnownTestPlanListView {
     pub rows: Vec<KnownTestPlanRowView>,
     pagination: Pagination,
@@ -87,7 +79,6 @@ impl KnownTestPlanListView {
         self.pagination.showing_range()
     }
 
-    /// The message shown in the table in place of rows when there's nothing on this page.
     pub fn empty_message(&self) -> Option<&'static str> {
         if !self.rows.is_empty() {
             None
@@ -104,8 +95,6 @@ mod tests {
     use super::*;
     use simple_test_case::test_case;
 
-    /// Builds a `KnownTestPlanListView` with `n_rows` placeholder rows out of `total` matching
-    /// plans, at the given `limit`/`offset`.
     fn known_test_plan_list_view(
         n_rows: usize,
         total: i64,

@@ -1,48 +1,43 @@
-use super::{StatusView, format_rfc3339};
 use crate::{
     links::{LinksConfig, gcp_logs, grafana},
-    status,
+    status::effective_exit_code,
+    view::{StatusView, exit_code_label, format_rfc3339},
 };
 use chrono::Utc;
 use rtf_orchestrator_shared::{status::StatusUpdate, summary::TestExecutionSummary};
 use uuid::Uuid;
 
-/// The execution detail page: the execution's status-history timeline plus its metadata.
 pub struct ExecutionDetailView {
     pub id: Uuid,
-    /// The parent test run's id, used for the "back to run" link.
     pub run_id: Option<Uuid>,
     pub name: String,
     pub status: StatusView,
-    pub exit_code: Option<i32>,
+    pub exit_code_label: String,
     pub started_at: String,
     pub updated_at: String,
     pub completed_at: Option<String>,
-    /// Status updates, newest-first (as returned by the orchestrator).
     pub history: Vec<StatusEntryView>,
-    /// Cloud Logging deep link scoped to this execution's workload namespace and time window.
     pub logs_url: String,
-    /// Grafana deep link scoped to this execution's workload namespace and time window.
     pub grafana_url: String,
 }
 
 impl ExecutionDetailView {
-    pub fn new(execution: TestExecutionSummary, links_cfg: &LinksConfig) -> Self {
-        let namespace = execution.id.to_string();
-        let end = execution.completed_at.unwrap_or_else(Utc::now);
-        let logs_url = gcp_logs(links_cfg, &namespace, execution.started_at, end);
-        let grafana_url = grafana(links_cfg, &namespace, execution.started_at, end);
+    pub fn new(ex: TestExecutionSummary, links_cfg: &LinksConfig) -> Self {
+        let namespace = ex.id.to_string();
+        let end = ex.completed_at.unwrap_or_else(Utc::now);
+        let logs_url = gcp_logs(links_cfg, &namespace, ex.started_at, end);
+        let grafana_url = grafana(links_cfg, &namespace, ex.started_at, end);
 
         Self {
-            id: execution.id,
-            run_id: execution.test_run_id,
-            name: execution.name,
-            status: execution.current_status.into(),
-            exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
-            started_at: format_rfc3339(execution.started_at),
-            updated_at: format_rfc3339(execution.updated_at),
-            completed_at: execution.completed_at.map(format_rfc3339),
-            history: execution
+            id: ex.id,
+            run_id: ex.test_run_id,
+            name: ex.name,
+            status: ex.current_status.into(),
+            exit_code_label: exit_code_label(effective_exit_code(ex.current_status, ex.exit_code)),
+            started_at: format_rfc3339(ex.started_at),
+            updated_at: format_rfc3339(ex.updated_at),
+            completed_at: ex.completed_at.map(format_rfc3339),
+            history: ex
                 .status_history
                 .into_iter()
                 .map(StatusEntryView::from)
@@ -53,7 +48,6 @@ impl ExecutionDetailView {
     }
 }
 
-/// A single entry in an execution's status-history timeline.
 pub struct StatusEntryView {
     pub status: StatusView,
     pub message: Option<String>,
@@ -133,7 +127,6 @@ mod tests {
             body.contains("execution finished"),
             "history entry messages should render"
         );
-        // Both history entries' statuses appear.
         assert!(body.contains("RUNNING") && body.contains("SUCCESSFUL"));
         assert!(
             body.contains(&format!("/ui/run/{run_id}")),

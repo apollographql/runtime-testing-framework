@@ -1,15 +1,12 @@
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block title %}RTF Status &middot; Registered test plans{% endblock %}
 
 {% block content %}
 <h2>Registered test plans</h2>
 
-{% match list_error %}
-{% when Some with (message) %}
-<p class="muted">{{ message }}</p>
-{% when None %}
-{% endmatch %}
+{% call macros::error_message(list_error) %}{% endcall %}
 
 {% match list %}
 {% when Some with (list) %}
@@ -29,19 +26,7 @@
 <p>{{ message }}</p>
 {% when None %}
 {% endmatch %}
-<p class="muted">
-    {% match list.showing_range() %}
-    {% when Some with (range) %}
-    {{ range }}
-    {% when None %}
-    {% endmatch %}
-    {% if list.has_prev() %}
-    &middot; <a href="{{ list.prev_href() }}">&larr; Prev</a>
-    {% endif %}
-    {% if list.has_next() %}
-    &middot; <a href="{{ list.next_href() }}">Next &rarr;</a>
-    {% endif %}
-</p>
+{% call macros::pagination_footer(list) %}{% endcall %}
 {% when None %}
 {% endmatch %}
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block title %}Execution {{ execution.name }}{% endblock %}
 
@@ -11,25 +12,13 @@
 
 <section class="banner">
     <h2>{{ execution.name }}</h2>
-    <p><span class="status {{ execution.status.class }}">{{ execution.status.label }}</span></p>
+    <p>{% call macros::status_pill(execution.status) %}{% endcall %}</p>
     <dl>
         <dt>Execution ID</dt>
-        <dd><code>{{ execution.id }}</code> <button type="button" class="copy-btn" data-copy="{{ execution.id }}"
-                aria-label="Copy execution ID" title="Copy to clipboard">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"
-                    stroke-linejoin="round">
-                    <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
-                    <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
-                </svg>
-            </button></dd>
+        <dd><code>{{ execution.id }}</code> {% call macros::copy_button(execution.id, "execution ID") %}{% endcall %}</dd>
         <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code
                 &#8599;</a></dt>
-        <dd>
-            {% match execution.exit_code %}
-            {% when Some with (code) %}{{ code }}
-            {% when None %}&mdash;
-            {% endmatch %}
-        </dd>
+        <dd>{{ execution.exit_code_label }}</dd>
         <dt>Started</dt>
         <dd>{{ execution.started_at }}</dd>
         <dt>Updated</dt>
@@ -61,7 +50,7 @@
 <ol class="timeline">
     {% for entry in execution.history %}
     <li>
-        <span class="status {{ entry.status.class }}">{{ entry.status.label }}</span>
+        {% call macros::status_pill(entry.status) %}{% endcall %}
         <time>{{ entry.updated_at }}</time>
         {% match entry.message %}
         {% when Some with (message) %}<p>{{ message }}</p>

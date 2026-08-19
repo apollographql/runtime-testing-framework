@@ -1,7 +1,7 @@
-use super::{StatusView, format_rfc3339};
 use crate::{
     links::{LinksConfig, gcp_logs, grafana},
     status,
+    view::{StatusView, exit_code_label, format_rfc3339},
 };
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
@@ -18,10 +18,6 @@ use uuid::Uuid;
 /// UI stops polling and the user can refresh manually.
 const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 
-/// The run status page content: the overall-status banner and the executions table. This whole
-/// region is re-rendered on every htmx poll (via `hx-select` against the same page route), so the
-/// banner, elapsed time, and "last updated" indicator all refresh together and stop together on
-/// terminal.
 pub struct RunView {
     pub id: Uuid,
     pub name: String,
@@ -105,8 +101,6 @@ impl RunView {
     }
 }
 
-/// Every [`Status`] variant, in lifecycle order — the order the run's status breakdown and the
-/// execution-status filter's `<select>` present statuses in.
 const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
     Status::Initialising,
     Status::Resolving,
@@ -118,14 +112,11 @@ const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
     Status::Unrunnable,
 ];
 
-/// One row in the run's status-breakdown summary.
 pub struct StatusCountView {
     pub status: StatusView,
     pub count: usize,
 }
 
-/// How many `executions` are in each status, in lifecycle order, omitting statuses none of them are
-/// in — a run with no `Unrunnable` executions shouldn't show an "Unrunnable: 0" row.
 fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView> {
     STATUS_LIFECYCLE_ORDER
         .into_iter()
@@ -143,12 +134,11 @@ fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView>
         .collect()
 }
 
-/// The execution view within a test run summary
 pub struct ExecutionView {
     pub id: Uuid,
     pub name: String,
     pub status: StatusView,
-    pub exit_code: Option<i32>,
+    pub exit_code_label: String,
     pub started_at: String,
     pub updated_at: String,
     pub logs_url: String,
@@ -166,7 +156,10 @@ impl ExecutionView {
             id: execution.id,
             name: execution.name,
             status: execution.current_status.into(),
-            exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
+            exit_code_label: exit_code_label(status::effective_exit_code(
+                execution.current_status,
+                execution.exit_code,
+            )),
             started_at: format_rfc3339(execution.started_at),
             updated_at: format_rfc3339(execution.updated_at),
             logs_url,
@@ -175,8 +168,6 @@ impl ExecutionView {
     }
 }
 
-/// Whether a run should keep being polled: only while it is non-terminal and has not been running
-/// longer than [`MAX_POLL_AGE_SECS`] (the stuck-run guard).
 fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
     !status.is_terminal() && (now.timestamp() - started_at.timestamp()) < MAX_POLL_AGE_SECS
 }
@@ -307,8 +298,6 @@ mod tests {
         );
     }
 
-    /// A run with two executions in different terminal statuses, for exercising the
-    /// `execution_status_filter`.
     fn run_with_mixed_execution_statuses(run_id: Uuid) -> TestRunSummary {
         TestRunSummary {
             id: run_id,
@@ -478,9 +467,7 @@ mod tests {
         );
         assert!(
             !body.contains("class=\"status status--unrunnable\""),
-            "statuses with no executions should not get a status pill anywhere on the page \
-             (the filter <select> always lists UNRUNNABLE as an option, so that text alone isn't \
-             a safe check)"
+            "statuses with no executions should not get a status pill anywhere on the page"
         );
     }
 

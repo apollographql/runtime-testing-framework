@@ -1,3 +1,9 @@
+use crate::status;
+use chrono::{DateTime, Utc};
+use humantime::format_rfc3339_seconds;
+use rtf_orchestrator_shared::status::Status;
+use std::time::{Duration, SystemTime};
+
 mod execution_detail;
 mod known_test_plan_list;
 mod run;
@@ -10,14 +16,6 @@ pub use run::RunView;
 pub use run_list::RunListView;
 pub use test_plan_details::TestPlanDetailsView;
 
-use crate::status;
-use chrono::{DateTime, Utc};
-use humantime::format_rfc3339_seconds;
-use rtf_orchestrator_shared::status::Status;
-use std::time::{Duration, SystemTime};
-
-/// Renders a timestamp as RFC 3339 at second precision (e.g. `2026-07-27T14:23:01Z`), the format
-/// every timestamp on the UI is shown in.
 fn format_rfc3339(dt: DateTime<Utc>) -> String {
     let seconds_since_epoch = dt.timestamp().max(0) as u64;
     let system_time = SystemTime::UNIX_EPOCH + Duration::from_secs(seconds_since_epoch);
@@ -36,6 +34,13 @@ impl From<Status> for StatusView {
             label: value.to_string(),
             class: status::css_class(value),
         }
+    }
+}
+
+fn exit_code_label(exit_code: Option<i32>) -> String {
+    match exit_code {
+        Some(code) => code.to_string(),
+        None => "—".to_owned(),
     }
 }
 
@@ -78,8 +83,15 @@ impl Pagination {
 
 #[cfg(test)]
 mod tests {
-    use super::Pagination;
+    use super::{Pagination, exit_code_label};
     use simple_test_case::test_case;
+
+    #[test_case(Some(0), "0"; "an exit code renders as its number")]
+    #[test_case(None, "—"; "no exit code renders as an em dash")]
+    #[test]
+    fn exit_code_label_cases(exit_code: Option<i32>, expected: &str) {
+        assert_eq!(exit_code_label(exit_code), expected);
+    }
 
     #[test_case(20, 137, 20, 0, true, false; "more rows remain and first page")]
     #[test_case(20, 20, 20, 0, false, false; "last full page")]
