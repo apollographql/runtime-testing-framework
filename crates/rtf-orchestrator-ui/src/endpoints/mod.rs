@@ -5,6 +5,8 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 use reqwest::StatusCode;
+use rtf_core::variables::ScalarOrArray;
+use std::collections::HashMap;
 use tracing::error;
 
 pub mod execution_detail;
@@ -16,9 +18,6 @@ pub mod test_plan_detail;
 pub mod test_plans;
 pub mod trigger;
 
-/// Render an askama template to a `(status, body)` pair. Template render errors are mapped to a 500
-/// with an empty body — rendering only fails on genuine bugs (e.g. a missing field), not on bad
-/// input, so there's no more specific message to show.
 fn render_body<T: Template>(status: StatusCode, template: T) -> (StatusCode, String) {
     match template.render() {
         Ok(body) => (status, body),
@@ -33,6 +32,24 @@ fn to_response((status, body): (StatusCode, String)) -> Response {
     (status, Html(body)).into_response()
 }
 
+type TriggerVariables = HashMap<String, ScalarOrArray>;
+
+fn parse_trigger_ref_and_variables(
+    git_ref: &str,
+    variables: &str,
+) -> Result<(Option<String>, Option<TriggerVariables>), String> {
+    let variables_json = variables.trim();
+    let variables = if variables_json.is_empty() {
+        None
+    } else {
+        serde_json::from_str(variables_json)
+            .map_err(|error| format!("Variables must be a JSON object: {error}"))?
+    };
+    let git_ref = git_ref.trim();
+
+    Ok(((!git_ref.is_empty()).then(|| git_ref.to_owned()), variables))
+}
+
 #[cfg(test)]
 async fn body_text(resp: Response) -> String {
     use axum::body::to_bytes;
@@ -44,14 +61,10 @@ async fn body_text(resp: Response) -> String {
     String::from_utf8(bytes.to_vec()).expect("utf8 body")
 }
 
-/// `GET /ui/health` — liveness/readiness probe for the standalone service.
 pub async fn health() -> &'static str {
     "ok"
 }
 
-/// Maps a [`Download`] outcome to an HTTP response: the file's bytes with a `Content-Disposition`
-/// download header on success, the orchestrator's redirect relayed verbatim, or a plain-text
-/// response carrying the corresponding status otherwise.
 fn download_response(
     result: Result<Download, orchestrator::Error>,
     content_type: &'static str,
@@ -89,6 +102,48 @@ fn download_response(
 mod tests {
     use super::*;
     use simple_test_case::test_case;
+    use std::assert_matches;
+
+    #[test]
+    fn parse_trigger_ref_and_variables_returns_none_for_blank_fields() {
+        let (git_ref, variables) = parse_trigger_ref_and_variables("", "").expect("should parse");
+
+        assert_eq!(git_ref, None);
+        assert_eq!(variables, None);
+    }
+
+    #[test]
+    fn parse_trigger_ref_and_variables_trims_whitespace() {
+        let (git_ref, variables) =
+            parse_trigger_ref_and_variables("  main  ", "   ").expect("should parse");
+
+        assert_eq!(git_ref, Some("main".to_owned()));
+        assert_eq!(variables, None);
+    }
+
+    #[test]
+    fn parse_trigger_ref_and_variables_parses_a_scalar_and_a_matrix_dimension_variable() {
+        let (_, variables) = parse_trigger_ref_and_variables(
+            "",
+            r#"{"message": "hello", "region": ["us-east-1", "eu-west-1"]}"#,
+        )
+        .expect("should parse");
+        let variables = variables.expect("variables should be present");
+
+        assert_matches!(variables.get("message"), Some(ScalarOrArray::Scalar(_)));
+        assert_matches!(
+            variables.get("region"),
+            Some(ScalarOrArray::Array(values)) if values.len() == 2
+        );
+    }
+
+    #[test]
+    fn parse_trigger_ref_and_variables_rejects_invalid_json() {
+        let error = parse_trigger_ref_and_variables("", "not json")
+            .expect_err("should reject invalid JSON");
+
+        assert!(error.contains("Variables must be a JSON object"), "{error}");
+    }
 
     #[tokio::test]
     async fn health_returns_ok() {
@@ -127,11 +182,7 @@ mod tests {
             resp.headers().get(LOCATION).unwrap(),
             "https://storage.googleapis.com/signed-url"
         );
-        assert_eq!(
-            body_text(resp).await,
-            "",
-            "a redirect should carry no body - the browser follows Location itself"
-        );
+        assert_eq!(body_text(resp).await, "");
     }
 
     #[test_case(Download::NotFound, StatusCode::NOT_FOUND; "not found")]
