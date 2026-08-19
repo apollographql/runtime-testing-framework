@@ -117,14 +117,11 @@ mod tests {
     }
 
     #[test]
-    fn execution_template_omits_the_back_link_when_the_run_id_is_unknown() {
+    fn execution_detail_view_has_no_run_id_when_the_execution_has_no_parent_run() {
         let mut execution = sample_execution(Uuid::from_u128(1), Uuid::from_u128(2));
         execution.test_run_id = None;
         let view = ExecutionDetailView::new(execution, &sample_config());
-        let body = ExecutionTemplate { execution: view }
-            .render()
-            .expect("template renders");
 
-        assert!(!body.contains("Back to run"));
+        assert_eq!(view.run_id, None);
     }
 }

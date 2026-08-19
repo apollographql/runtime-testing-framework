@@ -72,21 +72,21 @@
     <h3>Executions ({{ run.total_executions }})</h3>
     <form method="get" action="/ui/run/{{ run.id }}">
         <select name="execution_status" aria-label="Filter by status">
-            <option value="" {% if run.execution_status_filter=="" %}selected{% endif %}>All statuses</option>
-            <option value="INITIALISING" {% if run.execution_status_filter=="INITIALISING" %}selected{% endif %}>
+            <option value="" {% if run.is_status_selected("") %}selected{% endif %}>All statuses</option>
+            <option value="INITIALISING" {% if run.is_status_selected("INITIALISING") %}selected{% endif %}>
                 INITIALISING</option>
-            <option value="RESOLVING" {% if run.execution_status_filter=="RESOLVING" %}selected{% endif %}>RESOLVING
+            <option value="RESOLVING" {% if run.is_status_selected("RESOLVING") %}selected{% endif %}>RESOLVING
             </option>
-            <option value="PROVISIONING" {% if run.execution_status_filter=="PROVISIONING" %}selected{% endif %}>
+            <option value="PROVISIONING" {% if run.is_status_selected("PROVISIONING") %}selected{% endif %}>
                 PROVISIONING</option>
-            <option value="ENV_READY" {% if run.execution_status_filter=="ENV_READY" %}selected{% endif %}>ENV_READY
+            <option value="ENV_READY" {% if run.is_status_selected("ENV_READY") %}selected{% endif %}>ENV_READY
             </option>
-            <option value="RUNNING" {% if run.execution_status_filter=="RUNNING" %}selected{% endif %}>RUNNING
+            <option value="RUNNING" {% if run.is_status_selected("RUNNING") %}selected{% endif %}>RUNNING
             </option>
-            <option value="SUCCESSFUL" {% if run.execution_status_filter=="SUCCESSFUL" %}selected{% endif %}>
+            <option value="SUCCESSFUL" {% if run.is_status_selected("SUCCESSFUL") %}selected{% endif %}>
                 SUCCESSFUL</option>
-            <option value="FAILED" {% if run.execution_status_filter=="FAILED" %}selected{% endif %}>FAILED</option>
-            <option value="UNRUNNABLE" {% if run.execution_status_filter=="UNRUNNABLE" %}selected{% endif %}>
+            <option value="FAILED" {% if run.is_status_selected("FAILED") %}selected{% endif %}>FAILED</option>
+            <option value="UNRUNNABLE" {% if run.is_status_selected("UNRUNNABLE") %}selected{% endif %}>
                 UNRUNNABLE</option>
         </select>
         <button type="submit">Filter</button>

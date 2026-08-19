@@ -70,6 +70,10 @@ impl TriggerVariableView {
             allowed_values,
         }
     }
+
+    pub fn is_selected(&self, value: &str) -> bool {
+        self.full_values.iter().any(|v| v == value)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -342,6 +346,23 @@ mod tests {
 
         assert_eq!(view.sections, vec!["scenario", "environment"]);
         assert_eq!(view.description, "a");
+    }
+
+    #[test]
+    fn trigger_variable_view_is_selected_matches_current_values_only() {
+        let v = sample_variable(
+            "tier",
+            Some(VariableValue::Scalar(Scalar::from("paid"))),
+            Some(vec![
+                Scalar::from("free"),
+                Scalar::from("paid"),
+                Scalar::from("enterprise"),
+            ]),
+        );
+        let view = TriggerVariableView::new(&v);
+
+        assert!(view.is_selected("paid"));
+        assert!(!view.is_selected("free"));
     }
 
     #[test]

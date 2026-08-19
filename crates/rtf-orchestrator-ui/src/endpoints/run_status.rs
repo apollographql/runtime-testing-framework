@@ -107,9 +107,6 @@ mod tests {
             String::new(),
         );
 
-        // Field-by-field rendering (status labels, initiator, execution rows, ...) is already
-        // covered by `RunView`/`ExecutionView` unit tests; this only needs to prove the summary
-        // was threaded through to `RunTemplate` rather than the not-found/error templates.
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("my-test-run"), "run name should render");
     }

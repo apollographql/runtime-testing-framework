@@ -82,9 +82,6 @@ mod tests {
 
     #[test]
     fn test_plans_body_renders_the_table() {
-        // Row-field mapping (name, description, GitHub URL) is already covered by
-        // `KnownTestPlanRowView` unit tests; this only needs to prove the response was threaded
-        // through to `TestPlansTemplate`.
         let (status, body) = test_plans_body(
             Ok(KnownTestPlanListResponse {
                 test_plans: vec![sample_known_test_plan(Uuid::new_v4())],

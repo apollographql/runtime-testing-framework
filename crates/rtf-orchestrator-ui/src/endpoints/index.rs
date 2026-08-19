@@ -145,10 +145,6 @@ mod tests {
     use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
-    // Static layout content (favicon, logo, info-box copy) belongs to `base.html`/`index.html`
-    // themselves, not to `index_body`'s branching logic — covered by a template-level check
-    // instead of an endpoint test asserting on unrelated boilerplate.
-
     #[test]
     fn index_body_renders_the_recent_runs_table() {
         let run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);

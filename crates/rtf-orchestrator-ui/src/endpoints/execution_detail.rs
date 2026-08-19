@@ -84,9 +84,6 @@ mod tests {
             &sample_config(),
         );
 
-        // The back-link and other field-by-field rendering are already covered by
-        // `ExecutionDetailView` unit tests; this only needs to prove the summary was threaded
-        // through to `ExecutionTemplate` rather than the not-found/error templates.
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("exec-alpha"), "execution name should render");
     }
