@@ -34,14 +34,18 @@ jobs:
     steps:
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       with:
-        fetch-depth: 2
-    - name: Check for changes in relevant directories and files
+        # Full history is needed so `origin/main` is available for the
+        # merge-base diff in scripts/crate_changed.py.
+        fetch-depth: 0
+    - name: Check for changes affecting the orchestrator crates
       id: check-changes
       run: |
         if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "should_run=true" >> $GITHUB_OUTPUT
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+        elif python3 scripts/crate_changed.py --crates rtf-orchestrator,rtf-orchestrator-cli --mainline origin/main; then
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
         else
-          git diff --name-only HEAD^ HEAD | grep -q -E "^crates/|^Cargo\.toml$|^Cargo\.lock$" && echo "should_run=true" >> $GITHUB_OUTPUT || echo "should_run=false" >> $GITHUB_OUTPUT
+          echo "should_run=false" >> "$GITHUB_OUTPUT"
         fi
 
   orchestrator-test:
