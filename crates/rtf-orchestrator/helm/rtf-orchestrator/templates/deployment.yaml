@@ -89,6 +89,22 @@ spec:
               value: "/etc/rtf-orchestrator/admins/members"
             - name: RTF_WORKLOAD_CONTEXT
               value: {{ required "k8s.workload.context is required" .Values.k8s.workload.context | quote }}
+            {{- if .Values.k8s.routerPerf.context }}
+            {{- if .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
+            - name: RTF_ROUTER_PERF_KUBECONFIG_SECRET_NAME
+              value: {{ .Values.k8s.routerPerf.kubeconfigSecretRef.name | quote }}
+            {{- end }}
+            - name: RTF_ROUTER_PERF_KUBECONFIG_PATH
+              {{- if .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
+              value: "/etc/rtf-orchestrator/router-perf-kubeconfig/config"
+              {{- else if .Values.k8s.routerPerf.kubeconfigPath }}
+              value: {{ .Values.k8s.routerPerf.kubeconfigPath | quote }}
+              {{- else }}
+              {{ fail "k8s.routerPerf.context is set but neither kubeconfigSecretRef.name nor kubeconfigPath is" }}
+              {{- end }}
+            - name: RTF_ROUTER_PERF_WORKLOAD_CONTEXT
+              value: {{ .Values.k8s.routerPerf.context | quote }}
+            {{- end }}
             - name: RTF_GCS_BUCKET
               value: {{ required "gcs.bucket is required" .Values.gcs.bucket | quote }}
             - name: RTF_GCS_URL_TTL_SECS
@@ -127,11 +143,16 @@ spec:
             - name: RTF_MOCK_PUBLIC_GCS_URL
               value: {{ .Values.gcs.mockPublicUrl | quote }}
             {{- end }}
-          {{- if or .Values.k8s.workload.kubeconfigSecretRef.name .Values.configMaps.admins }}
+          {{- if or .Values.k8s.workload.kubeconfigSecretRef.name .Values.k8s.routerPerf.kubeconfigSecretRef.name .Values.configMaps.admins }}
           volumeMounts:
             {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
             - name: kubeconfig
               mountPath: /root/.kube
+              readOnly: true
+            {{- end }}
+            {{- if .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
+            - name: router-perf-kubeconfig
+              mountPath: /etc/rtf-orchestrator/router-perf-kubeconfig
               readOnly: true
             {{- end }}
             {{- if .Values.configMaps.admins }}
@@ -169,7 +190,7 @@ spec:
               cpu: "100m"
               memory: "128Mi"
         {{- end }}
-      {{- if or .Values.k8s.workload.kubeconfigSecretRef.name .Values.configMaps.admins }}
+      {{- if or .Values.k8s.workload.kubeconfigSecretRef.name .Values.k8s.routerPerf.kubeconfigSecretRef.name .Values.configMaps.admins }}
       volumes:
         {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
         - name: kubeconfig
@@ -177,6 +198,14 @@ spec:
             secretName: {{ .Values.k8s.workload.kubeconfigSecretRef.name }}
             items:
               - key: {{ .Values.k8s.workload.kubeconfigSecretRef.key }}
+                path: config
+        {{- end }}
+        {{- if .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
+        - name: router-perf-kubeconfig
+          secret:
+            secretName: {{ .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
+            items:
+              - key: {{ .Values.k8s.routerPerf.kubeconfigSecretRef.key }}
                 path: config
         {{- end }}
         {{- if .Values.configMaps.admins }}

@@ -94,6 +94,19 @@ k8s:
       key: "config"
     # -- Path to a kubeconfig file already present in the container. Ignored when kubeconfigSecretRef.name is set
     kubeconfigPath: ""
+  # -- Optional second workload cluster reserved for Router performance tests. Leave context unset
+  # to disable it entirely — the orchestrator falls back to only the primary workload cluster
+  routerPerf:
+    # -- Kubernetes context name for the router-perf workload cluster. Leave unset to disable this cluster
+    context: ""
+    # -- Reference to a Secret containing the kubeconfig; the file is mounted at /root/.kube/router-perf-config
+    kubeconfigSecretRef:
+      # -- Secret name. When set, the kubeconfig is mounted from this Secret
+      name: null
+      # -- Key within the Secret
+      key: "config"
+    # -- Path to a kubeconfig file already present in the container. Ignored when kubeconfigSecretRef.name is set
+    kubeconfigPath: ""
 
 # -- Overrides the chart name
 nameOverride: ""

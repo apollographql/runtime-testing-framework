@@ -37,6 +37,12 @@ pub struct Config {
     pub kubeconfig_secret_name: String,
     pub admins_path: String,
     pub workload_context: String,
+    #[serde(default)]
+    pub router_perf_kubeconfig_path: Option<String>,
+    #[serde(default)]
+    pub router_perf_kubeconfig_secret_name: Option<String>,
+    #[serde(default)]
+    pub router_perf_workload_context: Option<String>,
     pub orchestrator_url: String,
     pub toolbox_pull_policy: String,
     #[serde(default = "default_toolbox_image_repository")]
@@ -73,13 +79,22 @@ impl Config {
         }
     }
 
-    /// The full rtf-toolbox image reference (`repository:tag`) to use for toolbox init/sidecar
-    /// containers and Argo workflow tasks.
     pub fn toolbox_image(&self) -> String {
         format!(
             "{}:{}",
             self.toolbox_image_repository, self.toolbox_image_tag
         )
+    }
+
+    pub fn router_perf_cluster_config(&self) -> Option<(&str, &str, &str)> {
+        match (
+            &self.router_perf_kubeconfig_path,
+            &self.router_perf_workload_context,
+            &self.router_perf_kubeconfig_secret_name,
+        ) {
+            (Some(path), Some(context), Some(secret_name)) => Some((path, context, secret_name)),
+            _ => None,
+        }
     }
 
     pub fn server_context(&self) -> Context {

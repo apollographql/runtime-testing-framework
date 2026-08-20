@@ -9,7 +9,7 @@
 //! functions must be written to return a Result that the `Event::handle` method will use to record
 //! an Unrunnable status.
 use crate::{
-    DEFAULT_WORKLOAD_CLUSTER,
+    DEFAULT_WORKLOAD_CLUSTER, ROUTER_PERF_WORKLOAD_CLUSTER,
     config::Config,
     conn,
     db::{ClusterId, TestExecution, UpdateHandle},
@@ -41,7 +41,6 @@ struct EventLoopConfig<'a> {
     toolbox_pull_policy: &'a str,
     toolbox_image: &'a str,
     otel: &'a OtelConfig,
-    kubeconfig_secret_name: &'a str,
     failed_execution_ttl_seconds: u64,
     retry_window_secs: u64,
     poll_interval_secs: u64,
@@ -61,13 +60,19 @@ impl<'a> EventLoopConfig<'a> {
 struct WorkloadClusterConfig<'a> {
     kubeconfig_path: &'a str,
     workload_context: &'a str,
+    kubeconfig_secret_name: &'a str,
 }
 
 impl<'a> WorkloadClusterConfig<'a> {
-    pub fn new(kubeconfig_path: &'a str, workload_context: &'a str) -> Self {
+    pub fn new(
+        kubeconfig_path: &'a str,
+        workload_context: &'a str,
+        kubeconfig_secret_name: &'a str,
+    ) -> Self {
         Self {
             kubeconfig_path,
             workload_context,
+            kubeconfig_secret_name,
         }
     }
 }
@@ -75,21 +80,34 @@ impl<'a> WorkloadClusterConfig<'a> {
 /// Run as a long lived task. This is an infinite loop that processes [Event]s received on a
 /// channel that is shared with the axum server and the event loop's own handler functions.
 pub async fn event_loop_task(mut event_queue: EventQueue) {
+    let cfg_ref = Config::get();
     let Config {
         kubeconfig_path,
         workload_context,
+        kubeconfig_secret_name,
         orchestrator_url,
         prometheus_endpoint,
         toolbox_pull_policy,
         otel_collector_grpc,
         otel_collector_http,
-        kubeconfig_secret_name,
         failed_execution_ttl_secs,
         retry_window_secs,
         poll_interval_secs,
         ..
-    } = Config::get();
-    let toolbox_image = Config::get().toolbox_image();
+    } = cfg_ref;
+    let toolbox_image = cfg_ref.toolbox_image();
+
+    let mut workload_clusters = HashMap::from([(
+        ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
+        WorkloadClusterConfig::new(kubeconfig_path, workload_context, kubeconfig_secret_name),
+    )]);
+
+    if let Some((path, context, secret_name)) = cfg_ref.router_perf_cluster_config() {
+        workload_clusters.insert(
+            ClusterId::new(ROUTER_PERF_WORKLOAD_CLUSTER),
+            WorkloadClusterConfig::new(path, context, secret_name),
+        );
+    }
 
     let cfg = EventLoopConfig {
         orchestrator_url,
@@ -100,14 +118,10 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
             grpc: otel_collector_grpc.to_string(),
             http: otel_collector_http.to_string(),
         },
-        kubeconfig_secret_name,
         failed_execution_ttl_seconds: *failed_execution_ttl_secs,
         retry_window_secs: *retry_window_secs,
         poll_interval_secs: *poll_interval_secs,
-        workload_clusters: HashMap::from([(
-            ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
-            WorkloadClusterConfig::new(kubeconfig_path, workload_context),
-        )]),
+        workload_clusters,
     };
 
     while let Some(evt) = event_queue.next_event().await {
@@ -248,20 +262,28 @@ impl Event {
                         Error::Resolve(ResolverError::UnknownExecution(self.test_execution.uuid()))
                     })?;
 
-                provision_environment::create_workflow(
-                    self.test_execution.clone(),
-                    &environment,
-                    cfg,
-                    clients,
-                    conn,
-                )
-                .await
+                match cfg.workload_cluster_config(&self.cluster) {
+                    Ok(cluster_cfg) => {
+                        provision_environment::create_workflow(
+                            self.test_execution.clone(),
+                            &environment,
+                            cluster_cfg.kubeconfig_secret_name,
+                            cfg,
+                            clients,
+                            conn,
+                        )
+                        .await
+                    }
+
+                    Err(e) => Err(e),
+                }
             }
 
             EventData::WaitForEnvArgoWorkflow => {
                 let WorkloadClusterConfig {
                     kubeconfig_path,
                     workload_context,
+                    ..
                 } = cfg.workload_cluster_config(&self.cluster)?;
                 let clients = ClusterClients::try_new_full(kubeconfig_path, workload_context)
                     .await
@@ -296,6 +318,7 @@ impl Event {
                 let WorkloadClusterConfig {
                     kubeconfig_path,
                     workload_context,
+                    ..
                 } = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
                     kubeconfig_path,
@@ -337,6 +360,7 @@ impl Event {
                 let WorkloadClusterConfig {
                     kubeconfig_path,
                     workload_context,
+                    ..
                 } = cfg.workload_cluster_config(&self.cluster)?;
                 let clients = ClusterClients::try_new_workload(kubeconfig_path, workload_context)
                     .await
@@ -378,6 +402,7 @@ impl Event {
                 let WorkloadClusterConfig {
                     kubeconfig_path,
                     workload_context,
+                    ..
                 } = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
                     kubeconfig_path,

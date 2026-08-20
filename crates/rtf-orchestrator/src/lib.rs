@@ -30,6 +30,7 @@ use event_loop::EventQueue;
 use state::ServerState;
 
 const DEFAULT_WORKLOAD_CLUSTER: &str = "alpha";
+const ROUTER_PERF_WORKLOAD_CLUSTER: &str = "router_perf";
 
 pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
     info!("Loading config from environment");
@@ -38,10 +39,15 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     info!("Checking database connection");
     check_db_conn().await?;
 
+    let mut available_clusters = vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)];
+    if cfg.router_perf_cluster_config().is_some() {
+        available_clusters.push(ClusterId::new(ROUTER_PERF_WORKLOAD_CLUSTER));
+    }
+
     let (mut event_queue, prov_handle, eq_state, rx) = EventQueue::new(
         cfg.max_concurrent_executions,
         cfg.max_queued_executions,
-        vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)],
+        available_clusters,
         ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
     );
 
