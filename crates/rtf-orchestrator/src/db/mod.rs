@@ -61,7 +61,7 @@ pub enum Error {
     KnownTestPlanAlreadyExists,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ClusterId(String);
 
 impl ClusterId {

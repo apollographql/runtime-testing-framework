@@ -76,8 +76,8 @@ fn build_routes(
 ) -> Router {
     use endpoints::{
         admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
-        health, known_test_plans, list_runs, register_known_test_plan, run_status,
-        test_plan_details, trigger, whoami,
+        health, known_test_plan_cluster_pin, known_test_plans, list_runs, register_known_test_plan,
+        run_status, test_plan_details, trigger, whoami,
     };
 
     let mut router = Router::new()
@@ -124,6 +124,11 @@ fn build_routes(
         .route(
             "/test-plan/register",
             post(register_known_test_plan::handler),
+        )
+        .route(
+            "/test-plan/{uuid}/pinned-cluster",
+            post(known_test_plan_cluster_pin::set_handler)
+                .delete(known_test_plan_cluster_pin::clear_handler),
         )
         .route("/test-run", get(list_runs::handler))
         .route("/test-run/{id}/status", get(run_status::handler))
@@ -189,15 +194,41 @@ mod test_helpers {
             )
         }
 
+        pub fn new_with_admins_and_clusters(
+            admins: &[&str],
+            available_clusters: Vec<ClusterId>,
+        ) -> Self {
+            Self::new_with_params_and_clusters(
+                Config::get(),
+                GCSClient::new_mock("internal_url", "public_url", "bucket", None),
+                Some(admins),
+                available_clusters,
+            )
+        }
+
         pub fn new_with_params(
             cfg: &Config,
             gcs_client: GCSClient,
             admins: Option<&[&str]>,
         ) -> Self {
+            Self::new_with_params_and_clusters(
+                cfg,
+                gcs_client,
+                admins,
+                vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)],
+            )
+        }
+
+        pub fn new_with_params_and_clusters(
+            cfg: &Config,
+            gcs_client: GCSClient,
+            admins: Option<&[&str]>,
+            available_clusters: Vec<ClusterId>,
+        ) -> Self {
             let (_, prov_handle, eq_state, resolver_rx) = EventQueue::new(
                 cfg.max_concurrent_executions,
                 cfg.max_queued_executions,
-                vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)],
+                available_clusters,
                 ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
             );
 

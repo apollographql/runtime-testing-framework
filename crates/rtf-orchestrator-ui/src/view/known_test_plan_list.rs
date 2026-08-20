@@ -110,6 +110,7 @@ mod tests {
                     org: "apollographql".to_owned(),
                     repo: "runtime-testing-framework".to_owned(),
                     path: "test-plans/example.yaml".to_owned(),
+                    pinned_workload_cluster: None,
                 })
                 .collect(),
             total,
@@ -126,6 +127,7 @@ mod tests {
             org: "org".to_owned(),
             repo: "repo".to_owned(),
             path: "path.yaml".to_owned(),
+            pinned_workload_cluster: None,
         });
 
         assert_eq!(row.description, "");
@@ -140,6 +142,7 @@ mod tests {
             org: "apollographql".to_owned(),
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
+            pinned_workload_cluster: None,
         });
 
         assert_eq!(

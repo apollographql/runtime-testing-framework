@@ -757,6 +757,20 @@ impl EventQueueState {
         &self.default_cluster
     }
 
+    pub async fn available_clusters(&self) -> Vec<ClusterId> {
+        let mut cluster_ids: Vec<_> = self
+            .eq_inner
+            .lock()
+            .await
+            .cluster_provision_order
+            .iter()
+            .cloned()
+            .collect();
+        cluster_ids.sort_unstable();
+
+        cluster_ids
+    }
+
     pub async fn event_queue_snapshot(&self) -> Snapshot {
         let (pending_non_provisions, pending_provisions, running_executions) = {
             let inner = self.eq_inner.lock().await;

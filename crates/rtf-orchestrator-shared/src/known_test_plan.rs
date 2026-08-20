@@ -12,6 +12,7 @@ pub struct KnownTestPlanSummary {
     pub org: String,
     pub repo: String,
     pub path: String,
+    pub pinned_workload_cluster: Option<String>,
 }
 
 /// A page of [KnownTestPlanSummary]s matching a set of query filters, along with the total number
@@ -31,6 +32,11 @@ pub struct RegisterTestPlanRequest {
     pub org: String,
     pub repo: String,
     pub path: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SetPinnedWorkloadClusterRequest {
+    pub cluster: String,
 }
 
 /// Query parameters accepted by `GET /test-plan`. Shared between the orchestrator's `axum` `Query`

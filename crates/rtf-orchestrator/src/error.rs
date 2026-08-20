@@ -67,6 +67,9 @@ pub enum Error {
 
     #[error("{identifier} is not a registered test plan")]
     UnknownTestPlan { identifier: String },
+
+    #[error("{cluster} is not a configured workload cluster")]
+    UnknownWorkloadCluster { cluster: String },
 }
 
 impl IntoResponse for Error {
@@ -76,6 +79,7 @@ impl IntoResponse for Error {
         let raw = match self {
             Self::FileUploadAlreadyRequested
             | Self::InvalidFileProviderUsage { .. }
+            | Self::UnknownWorkloadCluster { .. }
             | Self::Prepare(_)
             | Self::Db(db::Error::MissingExitCode)
             | Self::Db(db::Error::InvalidFailedExitCode)

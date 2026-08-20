@@ -136,6 +136,7 @@ impl KnownTestPlan {
             org: self.org,
             repo: self.repo,
             path: self.path,
+            pinned_workload_cluster: self.pinned_workload_cluster,
         }
     }
 }

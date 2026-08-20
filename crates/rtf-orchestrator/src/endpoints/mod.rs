@@ -17,6 +17,7 @@ pub mod execution_config;
 pub mod execution_status;
 pub mod generate_upload_urls;
 pub mod health;
+pub mod known_test_plan_cluster_pin;
 pub mod known_test_plans;
 pub mod list_runs;
 pub mod register_known_test_plan;
