@@ -52,12 +52,16 @@ async fn get_validated_execution(id: Uuid, conn: &mut PgConnection) -> Result<Te
 mod tests {
     use super::*;
     use crate::{
-        db::{Status, StatusTracked, TestRun},
+        db::{ClusterId, Status, StatusTracked, TestRun},
         gcs::{GCSClient, MockClient},
         test_helpers::TestServerState,
     };
     use reqwest::{StatusCode, header::LOCATION};
     use simple_test_case::test_case;
+
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Successful; "status is successful")]
@@ -71,7 +75,7 @@ mod tests {
             Some("hello, world!".into()),
         ));
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
         let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
         ex.set_status(status, None, conn).await?;
@@ -93,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn output_zip_handler_redirects(status: Status) -> anyhow::Result<()> {
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
         let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
         ex.set_status(status, None, conn).await?;
@@ -138,7 +142,7 @@ mod tests {
     ) -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
         let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
@@ -160,7 +164,7 @@ mod tests {
     ) -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
         let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
 

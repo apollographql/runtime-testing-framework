@@ -11,7 +11,7 @@
 use crate::{
     config::Config,
     conn,
-    db::{TestExecution, UpdateHandle},
+    db::{ClusterId, TestExecution, UpdateHandle},
     event_loop::{provision_environment::MSG_ARGO_COMPLETE, run_scenario::CreateJobConfig},
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
@@ -180,10 +180,11 @@ impl EventData {
 }
 
 /// Raw event data paired with an associated [TestExecution] so we can track the status of the
-/// execution as we process it.
+/// execution as we process it, and the [ClusterId] of the workload cluster it runs in.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
     pub test_execution: TestExecution,
+    pub cluster: ClusterId,
     pub data: EventData,
 }
 
@@ -194,9 +195,10 @@ impl Event {
 
         let res = match self.data {
             EventData::ResolveConfig => {
-                if let Err(e) =
-                    event_queue.send_to_resolver(ResolverInput::ResolveConfig(self.test_execution))
-                {
+                if let Err(e) = event_queue.send_to_resolver(ResolverInput::ResolveConfig(
+                    self.test_execution,
+                    self.cluster,
+                )) {
                     error!(%e, "resolver channel closed during ResolveEnvConfig dispatch");
                 }
 
@@ -239,6 +241,7 @@ impl Event {
 
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
+                    self.cluster.clone(),
                     cfg.failed_execution_ttl_seconds,
                     cfg.poll_interval_secs,
                     cfg.retry_window_secs,
@@ -308,6 +311,7 @@ impl Event {
 
                 run_scenario::wait_for_job(
                     self.test_execution.clone(),
+                    self.cluster.clone(),
                     cfg.failed_execution_ttl_seconds,
                     cfg.poll_interval_secs,
                     cfg.retry_window_secs,
@@ -321,11 +325,13 @@ impl Event {
             EventData::CleanupNamespaceAfter(ttl_secs) => {
                 let tx = event_queue.tx();
                 let test_execution = self.test_execution.clone();
+                let cluster = self.cluster.clone();
 
                 spawn(async move {
                     sleep(Duration::from_secs(ttl_secs)).await;
                     _ = tx.send(Event {
                         test_execution,
+                        cluster,
                         data: EventData::CleanupNamespace,
                     });
                 });
@@ -367,6 +373,7 @@ impl Event {
             Ok(Some(next_event_data)) => {
                 let _ = event_queue.tx().send(Event {
                     test_execution: self.test_execution,
+                    cluster: self.cluster,
                     data: next_event_data,
                 });
             }
@@ -380,6 +387,7 @@ impl Event {
                 if cleanup_on_error {
                     let _ = event_queue.tx().send(Event {
                         test_execution: self.test_execution,
+                        cluster: self.cluster,
                         data: EventData::CleanupNamespaceAfter(cfg.failed_execution_ttl_seconds),
                     });
                 }

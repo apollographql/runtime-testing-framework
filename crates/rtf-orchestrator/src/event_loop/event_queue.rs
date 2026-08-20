@@ -1,7 +1,7 @@
 use crate::{
     config::Config,
     context::OrchestratorContext,
-    db::{self, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
+    db::{self, ClusterId, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
     event_loop::{Event, EventData},
     resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
@@ -62,7 +62,7 @@ impl EventQueue {
     pub fn new(
         max_concurrent_executions: usize,
         max_queued_executions: usize,
-        default_cluster: impl Into<String>,
+        default_cluster: ClusterId,
     ) -> (
         Self,
         ProvisioningHandle,
@@ -102,7 +102,7 @@ impl EventQueue {
             shared: eq.shared.clone(),
             eq_inner: Arc::clone(&eq.inner),
             tx_resolve,
-            default_cluster: default_cluster.into(),
+            default_cluster,
         };
 
         (eq, ph, eqs, rx_resolve)
@@ -281,9 +281,12 @@ impl EventQueue {
 
             let executions = conn.executions_for_run(&tr).await?;
             let mut n_in_flight = 0;
+            let cluster = tr.workload_cluster();
 
             for ex in executions.into_iter() {
-                let events = self.try_recover_execution(ex, run_uuid, &h, conn).await?;
+                let events = self
+                    .try_recover_execution(ex, run_uuid, cluster.clone(), &h, conn)
+                    .await?;
                 for evt in events.into_iter() {
                     let _ = self.tx.send(evt);
                     n_in_flight += 1;
@@ -304,6 +307,7 @@ impl EventQueue {
         &mut self,
         ex: TestExecution,
         run_uuid: Uuid,
+        cluster: ClusterId,
         h: &ProvisioningHandle,
         conn: &mut impl UpdateHandle,
     ) -> crate::Result<Vec<Event>> {
@@ -373,6 +377,7 @@ impl EventQueue {
             .into_iter()
             .map(|data| Event {
                 test_execution: ex.clone(),
+                cluster: cluster.clone(),
                 data,
             })
             .collect())
@@ -496,6 +501,7 @@ impl ProvisioningHandle {
         &self,
         ex: TestExecution,
         run_uuid: Uuid,
+        cluster: ClusterId,
     ) -> resolver::Result<()> {
         self.with_shared(|shared| {
             assert!(
@@ -510,6 +516,7 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
+            cluster,
             data: EventData::ResolveConfig,
         }) {
             error!(%e, "event loop channel closed");
@@ -630,10 +637,16 @@ impl ProvisioningHandle {
     }
 
     /// Send an event to the event loop.
-    pub(crate) fn send_event(&self, ex: TestExecution, data: EventData) -> resolver::Result<()> {
+    pub(crate) fn send_event(
+        &self,
+        ex: TestExecution,
+        cluster: ClusterId,
+        data: EventData,
+    ) -> resolver::Result<()> {
         self.tx
             .send(Event {
                 test_execution: ex,
+                cluster,
                 data,
             })
             .map_err(|_| ResolverError::EventChannelClosed)
@@ -673,8 +686,7 @@ pub struct EventQueueState {
     shared: Arc<Mutex<Shared>>,
     eq_inner: Arc<Mutex<EventQueueInner>>,
     tx_resolve: UnboundedSender<ResolverInput>,
-    /// The workload cluster a run falls back to when nothing pins it to a specific one.
-    default_cluster: String,
+    default_cluster: ClusterId,
 }
 
 impl EventQueueState {
@@ -685,7 +697,7 @@ impl EventQueueState {
         f(&mut *self.shared.lock().await)
     }
 
-    pub fn default_cluster(&self) -> &str {
+    pub fn default_cluster(&self) -> &ClusterId {
         &self.default_cluster
     }
 
@@ -975,9 +987,13 @@ mod tests {
         }
     }
 
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
+
     async fn populated_prov_handle() -> (ProvisioningHandle, TestExecution) {
         let cfg = dummy_config();
-        let (_, ph, _, _) = EventQueue::new(1, 100, "alpha");
+        let (_, ph, _, _) = EventQueue::new(1, 100, alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -1001,7 +1017,7 @@ mod tests {
     #[test_case(&[(3, true), (2, true), (1, false)]; "seq to max then over")]
     #[tokio::test]
     async fn try_reserve_pending_executions_returns_expected_value(claims: &[(usize, bool)]) {
-        let (_, _, state, _) = EventQueue::new(1, 5, "alpha");
+        let (_, _, state, _) = EventQueue::new(1, 5, alpha_cluster());
 
         for (i, &(n, expected)) in claims.iter().enumerate() {
             let mut tp = stub_test_plan();
@@ -1014,7 +1030,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_updates_running_set() {
-        let (mut eq, _, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut eq, _, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let id = Uuid::new_v4();
         eq.inner.lock().await.running_executions.insert(id);
 
@@ -1032,7 +1048,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_evicts_cache_after_last_execution() {
-        let (mut eq, h, _, _) = EventQueue::new(2, 5, "alpha");
+        let (mut eq, h, _, _) = EventQueue::new(2, 5, alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex1 = Uuid::new_v4();
         let ex2 = Uuid::new_v4();
@@ -1087,12 +1103,14 @@ mod tests {
 
     #[tokio::test]
     async fn request_provisioning_happy_path() {
-        let (mut q, h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let ex_uuid = ex.uuid();
         q.shared.lock().await.n_queued = 1;
 
-        let res = h.request_provisioning(ex, Uuid::new_v4()).await;
+        let res = h
+            .request_provisioning(ex, Uuid::new_v4(), alpha_cluster())
+            .await;
 
         assert!(res.is_ok(), "should have been able to send event: {res:?}");
 
@@ -1109,20 +1127,26 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "request_provisioning called with n_queued == 0")]
     async fn request_provisioning_panics_when_n_queued_is_zero() {
-        let (_, h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (_, h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        _ = h.request_provisioning(ex, Uuid::new_v4()).await;
+        _ = h
+            .request_provisioning(ex, Uuid::new_v4(), alpha_cluster())
+            .await;
     }
 
     #[tokio::test]
     async fn request_provisioning_returns_false_when_channel_is_closed() {
-        let (q, h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (q, h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         q.shared.lock().await.n_queued = 1;
         drop(q);
 
         let res = h
-            .request_provisioning(TestExecution::create_stub(1, 1, 0, "test"), Uuid::new_v4())
+            .request_provisioning(
+                TestExecution::create_stub(1, 1, 0, "test"),
+                Uuid::new_v4(),
+                alpha_cluster(),
+            )
             .await;
 
         assert!(res.is_err(), "should have failed to send event");
@@ -1131,7 +1155,7 @@ mod tests {
     #[tokio::test]
     async fn next_event_gates_provisions_on_namespace_capacity() {
         // max concurrent of 1: any provision dispatch is blocked while a slot is in use.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let blocking_id = Uuid::new_v4();
         q.inner.lock().await.running_executions.insert(blocking_id);
 
@@ -1139,6 +1163,7 @@ mod tests {
         let ex_uuid = ex.uuid();
         q.tx.send(Event {
             test_execution: ex,
+            cluster: alpha_cluster(),
             data: EventData::ResolveConfig,
         })
         .unwrap();
@@ -1168,6 +1193,7 @@ mod tests {
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::ResolveConfig,
         }
     }
@@ -1175,6 +1201,7 @@ mod tests {
     fn cleanup_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::CleanupNamespace,
         }
     }
@@ -1186,7 +1213,7 @@ mod tests {
     async fn next_event_returns_expected_event_from_pending(events: Vec<Event>, expected_id: i32) {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, alpha_cluster());
 
         for evt in events.into_iter() {
             q.push_event(evt).await;
@@ -1205,7 +1232,7 @@ mod tests {
     async fn next_event_drains_channel_before_selecting() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, alpha_cluster());
 
         // Send the provision event first so we know that we're not just relying on ordering
         q.tx.send(provision_evt(1)).unwrap();
@@ -1220,7 +1247,7 @@ mod tests {
     async fn next_event_blocks_when_no_events_are_available() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let tx = q.tx.clone();
 
         let next_event_task = tokio::spawn(async move { q.next_event().await });
@@ -1245,7 +1272,7 @@ mod tests {
 
     #[tokio::test]
     async fn next_event_returns_none_when_no_external_senders_remain() {
-        let (mut q, h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, h, _, _) = EventQueue::new(1, 5, alpha_cluster());
 
         // Start with an event in the channel so we skip the blocking recv call and drop into the
         // drain loop.
@@ -1263,9 +1290,10 @@ mod tests {
 
     #[tokio::test]
     async fn push_event_routes_resolve_env_config_to_provisions() {
-        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let evt = Event {
             test_execution: TestExecution::create_stub(1, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::ResolveConfig,
         };
 
@@ -1280,9 +1308,10 @@ mod tests {
 
     #[tokio::test]
     async fn push_event_routes_create_env_argo_workflow_to_non_provisions() {
-        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let evt = Event {
             test_execution: TestExecution::create_stub(1, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::CreateEnvArgoWorkflow,
         };
 
@@ -1337,7 +1366,7 @@ mod tests {
     #[tokio::test]
     async fn resolve_and_cache_config_caches_null_environment_with_no_prometheus_queries() {
         let cfg = dummy_config();
-        let (_, ph, _, _) = EventQueue::new(1, 100, "alpha");
+        let (_, ph, _, _) = EventQueue::new(1, 100, alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -1378,7 +1407,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolved_environment_for_execution_returns_cached_environment() {
-        let (eq, ph, _, _) = EventQueue::new(1, 100, "alpha");
+        let (eq, ph, _, _) = EventQueue::new(1, 100, alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eq.resolved_environment_for_execution(ex.uuid()).await;
@@ -1416,7 +1445,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_evicts_resolved_execution_cache() {
-        let (mut eq, h, _, _) = EventQueue::new(1, 5, "alpha");
+        let (mut eq, h, _, _) = EventQueue::new(1, 5, alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex_id = Uuid::new_v4();
 
@@ -1455,7 +1484,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_environment_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5, "alpha");
+        let (_, _, eqs, _) = EventQueue::new(1, 5, alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_environment_for_execution(&ex).await;
@@ -1468,7 +1497,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_scenario_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5, "alpha");
+        let (_, _, eqs, _) = EventQueue::new(1, 5, alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_scenario_for_execution(&ex).await;
@@ -1481,7 +1510,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_output_collection_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5, "alpha");
+        let (_, _, eqs, _) = EventQueue::new(1, 5, alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_output_collection_for_execution(&ex).await;
@@ -1494,15 +1523,15 @@ mod tests {
 
     #[tokio::test]
     async fn send_to_resolver_forwards_resolve_env_config() {
-        let (eq, _, _, mut rx) = EventQueue::new(1, 5, "alpha");
+        let (eq, _, _, mut rx) = EventQueue::new(1, 5, alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        eq.send_to_resolver(ResolverInput::ResolveConfig(ex.clone()))
+        eq.send_to_resolver(ResolverInput::ResolveConfig(ex.clone(), alpha_cluster()))
             .unwrap();
 
         let input = rx.try_recv().expect("ResolverInput should be forwarded");
         assert!(
-            matches!(input, ResolverInput::ResolveConfig(ref e) if e.uuid() == ex.uuid()),
+            matches!(input, ResolverInput::ResolveConfig(ref e, _) if e.uuid() == ex.uuid()),
             "wrong input forwarded: {input:?}"
         );
     }
@@ -1526,7 +1555,7 @@ mod tests {
         statuses: [Status; N],
     ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
         let cfg = dummy_config();
-        let (mut eq, _, _, _) = EventQueue::new(10, 100, "alpha");
+        let (mut eq, _, _, _) = EventQueue::new(10, 100, alpha_cluster());
 
         let tr = TestRun::create_stub(1, "test");
         let mut c = MockUpdateHandle::with_run(tr.clone());
@@ -1607,6 +1636,7 @@ mod tests {
                 evt,
                 Event {
                     test_execution: ex,
+                    cluster: alpha_cluster(),
                     data
                 }
             ),

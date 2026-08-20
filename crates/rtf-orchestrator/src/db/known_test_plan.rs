@@ -1,4 +1,4 @@
-use crate::db::{self, Queryable, Result};
+use crate::db::{self, ClusterId, Queryable, Result};
 use rtf_orchestrator_shared::known_test_plan::KnownTestPlanSummary;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
@@ -50,8 +50,8 @@ impl KnownTestPlan {
         &self.path
     }
 
-    pub fn pinned_workload_cluster(&self) -> Option<&str> {
-        self.pinned_workload_cluster.as_deref()
+    pub fn pinned_workload_cluster(&self) -> Option<ClusterId> {
+        self.pinned_workload_cluster.as_ref().map(ClusterId::new)
     }
 
     /// Register a new known test plan.
@@ -231,6 +231,10 @@ mod tests {
         format!("{label}-{}", Uuid::new_v4())
     }
 
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
+
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn insert_and_get_by_uuid_round_trip() -> Result<()> {
@@ -308,7 +312,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &alpha_cluster(), c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), Some("abc123"), c).await?;
 
@@ -326,7 +330,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &alpha_cluster(), c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
 

@@ -1,5 +1,5 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
-use crate::gcs::GCSClient;
+use crate::{db::ClusterId, gcs::GCSClient};
 use axum::{
     Extension, Router,
     extract::DefaultBodyLimit,
@@ -29,6 +29,8 @@ use db::pool::check_db_conn;
 use event_loop::EventQueue;
 use state::ServerState;
 
+const DEFAULT_WORKLOAD_CLUSTER: &str = "alpha";
+
 pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
     info!("Loading config from environment");
     let cfg = Config::get();
@@ -36,8 +38,11 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     info!("Checking database connection");
     check_db_conn().await?;
 
-    let (mut event_queue, prov_handle, eq_state, rx) =
-        EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
+    let (mut event_queue, prov_handle, eq_state, rx) = EventQueue::new(
+        cfg.max_concurrent_executions,
+        cfg.max_queued_executions,
+        ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
+    );
 
     info!("Initialising event queue state");
     event_queue.init_queue_state(cfg, conn!()).await?;
@@ -182,8 +187,11 @@ mod test_helpers {
             gcs_client: GCSClient,
             admins: Option<&[&str]>,
         ) -> Self {
-            let (_, prov_handle, eq_state, resolver_rx) =
-                EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
+            let (_, prov_handle, eq_state, resolver_rx) = EventQueue::new(
+                cfg.max_concurrent_executions,
+                cfg.max_queued_executions,
+                ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
+            );
 
             let mut state = ServerState::new(eq_state, gcs_client);
             if let Some(admins) = admins {

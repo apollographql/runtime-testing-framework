@@ -1,5 +1,5 @@
 use crate::db::{
-    self, Queryable, Result,
+    self, ClusterId, Queryable, Result,
     status::{Status, StatusTracked, StatusUpdate},
     test_execution::TestExecution,
 };
@@ -64,8 +64,8 @@ impl TestRun {
         self.initiated_by.as_deref()
     }
 
-    pub fn workload_cluster(&self) -> &str {
-        &self.workload_cluster
+    pub fn workload_cluster(&self) -> ClusterId {
+        ClusterId::new(&self.workload_cluster)
     }
 
     #[cfg(test)]
@@ -107,7 +107,7 @@ impl TestRun {
         name: &str,
         variables: Option<Value>,
         initiated_by: Option<&str>,
-        workload_cluster: &str,
+        workload_cluster: &ClusterId,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         let variables_id = match variables {
@@ -124,7 +124,7 @@ impl TestRun {
         .bind(name)
         .bind(variables_id)
         .bind(initiated_by)
-        .bind(workload_cluster)
+        .bind(workload_cluster.as_str())
         .fetch_one(&mut *conn)
         .await?;
 
@@ -137,7 +137,7 @@ impl TestRun {
     pub async fn init_unknown_initiator(
         name: &str,
         variables: Option<Value>,
-        workload_cluster: &str,
+        workload_cluster: &ClusterId,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         Self::init(name, variables, None, workload_cluster, conn).await
@@ -400,11 +400,19 @@ mod tests {
     use serde_json::json;
     use simple_test_case::test_case;
 
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
+
+    fn perf_cluster() -> ClusterId {
+        ClusterId::new("router_perf")
+    }
+
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn init_creates_run_with_initialising_status() -> Result<()> {
         let c = conn!();
-        let res = TestRun::init_unknown_initiator("test", None, "alpha", c).await;
+        let res = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await;
         assert!(res.is_ok(), "{res:?}");
 
         let tr = res.unwrap();
@@ -420,7 +428,7 @@ mod tests {
     #[tokio::test]
     async fn init_leaves_variables_id_null() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         assert_eq!(tr.variables_id, None);
 
         // Persisted as NULL too, not just on the returned struct.
@@ -434,7 +442,7 @@ mod tests {
     #[tokio::test]
     async fn init_leaves_initiated_by_none_by_default() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         assert_eq!(tr.initiated_by, None);
 
         // Persisted as a real NULL, not just on the returned struct.
@@ -448,12 +456,12 @@ mod tests {
     #[tokio::test]
     async fn init_persists_workload_cluster() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "router_perf", c).await?;
-        assert_eq!(tr.workload_cluster, "router_perf");
+        let tr = TestRun::init_unknown_initiator("test", None, &perf_cluster(), c).await?;
+        assert_eq!(tr.workload_cluster(), perf_cluster());
 
         // Persisted, not just present on the returned struct.
         let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
-        assert_eq!(fetched.workload_cluster, "router_perf");
+        assert_eq!(fetched.workload_cluster(), perf_cluster());
 
         Ok(())
     }
@@ -462,7 +470,7 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_reports_a_none_initiator_as_unknown() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
 
         let summary = tr.try_into_summary(c).await?;
         assert_eq!(summary.initiated_by, "unknown");
@@ -476,7 +484,8 @@ mod tests {
         let c = conn!();
         let vars = json!({ "region": "us", "tier": [1, 2, 3] });
 
-        let tr = TestRun::init_unknown_initiator("test", Some(vars.clone()), "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", Some(vars.clone()), &alpha_cluster(), c)
+            .await?;
         let captured = tr.variables_id;
         assert!(
             captured.is_some(),
@@ -502,7 +511,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         let tr2 = TestRun::get_by_id(tr1.id, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -514,7 +523,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_unchecked_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         let tr2 = TestRun::get_by_id_unchecked(tr1.id, c).await?;
 
         assert_eq!(tr1, tr2);
@@ -526,7 +535,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_uuid_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         let tr2 = TestRun::get_by_uuid(&tr1.uuid, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -539,7 +548,7 @@ mod tests {
     async fn executions_returns_all_associated_executions() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::init_unknown_initiator("A", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("A", None, &alpha_cluster(), c).await?;
         let ex1 = tr.init_execution("a", 0, c).await?;
         let ex2 = tr.init_execution("b", 1, c).await?;
 
@@ -562,7 +571,7 @@ mod tests {
     #[tokio::test]
     async fn set_status_and_current_status_match(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
 
         tr.set_status(status, None, c).await?;
         let current = tr.current_status(c).await?;
@@ -576,7 +585,7 @@ mod tests {
     #[tokio::test]
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?; // sets Status::Initialising
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?; // sets Status::Initialising
         tr.set_status(Status::Running, None, c).await?;
         tr.set_status(Status::Successful, None, c).await?;
 
@@ -596,7 +605,7 @@ mod tests {
     #[tokio::test]
     async fn set_terminal_status_sets_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -614,7 +623,7 @@ mod tests {
     #[tokio::test]
     async fn set_non_terminal_status_does_not_set_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -715,8 +724,8 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_returns_cached_plans() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("run-a", None, "alpha", c).await?;
-        let tr2 = TestRun::init_unknown_initiator("run-b", None, "alpha", c).await?;
+        let tr1 = TestRun::init_unknown_initiator("run-a", None, &alpha_cluster(), c).await?;
+        let tr2 = TestRun::init_unknown_initiator("run-b", None, &alpha_cluster(), c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
@@ -736,7 +745,7 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_partitions_malformed_json() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         let uuid = tr.uuid();
 
         // We don't expose an API for storing an arbitrary JSON blob like this, but we need to
@@ -762,7 +771,7 @@ mod tests {
     #[tokio::test]
     async fn clear_cached_payload_removes_the_entry() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         let run_id = tr.id;
 
         // should be present in the cache after caching
@@ -790,8 +799,8 @@ mod tests {
     #[ignore = "races with other tests that use the test plan cache"]
     async fn clear_test_plan_cache_removes_all_entries() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("run-a", None, "alpha", c).await?;
-        let tr2 = TestRun::init_unknown_initiator("run-b", None, "alpha", c).await?;
+        let tr1 = TestRun::init_unknown_initiator("run-a", None, &alpha_cluster(), c).await?;
+        let tr2 = TestRun::init_unknown_initiator("run-b", None, &alpha_cluster(), c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
@@ -820,7 +829,7 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_leaves_executions_empty() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         tr.init_execution("exec", 0, c).await?;
 
         let uuid = tr.uuid();
@@ -837,7 +846,7 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_with_executions_includes_executions() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
         tr.init_execution("exec", 0, c).await?;
 
         let summary = tr.try_into_summary_with_executions(c).await?;

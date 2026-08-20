@@ -34,15 +34,19 @@ pub async fn handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::TestServerState;
+    use crate::{db::ClusterId, test_helpers::TestServerState};
     use reqwest::StatusCode;
     use simple_test_case::test_case;
+
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn handler_returns_200_for_known_run() -> anyhow::Result<()> {
         let tss = TestServerState::new();
-        let run_id = TestRun::init_unknown_initiator("test", None, "alpha", conn!())
+        let run_id = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn!())
             .await?
             .uuid();
 
@@ -60,7 +64,7 @@ mod tests {
     async fn handler_omits_execution_test_run_id_and_status_history() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
         let run_id = tr.uuid();
         tr.init_execution("test", 0, conn).await?;
 
@@ -85,7 +89,7 @@ mod tests {
     async fn handler_defaults_to_including_execution_details() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
         let run_id = tr.uuid();
         tr.init_execution("test", 0, conn).await?;
 
@@ -110,7 +114,7 @@ mod tests {
     async fn handler_respects_with_executions_param(with_executions: bool) -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
         let run_id = tr.uuid();
         tr.init_execution("test", 0, conn).await?;
 

@@ -2,7 +2,7 @@ use crate::{
     config::Config,
     conn,
     context::OrchestratorContext,
-    db::{KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
+    db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
     error::Error,
     event_loop::SubmitError,
     iap_identity::extract_authenticated_user_email,
@@ -21,7 +21,7 @@ use tracing::{debug, info};
 struct KnownTestPlanLink {
     known_test_plan_id: i32,
     git_sha: Option<String>,
-    pinned_workload_cluster: Option<String>,
+    pinned_workload_cluster: Option<ClusterId>,
 }
 
 pub async fn handler(
@@ -129,7 +129,7 @@ async fn as_prepared_payload_with_context(
             known_link = Some(KnownTestPlanLink {
                 known_test_plan_id: known.id(),
                 git_sha: kp.git_ref.clone(),
-                pinned_workload_cluster: known.pinned_workload_cluster().map(str::to_owned),
+                pinned_workload_cluster: known.pinned_workload_cluster(),
             });
 
             GitHubPayload {
@@ -154,7 +154,7 @@ async fn as_prepared_payload_with_context(
             known_link = Some(KnownTestPlanLink {
                 known_test_plan_id: known.id(),
                 git_sha: kp.git_ref.clone(),
-                pinned_workload_cluster: known.pinned_workload_cluster().map(str::to_owned),
+                pinned_workload_cluster: known.pinned_workload_cluster(),
             });
 
             GitHubPayload {
@@ -194,11 +194,17 @@ async fn init_run_and_build_summary(
     name: &str,
     variables: Option<Value>,
     initiated_by: Option<String>,
-    workload_cluster: String,
+    workload_cluster: ClusterId,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
-    let test_run =
-        TestRun::init(name, variables, initiated_by.as_deref(), &workload_cluster, conn).await?;
+    let test_run = TestRun::init(
+        name,
+        variables,
+        initiated_by.as_deref(),
+        &workload_cluster,
+        conn,
+    )
+    .await?;
     let summary = test_run
         .clone()
         .try_into_summary_with_executions(conn)
@@ -294,8 +300,7 @@ mod tests {
             .await?
             .expect("test run should be in the DB");
 
-        // TestServerState wires the queue up with "alpha" as its default cluster.
-        assert_eq!(tr.workload_cluster(), "alpha");
+        assert_eq!(tr.workload_cluster().as_str(), "alpha");
 
         Ok(())
     }
@@ -353,15 +358,15 @@ mod tests {
     async fn init_run_and_build_summary_persists_the_resolved_workload_cluster() -> Result<(), Error>
     {
         let (test_run, _) =
-            init_run_and_build_summary("test", None, None, "router_perf".to_owned()).await?;
+            init_run_and_build_summary("test", None, None, ClusterId::new("router_perf")).await?;
 
-        assert_eq!(test_run.workload_cluster(), "router_perf");
+        assert_eq!(test_run.workload_cluster().as_str(), "router_perf");
 
         let fetched = TestRun::get_by_uuid(&test_run.uuid(), conn!())
             .await
             .unwrap()
             .expect("test run should be in the DB");
-        assert_eq!(fetched.workload_cluster(), "router_perf");
+        assert_eq!(fetched.workload_cluster().as_str(), "router_perf");
 
         Ok(())
     }
