@@ -174,6 +174,7 @@ impl TestRun {
     }
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestRunSummary> {
+        let trigger_variables = self.variables(conn).await?;
         let status_history = self.status_history(conn).await?;
         let current = status_history
             .first()
@@ -183,6 +184,7 @@ impl TestRun {
         Ok(TestRunSummary {
             id: self.uuid,
             name: self.name,
+            trigger_variables,
             current_status: current.status.into(),
             initiated_by: self
                 .initiated_by
@@ -296,6 +298,20 @@ impl TestRun {
         .await?;
 
         Ok(())
+    }
+
+    async fn variables(&self, conn: &mut PgConnection) -> Result<Option<Value>> {
+        let id = match self.variables_id {
+            Some(id) => id,
+            None => return Ok(None),
+        };
+
+        Ok(
+            sqlx::query_scalar("SELECT data from variables WHERE id = $1;")
+                .bind(id)
+                .fetch_one(conn)
+                .await?,
+        )
     }
 }
 
@@ -802,6 +818,22 @@ mod tests {
         assert_eq!(summary.id, uuid);
         assert!(summary.executions.is_empty(), "{summary:?}");
         assert_eq!(summary.current_status, Status::Initialising.into());
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn try_into_summary_returns_trigger_variables() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", Some(json!({"foo": "bar"})), c).await?;
+        tr.init_execution("exec", 0, c).await?;
+
+        let uuid = tr.uuid();
+        let summary = tr.try_into_summary(c).await?;
+
+        assert_eq!(summary.id, uuid);
+        assert_eq!(summary.trigger_variables, Some(json!({"foo": "bar"})));
 
         Ok(())
     }
