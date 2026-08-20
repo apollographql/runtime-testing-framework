@@ -1,7 +1,7 @@
-use std::fmt;
-
 use rtf_orchestrator_shared::payload::PreparedPayload;
+use serde::Serialize;
 use sqlx::{Database, FromRow, PgConnection, Postgres};
+use std::fmt;
 use thiserror::Error;
 use tracing::error;
 use uuid::Uuid;
@@ -61,7 +61,7 @@ pub enum Error {
     KnownTestPlanAlreadyExists,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct ClusterId(String);
 
 impl ClusterId {

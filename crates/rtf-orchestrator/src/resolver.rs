@@ -480,6 +480,7 @@ mod tests {
         let (mut eq, ph, eqs, _) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
         let run_uuid = Uuid::new_v4();
@@ -524,6 +525,7 @@ mod tests {
         let (mut eq, ph, _, _) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
         // execution NOT registered → resolve_and_cache_env_config will fail
@@ -560,6 +562,7 @@ mod tests {
         let (_eq, ph, _, _) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
 
@@ -581,6 +584,7 @@ mod tests {
         let (_eq, ph, _, _) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
 
@@ -622,6 +626,7 @@ mod tests {
         let (_eq, ph, _, _) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
 
@@ -692,6 +697,7 @@ mod tests {
         let (mut eq, ph, eqs, mut rx) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
 
@@ -764,6 +770,7 @@ mod tests {
         let (_eq, ph, _, _) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
 
@@ -782,6 +789,7 @@ mod tests {
         let (_, ph, eqs, mut rx) = EventQueue::new(
             cfg.max_concurrent_executions,
             cfg.max_queued_executions,
+            vec![alpha_cluster()],
             alpha_cluster(),
         );
 

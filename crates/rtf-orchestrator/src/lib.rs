@@ -41,6 +41,7 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     let (mut event_queue, prov_handle, eq_state, rx) = EventQueue::new(
         cfg.max_concurrent_executions,
         cfg.max_queued_executions,
+        vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)],
         ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
     );
 
@@ -190,6 +191,7 @@ mod test_helpers {
             let (_, prov_handle, eq_state, resolver_rx) = EventQueue::new(
                 cfg.max_concurrent_executions,
                 cfg.max_queued_executions,
+                vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)],
                 ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
             );
 
