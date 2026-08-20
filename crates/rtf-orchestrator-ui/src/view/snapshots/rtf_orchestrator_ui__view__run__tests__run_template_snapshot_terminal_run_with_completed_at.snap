@@ -1,6 +1,5 @@
 ---
 source: crates/rtf-orchestrator-ui/src/view/run.rs
-assertion_line: 564
 expression: body
 ---
 <!DOCTYPE html>
@@ -39,7 +38,6 @@ expression: body
     </header>
     <main>
 <p><a href="/ui">&larr; Find another run</a></p>
-
 <div id="run" >
     <section class="banner">
         <h2>release-check</h2>
@@ -74,6 +72,7 @@ expression: body
             
             <dt>Completed</dt>
             <dd>2024-03-15T09:12:00Z</dd>
+            
             
         </dl>
         <p>
@@ -172,7 +171,6 @@ expression: body
         
     </div>
 </div>
-
 </main>
     <script>
         const COPY_BTN_CHECK_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8.5 6.5 12 13 4"></polyline></svg>';

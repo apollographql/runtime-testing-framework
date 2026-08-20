@@ -42,6 +42,7 @@ pub fn gcp_logs(
     );
     let start = start.to_rfc3339_opts(SecondsFormat::Millis, true);
     let end = end.to_rfc3339_opts(SecondsFormat::Millis, true);
+
     format!(
         "https://console.cloud.google.com/logs/query;query={};cursorTimestamp={start};startTime={start};endTime={end}?referrer=search&project={}&supportedpurview=project",
         percent_encode(&query),
@@ -60,6 +61,7 @@ pub fn grafana(
 ) -> String {
     let start = start.to_rfc3339_opts(SecondsFormat::Millis, true);
     let end = end.to_rfc3339_opts(SecondsFormat::Millis, true);
+
     format!(
         "{}/d/{}/{}?orgId=1&from={start}&to={end}&timezone=utc&var-datasource={}&var-cluster=&var-namespace={}&refresh=10s",
         cfg.grafana_base_url,
