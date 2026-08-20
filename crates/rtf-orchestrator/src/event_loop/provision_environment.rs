@@ -165,6 +165,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
+        event_loop::WorkloadClusterConfig,
         k8s::{
             self,
             mock_client::{MockClient, Resp},
@@ -173,6 +174,7 @@ mod tests {
     use rtf_config::formats::DockerComposeEnvironment;
     use rtf_orchestrator_shared::OtelConfig;
     use simple_test_case::test_case;
+    use std::collections::HashMap;
     use tokio::sync::mpsc;
 
     fn alpha_cluster() -> ClusterId {
@@ -213,8 +215,10 @@ mod tests {
                 failed_execution_ttl_seconds: 1,
                 retry_window_secs: 300,
                 poll_interval_secs: 10,
-                kubeconfig_path: "",
-                workload_context: "workload-kubeconfig",
+                workload_clusters: HashMap::from([(
+                    alpha_cluster(),
+                    WorkloadClusterConfig::new("", "workload-kubeconfig"),
+                )]),
             },
             clients.clone(),
             &mut handle,
@@ -262,8 +266,10 @@ mod tests {
                 failed_execution_ttl_seconds: 1,
                 retry_window_secs: 300,
                 poll_interval_secs: 10,
-                kubeconfig_path: "",
-                workload_context: "workload-kubeconfig",
+                workload_clusters: HashMap::from([(
+                    alpha_cluster(),
+                    WorkloadClusterConfig::new("", "workload-kubeconfig"),
+                )]),
             },
             clients,
             &mut handle,

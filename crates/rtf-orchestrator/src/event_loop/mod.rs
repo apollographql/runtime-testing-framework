@@ -9,6 +9,7 @@
 //! functions must be written to return a Result that the `Event::handle` method will use to record
 //! an Unrunnable status.
 use crate::{
+    DEFAULT_WORKLOAD_CLUSTER,
     config::Config,
     conn,
     db::{ClusterId, TestExecution, UpdateHandle},
@@ -18,7 +19,7 @@ use crate::{
 };
 use rtf_orchestrator_shared::OtelConfig;
 use serde::Serialize;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 use tokio::{spawn, time::sleep};
 use tracing::{Instrument, error, info_span, warn};
 
@@ -44,8 +45,31 @@ struct EventLoopConfig<'a> {
     failed_execution_ttl_seconds: u64,
     retry_window_secs: u64,
     poll_interval_secs: u64,
+    workload_clusters: HashMap<ClusterId, WorkloadClusterConfig<'a>>,
+}
+
+impl<'a> EventLoopConfig<'a> {
+    fn workload_cluster_config(&self, cluster: &ClusterId) -> Result<WorkloadClusterConfig<'a>> {
+        self.workload_clusters
+            .get(cluster)
+            .copied()
+            .ok_or_else(|| Error::UnknownWorkloadCluster(cluster.to_string()))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct WorkloadClusterConfig<'a> {
     kubeconfig_path: &'a str,
     workload_context: &'a str,
+}
+
+impl<'a> WorkloadClusterConfig<'a> {
+    pub fn new(kubeconfig_path: &'a str, workload_context: &'a str) -> Self {
+        Self {
+            kubeconfig_path,
+            workload_context,
+        }
+    }
 }
 
 /// Run as a long lived task. This is an infinite loop that processes [Event]s received on a
@@ -80,8 +104,10 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         failed_execution_ttl_seconds: *failed_execution_ttl_secs,
         retry_window_secs: *retry_window_secs,
         poll_interval_secs: *poll_interval_secs,
-        kubeconfig_path,
-        workload_context,
+        workload_clusters: HashMap::from([(
+            ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
+            WorkloadClusterConfig::new(kubeconfig_path, workload_context),
+        )]),
     };
 
     while let Some(evt) = event_queue.next_event().await {
@@ -132,6 +158,9 @@ enum Error {
         #[source]
         error: crate::k8s::Error,
     },
+
+    #[error("no kubeconfig configured for workload cluster {0}")]
+    UnknownWorkloadCluster(String),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -230,14 +259,15 @@ impl Event {
             }
 
             EventData::WaitForEnvArgoWorkflow => {
-                let clients = ClusterClients::try_new_full(
-                    cfg.kubeconfig_path,
-                    cfg.workload_context,
-                )
-                .await
-                .inspect_err(
-                    |e| error!(%e, "failed to build k8s clients for WaitForEnvArgoWorkflow"),
-                )?;
+                let WorkloadClusterConfig {
+                    kubeconfig_path,
+                    workload_context,
+                } = cfg.workload_cluster_config(&self.cluster)?;
+                let clients = ClusterClients::try_new_full(kubeconfig_path, workload_context)
+                    .await
+                    .inspect_err(
+                        |e| error!(%e, "failed to build k8s clients for WaitForEnvArgoWorkflow"),
+                    )?;
 
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
@@ -263,9 +293,13 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
+                let WorkloadClusterConfig {
+                    kubeconfig_path,
+                    workload_context,
+                } = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
-                    cfg.kubeconfig_path,
-                    cfg.workload_context,
+                    kubeconfig_path,
+                    workload_context,
                 )
                 .await
                 .inspect_err(
@@ -300,14 +334,15 @@ impl Event {
             }
 
             EventData::WaitForScenarioJob => {
-                let clients = ClusterClients::try_new_workload(
-                    cfg.kubeconfig_path,
-                    cfg.workload_context,
-                )
-                .await
-                .inspect_err(
-                    |e| error!(%e, "failed to build workload k8s client for WaitForScenarioJob"),
-                )?;
+                let WorkloadClusterConfig {
+                    kubeconfig_path,
+                    workload_context,
+                } = cfg.workload_cluster_config(&self.cluster)?;
+                let clients = ClusterClients::try_new_workload(kubeconfig_path, workload_context)
+                    .await
+                    .inspect_err(
+                        |e| error!(%e, "failed to build workload k8s client for WaitForScenarioJob"),
+                    )?;
 
                 run_scenario::wait_for_job(
                     self.test_execution.clone(),
@@ -340,9 +375,13 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
+                let WorkloadClusterConfig {
+                    kubeconfig_path,
+                    workload_context,
+                } = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
-                    cfg.kubeconfig_path,
-                    cfg.workload_context,
+                    kubeconfig_path,
+                    workload_context,
                 )
                 .await
                 .inspect_err(
