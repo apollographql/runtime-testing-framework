@@ -1,7 +1,7 @@
-use super::format_rfc3339;
 use crate::{
     links::{LinksConfig, gcp_logs, grafana},
     status,
+    view::{StatusView, exit_code_label, format_rfc3339},
 };
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
@@ -18,54 +18,30 @@ use uuid::Uuid;
 /// UI stops polling and the user can refresh manually.
 const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 
-/// The run status page content: the overall-status banner and the executions table. This whole
-/// region is re-rendered on every htmx poll (via `hx-select` against the same page route), so the
-/// banner, elapsed time, and "last updated" indicator all refresh together and stop together on
-/// terminal.
 pub struct RunView {
     pub id: Uuid,
     pub name: String,
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub initiated_by: String,
     pub started_at: String,
     pub updated_at: String,
     pub completed_at: Option<String>,
-    /// Wall-clock time from start to completion (or to `now` while still running).
     pub elapsed: String,
-    /// When this render happened, shown as the "last updated" indicator.
     pub last_updated: String,
-    /// Whether the rendered region should keep polling for updates (drives the htmx trigger).
     pub should_poll: bool,
-    /// How many executions this run has in total, unaffected by `execution_status_filter` — shown
-    /// next to the table heading so filtering down to a status doesn't read as "the run only has
-    /// this many executions."
     pub total_executions: usize,
-    /// The `current_status` value (its `Display` string, e.g. `"RUNNING"`) executions are filtered
-    /// down to, or empty for no filter. Kept as a string, not a parsed [`Status`], since its only
-    /// uses are re-populating the `<select>` and round-tripping through URLs.
     pub execution_status_filter: String,
-    /// How many executions are in each status, in lifecycle order, excluding statuses no execution
-    /// currently has. Always reflects every execution, regardless of `execution_status_filter`.
     pub status_breakdown: Vec<StatusCountView>,
-    /// Executions matching `execution_status_filter` (all of them, if empty).
     pub executions: Vec<ExecutionView>,
 }
 
 impl RunView {
-    /// Build the run view. `now` decides whether the region keeps polling and anchors the elapsed
-    /// time and "last updated" indicator. `links_cfg` supplies the GCP/Grafana deep-link
-    /// configuration for each execution row. `execution_status_filter` restricts the executions
-    /// table to rows whose status matches exactly (empty means no filter).
     pub fn new(
         run: TestRunSummary,
         now: DateTime<Utc>,
         links_cfg: &LinksConfig,
         execution_status_filter: String,
     ) -> Self {
-        // Trust `current_status`, not just the presence of `completed_at`, to decide whether the run
-        // is actually done — a run that is still in progress should never show a completion time,
-        // even if the wire data is momentarily inconsistent.
         let completed_at = run
             .completed_at
             .filter(|_| run.current_status.is_terminal());
@@ -76,8 +52,7 @@ impl RunView {
         Self {
             id: run.id,
             name: run.name,
-            status_label: run.current_status.to_string(),
-            status_class: status::css_class(run.current_status),
+            status: run.current_status.into(),
             initiated_by: run.initiated_by,
             started_at: format_rfc3339(run.started_at),
             updated_at: format_rfc3339(run.updated_at),
@@ -103,9 +78,6 @@ impl RunView {
         }
     }
 
-    /// The URL the executions table's htmx auto-poll and manual "Refresh now" button fetch from —
-    /// this run's status page, carrying `execution_status_filter` forward so a refresh doesn't
-    /// silently drop the active filter.
     pub fn poll_url(&self) -> String {
         if self.execution_status_filter.is_empty() {
             format!("/ui/run/{}", self.id)
@@ -116,8 +88,6 @@ impl RunView {
         }
     }
 
-    /// The message shown in the executions table in place of rows when there's nothing to show:
-    /// either the run genuinely has no executions yet, or a status filter matched none of them.
     pub fn executions_empty_message(&self) -> &'static str {
         if self.execution_status_filter.is_empty() {
             "No executions yet."
@@ -125,10 +95,12 @@ impl RunView {
             "No executions match this filter."
         }
     }
+
+    pub fn is_status_selected(&self, value: &str) -> bool {
+        self.execution_status_filter == value
+    }
 }
 
-/// Every [`Status`] variant, in lifecycle order — the order the run's status breakdown and the
-/// execution-status filter's `<select>` present statuses in.
 const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
     Status::Initialising,
     Status::Resolving,
@@ -140,15 +112,11 @@ const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
     Status::Unrunnable,
 ];
 
-/// One row in the run's status-breakdown summary.
 pub struct StatusCountView {
-    pub status_label: String,
-    pub status_class: &'static str,
+    pub status: StatusView,
     pub count: usize,
 }
 
-/// How many `executions` are in each status, in lifecycle order, omitting statuses none of them are
-/// in — a run with no `Unrunnable` executions shouldn't show an "Unrunnable: 0" row.
 fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView> {
     STATUS_LIFECYCLE_ORDER
         .into_iter()
@@ -159,26 +127,21 @@ fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView>
                 .count();
 
             (count > 0).then(|| StatusCountView {
-                status_label: candidate.to_string(),
-                status_class: status::css_class(candidate),
+                status: candidate.into(),
                 count,
             })
         })
         .collect()
 }
 
-/// The execution view within a test run summary
 pub struct ExecutionView {
     pub id: Uuid,
     pub name: String,
-    pub status_label: String,
-    pub status_class: &'static str,
-    pub exit_code: Option<i32>,
+    pub status: StatusView,
+    pub exit_code_label: String,
     pub started_at: String,
     pub updated_at: String,
-    /// Cloud Logging deep link scoped to this execution's workload namespace and time window.
     pub logs_url: String,
-    /// Grafana deep link scoped to this execution's workload namespace and time window.
     pub grafana_url: String,
 }
 
@@ -192,9 +155,11 @@ impl ExecutionView {
         Self {
             id: execution.id,
             name: execution.name,
-            status_label: execution.current_status.to_string(),
-            status_class: status::css_class(execution.current_status),
-            exit_code: status::effective_exit_code(execution.current_status, execution.exit_code),
+            status: execution.current_status.into(),
+            exit_code_label: exit_code_label(status::effective_exit_code(
+                execution.current_status,
+                execution.exit_code,
+            )),
             started_at: format_rfc3339(execution.started_at),
             updated_at: format_rfc3339(execution.updated_at),
             logs_url,
@@ -203,8 +168,6 @@ impl ExecutionView {
     }
 }
 
-/// Whether a run should keep being polled: only while it is non-terminal and has not been running
-/// longer than [`MAX_POLL_AGE_SECS`] (the stuck-run guard).
 fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
     !status.is_terminal() && (now.timestamp() - started_at.timestamp()) < MAX_POLL_AGE_SECS
 }
@@ -213,11 +176,17 @@ fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) ->
 mod tests {
     use super::*;
     use crate::{
-        links::sample_config, orchestrator::mocks::sample_summary, templates::RunTemplate,
+        links::sample_config,
+        orchestrator::mocks::{sample_execution, sample_summary},
+        templates::RunTemplate,
     };
     use askama::Template;
-    use chrono::Duration;
+    use chrono::{Duration, TimeZone};
     use simple_test_case::test_case;
+
+    fn fixed_now() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2024, 3, 15, 12, 30, 0).unwrap()
+    }
 
     #[test_case(Status::Running, 0, true; "recent running run polls")]
     #[test_case(Status::Running, MAX_POLL_AGE_SECS + 1, false; "stuck running run stops polling")]
@@ -311,70 +280,24 @@ mod tests {
     }
 
     #[test]
-    fn run_template_links_each_execution_to_its_gcp_logs_and_grafana_dashboard() {
+    fn execution_view_links_to_its_own_gcp_logs_and_grafana_dashboard() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(
-            sample_summary(run_id, ex_id, Status::Running),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run }.render().expect("template renders");
+        let view = ExecutionView::new(sample_execution(run_id, ex_id), &sample_config());
 
         assert!(
-            body.contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
-            "execution row should link to logs scoped to its own namespace"
+            view.logs_url
+                .contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
+            "execution should link to logs scoped to its own namespace, got: {}",
+            view.logs_url
         );
         assert!(
-            body.contains(&format!("var-namespace={ex_id}")),
-            "execution row should link to a Grafana dashboard scoped to its own namespace"
+            view.grafana_url.contains(&format!("var-namespace={ex_id}")),
+            "execution should link to a Grafana dashboard scoped to its own namespace, got: {}",
+            view.grafana_url
         );
     }
 
-    #[test]
-    fn run_template_shows_polish_indicators() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(
-            sample_summary(run_id, ex_id, Status::Running),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run }.render().expect("template renders");
-
-        assert!(
-            body.contains("last updated"),
-            "last-updated indicator present"
-        );
-        assert!(
-            body.contains("Refresh now"),
-            "manual refresh control present"
-        );
-        assert!(body.contains("Elapsed"), "elapsed time shown on the banner");
-    }
-
-    #[test]
-    fn run_template_shows_the_execution_count() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(
-            sample_summary(run_id, ex_id, Status::Running),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run }.render().expect("template renders");
-
-        assert!(
-            body.contains("<h3>Executions (1)</h3>"),
-            "expected the single sample execution to be counted next to the table heading, got: {body}"
-        );
-    }
-
-    /// A run with two executions in different terminal statuses, for exercising the
-    /// `execution_status_filter`.
     fn run_with_mixed_execution_statuses(run_id: Uuid) -> TestRunSummary {
         TestRunSummary {
             id: run_id,
@@ -481,29 +404,21 @@ mod tests {
         );
     }
 
+    #[test_case("", "", true; "empty filter matches the all-statuses option")]
+    #[test_case("", "FAILED", false; "empty filter does not match a status option")]
+    #[test_case("FAILED", "FAILED", true; "matching status is selected")]
+    #[test_case("FAILED", "SUCCESSFUL", false; "non-matching status is not selected")]
     #[test]
-    fn run_template_renders_the_filter_select_with_the_current_value_chosen() {
+    fn is_status_selected_cases(execution_status_filter: &str, value: &str, expected: bool) {
         let run_id = Uuid::from_u128(1);
         let run = RunView::new(
             run_with_mixed_execution_statuses(run_id),
             Utc::now(),
             &sample_config(),
-            "FAILED".to_owned(),
+            execution_status_filter.to_owned(),
         );
-        let body = RunTemplate { run }.render().expect("template renders");
 
-        assert!(
-            body.contains("<option value=\"FAILED\" selected>FAILED</option>"),
-            "expected the active filter to be pre-selected, got: {body}"
-        );
-        assert!(
-            body.contains("exec-broke"),
-            "matching execution should still render"
-        );
-        assert!(
-            !body.contains("exec-ok"),
-            "non-matching execution should be filtered out of the table"
-        );
+        assert_eq!(run.is_status_selected(value), expected);
     }
 
     #[test]
@@ -522,7 +437,7 @@ mod tests {
         let labels_and_counts: Vec<(&str, usize)> = view
             .status_breakdown
             .iter()
-            .map(|row| (row.status_label.as_str(), row.count))
+            .map(|row| (row.status.label.as_str(), row.count))
             .collect();
         assert_eq!(
             labels_and_counts,
@@ -552,9 +467,84 @@ mod tests {
         );
         assert!(
             !body.contains("class=\"status status--unrunnable\""),
-            "statuses with no executions should not get a status pill anywhere on the page \
-             (the filter <select> always lists UNRUNNABLE as an option, so that text alone isn't \
-             a safe check)"
+            "statuses with no executions should not get a status pill anywhere on the page"
         );
+    }
+
+    #[test]
+    fn run_template_snapshot_running_with_mixed_statuses_and_active_filter() {
+        let run_id = Uuid::from_u128(1);
+        let started = Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0).unwrap();
+        let run = TestRunSummary {
+            id: run_id,
+            name: "nightly-smoke".to_owned(),
+            current_status: Status::Running,
+            initiated_by: "someone@apollographql.com".to_owned(),
+            started_at: started,
+            updated_at: started + Duration::minutes(5),
+            executions: vec![
+                TestExecutionSummary {
+                    id: Uuid::from_u128(10),
+                    name: "exec-ok".to_owned(),
+                    current_status: Status::Successful,
+                    exit_code: Some(0),
+                    started_at: started,
+                    updated_at: started + Duration::minutes(3),
+                    completed_at: Some(started + Duration::minutes(3)),
+                    ..Default::default()
+                },
+                TestExecutionSummary {
+                    id: Uuid::from_u128(11),
+                    name: "exec-broke".to_owned(),
+                    current_status: Status::Failed,
+                    exit_code: Some(1),
+                    started_at: started,
+                    updated_at: started + Duration::minutes(4),
+                    completed_at: Some(started + Duration::minutes(4)),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        let view = RunView::new(run, fixed_now(), &sample_config(), "FAILED".to_owned());
+        let body = RunTemplate { run: view }
+            .render()
+            .expect("template renders");
+
+        insta::assert_snapshot!(body);
+    }
+
+    #[test]
+    fn run_template_snapshot_terminal_run_with_completed_at() {
+        let run_id = Uuid::from_u128(2);
+        let ex_id = Uuid::from_u128(20);
+        let started = Utc.with_ymd_and_hms(2024, 3, 15, 9, 0, 0).unwrap();
+        let completed = started + Duration::minutes(12);
+        let run = TestRunSummary {
+            id: run_id,
+            name: "release-check".to_owned(),
+            current_status: Status::Successful,
+            initiated_by: "someone@apollographql.com".to_owned(),
+            started_at: started,
+            updated_at: completed,
+            completed_at: Some(completed),
+            executions: vec![TestExecutionSummary {
+                id: ex_id,
+                name: "exec-alpha".to_owned(),
+                current_status: Status::Successful,
+                exit_code: Some(0),
+                started_at: started,
+                updated_at: completed,
+                completed_at: Some(completed),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let view = RunView::new(run, fixed_now(), &sample_config(), String::new());
+        let body = RunTemplate { run: view }
+            .render()
+            .expect("template renders");
+
+        insta::assert_snapshot!(body);
     }
 }

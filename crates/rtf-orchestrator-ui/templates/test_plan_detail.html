@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "macros.html" as macros %}
 
 {% block title %}RTF Status &middot; {{ plan.name }}{% endblock %}
 
@@ -113,11 +114,7 @@
 
 <h2>Trigger a run</h2>
 
-{% match trigger_error %}
-{% when Some with (message) %}
-<p class="muted">{{ message }}</p>
-{% when None %}
-{% endmatch %}
+{% call macros::error_message(trigger_error) %}{% endcall %}
 
 <form method="post" action="/ui/test-plan/{{ plan.uuid }}/trigger" id="trigger-form">
     <p class="trigger-actions">
@@ -173,7 +170,7 @@
             {% when Some with (values) %}
             <select multiple id="var-{{ v.name }}" data-var-name="{{ v.name }}">
                 {% for value in values %}
-                <option value="{{ value }}" {% if v.full_values.contains(value) %}selected{% endif %}>{{ value }}</option>
+                <option value="{{ value }}" {% if v.is_selected(value) %}selected{% endif %}>{{ value }}</option>
                 {% endfor %}
             </select>
             {% when None %}
@@ -201,63 +198,16 @@
 <script src="/ui/static/test-plan-detail.js"></script>
 
 {% when None %}
-{% match details_error %}
-{% when Some with (message) %}
-<p class="muted">{{ message }}</p>
-{% when None %}
-{% endmatch %}
+{% call macros::error_message(details_error) %}{% endcall %}
 {% endmatch %}
 
 <h2>Recent runs</h2>
 
-{% match runs_error %}
-{% when Some with (message) %}
-<p class="muted">{{ message }}</p>
-{% when None %}
-{% endmatch %}
+{% call macros::error_message(runs_error) %}{% endcall %}
 
 {% match runs %}
 {% when Some with (runs) %}
-<table>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Initiated by</th>
-            <th>Started</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for row in runs.rows %}
-        <tr>
-            <td><a href="/ui/run/{{ row.id }}">{{ row.name }}</a></td>
-            <td><span class="status {{ row.status_class }}">{{ row.status_label }}</span></td>
-            <td>{{ row.initiated_by }}</td>
-            <td>{{ row.started_at }}</td>
-        </tr>
-        {% endfor %}
-        {% match runs.empty_message() %}
-        {% when Some with (message) %}
-        <tr>
-            <td colspan="4">{{ message }}</td>
-        </tr>
-        {% when None %}
-        {% endmatch %}
-    </tbody>
-</table>
-<p class="muted">
-    {% match runs.showing_range() %}
-    {% when Some with (range) %}
-    {{ range }}
-    {% when None %}
-    {% endmatch %}
-    {% if runs.has_prev() %}
-    &middot; <a href="{{ runs.prev_href() }}">&larr; Prev</a>
-    {% endif %}
-    {% if runs.has_next() %}
-    &middot; <a href="{{ runs.next_href() }}">Next &rarr;</a>
-    {% endif %}
-</p>
+{% call macros::run_list_table(runs) %}{% endcall %}
 {% when None %}
 {% endmatch %}
 {% endblock %}

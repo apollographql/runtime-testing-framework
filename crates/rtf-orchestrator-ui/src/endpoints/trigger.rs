@@ -1,6 +1,6 @@
 //! `GET`/`POST /ui/trigger` — trigger a run from a GitHub-hosted test plan.
 use crate::{
-    endpoints::{render_body, to_response},
+    endpoints::{parse_trigger_ref_and_variables, render_body, to_response},
     orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
     templates::TriggerTemplate,
 };
@@ -73,20 +73,13 @@ impl TriggerForm {
     /// JSON. Trims every field first, so stray leading/trailing whitespace doesn't turn into a
     /// bogus org/repo/path or a spuriously "non-blank" variables box.
     fn try_into_payload(&self) -> Result<GitHubPayload, String> {
-        let variables_json = self.variables.trim();
-        let variables = if variables_json.is_empty() {
-            None
-        } else {
-            serde_json::from_str(variables_json)
-                .map_err(|error| format!("Variables must be a JSON object: {error}"))?
-        };
-        let git_ref = self.git_ref.trim();
+        let (git_ref, variables) = parse_trigger_ref_and_variables(&self.git_ref, &self.variables)?;
 
         Ok(GitHubPayload {
             org: self.org.trim().to_owned(),
             repo: self.repo.trim().to_owned(),
             path: self.path.trim().to_owned(),
-            git_ref: (!git_ref.is_empty()).then(|| git_ref.to_owned()),
+            git_ref,
             variables,
         })
     }
@@ -138,15 +131,12 @@ fn trigger_result_response(
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches;
-
     use super::*;
     use crate::{
         endpoints::body_text,
         orchestrator::mocks::{MockClient, sample_summary},
     };
     use axum::http::header::LOCATION;
-    use rtf_core::variables::ScalarOrArray;
     use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
@@ -161,67 +151,21 @@ mod tests {
     }
 
     #[test]
-    fn try_into_payload_builds_a_minimal_github_payload() {
-        let payload = sample_form().try_into_payload().expect("should parse");
-
-        assert_eq!(payload.org, "apollographql");
-        assert_eq!(payload.repo, "runtime-testing-framework");
-        assert_eq!(payload.path, "test-plans/smoke/test-plan.yaml");
-        assert_eq!(payload.git_ref, None);
-        assert_eq!(payload.variables, None);
-    }
-
-    #[test]
-    fn try_into_payload_trims_whitespace_from_every_field() {
+    fn try_into_payload_trims_fields_and_wires_the_parsed_ref_and_variables_into_the_payload() {
         let form = TriggerForm {
             org: "  apollographql  ".to_owned(),
             repo: "  runtime-testing-framework  ".to_owned(),
             path: "  test-plans/smoke/test-plan.yaml  ".to_owned(),
             git_ref: "  main  ".to_owned(),
-            variables: "   ".to_owned(),
+            variables: r#"{"message": "hello"}"#.to_owned(),
         };
         let payload = form.try_into_payload().expect("should parse");
 
         assert_eq!(payload.org, "apollographql");
+        assert_eq!(payload.repo, "runtime-testing-framework");
+        assert_eq!(payload.path, "test-plans/smoke/test-plan.yaml");
         assert_eq!(payload.git_ref, Some("main".to_owned()));
-        assert_eq!(
-            payload.variables, None,
-            "a whitespace-only variables box should count as absent"
-        );
-    }
-
-    #[test]
-    fn try_into_payload_parses_a_scalar_and_a_matrix_dimension_variable() {
-        let form = TriggerForm {
-            variables: r#"{"message": "hello", "region": ["us-east-1", "eu-west-1"]}"#.to_owned(),
-            ..sample_form()
-        };
-        let payload = form.try_into_payload().expect("should parse");
-        let variables = payload.variables.expect("variables should be present");
-
-        assert_matches!(
-            variables.get("message"),
-            Some(ScalarOrArray::Scalar(_)),
-            "a plain value should become a scalar variable"
-        );
-        assert_matches!(
-            variables.get("region"),
-            Some(ScalarOrArray::Array(values)) if values.len() == 2,
-            "an array value should become a matrix dimension"
-        );
-    }
-
-    #[test]
-    fn try_into_payload_rejects_invalid_json() {
-        let form = TriggerForm {
-            variables: "not json".to_owned(),
-            ..sample_form()
-        };
-
-        let error = form
-            .try_into_payload()
-            .expect_err("should reject invalid JSON");
-        assert!(error.contains("Variables must be a JSON object"), "{error}");
+        assert!(payload.variables.is_some());
     }
 
     #[tokio::test]

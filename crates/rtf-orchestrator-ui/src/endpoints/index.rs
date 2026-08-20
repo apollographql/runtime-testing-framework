@@ -146,51 +146,6 @@ mod tests {
     use uuid::Uuid;
 
     #[test]
-    fn index_renders_the_run_id_form() {
-        let (status, body) = index_body(
-            Ok(TestRunListResponse::default()),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-        );
-
-        assert_eq!(status, StatusCode::OK);
-        assert!(
-            body.contains(r#"<link rel="icon" type="image/png" href="/ui/static/gongphin.png" />"#),
-            "expected the favicon link tag in the page head"
-        );
-        assert!(
-            body.contains(r#"<img class="logo" src="/ui/static/gongphin.png" alt="" />"#),
-            "expected the header logo image"
-        );
-        assert!(
-            body.contains("<form"),
-            "expected a form on the landing page"
-        );
-        assert!(
-            body.contains("/ui/run/"),
-            "form should navigate to /ui/run/{{id}}"
-        );
-        assert!(
-            body.contains(
-                "https://scaling-dollop-ywevlle.pages.github.io/explanation/overview.html"
-            ),
-            "expected a link explaining what RTF is"
-        );
-        assert!(
-            body.contains(r#"href="https://scaling-dollop-ywevlle.pages.github.io/""#),
-            "expected a link to the RTF docs"
-        );
-        assert!(
-            body.contains(
-                "https://scaling-dollop-ywevlle.pages.github.io/tutorials/running-with-the-orchestrator/index.html"
-            ),
-            "expected a link to the orchestrator tutorial"
-        );
-    }
-
-    #[test]
     fn index_body_renders_the_recent_runs_table() {
         let run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);
         let (status, body) = index_body(

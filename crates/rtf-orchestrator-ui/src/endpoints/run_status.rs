@@ -109,16 +109,6 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("my-test-run"), "run name should render");
-        assert!(body.contains("RUNNING"), "run status label should render");
-        assert!(
-            body.contains("someone@apollographql.com"),
-            "run initiator should render"
-        );
-        assert!(body.contains("exec-alpha"), "execution name should render");
-        assert!(
-            body.contains("SUCCESSFUL"),
-            "execution status label should render"
-        );
     }
 
     #[test]

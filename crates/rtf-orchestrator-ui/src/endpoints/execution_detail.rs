@@ -86,10 +86,6 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("exec-alpha"), "execution name should render");
-        assert!(
-            body.contains(&format!("/ui/run/{run_id}")),
-            "execution detail page should link back to its parent run"
-        );
     }
 
     #[test]

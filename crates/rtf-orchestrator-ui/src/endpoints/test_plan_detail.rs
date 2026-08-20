@@ -1,5 +1,5 @@
 use crate::{
-    endpoints::{render_body, to_response},
+    endpoints::{parse_trigger_ref_and_variables, render_body, to_response},
     orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
     view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView},
@@ -45,6 +45,36 @@ pub struct TestPlanDetailParams {
     days: Option<u32>,
 }
 
+struct TestPlanDetailPage {
+    limit: i64,
+    offset: i64,
+    trigger_git_ref: String,
+    trigger_variables: String,
+    trigger_error: Option<String>,
+    days_back: u32,
+    days: u32,
+}
+
+impl Default for TestPlanDetailPage {
+    fn default() -> Self {
+        Self {
+            limit: DEFAULT_LIMIT,
+            offset: 0,
+            trigger_git_ref: String::new(),
+            trigger_variables: String::new(),
+            trigger_error: None,
+            days_back: DEFAULT_DAYS_BACK,
+            days: DEFAULT_DAYS,
+        }
+    }
+}
+
+struct TestPlanDetailResults {
+    plan: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
+    runs: Result<TestRunListResponse, orchestrator::Error>,
+    details: Result<Option<TestPlanDetails>, orchestrator::Error>,
+}
+
 /// `GET /ui/test-plan/{uuid}` — the plan's metadata (with a GitHub link), the executions
 /// overview/services table/trigger form/history charts built from the orchestrator's details
 /// endpoint, and a paginated table of its recent runs. The plan, its details, and its runs are all
@@ -68,7 +98,7 @@ pub async fn handler<C: Client>(
         git_ref: params.trigger_git_ref.clone(),
     };
 
-    let (plan_result, runs_result, details_result) = tokio::join!(
+    let (plan, runs, details) = tokio::join!(
         orchestrator_client.known_test_plan_summary(uuid),
         orchestrator_client.list_known_test_plan_runs(uuid, &runs_params),
         orchestrator_client.test_plan_details(uuid, &details_params)
@@ -76,16 +106,20 @@ pub async fn handler<C: Client>(
 
     to_response(test_plan_detail_body(
         uuid,
-        plan_result,
-        runs_result,
-        details_result,
-        DEFAULT_LIMIT,
-        offset,
-        params.trigger_git_ref.unwrap_or_default(),
-        params.trigger_variables.unwrap_or_default(),
-        params.trigger_error,
-        days_back,
-        days,
+        TestPlanDetailResults {
+            plan,
+            runs,
+            details,
+        },
+        TestPlanDetailPage {
+            limit: DEFAULT_LIMIT,
+            offset,
+            trigger_git_ref: params.trigger_git_ref.unwrap_or_default(),
+            trigger_variables: params.trigger_variables.unwrap_or_default(),
+            trigger_error: params.trigger_error,
+            days_back,
+            days,
+        },
     ))
 }
 
@@ -93,24 +127,15 @@ pub async fn handler<C: Client>(
 /// trigger form, and runs table on success, a "not found" page for an unknown uuid, or an error
 /// page for a plan-fetch failure. A runs-list failure still renders the page - with the plan header
 /// and GitHub link intact and an inline error in place of the runs table - mirroring the home
-/// page's `index_body`. `runs_result` is only rendered when `plan_result` is `Ok(Some(_))`; kept as
-/// a plain parameter (rather than only fetched conditionally) so this whole mapping stays a single
+/// page's `index_body`. `fetch.runs` is only rendered when `fetch.plan` is `Ok(Some(_))`; kept as
+/// a plain field (rather than only fetched conditionally) so this whole mapping stays a single
 /// pure, directly-testable function, matching `run_status_body`/`execution_detail_body`.
-#[allow(clippy::too_many_arguments)]
 fn test_plan_detail_body(
     uuid: Uuid,
-    plan_result: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
-    runs_result: Result<TestRunListResponse, orchestrator::Error>,
-    details_result: Result<Option<TestPlanDetails>, orchestrator::Error>,
-    limit: i64,
-    offset: i64,
-    trigger_git_ref: String,
-    trigger_variables: String,
-    trigger_error: Option<String>,
-    days_back: u32,
-    days: u32,
+    fetch: TestPlanDetailResults,
+    page: TestPlanDetailPage,
 ) -> (StatusCode, String) {
-    let plan = match plan_result {
+    let plan = match fetch.plan {
         Ok(Some(plan)) => plan,
         Ok(None) => {
             return render_body(
@@ -134,9 +159,9 @@ fn test_plan_detail_body(
 
     let plan_view = KnownTestPlanRowView::from(plan);
 
-    let (details, details_error) = match details_result {
+    let (details, details_error) = match fetch.details {
         Ok(Some(details)) => (
-            Some(TestPlanDetailsView::new(details, days_back, days)),
+            Some(TestPlanDetailsView::new(details, page.days_back, page.days)),
             None,
         ),
         Ok(None) => {
@@ -155,7 +180,7 @@ fn test_plan_detail_body(
         }
     };
 
-    match runs_result {
+    match fetch.runs {
         Ok(response) => render_body(
             StatusCode::OK,
             TestPlanDetailTemplate {
@@ -163,14 +188,17 @@ fn test_plan_detail_body(
                 details,
                 details_error,
                 runs: Some(RunListView::for_known_test_plan(
-                    response, limit, offset, uuid,
+                    response,
+                    page.limit,
+                    page.offset,
+                    uuid,
                 )),
                 runs_error: None,
-                trigger_git_ref,
-                trigger_variables,
-                trigger_error,
-                days_back,
-                days,
+                trigger_git_ref: page.trigger_git_ref,
+                trigger_variables: page.trigger_variables,
+                trigger_error: page.trigger_error,
+                days_back: page.days_back,
+                days: page.days,
             },
         ),
         Err(error) => {
@@ -183,11 +211,11 @@ fn test_plan_detail_body(
                     details_error,
                     runs: None,
                     runs_error: Some("Could not load recent runs for this test plan.".to_owned()),
-                    trigger_git_ref,
-                    trigger_variables,
-                    trigger_error,
-                    days_back,
-                    days,
+                    trigger_git_ref: page.trigger_git_ref,
+                    trigger_variables: page.trigger_variables,
+                    trigger_error: page.trigger_error,
+                    days_back: page.days_back,
+                    days: page.days,
                 },
             )
         }
@@ -212,18 +240,11 @@ impl KnownTestPlanTriggerForm {
     /// Builds the orchestrator payload for `uuid`, or the message to show inline if `variables`
     /// isn't valid JSON. Trims both fields first, mirroring `trigger::TriggerForm::try_into_payload`.
     fn try_into_payload(&self, uuid: Uuid) -> Result<KnownTestPlanUuidPayload, String> {
-        let variables_json = self.variables.trim();
-        let variables = if variables_json.is_empty() {
-            None
-        } else {
-            serde_json::from_str(variables_json)
-                .map_err(|error| format!("Variables must be a JSON object: {error}"))?
-        };
-        let git_ref = self.git_ref.trim();
+        let (git_ref, variables) = parse_trigger_ref_and_variables(&self.git_ref, &self.variables)?;
 
         Ok(KnownTestPlanUuidPayload {
             test_plan_uuid: uuid,
-            git_ref: (!git_ref.is_empty()).then(|| git_ref.to_owned()),
+            git_ref,
             variables,
         })
     }
@@ -297,45 +318,31 @@ mod tests {
     use super::*;
     use crate::{
         endpoints::body_text,
-        orchestrator::mocks::{MockClient, sample_test_plan_details},
+        orchestrator::mocks::{MockClient, sample_known_test_plan, sample_test_plan_details},
     };
     use axum::http::header::LOCATION;
-    use rtf_core::variables::ScalarOrArray;
     use rtf_orchestrator_shared::status::Status;
-    use std::assert_matches;
-
-    fn sample_plan(uuid: Uuid) -> KnownTestPlanSummary {
-        KnownTestPlanSummary {
-            uuid,
-            name: "my-known-plan".to_owned(),
-            description: Some("a sample plan".to_owned()),
-            org: "apollographql".to_owned(),
-            repo: "runtime-testing-framework".to_owned(),
-            path: "test-plans/example.yaml".to_owned(),
-        }
-    }
 
     #[test]
     fn test_plan_detail_body_renders_the_plan_and_its_runs() {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::OK);
-        assert!(body.contains("my-known-plan"), "plan name should render");
         assert!(
-            body.contains("a sample plan"),
+            body.contains("my-known-test-plan"),
+            "plan name should render"
+        );
+        assert!(
+            body.contains("a sample known test plan"),
             "plan description should render"
         );
         assert!(
@@ -355,16 +362,12 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(None),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(None),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::NOT_FOUND);
@@ -376,19 +379,15 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Err(orchestrator::Error::KnownTestPlanStatus {
-                status: StatusCode::BAD_GATEWAY,
-                uuid,
-            }),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Err(orchestrator::Error::KnownTestPlanStatus {
+                    status: StatusCode::BAD_GATEWAY,
+                    uuid,
+                }),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::BAD_GATEWAY);
@@ -400,19 +399,15 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
-            Err(orchestrator::Error::ListKnownTestPlanRuns {
-                status: StatusCode::BAD_GATEWAY,
-                uuid,
-            }),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Err(orchestrator::Error::ListKnownTestPlanRuns {
+                    status: StatusCode::BAD_GATEWAY,
+                    uuid,
+                }),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(
@@ -420,7 +415,7 @@ mod tests {
             StatusCode::OK,
             "the plan header should still render"
         );
-        assert!(body.contains("my-known-plan"));
+        assert!(body.contains("my-known-test-plan"));
         assert!(body.contains("Could not load recent runs"));
     }
 
@@ -429,19 +424,15 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Err(orchestrator::Error::TestPlanDetailsStatus {
-                status: StatusCode::BAD_GATEWAY,
-                uuid,
-            }),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Err(orchestrator::Error::TestPlanDetailsStatus {
+                    status: StatusCode::BAD_GATEWAY,
+                    uuid,
+                }),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(
@@ -449,7 +440,7 @@ mod tests {
             StatusCode::OK,
             "the plan header and runs table should still render"
         );
-        assert!(body.contains("my-known-plan"));
+        assert!(body.contains("my-known-test-plan"));
         assert!(body.contains("Could not load details for this test plan"));
         assert!(
             body.contains(
@@ -464,16 +455,12 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            String::new(),
-            String::new(),
-            None,
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
         );
 
         assert_eq!(status, StatusCode::OK);
@@ -489,16 +476,17 @@ mod tests {
         let uuid = Uuid::from_u128(1);
         let (status, body) = test_plan_detail_body(
             uuid,
-            Ok(Some(sample_plan(uuid))),
-            Ok(TestRunListResponse::default()),
-            Ok(Some(sample_test_plan_details(uuid))),
-            DEFAULT_LIMIT,
-            0,
-            "a-branch".to_owned(),
-            r#"{"key": "value"}"#.to_owned(),
-            Some("unknown test plan".to_owned()),
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage {
+                trigger_git_ref: "a-branch".to_owned(),
+                trigger_variables: r#"{"key": "value"}"#.to_owned(),
+                trigger_error: Some("unknown test plan".to_owned()),
+                ..Default::default()
+            },
         );
 
         assert_eq!(status, StatusCode::OK);
@@ -553,67 +541,18 @@ mod tests {
     }
 
     #[test]
-    fn try_into_payload_builds_a_minimal_payload() {
+    fn try_into_payload_wires_the_uuid_and_parsed_ref_and_variables_into_the_payload() {
         let uuid = Uuid::from_u128(1);
-        let payload = sample_form().try_into_payload(uuid).expect("should parse");
-
-        assert_eq!(payload.test_plan_uuid, uuid);
-        assert_eq!(payload.git_ref, None);
-        assert_eq!(payload.variables, None);
-    }
-
-    #[test]
-    fn try_into_payload_trims_whitespace_from_every_field() {
         let form = KnownTestPlanTriggerForm {
             git_ref: "  main  ".to_owned(),
-            variables: "   ".to_owned(),
+            variables: r#"{"message": "hello"}"#.to_owned(),
             ..sample_form()
         };
-        let payload = form
-            .try_into_payload(Uuid::from_u128(1))
-            .expect("should parse");
+        let payload = form.try_into_payload(uuid).expect("should parse");
 
+        assert_eq!(payload.test_plan_uuid, uuid);
         assert_eq!(payload.git_ref, Some("main".to_owned()));
-        assert_eq!(
-            payload.variables, None,
-            "a whitespace-only variables box should count as absent"
-        );
-    }
-
-    #[test]
-    fn try_into_payload_parses_a_scalar_and_a_matrix_dimension_variable() {
-        let form = KnownTestPlanTriggerForm {
-            variables: r#"{"message": "hello", "region": ["us-east-1", "eu-west-1"]}"#.to_owned(),
-            ..sample_form()
-        };
-        let payload = form
-            .try_into_payload(Uuid::from_u128(1))
-            .expect("should parse");
-        let variables = payload.variables.expect("variables should be present");
-
-        assert_matches!(
-            variables.get("message"),
-            Some(ScalarOrArray::Scalar(_)),
-            "a plain value should become a scalar variable"
-        );
-        assert_matches!(
-            variables.get("region"),
-            Some(ScalarOrArray::Array(values)) if values.len() == 2,
-            "an array value should become a matrix dimension"
-        );
-    }
-
-    #[test]
-    fn try_into_payload_rejects_invalid_json() {
-        let form = KnownTestPlanTriggerForm {
-            variables: "not json".to_owned(),
-            ..sample_form()
-        };
-
-        let error = form
-            .try_into_payload(Uuid::from_u128(1))
-            .expect_err("should reject invalid JSON");
-        assert!(error.contains("Variables must be a JSON object"), "{error}");
+        assert!(payload.variables.is_some());
     }
 
     #[test]
