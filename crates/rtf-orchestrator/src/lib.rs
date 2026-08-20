@@ -37,7 +37,7 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     check_db_conn().await?;
 
     let (mut event_queue, prov_handle, eq_state, rx) =
-        EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
     info!("Initialising event queue state");
     event_queue.init_queue_state(cfg, conn!()).await?;
@@ -183,7 +183,7 @@ mod test_helpers {
             admins: Option<&[&str]>,
         ) -> Self {
             let (_, prov_handle, eq_state, resolver_rx) =
-                EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+                EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
             let mut state = ServerState::new(eq_state, gcs_client);
             if let Some(admins) = admins {

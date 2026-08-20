@@ -1,6 +1,6 @@
 //! Register a Test Plan with the orchestrator so it can be triggered and queried by UUID or name.
 //!
-//! Gated to admins only (see [super::AdminUser]).
+//! Gated to admins only (see [AdminUser]).
 use crate::{Result, conn, db::KnownTestPlan, endpoints::AdminUser};
 use axum::Json;
 use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, RegisterTestPlanRequest};

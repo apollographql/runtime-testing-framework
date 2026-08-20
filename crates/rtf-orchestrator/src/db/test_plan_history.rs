@@ -242,7 +242,7 @@ mod tests {
         status: Status,
         conn: &mut PgConnection,
     ) -> Result<TestRun> {
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, conn).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, "alpha", conn).await?;
         KnownTestPlanRun::link(plan.id(), tr.id(), None, conn).await?;
 
         tr.set_status(status, None, conn).await?;

@@ -14,6 +14,7 @@ pub struct KnownTestPlan {
     org: String,
     repo: String,
     path: String,
+    pinned_workload_cluster: Option<String>,
 }
 
 impl Queryable for KnownTestPlan {
@@ -49,6 +50,10 @@ impl KnownTestPlan {
         &self.path
     }
 
+    pub fn pinned_workload_cluster(&self) -> Option<&str> {
+        self.pinned_workload_cluster.as_deref()
+    }
+
     /// Register a new known test plan.
     ///
     /// `name` and `(org, repo, path)` are each `UNIQUE` in the DB: attempting to register a
@@ -69,7 +74,7 @@ impl KnownTestPlan {
             VALUES
               ($1, $2, $3, $4, $5)
             RETURNING
-              id, uuid, name, description, org, repo, path;
+              id, uuid, name, description, org, repo, path, pinned_workload_cluster;
             "#,
         )
         .bind(name)
@@ -87,6 +92,22 @@ impl KnownTestPlan {
             }
             Err(e) => Err(e.into()),
         }
+    }
+
+    pub async fn set_pinned_workload_cluster(
+        &mut self,
+        pinned_workload_cluster: Option<&str>,
+        conn: &mut PgConnection,
+    ) -> Result<()> {
+        sqlx::query("UPDATE known_test_plan SET pinned_workload_cluster = $1 WHERE id = $2;")
+            .bind(pinned_workload_cluster)
+            .bind(self.id)
+            .execute(conn)
+            .await?;
+
+        self.pinned_workload_cluster = pinned_workload_cluster.map(str::to_owned);
+
+        Ok(())
     }
 
     pub async fn get_by_uuid(uuid: &Uuid, conn: &mut PgConnection) -> Result<Option<Self>> {
@@ -287,7 +308,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, "alpha", c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), Some("abc123"), c).await?;
 
@@ -305,7 +326,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, "alpha", c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
 

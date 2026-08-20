@@ -466,7 +466,7 @@ mod tests {
     async fn resolve_config_success_sends_create_env_argo_workflow() {
         let cfg = dummy_config();
         let (mut eq, ph, eqs, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -505,7 +505,7 @@ mod tests {
     async fn resolve_config_failure_sends_mark_unrunnable_and_cleanup() {
         let cfg = dummy_config();
         let (mut eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
         // execution NOT registered → resolve_and_cache_env_config will fail
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -538,7 +538,7 @@ mod tests {
         let mut handle = MockUpdateHandle::default();
         let cfg = dummy_config();
         let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
         _ = resolve_test_plan(test_run, empty_payload(), &cfg, &mut handle, &ph).await;
 
@@ -556,7 +556,7 @@ mod tests {
         let mut handle = mock_handle_with_run(&test_run);
         let cfg = dummy_config();
         let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
         _ = resolve_test_plan(test_run.clone(), payload, &cfg, &mut handle, &ph).await;
 
@@ -594,7 +594,7 @@ mod tests {
         let mut handle = mock_handle_with_run(&test_run);
         let cfg = dummy_config();
         let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
         // compose_files with a required provider — try_check always fails for RequiredFile
         let required_compose: NamedComposeFileProvider = serde_yaml::from_str(indoc!(
@@ -661,7 +661,7 @@ mod tests {
         let mut handle = mock_handle_with_run(&tr);
         let cfg = dummy_config();
         let (mut eq, ph, eqs, mut rx) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
         // The checks we have in place around submitting test plans for resolution mean that we
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
@@ -730,7 +730,7 @@ mod tests {
         let mut handle = MockUpdateHandle::default();
         let cfg = dummy_config();
         let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
         _ = resolve_test_plan(tr.clone(), empty_payload(), &cfg, &mut handle, &ph).await;
 
@@ -745,7 +745,7 @@ mod tests {
         let cfg = dummy_config();
         // dropping the receiver for the event loop so sends will fail
         let (_, ph, eqs, mut rx) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions, "alpha");
 
         // The checks we have in place around submitting test plans for resolution mean that we
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.

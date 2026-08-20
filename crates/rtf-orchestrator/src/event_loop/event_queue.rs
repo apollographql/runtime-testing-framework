@@ -62,6 +62,7 @@ impl EventQueue {
     pub fn new(
         max_concurrent_executions: usize,
         max_queued_executions: usize,
+        default_cluster: impl Into<String>,
     ) -> (
         Self,
         ProvisioningHandle,
@@ -101,6 +102,7 @@ impl EventQueue {
             shared: eq.shared.clone(),
             eq_inner: Arc::clone(&eq.inner),
             tx_resolve,
+            default_cluster: default_cluster.into(),
         };
 
         (eq, ph, eqs, rx_resolve)
@@ -671,6 +673,8 @@ pub struct EventQueueState {
     shared: Arc<Mutex<Shared>>,
     eq_inner: Arc<Mutex<EventQueueInner>>,
     tx_resolve: UnboundedSender<ResolverInput>,
+    /// The workload cluster a run falls back to when nothing pins it to a specific one.
+    default_cluster: String,
 }
 
 impl EventQueueState {
@@ -679,6 +683,10 @@ impl EventQueueState {
         F: FnOnce(&mut Shared) -> T,
     {
         f(&mut *self.shared.lock().await)
+    }
+
+    pub fn default_cluster(&self) -> &str {
+        &self.default_cluster
     }
 
     pub async fn event_queue_snapshot(&self) -> Snapshot {
@@ -969,7 +977,7 @@ mod tests {
 
     async fn populated_prov_handle() -> (ProvisioningHandle, TestExecution) {
         let cfg = dummy_config();
-        let (_, ph, _, _) = EventQueue::new(1, 100);
+        let (_, ph, _, _) = EventQueue::new(1, 100, "alpha");
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -993,7 +1001,7 @@ mod tests {
     #[test_case(&[(3, true), (2, true), (1, false)]; "seq to max then over")]
     #[tokio::test]
     async fn try_reserve_pending_executions_returns_expected_value(claims: &[(usize, bool)]) {
-        let (_, _, state, _) = EventQueue::new(1, 5);
+        let (_, _, state, _) = EventQueue::new(1, 5, "alpha");
 
         for (i, &(n, expected)) in claims.iter().enumerate() {
             let mut tp = stub_test_plan();
@@ -1006,7 +1014,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_updates_running_set() {
-        let (mut eq, _, _, _) = EventQueue::new(1, 5);
+        let (mut eq, _, _, _) = EventQueue::new(1, 5, "alpha");
         let id = Uuid::new_v4();
         eq.inner.lock().await.running_executions.insert(id);
 
@@ -1024,7 +1032,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_evicts_cache_after_last_execution() {
-        let (mut eq, h, _, _) = EventQueue::new(2, 5);
+        let (mut eq, h, _, _) = EventQueue::new(2, 5, "alpha");
         let run_uuid = Uuid::new_v4();
         let ex1 = Uuid::new_v4();
         let ex2 = Uuid::new_v4();
@@ -1079,7 +1087,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_provisioning_happy_path() {
-        let (mut q, h, _, _) = EventQueue::new(1, 5);
+        let (mut q, h, _, _) = EventQueue::new(1, 5, "alpha");
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let ex_uuid = ex.uuid();
         q.shared.lock().await.n_queued = 1;
@@ -1101,7 +1109,7 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "request_provisioning called with n_queued == 0")]
     async fn request_provisioning_panics_when_n_queued_is_zero() {
-        let (_, h, _, _) = EventQueue::new(1, 5);
+        let (_, h, _, _) = EventQueue::new(1, 5, "alpha");
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         _ = h.request_provisioning(ex, Uuid::new_v4()).await;
@@ -1109,7 +1117,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_provisioning_returns_false_when_channel_is_closed() {
-        let (q, h, _, _) = EventQueue::new(1, 5);
+        let (q, h, _, _) = EventQueue::new(1, 5, "alpha");
         q.shared.lock().await.n_queued = 1;
         drop(q);
 
@@ -1123,7 +1131,7 @@ mod tests {
     #[tokio::test]
     async fn next_event_gates_provisions_on_namespace_capacity() {
         // max concurrent of 1: any provision dispatch is blocked while a slot is in use.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
         let blocking_id = Uuid::new_v4();
         q.inner.lock().await.running_executions.insert(blocking_id);
 
@@ -1178,7 +1186,7 @@ mod tests {
     async fn next_event_returns_expected_event_from_pending(events: Vec<Event>, expected_id: i32) {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
 
         for evt in events.into_iter() {
             q.push_event(evt).await;
@@ -1197,7 +1205,7 @@ mod tests {
     async fn next_event_drains_channel_before_selecting() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
 
         // Send the provision event first so we know that we're not just relying on ordering
         q.tx.send(provision_evt(1)).unwrap();
@@ -1212,7 +1220,7 @@ mod tests {
     async fn next_event_blocks_when_no_events_are_available() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
         let tx = q.tx.clone();
 
         let next_event_task = tokio::spawn(async move { q.next_event().await });
@@ -1237,7 +1245,7 @@ mod tests {
 
     #[tokio::test]
     async fn next_event_returns_none_when_no_external_senders_remain() {
-        let (mut q, h, _, _) = EventQueue::new(1, 5);
+        let (mut q, h, _, _) = EventQueue::new(1, 5, "alpha");
 
         // Start with an event in the channel so we skip the blocking recv call and drop into the
         // drain loop.
@@ -1255,7 +1263,7 @@ mod tests {
 
     #[tokio::test]
     async fn push_event_routes_resolve_env_config_to_provisions() {
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
         let evt = Event {
             test_execution: TestExecution::create_stub(1, 1, 0, "test"),
             data: EventData::ResolveConfig,
@@ -1272,7 +1280,7 @@ mod tests {
 
     #[tokio::test]
     async fn push_event_routes_create_env_argo_workflow_to_non_provisions() {
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, "alpha");
         let evt = Event {
             test_execution: TestExecution::create_stub(1, 1, 0, "test"),
             data: EventData::CreateEnvArgoWorkflow,
@@ -1329,7 +1337,7 @@ mod tests {
     #[tokio::test]
     async fn resolve_and_cache_config_caches_null_environment_with_no_prometheus_queries() {
         let cfg = dummy_config();
-        let (_, ph, _, _) = EventQueue::new(1, 100);
+        let (_, ph, _, _) = EventQueue::new(1, 100, "alpha");
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -1370,7 +1378,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolved_environment_for_execution_returns_cached_environment() {
-        let (eq, ph, _, _) = EventQueue::new(1, 100);
+        let (eq, ph, _, _) = EventQueue::new(1, 100, "alpha");
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eq.resolved_environment_for_execution(ex.uuid()).await;
@@ -1408,7 +1416,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_evicts_resolved_execution_cache() {
-        let (mut eq, h, _, _) = EventQueue::new(1, 5);
+        let (mut eq, h, _, _) = EventQueue::new(1, 5, "alpha");
         let run_uuid = Uuid::new_v4();
         let ex_id = Uuid::new_v4();
 
@@ -1447,7 +1455,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_environment_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let (_, _, eqs, _) = EventQueue::new(1, 5, "alpha");
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_environment_for_execution(&ex).await;
@@ -1460,7 +1468,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_scenario_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let (_, _, eqs, _) = EventQueue::new(1, 5, "alpha");
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_scenario_for_execution(&ex).await;
@@ -1473,7 +1481,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_output_collection_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let (_, _, eqs, _) = EventQueue::new(1, 5, "alpha");
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_output_collection_for_execution(&ex).await;
@@ -1486,7 +1494,7 @@ mod tests {
 
     #[tokio::test]
     async fn send_to_resolver_forwards_resolve_env_config() {
-        let (eq, _, _, mut rx) = EventQueue::new(1, 5);
+        let (eq, _, _, mut rx) = EventQueue::new(1, 5, "alpha");
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         eq.send_to_resolver(ResolverInput::ResolveConfig(ex.clone()))
@@ -1518,7 +1526,7 @@ mod tests {
         statuses: [Status; N],
     ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
         let cfg = dummy_config();
-        let (mut eq, _, _, _) = EventQueue::new(10, 100);
+        let (mut eq, _, _, _) = EventQueue::new(10, 100, "alpha");
 
         let tr = TestRun::create_stub(1, "test");
         let mut c = MockUpdateHandle::with_run(tr.clone());

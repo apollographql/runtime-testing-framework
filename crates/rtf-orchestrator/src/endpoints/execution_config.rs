@@ -141,7 +141,7 @@ mod tests {
         let tss = TestServerState::new();
         let (ex_uuid, token) = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 
@@ -170,7 +170,7 @@ mod tests {
     async fn handlers_returns_403_without_token(endpoint: &str) -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
         let ex_uuid = tr.init_execution("test", 0, conn).await?.uuid();
 
         let resp = tss
@@ -210,7 +210,7 @@ mod tests {
         let tss = TestServerState::new();
         let ex_uuid = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuid = ex.uuid();
 
@@ -236,7 +236,7 @@ mod tests {
         let tss = TestServerState::new();
         let (ex_uuid, token) = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 
@@ -281,7 +281,7 @@ mod tests {
 
         let (ex_uuid, token) = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, "alpha", conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 
