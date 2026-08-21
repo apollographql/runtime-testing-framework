@@ -9,6 +9,7 @@ use rtf_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
 };
+use serde_json::Value;
 use std::time::Duration;
 use url::form_urlencoded;
 use uuid::Uuid;
@@ -22,6 +23,7 @@ pub struct RunView {
     pub id: Uuid,
     pub name: String,
     pub status: StatusView,
+    pub trigger_variables: Vec<TriggerVariableView>,
     pub initiated_by: String,
     pub started_at: String,
     pub updated_at: String,
@@ -53,6 +55,7 @@ impl RunView {
             id: run.id,
             name: run.name,
             status: run.current_status.into(),
+            trigger_variables: TriggerVariableView::from_raw(run.trigger_variables),
             initiated_by: run.initiated_by,
             started_at: format_rfc3339(run.started_at),
             updated_at: format_rfc3339(run.updated_at),
@@ -98,6 +101,40 @@ impl RunView {
 
     pub fn is_status_selected(&self, value: &str) -> bool {
         self.execution_status_filter == value
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TriggerVariableView {
+    pub name: String,
+    pub value: String,
+}
+
+impl TriggerVariableView {
+    fn from_raw(raw: Option<Value>) -> Vec<Self> {
+        let vars = match raw {
+            Some(Value::Object(vars)) => vars,
+            _ => return Vec::new(),
+        };
+
+        let format_scalar = |value: Value| match value {
+            Value::String(s) => s,
+            other => other.to_string(),
+        };
+
+        vars.into_iter()
+            .map(|(name, value)| TriggerVariableView {
+                name,
+                value: match value {
+                    Value::Array(vals) => vals
+                        .into_iter()
+                        .map(format_scalar)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    val => format_scalar(val),
+                },
+            })
+            .collect()
     }
 }
 
@@ -176,12 +213,11 @@ fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) ->
 mod tests {
     use super::*;
     use crate::{
-        links::sample_config,
-        orchestrator::mocks::{sample_execution, sample_summary},
-        templates::RunTemplate,
+        links::sample_config, orchestrator::mocks::sample_summary, templates::RunTemplate,
     };
     use askama::Template;
     use chrono::{Duration, TimeZone};
+    use serde_json::json;
     use simple_test_case::test_case;
 
     fn fixed_now() -> DateTime<Utc> {
@@ -254,48 +290,30 @@ mod tests {
         assert!(!body.contains("hx-trigger"));
     }
 
+    #[test_case(None, &[]; "absent trigger variables render nothing")]
+    #[test_case(Some(json!({})), &[]; "empty object renders nothing")]
+    #[test_case(
+        Some(json!({"env": "prod", "retries": 3})),
+        &[("env", "prod"), ("retries", "3")];
+        "scalar values render as-is"
+    )]
+    #[test_case(
+        Some(json!({"subject": ["world", "sailor"]})),
+        &[("subject", "world, sailor")];
+        "array values render as a comma-separated list"
+    )]
     #[test]
-    fn run_template_renders_run_and_execution_details() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(
-            sample_summary(run_id, ex_id, Status::Running),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run }.render().expect("template renders");
+    fn trigger_variable_render_correctly(raw: Option<Value>, expected: &[(&str, &str)]) {
+        let actual = TriggerVariableView::from_raw(raw);
+        let expected: Vec<TriggerVariableView> = expected
+            .iter()
+            .map(|(name, val)| TriggerVariableView {
+                name: name.to_string(),
+                value: val.to_string(),
+            })
+            .collect();
 
-        assert!(body.contains("my-test-run"), "run name should render");
-        assert!(body.contains("RUNNING"), "run status label should render");
-        assert!(
-            body.contains("someone@apollographql.com"),
-            "run initiator should render"
-        );
-        assert!(body.contains("exec-alpha"), "execution name should render");
-        assert!(
-            body.contains("SUCCESSFUL"),
-            "execution status label should render"
-        );
-    }
-
-    #[test]
-    fn execution_view_links_to_its_own_gcp_logs_and_grafana_dashboard() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let view = ExecutionView::new(sample_execution(run_id, ex_id), &sample_config());
-
-        assert!(
-            view.logs_url
-                .contains(&format!("resource.labels.namespace_name%3D%22{ex_id}%22")),
-            "execution should link to logs scoped to its own namespace, got: {}",
-            view.logs_url
-        );
-        assert!(
-            view.grafana_url.contains(&format!("var-namespace={ex_id}")),
-            "execution should link to a Grafana dashboard scoped to its own namespace, got: {}",
-            view.grafana_url
-        );
+        assert_eq!(actual, expected);
     }
 
     fn run_with_mixed_execution_statuses(run_id: Uuid) -> TestRunSummary {
@@ -447,37 +465,13 @@ mod tests {
     }
 
     #[test]
-    fn run_template_renders_the_status_breakdown_table() {
-        let run_id = Uuid::from_u128(1);
-        let run = RunView::new(
-            run_with_mixed_execution_statuses(run_id),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run }.render().expect("template renders");
-
-        assert!(
-            body.contains("<h3>Status breakdown</h3>"),
-            "expected a status breakdown heading, got: {body}"
-        );
-        assert!(
-            body.contains("SUCCESSFUL") && body.contains("<td>1</td>"),
-            "expected a row counting the successful execution, got: {body}"
-        );
-        assert!(
-            !body.contains("class=\"status status--unrunnable\""),
-            "statuses with no executions should not get a status pill anywhere on the page"
-        );
-    }
-
-    #[test]
     fn run_template_snapshot_running_with_mixed_statuses_and_active_filter() {
         let run_id = Uuid::from_u128(1);
         let started = Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0).unwrap();
         let run = TestRunSummary {
             id: run_id,
             name: "nightly-smoke".to_owned(),
+            trigger_variables: Some(json!({"foo": "bar", "baz": [1, 2, 3]})),
             current_status: Status::Running,
             initiated_by: "someone@apollographql.com".to_owned(),
             started_at: started,

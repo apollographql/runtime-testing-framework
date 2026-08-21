@@ -1,6 +1,7 @@
 use crate::status::{Status, StatusUpdate};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 /// A page of historic [TestRunSummary]s matching a set of query filters, along with the total
@@ -16,6 +17,7 @@ pub struct TestRunListResponse {
 pub struct TestRunSummary {
     pub id: Uuid,
     pub name: String,
+    pub trigger_variables: Option<Value>,
     pub current_status: Status,
     pub initiated_by: String,
     pub started_at: DateTime<Utc>,

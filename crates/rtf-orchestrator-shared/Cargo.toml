@@ -11,6 +11,7 @@ rtf-derive = { path = "../rtf-derive" }
 chrono.workspace = true
 schemars.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
@@ -18,6 +19,5 @@ uuid.workspace = true
 
 [dev-dependencies]
 indoc.workspace = true
-serde_json.workspace = true
 simple_test_case.workspace = true
 tokio.workspace = true
