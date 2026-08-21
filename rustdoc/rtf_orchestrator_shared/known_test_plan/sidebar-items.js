@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["KnownTestPlanListParams","KnownTestPlanListResponse","KnownTestPlanRunsParams","KnownTestPlanSummary","RegisterTestPlanRequest"]};
+window.SIDEBAR_ITEMS = {"struct":["KnownTestPlanListParams","KnownTestPlanListResponse","KnownTestPlanRunsParams","KnownTestPlanSummary","RegisterTestPlanRequest","SetPinnedWorkloadClusterRequest"]};
