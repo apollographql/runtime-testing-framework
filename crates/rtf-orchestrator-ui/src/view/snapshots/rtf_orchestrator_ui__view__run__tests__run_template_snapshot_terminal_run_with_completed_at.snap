@@ -73,8 +73,14 @@ expression: body
             <dt>Completed</dt>
             <dd>2024-03-15T09:12:00Z</dd>
             
-            
         </dl>
+
+        <details>
+            <summary>Trigger Variables</summary>
+            <dl>
+                
+            </dl>
+        </details>
         <p>
             <button type="button" popovertarget="run-output-cmd">Download full run output</button>
         </p>

@@ -72,14 +72,20 @@ expression: body
             <dd>30m</dd>
             
             
-            
-            <dt>baz</dt>
-            <dd>1, 2, 3</dd>
-            
-            <dt>foo</dt>
-            <dd>bar</dd>
-            
         </dl>
+
+        <details>
+            <summary>Trigger Variables</summary>
+            <dl>
+                
+                <dt>baz</dt>
+                <dd>1, 2, 3</dd>
+                
+                <dt>foo</dt>
+                <dd>bar</dd>
+                
+            </dl>
+        </details>
         <p>
             <button type="button" popovertarget="run-output-cmd">Download full run output</button>
         </p>
