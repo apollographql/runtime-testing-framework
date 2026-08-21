@@ -862,29 +862,35 @@
 <a href=#862 id=862 data-nosnippet>862</a>    #[tokio::test]
 <a href=#863 id=863 data-nosnippet>863</a>    </span><span class="kw">async fn </span>try_into_summary_returns_trigger_variables() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#865 id=865 data-nosnippet>865</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">Some</span>(<span class="macro">json!</span>({<span class="string">"foo"</span>: <span class="string">"bar"</span>})), c).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#866 id=866 data-nosnippet>866</a>        tr.init_execution(<span class="string">"exec"</span>, <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#867 id=867 data-nosnippet>867</a>
-<a href=#868 id=868 data-nosnippet>868</a>        <span class="kw">let </span>uuid = tr.uuid();
-<a href=#869 id=869 data-nosnippet>869</a>        <span class="kw">let </span>summary = tr.try_into_summary(c).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#870 id=870 data-nosnippet>870</a>
-<a href=#871 id=871 data-nosnippet>871</a>        <span class="macro">assert_eq!</span>(summary.id, uuid);
-<a href=#872 id=872 data-nosnippet>872</a>        <span class="macro">assert_eq!</span>(summary.trigger_variables, <span class="prelude-val">Some</span>(<span class="macro">json!</span>({<span class="string">"foo"</span>: <span class="string">"bar"</span>})));
+<a href=#865 id=865 data-nosnippet>865</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(
+<a href=#866 id=866 data-nosnippet>866</a>            <span class="string">"test"</span>,
+<a href=#867 id=867 data-nosnippet>867</a>            <span class="prelude-val">Some</span>(<span class="macro">json!</span>({<span class="string">"foo"</span>: <span class="string">"bar"</span>})),
+<a href=#868 id=868 data-nosnippet>868</a>            <span class="kw-2">&amp;</span>alpha_cluster(),
+<a href=#869 id=869 data-nosnippet>869</a>            c,
+<a href=#870 id=870 data-nosnippet>870</a>        )
+<a href=#871 id=871 data-nosnippet>871</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#872 id=872 data-nosnippet>872</a>        tr.init_execution(<span class="string">"exec"</span>, <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#873 id=873 data-nosnippet>873</a>
-<a href=#874 id=874 data-nosnippet>874</a>        <span class="prelude-val">Ok</span>(())
-<a href=#875 id=875 data-nosnippet>875</a>    }
+<a href=#874 id=874 data-nosnippet>874</a>        <span class="kw">let </span>uuid = tr.uuid();
+<a href=#875 id=875 data-nosnippet>875</a>        <span class="kw">let </span>summary = tr.try_into_summary(c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#876 id=876 data-nosnippet>876</a>
-<a href=#877 id=877 data-nosnippet>877</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
-<a href=#878 id=878 data-nosnippet>878</a>    #[tokio::test]
-<a href=#879 id=879 data-nosnippet>879</a>    </span><span class="kw">async fn </span>try_into_summary_with_executions_includes_executions() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#880 id=880 data-nosnippet>880</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
-<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>alpha_cluster(), c).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#882 id=882 data-nosnippet>882</a>        tr.init_execution(<span class="string">"exec"</span>, <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#883 id=883 data-nosnippet>883</a>
-<a href=#884 id=884 data-nosnippet>884</a>        <span class="kw">let </span>summary = tr.try_into_summary_with_executions(c).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#885 id=885 data-nosnippet>885</a>        <span class="macro">assert_eq!</span>(summary.executions.len(), <span class="number">1</span>, <span class="string">"{summary:?}"</span>);
-<a href=#886 id=886 data-nosnippet>886</a>
-<a href=#887 id=887 data-nosnippet>887</a>        <span class="prelude-val">Ok</span>(())
-<a href=#888 id=888 data-nosnippet>888</a>    }
-<a href=#889 id=889 data-nosnippet>889</a>}
+<a href=#877 id=877 data-nosnippet>877</a>        <span class="macro">assert_eq!</span>(summary.id, uuid);
+<a href=#878 id=878 data-nosnippet>878</a>        <span class="macro">assert_eq!</span>(summary.trigger_variables, <span class="prelude-val">Some</span>(<span class="macro">json!</span>({<span class="string">"foo"</span>: <span class="string">"bar"</span>})));
+<a href=#879 id=879 data-nosnippet>879</a>
+<a href=#880 id=880 data-nosnippet>880</a>        <span class="prelude-val">Ok</span>(())
+<a href=#881 id=881 data-nosnippet>881</a>    }
+<a href=#882 id=882 data-nosnippet>882</a>
+<a href=#883 id=883 data-nosnippet>883</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#884 id=884 data-nosnippet>884</a>    #[tokio::test]
+<a href=#885 id=885 data-nosnippet>885</a>    </span><span class="kw">async fn </span>try_into_summary_with_executions_includes_executions() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#886 id=886 data-nosnippet>886</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
+<a href=#887 id=887 data-nosnippet>887</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>alpha_cluster(), c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#888 id=888 data-nosnippet>888</a>        tr.init_execution(<span class="string">"exec"</span>, <span class="number">0</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#889 id=889 data-nosnippet>889</a>
+<a href=#890 id=890 data-nosnippet>890</a>        <span class="kw">let </span>summary = tr.try_into_summary_with_executions(c).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="macro">assert_eq!</span>(summary.executions.len(), <span class="number">1</span>, <span class="string">"{summary:?}"</span>);
+<a href=#892 id=892 data-nosnippet>892</a>
+<a href=#893 id=893 data-nosnippet>893</a>        <span class="prelude-val">Ok</span>(())
+<a href=#894 id=894 data-nosnippet>894</a>    }
+<a href=#895 id=895 data-nosnippet>895</a>}
 </code></pre></div></section></main></body></html>
