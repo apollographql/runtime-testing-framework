@@ -77,7 +77,6 @@ fn percent_encode(input: &str) -> String {
     byte_serialize(input.as_bytes()).collect()
 }
 
-#[cfg(test)]
 pub(crate) fn sample_config() -> LinksConfig {
     LinksConfig {
         gcp_project: "gcp-project".to_owned(),

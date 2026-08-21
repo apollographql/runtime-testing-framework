@@ -34,11 +34,17 @@
             <dd>{{ completed }}</dd>
             {% when None %}
             {% endmatch %}
-            {% for variable in run.trigger_variables %}
-            <dt>{{ variable.name }}</dt>
-            <dd>{{ variable.value }}</dd>
-            {% endfor %}
         </dl>
+
+        <details>
+            <summary>Trigger Variables</summary>
+            <dl>
+                {% for variable in run.trigger_variables %}
+                <dt>{{ variable.name }}</dt>
+                <dd>{{ variable.value }}</dd>
+                {% endfor %}
+            </dl>
+        </details>
         <p>
             <button type="button" popovertarget="run-output-cmd">Download full run output</button>
         </p>
