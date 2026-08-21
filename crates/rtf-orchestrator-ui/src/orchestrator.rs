@@ -409,7 +409,6 @@ fn test_plan_details_url(base_url: &Url, uuid: Uuid) -> Url {
         .expect("base url should be valid")
 }
 
-#[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
     use chrono::Utc;
@@ -567,12 +566,14 @@ pub(crate) mod mocks {
     /// the not-found and error branches are now covered directly by `endpoints::run_status_body`
     /// and `execution_detail_body` (no client involved), this only needs to prove that a handler
     /// calls its client and renders whatever comes back.
+    #[cfg(test)]
     #[derive(Debug, Clone)]
     pub struct MockClient {
         test_run_summary: TestRunSummary,
         test_execution_summary: TestExecutionSummary,
     }
 
+    #[cfg(test)]
     impl MockClient {
         pub fn with_test_run(run_id: Uuid, ex_id: Uuid, status: Status) -> Self {
             Self {
@@ -582,6 +583,7 @@ pub(crate) mod mocks {
         }
     }
 
+    #[cfg(test)]
     impl Client for MockClient {
         async fn run_summary(&self, _id: Uuid) -> Result<Option<TestRunSummary>, Error> {
             Ok(Some(self.test_run_summary.clone()))
