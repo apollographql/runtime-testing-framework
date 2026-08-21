@@ -862,7 +862,13 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_returns_trigger_variables() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", Some(json!({"foo": "bar"})), c).await?;
+        let tr = TestRun::init_unknown_initiator(
+            "test",
+            Some(json!({"foo": "bar"})),
+            &alpha_cluster(),
+            c,
+        )
+        .await?;
         tr.init_execution("exec", 0, c).await?;
 
         let uuid = tr.uuid();
