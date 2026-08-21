@@ -30,7 +30,7 @@ use event_loop::EventQueue;
 use state::ServerState;
 
 const DEFAULT_WORKLOAD_CLUSTER: &str = "alpha";
-const ROUTER_PERF_WORKLOAD_CLUSTER: &str = "router_perf";
+const ROUTER_PERF_WORKLOAD_CLUSTER: &str = "beta";
 
 pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
     info!("Loading config from environment");
