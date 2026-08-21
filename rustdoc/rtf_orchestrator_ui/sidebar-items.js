@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run_server"],"mod":["config"]};
+window.SIDEBAR_ITEMS = {"fn":["run_server"],"mod":["config","preview"]};

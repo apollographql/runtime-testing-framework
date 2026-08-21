@@ -77,55 +77,54 @@
 <a href=#77 id=77 data-nosnippet>77</a>    byte_serialize(input.as_bytes()).collect()
 <a href=#78 id=78 data-nosnippet>78</a>}
 <a href=#79 id=79 data-nosnippet>79</a>
-<a href=#80 id=80 data-nosnippet>80</a><span class="attr">#[cfg(test)]
-<a href=#81 id=81 data-nosnippet>81</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>sample_config() -&gt; LinksConfig {
-<a href=#82 id=82 data-nosnippet>82</a>    LinksConfig {
-<a href=#83 id=83 data-nosnippet>83</a>        gcp_project: <span class="string">"gcp-project"</span>.to_owned(),
-<a href=#84 id=84 data-nosnippet>84</a>        gcp_cluster_name: <span class="string">"cluster_name"</span>.to_owned(),
-<a href=#85 id=85 data-nosnippet>85</a>        grafana_base_url: <span class="string">"http://grafana.com"</span>.to_owned(),
-<a href=#86 id=86 data-nosnippet>86</a>        grafana_dashboard_uid: <span class="string">"dash-uuid"</span>.to_owned(),
-<a href=#87 id=87 data-nosnippet>87</a>        grafana_dashboard_slug: <span class="string">"dash-slug"</span>.to_owned(),
-<a href=#88 id=88 data-nosnippet>88</a>        grafana_datasource_uid: <span class="string">"data-uuid"</span>.to_owned(),
-<a href=#89 id=89 data-nosnippet>89</a>    }
-<a href=#90 id=90 data-nosnippet>90</a>}
-<a href=#91 id=91 data-nosnippet>91</a>
-<a href=#92 id=92 data-nosnippet>92</a><span class="attr">#[cfg(test)]
-<a href=#93 id=93 data-nosnippet>93</a></span><span class="kw">mod </span>tests {
-<a href=#94 id=94 data-nosnippet>94</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#95 id=95 data-nosnippet>95</a>    <span class="kw">use </span>chrono::TimeZone;
-<a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a>    <span class="attr">#[test]
-<a href=#98 id=98 data-nosnippet>98</a>    </span><span class="kw">fn </span>builds_the_expected_deep_link() {
-<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>cfg = sample_config();
-<a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span>start = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">44</span>, <span class="number">56</span>).unwrap();
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">let </span>end = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">45</span>, <span class="number">56</span>).unwrap();
-<a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">let </span>namespace = <span class="string">"3fa85f64-5717-4562-b3fc-2c963f66afa6"</span>;
-<a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a>        <span class="kw">let </span>link = gcp_logs(<span class="kw-2">&amp;</span>cfg, namespace, start, end);
-<a href=#105 id=105 data-nosnippet>105</a>
-<a href=#106 id=106 data-nosnippet>106</a>        <span class="macro">assert_eq!</span>(
-<a href=#107 id=107 data-nosnippet>107</a>            link,
-<a href=#108 id=108 data-nosnippet>108</a>            <span class="macro">format!</span>(
-<a href=#109 id=109 data-nosnippet>109</a>                <span class="string">"https://console.cloud.google.com/logs/query;query=resource.labels.cluster_name%3D%22cluster_name%22%0Aresource.labels.namespace_name%3D%22{namespace}%22;cursorTimestamp=2026-07-16T08:44:56.000Z;startTime=2026-07-16T08:44:56.000Z;endTime=2026-07-16T08:45:56.000Z?referrer=search&amp;project=gcp-project&amp;supportedpurview=project"
-<a href=#110 id=110 data-nosnippet>110</a>            </span>)
-<a href=#111 id=111 data-nosnippet>111</a>        );
-<a href=#112 id=112 data-nosnippet>112</a>    }
-<a href=#113 id=113 data-nosnippet>113</a>
-<a href=#114 id=114 data-nosnippet>114</a>    <span class="attr">#[test]
-<a href=#115 id=115 data-nosnippet>115</a>    </span><span class="kw">fn </span>builds_the_expected_grafana_link() {
-<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw">let </span>cfg = sample_config();
-<a href=#117 id=117 data-nosnippet>117</a>        <span class="kw">let </span>start = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">13</span>, <span class="number">31</span>).unwrap();
-<a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">let </span>end = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">34</span>, <span class="number">27</span>).unwrap();
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>namespace = <span class="string">"3fa85f64-5717-4562-b3fc-2c963f66afa6"</span>;
-<a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">let </span>link = grafana(<span class="kw-2">&amp;</span>cfg, namespace, start, end);
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="macro">assert_eq!</span>(
-<a href=#124 id=124 data-nosnippet>124</a>            link,
-<a href=#125 id=125 data-nosnippet>125</a>            <span class="macro">format!</span>(
-<a href=#126 id=126 data-nosnippet>126</a>                <span class="string">"http://grafana.com/d/dash-uuid/dash-slug?orgId=1&amp;from=2026-07-16T08:13:31.000Z&amp;to=2026-07-16T08:34:27.000Z&amp;timezone=utc&amp;var-datasource=data-uuid&amp;var-cluster=&amp;var-namespace={namespace}&amp;refresh=10s"
-<a href=#127 id=127 data-nosnippet>127</a>            </span>)
-<a href=#128 id=128 data-nosnippet>128</a>        );
-<a href=#129 id=129 data-nosnippet>129</a>    }
-<a href=#130 id=130 data-nosnippet>130</a>}
+<a href=#80 id=80 data-nosnippet>80</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>sample_config() -&gt; LinksConfig {
+<a href=#81 id=81 data-nosnippet>81</a>    LinksConfig {
+<a href=#82 id=82 data-nosnippet>82</a>        gcp_project: <span class="string">"gcp-project"</span>.to_owned(),
+<a href=#83 id=83 data-nosnippet>83</a>        gcp_cluster_name: <span class="string">"cluster_name"</span>.to_owned(),
+<a href=#84 id=84 data-nosnippet>84</a>        grafana_base_url: <span class="string">"http://grafana.com"</span>.to_owned(),
+<a href=#85 id=85 data-nosnippet>85</a>        grafana_dashboard_uid: <span class="string">"dash-uuid"</span>.to_owned(),
+<a href=#86 id=86 data-nosnippet>86</a>        grafana_dashboard_slug: <span class="string">"dash-slug"</span>.to_owned(),
+<a href=#87 id=87 data-nosnippet>87</a>        grafana_datasource_uid: <span class="string">"data-uuid"</span>.to_owned(),
+<a href=#88 id=88 data-nosnippet>88</a>    }
+<a href=#89 id=89 data-nosnippet>89</a>}
+<a href=#90 id=90 data-nosnippet>90</a>
+<a href=#91 id=91 data-nosnippet>91</a><span class="attr">#[cfg(test)]
+<a href=#92 id=92 data-nosnippet>92</a></span><span class="kw">mod </span>tests {
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#94 id=94 data-nosnippet>94</a>    <span class="kw">use </span>chrono::TimeZone;
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="attr">#[test]
+<a href=#97 id=97 data-nosnippet>97</a>    </span><span class="kw">fn </span>builds_the_expected_deep_link() {
+<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span>cfg = sample_config();
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>start = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">44</span>, <span class="number">56</span>).unwrap();
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span>end = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">45</span>, <span class="number">56</span>).unwrap();
+<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">let </span>namespace = <span class="string">"3fa85f64-5717-4562-b3fc-2c963f66afa6"</span>;
+<a href=#102 id=102 data-nosnippet>102</a>
+<a href=#103 id=103 data-nosnippet>103</a>        <span class="kw">let </span>link = gcp_logs(<span class="kw-2">&amp;</span>cfg, namespace, start, end);
+<a href=#104 id=104 data-nosnippet>104</a>
+<a href=#105 id=105 data-nosnippet>105</a>        <span class="macro">assert_eq!</span>(
+<a href=#106 id=106 data-nosnippet>106</a>            link,
+<a href=#107 id=107 data-nosnippet>107</a>            <span class="macro">format!</span>(
+<a href=#108 id=108 data-nosnippet>108</a>                <span class="string">"https://console.cloud.google.com/logs/query;query=resource.labels.cluster_name%3D%22cluster_name%22%0Aresource.labels.namespace_name%3D%22{namespace}%22;cursorTimestamp=2026-07-16T08:44:56.000Z;startTime=2026-07-16T08:44:56.000Z;endTime=2026-07-16T08:45:56.000Z?referrer=search&amp;project=gcp-project&amp;supportedpurview=project"
+<a href=#109 id=109 data-nosnippet>109</a>            </span>)
+<a href=#110 id=110 data-nosnippet>110</a>        );
+<a href=#111 id=111 data-nosnippet>111</a>    }
+<a href=#112 id=112 data-nosnippet>112</a>
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="attr">#[test]
+<a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">fn </span>builds_the_expected_grafana_link() {
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">let </span>cfg = sample_config();
+<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw">let </span>start = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">13</span>, <span class="number">31</span>).unwrap();
+<a href=#117 id=117 data-nosnippet>117</a>        <span class="kw">let </span>end = Utc.with_ymd_and_hms(<span class="number">2026</span>, <span class="number">7</span>, <span class="number">16</span>, <span class="number">8</span>, <span class="number">34</span>, <span class="number">27</span>).unwrap();
+<a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">let </span>namespace = <span class="string">"3fa85f64-5717-4562-b3fc-2c963f66afa6"</span>;
+<a href=#119 id=119 data-nosnippet>119</a>
+<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>link = grafana(<span class="kw-2">&amp;</span>cfg, namespace, start, end);
+<a href=#121 id=121 data-nosnippet>121</a>
+<a href=#122 id=122 data-nosnippet>122</a>        <span class="macro">assert_eq!</span>(
+<a href=#123 id=123 data-nosnippet>123</a>            link,
+<a href=#124 id=124 data-nosnippet>124</a>            <span class="macro">format!</span>(
+<a href=#125 id=125 data-nosnippet>125</a>                <span class="string">"http://grafana.com/d/dash-uuid/dash-slug?orgId=1&amp;from=2026-07-16T08:13:31.000Z&amp;to=2026-07-16T08:34:27.000Z&amp;timezone=utc&amp;var-datasource=data-uuid&amp;var-cluster=&amp;var-namespace={namespace}&amp;refresh=10s"
+<a href=#126 id=126 data-nosnippet>126</a>            </span>)
+<a href=#127 id=127 data-nosnippet>127</a>        );
+<a href=#128 id=128 data-nosnippet>128</a>    }
+<a href=#129 id=129 data-nosnippet>129</a>}
 </code></pre></div></section></main></body></html>
