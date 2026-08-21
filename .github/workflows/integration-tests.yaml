@@ -42,7 +42,7 @@ jobs:
       run: |
         if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
           echo "should_run=true" >> "$GITHUB_OUTPUT"
-        elif python3 scripts/crate_changed.py --crates rtf-orchestrator,rtf-orchestrator-cli --mainline origin/main; then
+        elif python3 scripts/crate_modified.py --crates rtf-orchestrator,rtf-orchestrator-cli --mainline origin/main; then
           echo "should_run=true" >> "$GITHUB_OUTPUT"
         else
           echo "should_run=false" >> "$GITHUB_OUTPUT"

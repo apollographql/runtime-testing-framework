@@ -209,7 +209,7 @@ mod tests {
     use super::*;
     use crate::{
         conn,
-        db::{KnownTestPlan, KnownTestPlanRun, Queryable, StatusTracked, TestRun},
+        db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable, StatusTracked, TestRun},
     };
     use chrono::{Duration, Utc};
     use rtf_orchestrator_shared::test_plan_details::TestPlanDetailsParams;
@@ -242,7 +242,9 @@ mod tests {
         status: Status,
         conn: &mut PgConnection,
     ) -> Result<TestRun> {
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, conn).await?;
+        let tr =
+            TestRun::init_unknown_initiator(&unique("run"), None, &ClusterId::new("alpha"), conn)
+                .await?;
         KnownTestPlanRun::link(plan.id(), tr.id(), None, conn).await?;
 
         tr.set_status(status, None, conn).await?;

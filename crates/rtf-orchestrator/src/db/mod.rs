@@ -1,5 +1,7 @@
 use rtf_orchestrator_shared::payload::PreparedPayload;
+use serde::Serialize;
 use sqlx::{Database, FromRow, PgConnection, Postgres};
+use std::fmt;
 use thiserror::Error;
 use tracing::error;
 use uuid::Uuid;
@@ -57,6 +59,25 @@ pub enum Error {
 
     #[error("a known test plan with this name, or this org/repo/path, is already registered")]
     KnownTestPlanAlreadyExists,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct ClusterId(String);
+
+impl ClusterId {
+    pub fn new(s: impl Into<String>) -> Self {
+        Self(s.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for ClusterId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 /// Helper trait for common queries and semantics when interacting with the DB.

@@ -477,6 +477,7 @@ pub(crate) mod mocks {
             org: "apollographql".to_owned(),
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
+            pinned_workload_cluster: None,
         }
     }
 

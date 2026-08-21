@@ -2,7 +2,7 @@ use crate::{
     config::Config,
     conn,
     context::OrchestratorContext,
-    db::{TestExecution, TestRun, UpdateHandle},
+    db::{ClusterId, TestExecution, TestRun, UpdateHandle},
     event_loop::{EventData, ProvisioningHandle},
     state::TestRunWithPayload,
 };
@@ -25,7 +25,7 @@ use uuid::Uuid;
 #[derive(Debug)]
 pub enum ResolverInput {
     TestRun(Box<TestRunWithPayload>),
-    ResolveConfig(TestExecution),
+    ResolveConfig(TestExecution, ClusterId),
 }
 
 const MSG_RUN_CHECKS: &str = "running test plan static checks";
@@ -91,8 +91,8 @@ pub async fn resolver_task(
                 }
             }
 
-            ResolverInput::ResolveConfig(test_execution) => {
-                resolve_config(test_execution, &prov_handle).await;
+            ResolverInput::ResolveConfig(test_execution, cluster) => {
+                resolve_config(test_execution, cluster, &prov_handle).await;
             }
         }
     }
@@ -107,7 +107,7 @@ pub async fn resolver_task(
 struct ResolverQueue {
     rx: UnboundedReceiver<ResolverInput>,
     test_runs: VecDeque<Box<TestRunWithPayload>>,
-    resolve_configs: VecDeque<TestExecution>,
+    resolve_configs: VecDeque<(TestExecution, ClusterId)>,
 }
 
 impl ResolverQueue {
@@ -133,8 +133,8 @@ impl ResolverQueue {
                 self.push_input(input);
             }
 
-            if let Some(ex) = self.resolve_configs.pop_front() {
-                return Some(ResolverInput::ResolveConfig(ex));
+            if let Some((ex, cluster)) = self.resolve_configs.pop_front() {
+                return Some(ResolverInput::ResolveConfig(ex, cluster));
             }
             if let Some(boxed) = self.test_runs.pop_front() {
                 return Some(ResolverInput::TestRun(boxed));
@@ -148,7 +148,9 @@ impl ResolverQueue {
     fn push_input(&mut self, input: ResolverInput) {
         match input {
             ResolverInput::TestRun(boxed) => self.test_runs.push_back(boxed),
-            ResolverInput::ResolveConfig(ex) => self.resolve_configs.push_back(ex),
+            ResolverInput::ResolveConfig(ex, cluster) => {
+                self.resolve_configs.push_back((ex, cluster))
+            }
         }
     }
 }
@@ -230,7 +232,7 @@ where
 
         n_submitted += 1;
         prov_handle
-            .request_provisioning(ex, test_run.uuid())
+            .request_provisioning(ex, test_run.uuid(), test_run.workload_cluster())
             .await?;
     }
 
@@ -249,10 +251,15 @@ where
     Ok(())
 }
 
-async fn resolve_config(test_execution: TestExecution, prov_handle: &ProvisioningHandle) {
+async fn resolve_config(
+    test_execution: TestExecution,
+    cluster: ClusterId,
+    prov_handle: &ProvisioningHandle,
+) {
     match prov_handle.resolve_and_cache_config(&test_execution).await {
         Ok(()) => {
-            let _ = prov_handle.send_event(test_execution, EventData::CreateEnvArgoWorkflow);
+            let _ =
+                prov_handle.send_event(test_execution, cluster, EventData::CreateEnvArgoWorkflow);
         }
         // If we've errored then there is nothing in the cache so we don't need to evict anything
         // from the cache
@@ -260,9 +267,10 @@ async fn resolve_config(test_execution: TestExecution, prov_handle: &Provisionin
             warn!(%e, "ResolveEnvConfig failed");
             let _ = prov_handle.send_event(
                 test_execution.clone(),
+                cluster.clone(),
                 EventData::MarkUnrunnable(e.to_string()),
             );
-            let _ = prov_handle.send_event(test_execution, EventData::CleanupNamespace);
+            let _ = prov_handle.send_event(test_execution, cluster, EventData::CleanupNamespace);
         }
     }
 }
@@ -311,6 +319,10 @@ mod tests {
     };
     use simple_test_case::test_case;
 
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
+
     fn dummy_config() -> Config {
         Config {
             apollo_key: "dummy".to_string(),
@@ -330,6 +342,9 @@ mod tests {
             kubeconfig_secret_name: "workload-kubeconfig".to_string(),
             admins_path: "dummy".to_string(),
             workload_context: "dummy".to_string(),
+            router_perf_kubeconfig_path: None,
+            router_perf_kubeconfig_secret_name: None,
+            router_perf_workload_context: None,
             orchestrator_url: "http://localhost:8035".to_string(),
             toolbox_pull_policy: "IfNotPresent".to_string(),
             toolbox_image_repository: "rtf-toolbox".to_string(),
@@ -465,8 +480,12 @@ mod tests {
     #[tokio::test]
     async fn resolve_config_success_sends_create_env_argo_workflow() {
         let cfg = dummy_config();
-        let (mut eq, ph, eqs, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (mut eq, ph, eqs, _) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -484,11 +503,13 @@ mod tests {
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
         ph.cache_for_test_run(run_uuid, ctx, tp).await;
-        ph.request_provisioning(ex.clone(), run_uuid).await.unwrap();
+        ph.request_provisioning(ex.clone(), run_uuid, alpha_cluster())
+            .await
+            .unwrap();
         // drain the ResolveEnvConfig sent by request_provisioning
         let _ = eq.next_event().await;
 
-        resolve_config(ex, &ph).await;
+        resolve_config(ex, alpha_cluster(), &ph).await;
 
         let evt = eq
             .next_event()
@@ -504,12 +525,16 @@ mod tests {
     #[tokio::test]
     async fn resolve_config_failure_sends_mark_unrunnable_and_cleanup() {
         let cfg = dummy_config();
-        let (mut eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (mut eq, ph, _, _) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
         // execution NOT registered → resolve_and_cache_env_config will fail
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        resolve_config(ex, &ph).await;
+        resolve_config(ex, alpha_cluster(), &ph).await;
 
         let evt1 = eq
             .next_event()
@@ -537,8 +562,12 @@ mod tests {
         // Empty handle — test_run is not registered, so update_test_run_status will fail
         let mut handle = MockUpdateHandle::default();
         let cfg = dummy_config();
-        let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (_eq, ph, _, _) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
 
         _ = resolve_test_plan(test_run, empty_payload(), &cfg, &mut handle, &ph).await;
 
@@ -555,8 +584,12 @@ mod tests {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
         let cfg = dummy_config();
-        let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (_eq, ph, _, _) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
 
         _ = resolve_test_plan(test_run.clone(), payload, &cfg, &mut handle, &ph).await;
 
@@ -593,8 +626,12 @@ mod tests {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
         let cfg = dummy_config();
-        let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (_eq, ph, _, _) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
 
         // compose_files with a required provider — try_check always fails for RequiredFile
         let required_compose: NamedComposeFileProvider = serde_yaml::from_str(indoc!(
@@ -660,8 +697,12 @@ mod tests {
         let tr = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&tr);
         let cfg = dummy_config();
-        let (mut eq, ph, eqs, mut rx) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (mut eq, ph, eqs, mut rx) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
 
         // The checks we have in place around submitting test plans for resolution mean that we
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
@@ -729,8 +770,12 @@ mod tests {
         // `UnknownTestRun` for every variant.
         let mut handle = MockUpdateHandle::default();
         let cfg = dummy_config();
-        let (_eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (_eq, ph, _, _) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
 
         _ = resolve_test_plan(tr.clone(), empty_payload(), &cfg, &mut handle, &ph).await;
 
@@ -744,8 +789,12 @@ mod tests {
         let mut handle = mock_handle_with_run(&tr);
         let cfg = dummy_config();
         // dropping the receiver for the event loop so sends will fail
-        let (_, ph, eqs, mut rx) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let (_, ph, eqs, mut rx) = EventQueue::new(
+            cfg.max_concurrent_executions,
+            cfg.max_queued_executions,
+            vec![alpha_cluster()],
+            alpha_cluster(),
+        );
 
         // The checks we have in place around submitting test plans for resolution mean that we
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
@@ -789,12 +838,15 @@ mod tests {
         // Submit in reverse priority
         tx.send(ResolverInput::TestRun(boxed_test_run("tr")))
             .unwrap();
-        tx.send(ResolverInput::ResolveConfig(env_ex.clone()))
-            .unwrap();
+        tx.send(ResolverInput::ResolveConfig(
+            env_ex.clone(),
+            alpha_cluster(),
+        ))
+        .unwrap();
 
         let first = queue.next_input().await.unwrap();
         assert!(
-            matches!(first, ResolverInput::ResolveConfig(ref ex) if ex.uuid() == env_ex.uuid()),
+            matches!(first, ResolverInput::ResolveConfig(ref ex, _) if ex.uuid() == env_ex.uuid()),
             "expected ResolveEnvConfig first, got {first:?}"
         );
 
@@ -814,14 +866,17 @@ mod tests {
         let ex_b = TestExecution::create_stub(2, 1, 1, "b");
         let ex_c = TestExecution::create_stub(3, 1, 2, "c");
 
-        tx.send(ResolverInput::ResolveConfig(ex_a.clone())).unwrap();
-        tx.send(ResolverInput::ResolveConfig(ex_b.clone())).unwrap();
-        tx.send(ResolverInput::ResolveConfig(ex_c.clone())).unwrap();
+        tx.send(ResolverInput::ResolveConfig(ex_a.clone(), alpha_cluster()))
+            .unwrap();
+        tx.send(ResolverInput::ResolveConfig(ex_b.clone(), alpha_cluster()))
+            .unwrap();
+        tx.send(ResolverInput::ResolveConfig(ex_c.clone(), alpha_cluster()))
+            .unwrap();
 
         for expected in [&ex_a, &ex_b, &ex_c] {
             let input = queue.next_input().await.unwrap();
             assert!(
-                matches!(input, ResolverInput::ResolveConfig(ref ex) if ex.uuid() == expected.uuid()),
+                matches!(input, ResolverInput::ResolveConfig(ref ex, _) if ex.uuid() == expected.uuid()),
                 "FIFO order broken; expected {} got {input:?}",
                 expected.uuid()
             );
@@ -845,13 +900,16 @@ mod tests {
         let mut queue = ResolverQueue::new(rx);
 
         let env_ex = TestExecution::create_stub(1, 1, 0, "env");
-        tx.send(ResolverInput::ResolveConfig(env_ex.clone()))
-            .unwrap();
+        tx.send(ResolverInput::ResolveConfig(
+            env_ex.clone(),
+            alpha_cluster(),
+        ))
+        .unwrap();
         drop(tx);
 
         let first = queue.next_input().await.unwrap();
         assert!(
-            matches!(first, ResolverInput::ResolveConfig(ref ex) if ex.uuid() == env_ex.uuid()),
+            matches!(first, ResolverInput::ResolveConfig(ref ex, _) if ex.uuid() == env_ex.uuid()),
             "expected buffered event to drain before close",
         );
 

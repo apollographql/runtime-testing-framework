@@ -2,7 +2,7 @@ use crate::{
     config::Config,
     conn,
     context::OrchestratorContext,
-    db::{KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
+    db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
     error::Error,
     event_loop::SubmitError,
     iap_identity::extract_authenticated_user_email,
@@ -21,6 +21,7 @@ use tracing::{debug, info};
 struct KnownTestPlanLink {
     known_test_plan_id: i32,
     git_sha: Option<String>,
+    pinned_workload_cluster: Option<ClusterId>,
 }
 
 pub async fn handler(
@@ -49,15 +50,26 @@ pub async fn handler(
 
     let initiated_by = extract_authenticated_user_email(&headers);
 
+    let workload_cluster = known_link
+        .as_ref()
+        .and_then(|link| link.pinned_workload_cluster.clone())
+        .unwrap_or_else(|| eq_state.default_cluster().to_owned());
+
     debug!("initialising run");
-    let (test_run, summary) =
-        match init_run_and_build_summary(&payload.test_plan.name, variables, initiated_by).await {
-            Ok((tr, s)) => (tr, s),
-            Err(e) => {
-                eq_state.release_pending_execution_claim(claim).await;
-                return Err(e);
-            }
-        };
+    let (test_run, summary) = match init_run_and_build_summary(
+        &payload.test_plan.name,
+        variables,
+        initiated_by,
+        workload_cluster,
+    )
+    .await
+    {
+        Ok((tr, s)) => (tr, s),
+        Err(e) => {
+            eq_state.release_pending_execution_claim(claim).await;
+            return Err(e);
+        }
+    };
 
     if let Some(link) = known_link {
         debug!("linking run to known test plan");
@@ -117,6 +129,7 @@ async fn as_prepared_payload_with_context(
             known_link = Some(KnownTestPlanLink {
                 known_test_plan_id: known.id(),
                 git_sha: kp.git_ref.clone(),
+                pinned_workload_cluster: known.pinned_workload_cluster(),
             });
 
             GitHubPayload {
@@ -141,6 +154,7 @@ async fn as_prepared_payload_with_context(
             known_link = Some(KnownTestPlanLink {
                 known_test_plan_id: known.id(),
                 git_sha: kp.git_ref.clone(),
+                pinned_workload_cluster: known.pinned_workload_cluster(),
             });
 
             GitHubPayload {
@@ -180,9 +194,17 @@ async fn init_run_and_build_summary(
     name: &str,
     variables: Option<Value>,
     initiated_by: Option<String>,
+    workload_cluster: ClusterId,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
-    let test_run = TestRun::init(name, variables, initiated_by.as_deref(), conn).await?;
+    let test_run = TestRun::init(
+        name,
+        variables,
+        initiated_by.as_deref(),
+        &workload_cluster,
+        conn,
+    )
+    .await?;
     let summary = test_run
         .clone()
         .try_into_summary_with_executions(conn)
@@ -262,6 +284,29 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
+    async fn handler_defaults_new_run_to_the_configured_default_cluster() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let payload = tss.minimal_trigger_payload();
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .json(&payload)
+            .await;
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let summary: TestRunSummary = resp.json();
+        let tr = TestRun::get_by_uuid(&summary.id, conn!())
+            .await?
+            .expect("test run should be in the DB");
+
+        assert_eq!(tr.workload_cluster().as_str(), "alpha");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
     async fn handler_records_unknown_when_the_iap_header_is_absent() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let payload = tss.minimal_trigger_payload();
@@ -304,6 +349,24 @@ mod tests {
             tss.resolver_rx.is_empty(),
             "should not have submitted the test plan"
         );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn init_run_and_build_summary_persists_the_resolved_workload_cluster() -> Result<(), Error>
+    {
+        let (test_run, _) =
+            init_run_and_build_summary("test", None, None, ClusterId::new("router_perf")).await?;
+
+        assert_eq!(test_run.workload_cluster().as_str(), "router_perf");
+
+        let fetched = TestRun::get_by_uuid(&test_run.uuid(), conn!())
+            .await
+            .unwrap()
+            .expect("test run should be in the DB");
+        assert_eq!(fetched.workload_cluster().as_str(), "router_perf");
 
         Ok(())
     }

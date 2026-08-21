@@ -1,5 +1,5 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
-use crate::gcs::GCSClient;
+use crate::{db::ClusterId, gcs::GCSClient};
 use axum::{
     Extension, Router,
     extract::DefaultBodyLimit,
@@ -29,6 +29,9 @@ use db::pool::check_db_conn;
 use event_loop::EventQueue;
 use state::ServerState;
 
+const DEFAULT_WORKLOAD_CLUSTER: &str = "alpha";
+const ROUTER_PERF_WORKLOAD_CLUSTER: &str = "router_perf";
+
 pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
     info!("Loading config from environment");
     let cfg = Config::get();
@@ -36,8 +39,17 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     info!("Checking database connection");
     check_db_conn().await?;
 
-    let (mut event_queue, prov_handle, eq_state, rx) =
-        EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+    let mut available_clusters = vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)];
+    if cfg.router_perf_cluster_config().is_some() {
+        available_clusters.push(ClusterId::new(ROUTER_PERF_WORKLOAD_CLUSTER));
+    }
+
+    let (mut event_queue, prov_handle, eq_state, rx) = EventQueue::new(
+        cfg.max_concurrent_executions,
+        cfg.max_queued_executions,
+        available_clusters,
+        ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
+    );
 
     info!("Initialising event queue state");
     event_queue.init_queue_state(cfg, conn!()).await?;
@@ -64,8 +76,8 @@ fn build_routes(
 ) -> Router {
     use endpoints::{
         admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
-        health, known_test_plans, list_runs, register_known_test_plan, run_status,
-        test_plan_details, trigger, whoami,
+        health, known_test_plan_cluster_pin, known_test_plans, list_runs, register_known_test_plan,
+        run_status, test_plan_details, trigger, whoami,
     };
 
     let mut router = Router::new()
@@ -112,6 +124,11 @@ fn build_routes(
         .route(
             "/test-plan/register",
             post(register_known_test_plan::handler),
+        )
+        .route(
+            "/test-plan/{uuid}/pinned-cluster",
+            post(known_test_plan_cluster_pin::set_handler)
+                .delete(known_test_plan_cluster_pin::clear_handler),
         )
         .route("/test-run", get(list_runs::handler))
         .route("/test-run/{id}/status", get(run_status::handler))
@@ -177,13 +194,43 @@ mod test_helpers {
             )
         }
 
+        pub fn new_with_admins_and_clusters(
+            admins: &[&str],
+            available_clusters: Vec<ClusterId>,
+        ) -> Self {
+            Self::new_with_params_and_clusters(
+                Config::get(),
+                GCSClient::new_mock("internal_url", "public_url", "bucket", None),
+                Some(admins),
+                available_clusters,
+            )
+        }
+
         pub fn new_with_params(
             cfg: &Config,
             gcs_client: GCSClient,
             admins: Option<&[&str]>,
         ) -> Self {
-            let (_, prov_handle, eq_state, resolver_rx) =
-                EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+            Self::new_with_params_and_clusters(
+                cfg,
+                gcs_client,
+                admins,
+                vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)],
+            )
+        }
+
+        pub fn new_with_params_and_clusters(
+            cfg: &Config,
+            gcs_client: GCSClient,
+            admins: Option<&[&str]>,
+            available_clusters: Vec<ClusterId>,
+        ) -> Self {
+            let (_, prov_handle, eq_state, resolver_rx) = EventQueue::new(
+                cfg.max_concurrent_executions,
+                cfg.max_queued_executions,
+                available_clusters,
+                ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
+            );
 
             let mut state = ServerState::new(eq_state, gcs_client);
             if let Some(admins) = admins {

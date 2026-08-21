@@ -1,6 +1,6 @@
 use crate::{
     db::{TestExecution, UpdateHandle},
-    event_loop::{Error, Event, EventData, EventLoopConfig, Result},
+    event_loop::{ClusterId, Error, Event, EventData, EventLoopConfig, Result},
     k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec},
 };
 use rtf_orchestrator_shared::test_plan::OrchestratorEnvironment;
@@ -15,6 +15,7 @@ pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
 pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
     environment: &OrchestratorEnvironment,
+    kubeconfig_secret_name: &str,
     cfg: &EventLoopConfig<'_>,
     clients: K,
     conn: &mut H,
@@ -39,7 +40,7 @@ where
                 cfg.toolbox_pull_policy,
                 cfg.toolbox_image,
                 cfg.otel,
-                cfg.kubeconfig_secret_name,
+                kubeconfig_secret_name,
             ),
         )
         .await
@@ -61,8 +62,10 @@ where
     Ok(Some(EventData::WaitForEnvArgoWorkflow))
 }
 
+#[expect(clippy::too_many_arguments)]
 pub(super) async fn wait_for_workflow<K, H>(
     test_execution: TestExecution,
+    cluster: ClusterId,
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
@@ -83,6 +86,7 @@ where
     tokio::spawn(async move {
         wait_and_update(
             test_execution,
+            cluster,
             failed_execution_ttl_seconds,
             poll_interval_secs,
             retry_window_secs,
@@ -97,6 +101,7 @@ where
 
 async fn wait_and_update<K>(
     test_execution: TestExecution,
+    cluster: ClusterId,
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
@@ -150,6 +155,7 @@ async fn wait_and_update<K>(
     for data in to_send.into_iter() {
         let _ = etx.send(Event {
             test_execution: test_execution.clone(),
+            cluster: cluster.clone(),
             data,
         });
     }
@@ -160,6 +166,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
+        event_loop::WorkloadClusterConfig,
         k8s::{
             self,
             mock_client::{MockClient, Resp},
@@ -168,7 +175,12 @@ mod tests {
     use rtf_config::formats::DockerComposeEnvironment;
     use rtf_orchestrator_shared::OtelConfig;
     use simple_test_case::test_case;
+    use std::{assert_matches, collections::HashMap};
     use tokio::sync::mpsc;
+
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
 
     fn stub_docker_compose_environment() -> OrchestratorEnvironment {
         OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
@@ -191,6 +203,7 @@ mod tests {
         let res = create_workflow(
             ex.clone(),
             &stub_docker_compose_environment(),
+            "",
             &EventLoopConfig {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "",
@@ -200,12 +213,13 @@ mod tests {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),
                 },
-                kubeconfig_secret_name: "",
                 failed_execution_ttl_seconds: 1,
                 retry_window_secs: 300,
                 poll_interval_secs: 10,
-                kubeconfig_path: "",
-                workload_context: "workload-kubeconfig",
+                workload_clusters: HashMap::from([(
+                    alpha_cluster(),
+                    WorkloadClusterConfig::new("", "workload-kubeconfig", ""),
+                )]),
             },
             clients.clone(),
             &mut handle,
@@ -214,7 +228,8 @@ mod tests {
         assert!(res.is_ok(), "create_workflow: {res:?}");
 
         // wait for workflow to complete
-        let res = wait_for_workflow(ex, 600, 10, 300, etx, clients, &mut handle).await;
+        let res =
+            wait_for_workflow(ex, alpha_cluster(), 600, 10, 300, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait for workflow: {res:?}");
 
         assert_eq!(
@@ -239,6 +254,7 @@ mod tests {
         let res = create_workflow(
             ex,
             &stub_docker_compose_environment(),
+            "",
             &EventLoopConfig {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "",
@@ -248,19 +264,20 @@ mod tests {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),
                 },
-                kubeconfig_secret_name: "",
                 failed_execution_ttl_seconds: 1,
                 retry_window_secs: 300,
                 poll_interval_secs: 10,
-                kubeconfig_path: "",
-                workload_context: "workload-kubeconfig",
+                workload_clusters: HashMap::from([(
+                    alpha_cluster(),
+                    WorkloadClusterConfig::new("", "workload-kubeconfig", ""),
+                )]),
             },
             clients,
             &mut handle,
         )
         .await;
 
-        assert!(matches!(res, Err(Error::CreateArgoWorkflow { .. })));
+        assert_matches!(res, Err(Error::CreateArgoWorkflow { .. }));
         assert_eq!(
             &handle.status_updates,
             &[TaggedStatusUpdate::execution(
@@ -280,17 +297,14 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, 600, 10, 300, &etx, clients).await;
+        wait_and_update(ex, alpha_cluster(), 600, 10, 300, &etx, clients).await;
 
         // should get two events: workflow complete and create scenario configmap
         let evt = erx.try_recv().unwrap();
-        assert!(
-            matches!(evt.data, EventData::ArgoWorkflowComplete),
-            "{evt:?}"
-        );
+        assert_matches!(evt.data, EventData::ArgoWorkflowComplete, "{evt:?}");
 
         let evt = erx.try_recv().unwrap();
-        assert!(matches!(evt.data, EventData::CreateScenarioJob), "{evt:?}");
+        assert_matches!(evt.data, EventData::CreateScenarioJob, "{evt:?}");
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]
@@ -307,16 +321,18 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, 600, 10, 300, &etx, clients).await;
+        wait_and_update(ex, alpha_cluster(), 600, 10, 300, &etx, clients).await;
 
         let first = erx.try_recv().unwrap();
         let second = erx.try_recv().unwrap();
-        assert!(
-            matches!(first.data, EventData::MarkUnrunnable(_)),
+        assert_matches!(
+            first.data,
+            EventData::MarkUnrunnable(_),
             "first event: {first:?}"
         );
-        assert!(
-            matches!(second.data, EventData::CleanupNamespaceAfter(600)),
+        assert_matches!(
+            second.data,
+            EventData::CleanupNamespaceAfter(600),
             "second event: {second:?}"
         );
     }

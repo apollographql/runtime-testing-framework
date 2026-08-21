@@ -1,7 +1,7 @@
 use crate::{
     config::Config,
     context::OrchestratorContext,
-    db::{self, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
+    db::{self, ClusterId, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
     event_loop::{Event, EventData},
     resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
@@ -50,8 +50,6 @@ pub struct EventQueue {
     /// The inner state of the event queue itself.
     /// Shared so the admin endpoint can view the state
     inner: Arc<Mutex<EventQueueInner>>,
-    /// Maximum number of live namespaces running test executions
-    max_concurrent_executions: usize,
     /// Sender for forwarding resolve events to the resolver_task
     tx_resolve: UnboundedSender<ResolverInput>,
 }
@@ -62,6 +60,8 @@ impl EventQueue {
     pub fn new(
         max_concurrent_executions: usize,
         max_queued_executions: usize,
+        available_clusters: Vec<ClusterId>,
+        default_cluster: ClusterId,
     ) -> (
         Self,
         ProvisioningHandle,
@@ -83,12 +83,10 @@ impl EventQueue {
             tx,
             rx,
             shared,
-            inner: Arc::new(Mutex::new(EventQueueInner {
-                pending_provisions: VecDeque::new(),
-                pending_non_provisions: VecDeque::new(),
-                running_executions: HashSet::new(),
-            })),
-            max_concurrent_executions,
+            inner: Arc::new(Mutex::new(EventQueueInner::new(
+                available_clusters,
+                max_concurrent_executions,
+            ))),
             tx_resolve: tx_resolve.clone(),
         };
 
@@ -101,6 +99,7 @@ impl EventQueue {
             shared: eq.shared.clone(),
             eq_inner: Arc::clone(&eq.inner),
             tx_resolve,
+            default_cluster,
         };
 
         (eq, ph, eqs, rx_resolve)
@@ -128,7 +127,8 @@ impl EventQueue {
         self.rx.is_empty()
             && self
                 .with_inner(|inner| {
-                    inner.pending_provisions.is_empty() && inner.pending_non_provisions.is_empty()
+                    inner.pending_provisions.values().all(|q| q.is_empty())
+                        && inner.pending_non_provisions.is_empty()
                 })
                 .await
     }
@@ -136,7 +136,11 @@ impl EventQueue {
     #[inline(always)]
     async fn push_event(&mut self, evt: Event) {
         self.with_inner(|inner| match &evt.data {
-            EventData::ResolveConfig => inner.pending_provisions.push_back(evt),
+            EventData::ResolveConfig => inner
+                .pending_provisions
+                .entry(evt.cluster.clone())
+                .or_default()
+                .push_back(evt),
             _ => inner.pending_non_provisions.push_back(evt),
         })
         .await
@@ -166,10 +170,7 @@ impl EventQueue {
                 }
             }
 
-            if let Some(evt) = self
-                .with_inner(|inner| inner.next_event(self.max_concurrent_executions))
-                .await
-            {
+            if let Some(evt) = self.with_inner(EventQueueInner::next_event).await {
                 return Some(evt);
             }
 
@@ -190,7 +191,7 @@ impl EventQueue {
     /// Returns `Some(run_uuid)` if this was the final execution for its parent run, otherwise
     /// `None`.
     pub async fn mark_execution_complete(&mut self, ex_id: Uuid) -> Option<Uuid> {
-        if !self.inner.lock().await.running_executions.remove(&ex_id) {
+        if !self.inner.lock().await.remove_running_execution(ex_id) {
             warn!(%ex_id, "mark_execution_complete called for unknown execution id");
         }
 
@@ -279,9 +280,12 @@ impl EventQueue {
 
             let executions = conn.executions_for_run(&tr).await?;
             let mut n_in_flight = 0;
+            let cluster = tr.workload_cluster();
 
             for ex in executions.into_iter() {
-                let events = self.try_recover_execution(ex, run_uuid, &h, conn).await?;
+                let events = self
+                    .try_recover_execution(ex, run_uuid, cluster.clone(), &h, conn)
+                    .await?;
                 for evt in events.into_iter() {
                     let _ = self.tx.send(evt);
                     n_in_flight += 1;
@@ -302,6 +306,7 @@ impl EventQueue {
         &mut self,
         ex: TestExecution,
         run_uuid: Uuid,
+        cluster: ClusterId,
         h: &ProvisioningHandle,
         conn: &mut impl UpdateHandle,
     ) -> crate::Result<Vec<Event>> {
@@ -317,10 +322,8 @@ impl EventQueue {
             .await;
 
         if current > Status::Resolving {
-            self.with_inner(|inner| {
-                inner.running_executions.insert(ex_uuid);
-            })
-            .await;
+            self.with_inner(|inner| inner.insert_running_execution(ex_uuid, cluster.clone()))
+                .await;
         }
 
         let data = match current {
@@ -371,6 +374,7 @@ impl EventQueue {
             .into_iter()
             .map(|data| Event {
                 test_execution: ex.clone(),
+                cluster: cluster.clone(),
                 data,
             })
             .collect())
@@ -409,28 +413,87 @@ async fn try_load_payload_cache(
 
 #[derive(Debug)]
 struct EventQueueInner {
-    /// Pending events for in-progress executions
+    /// Pending events for in-progress executions, independent of cluster
     pending_non_provisions: VecDeque<Event>,
-    /// Pending provisioning events for new executions
-    pending_provisions: VecDeque<Event>,
-    /// Uuids for the set of executions whose namespaces are live in the cluster.
-    running_executions: HashSet<Uuid>,
+    /// Pending provisioning events for new executions, queued per cluster
+    pending_provisions: HashMap<ClusterId, VecDeque<Event>>,
+    /// Ordering for obtaining the next queueable provisioning event, visited round-robin
+    cluster_provision_order: VecDeque<ClusterId>,
+    /// Uuids for the set of executions whose namespaces are live, per cluster
+    running_executions: HashMap<ClusterId, HashSet<Uuid>>,
+    /// Maximum number of live namespaces, per cluster
+    max_concurrent_executions: HashMap<ClusterId, usize>,
 }
 
 impl EventQueueInner {
-    fn runnable_provisioning_event(&mut self, max_concurrent_executions: usize) -> Option<Event> {
-        if self.running_executions.len() < max_concurrent_executions {
-            self.pending_provisions.pop_front()
-        } else {
-            None
+    fn new(available_clusters: Vec<ClusterId>, max_concurrent_executions: usize) -> Self {
+        let max_concurrent_executions = available_clusters
+            .iter()
+            .cloned()
+            .map(|cluster| (cluster, max_concurrent_executions))
+            .collect();
+
+        Self {
+            pending_non_provisions: VecDeque::new(),
+            pending_provisions: HashMap::new(),
+            cluster_provision_order: available_clusters.into(),
+            running_executions: HashMap::new(),
+            max_concurrent_executions,
         }
     }
 
-    fn next_event(&mut self, max_concurrent_executions: usize) -> Option<Event> {
+    fn insert_running_execution(&mut self, ex_uuid: Uuid, cluster: ClusterId) {
+        self.running_executions
+            .entry(cluster.clone())
+            .or_default()
+            .insert(ex_uuid);
+    }
+
+    fn remove_running_execution(&mut self, ex_uuid: Uuid) -> bool {
+        for running in self.running_executions.values_mut() {
+            if running.remove(&ex_uuid) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Find the next cluster in round-robin order with both a queued provisioning event and
+    /// free namespace capacity, and pop its front event.
+    fn runnable_provisioning_event(&mut self) -> Option<Event> {
+        for _ in 0..self.cluster_provision_order.len() {
+            let cluster = self.cluster_provision_order.front()?.clone();
+            self.cluster_provision_order.rotate_left(1);
+
+            let running = self.running_executions.get(&cluster).map_or(0, |s| s.len());
+            let max = self
+                .max_concurrent_executions
+                .get(&cluster)
+                .copied()
+                .unwrap_or(0);
+
+            if running >= max {
+                continue;
+            }
+
+            if let Some(evt) = self
+                .pending_provisions
+                .get_mut(&cluster)
+                .and_then(|q| q.pop_front())
+            {
+                return Some(evt);
+            }
+        }
+
+        None
+    }
+
+    fn next_event(&mut self) -> Option<Event> {
         if let Some(evt) = self.pending_non_provisions.pop_front() {
             return Some(evt);
-        } else if let Some(evt) = self.runnable_provisioning_event(max_concurrent_executions) {
-            self.running_executions.insert(evt.test_execution.uuid());
+        } else if let Some(evt) = self.runnable_provisioning_event() {
+            self.insert_running_execution(evt.test_execution.uuid(), evt.cluster.clone());
             return Some(evt);
         }
 
@@ -494,6 +557,7 @@ impl ProvisioningHandle {
         &self,
         ex: TestExecution,
         run_uuid: Uuid,
+        cluster: ClusterId,
     ) -> resolver::Result<()> {
         self.with_shared(|shared| {
             assert!(
@@ -508,6 +572,7 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
+            cluster,
             data: EventData::ResolveConfig,
         }) {
             error!(%e, "event loop channel closed");
@@ -628,10 +693,16 @@ impl ProvisioningHandle {
     }
 
     /// Send an event to the event loop.
-    pub(crate) fn send_event(&self, ex: TestExecution, data: EventData) -> resolver::Result<()> {
+    pub(crate) fn send_event(
+        &self,
+        ex: TestExecution,
+        cluster: ClusterId,
+        data: EventData,
+    ) -> resolver::Result<()> {
         self.tx
             .send(Event {
                 test_execution: ex,
+                cluster,
                 data,
             })
             .map_err(|_| ResolverError::EventChannelClosed)
@@ -671,6 +742,7 @@ pub struct EventQueueState {
     shared: Arc<Mutex<Shared>>,
     eq_inner: Arc<Mutex<EventQueueInner>>,
     tx_resolve: UnboundedSender<ResolverInput>,
+    default_cluster: ClusterId,
 }
 
 impl EventQueueState {
@@ -681,6 +753,24 @@ impl EventQueueState {
         f(&mut *self.shared.lock().await)
     }
 
+    pub fn default_cluster(&self) -> &ClusterId {
+        &self.default_cluster
+    }
+
+    pub async fn available_clusters(&self) -> Vec<ClusterId> {
+        let mut cluster_ids: Vec<_> = self
+            .eq_inner
+            .lock()
+            .await
+            .cluster_provision_order
+            .iter()
+            .cloned()
+            .collect();
+        cluster_ids.sort_unstable();
+
+        cluster_ids
+    }
+
     pub async fn event_queue_snapshot(&self) -> Snapshot {
         let (pending_non_provisions, pending_provisions, running_executions) = {
             let inner = self.eq_inner.lock().await;
@@ -689,20 +779,28 @@ impl EventQueueState {
                 .iter()
                 .map(|evt| EventSummary {
                     execution_id: evt.test_execution.uuid(),
+                    cluster: evt.cluster.clone(),
                     data: evt.data.clone(),
                 })
                 .collect();
 
             let pending_provisions: Vec<_> = inner
                 .pending_provisions
-                .iter()
+                .values()
+                .flatten()
                 .map(|evt| EventSummary {
                     execution_id: evt.test_execution.uuid(),
+                    cluster: evt.cluster.clone(),
                     data: evt.data.clone(),
                 })
                 .collect();
 
-            let running_executions: Vec<_> = inner.running_executions.iter().cloned().collect();
+            let running_executions: Vec<_> = inner
+                .running_executions
+                .values()
+                .flatten()
+                .cloned()
+                .collect();
 
             (
                 pending_non_provisions,
@@ -899,6 +997,7 @@ pub struct Snapshot {
 #[derive(Debug, Serialize)]
 pub struct EventSummary {
     execution_id: Uuid,
+    cluster: ClusterId,
     data: EventData,
 }
 
@@ -943,6 +1042,9 @@ mod tests {
             kubeconfig_secret_name: "workload-kubeconfig".to_string(),
             admins_path: "dummy".to_string(),
             workload_context: "dummy".to_string(),
+            router_perf_kubeconfig_path: None,
+            router_perf_kubeconfig_secret_name: None,
+            router_perf_workload_context: None,
             orchestrator_url: "http://localhost:8035".to_string(),
             toolbox_pull_policy: "IfNotPresent".to_string(),
             toolbox_image_repository: "rtf-toolbox".to_string(),
@@ -967,9 +1069,17 @@ mod tests {
         }
     }
 
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
+
+    fn perf_cluster() -> ClusterId {
+        ClusterId::new("router_perf")
+    }
+
     async fn populated_prov_handle() -> (ProvisioningHandle, TestExecution) {
         let cfg = dummy_config();
-        let (_, ph, _, _) = EventQueue::new(1, 100);
+        let (_, ph, _, _) = EventQueue::new(1, 100, vec![alpha_cluster()], alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -993,7 +1103,7 @@ mod tests {
     #[test_case(&[(3, true), (2, true), (1, false)]; "seq to max then over")]
     #[tokio::test]
     async fn try_reserve_pending_executions_returns_expected_value(claims: &[(usize, bool)]) {
-        let (_, _, state, _) = EventQueue::new(1, 5);
+        let (_, _, state, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
 
         for (i, &(n, expected)) in claims.iter().enumerate() {
             let mut tp = stub_test_plan();
@@ -1006,14 +1116,19 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_updates_running_set() {
-        let (mut eq, _, _, _) = EventQueue::new(1, 5);
+        let (mut eq, _, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let id = Uuid::new_v4();
-        eq.inner.lock().await.running_executions.insert(id);
+        eq.with_inner(|inner| inner.insert_running_execution(id, alpha_cluster()))
+            .await;
 
         let evicted = eq.mark_execution_complete(id).await;
 
         assert!(
-            !eq.inner.lock().await.running_executions.contains(&id),
+            !eq.with_inner(|inner| inner
+                .running_executions
+                .get(&alpha_cluster())
+                .is_some_and(|running| running.contains(&id)))
+                .await,
             "execution was still present in running set"
         );
         assert_eq!(
@@ -1024,7 +1139,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_evicts_cache_after_last_execution() {
-        let (mut eq, h, _, _) = EventQueue::new(2, 5);
+        let (mut eq, h, _, _) = EventQueue::new(2, 5, vec![alpha_cluster()], alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex1 = Uuid::new_v4();
         let ex2 = Uuid::new_v4();
@@ -1035,8 +1150,8 @@ mod tests {
         })
         .await;
         eq.with_inner(|inner| {
-            inner.running_executions.insert(ex1);
-            inner.running_executions.insert(ex2);
+            inner.insert_running_execution(ex1, alpha_cluster());
+            inner.insert_running_execution(ex2, alpha_cluster());
         })
         .await;
 
@@ -1079,12 +1194,14 @@ mod tests {
 
     #[tokio::test]
     async fn request_provisioning_happy_path() {
-        let (mut q, h, _, _) = EventQueue::new(1, 5);
+        let (mut q, h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let ex_uuid = ex.uuid();
         q.shared.lock().await.n_queued = 1;
 
-        let res = h.request_provisioning(ex, Uuid::new_v4()).await;
+        let res = h
+            .request_provisioning(ex, Uuid::new_v4(), alpha_cluster())
+            .await;
 
         assert!(res.is_ok(), "should have been able to send event: {res:?}");
 
@@ -1101,20 +1218,26 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "request_provisioning called with n_queued == 0")]
     async fn request_provisioning_panics_when_n_queued_is_zero() {
-        let (_, h, _, _) = EventQueue::new(1, 5);
+        let (_, h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        _ = h.request_provisioning(ex, Uuid::new_v4()).await;
+        _ = h
+            .request_provisioning(ex, Uuid::new_v4(), alpha_cluster())
+            .await;
     }
 
     #[tokio::test]
     async fn request_provisioning_returns_false_when_channel_is_closed() {
-        let (q, h, _, _) = EventQueue::new(1, 5);
+        let (q, h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         q.shared.lock().await.n_queued = 1;
         drop(q);
 
         let res = h
-            .request_provisioning(TestExecution::create_stub(1, 1, 0, "test"), Uuid::new_v4())
+            .request_provisioning(
+                TestExecution::create_stub(1, 1, 0, "test"),
+                Uuid::new_v4(),
+                alpha_cluster(),
+            )
             .await;
 
         assert!(res.is_err(), "should have failed to send event");
@@ -1123,14 +1246,16 @@ mod tests {
     #[tokio::test]
     async fn next_event_gates_provisions_on_namespace_capacity() {
         // max concurrent of 1: any provision dispatch is blocked while a slot is in use.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let blocking_id = Uuid::new_v4();
-        q.inner.lock().await.running_executions.insert(blocking_id);
+        q.with_inner(|inner| inner.insert_running_execution(blocking_id, alpha_cluster()))
+            .await;
 
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let ex_uuid = ex.uuid();
         q.tx.send(Event {
             test_execution: ex,
+            cluster: alpha_cluster(),
             data: EventData::ResolveConfig,
         })
         .unwrap();
@@ -1149,7 +1274,10 @@ mod tests {
 
         q.with_inner(|inner| {
             assert!(
-                inner.running_executions.contains(&ex_uuid),
+                inner
+                    .running_executions
+                    .get(&alpha_cluster())
+                    .is_some_and(|running| running.contains(&ex_uuid)),
                 "running executions: {:?}",
                 inner.running_executions
             )
@@ -1157,9 +1285,96 @@ mod tests {
         .await;
     }
 
+    #[tokio::test]
+    async fn next_event_round_robins_provisions_across_clusters() {
+        let (mut q, _h, _, _) = EventQueue::new(
+            10,
+            5,
+            vec![alpha_cluster(), perf_cluster()],
+            alpha_cluster(),
+        );
+
+        // Both of alpha's events are pushed before either of router_perf's, so a FIFO-only queue
+        // would dispatch them back-to-back; round-robin fairness should still alternate clusters.
+        for (cluster, ex_id) in [
+            (alpha_cluster(), 1),
+            (alpha_cluster(), 2),
+            (perf_cluster(), 3),
+            (perf_cluster(), 4),
+        ] {
+            q.push_event(Event {
+                test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
+                cluster,
+                data: EventData::ResolveConfig,
+            })
+            .await;
+        }
+
+        let mut dispatched = Vec::new();
+        for _ in 0..4 {
+            let evt = tokio::time::timeout(Duration::from_secs(1), q.next_event())
+                .await
+                .expect("next_event should have yielded within 1s")
+                .expect("should have returned Some(event)");
+            dispatched.push((evt.cluster, evt.test_execution.id()));
+        }
+
+        assert_eq!(
+            dispatched,
+            vec![
+                (alpha_cluster(), 1),
+                (perf_cluster(), 3),
+                (alpha_cluster(), 2),
+                (perf_cluster(), 4),
+            ],
+            "expected clusters to alternate rather than draining alpha before router_perf"
+        );
+    }
+
+    #[tokio::test]
+    async fn next_event_skips_saturated_cluster_without_blocking_others() {
+        let (mut q, _h, _, _) =
+            EventQueue::new(1, 5, vec![alpha_cluster(), perf_cluster()], alpha_cluster());
+
+        // Saturate alpha's one namespace slot.
+        let blocking_id = Uuid::new_v4();
+        q.with_inner(|inner| inner.insert_running_execution(blocking_id, alpha_cluster()))
+            .await;
+
+        let alpha_ex = TestExecution::create_stub(1, 1, 0, "test");
+        let perf_ex = TestExecution::create_stub(2, 1, 0, "test");
+        let perf_ex_uuid = perf_ex.uuid();
+
+        q.push_event(Event {
+            test_execution: alpha_ex,
+            cluster: alpha_cluster(),
+            data: EventData::ResolveConfig,
+        })
+        .await;
+        q.push_event(Event {
+            test_execution: perf_ex,
+            cluster: perf_cluster(),
+            data: EventData::ResolveConfig,
+        })
+        .await;
+
+        let evt = tokio::time::timeout(Duration::from_secs(1), q.next_event())
+            .await
+            .expect("next_event should have yielded router_perf's event within 1s")
+            .expect("should have returned Some(event)");
+
+        assert_eq!(
+            evt.test_execution.uuid(),
+            perf_ex_uuid,
+            "saturated alpha cluster should not block dequeuing router_perf's event"
+        );
+        assert_eq!(evt.cluster, perf_cluster());
+    }
+
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::ResolveConfig,
         }
     }
@@ -1167,6 +1382,7 @@ mod tests {
     fn cleanup_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::CleanupNamespace,
         }
     }
@@ -1178,7 +1394,7 @@ mod tests {
     async fn next_event_returns_expected_event_from_pending(events: Vec<Event>, expected_id: i32) {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
 
         for evt in events.into_iter() {
             q.push_event(evt).await;
@@ -1197,7 +1413,7 @@ mod tests {
     async fn next_event_drains_channel_before_selecting() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
 
         // Send the provision event first so we know that we're not just relying on ordering
         q.tx.send(provision_evt(1)).unwrap();
@@ -1212,7 +1428,7 @@ mod tests {
     async fn next_event_blocks_when_no_events_are_available() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let tx = q.tx.clone();
 
         let next_event_task = tokio::spawn(async move { q.next_event().await });
@@ -1237,7 +1453,7 @@ mod tests {
 
     #[tokio::test]
     async fn next_event_returns_none_when_no_external_senders_remain() {
-        let (mut q, h, _, _) = EventQueue::new(1, 5);
+        let (mut q, h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
 
         // Start with an event in the channel so we skip the blocking recv call and drop into the
         // drain loop.
@@ -1255,16 +1471,24 @@ mod tests {
 
     #[tokio::test]
     async fn push_event_routes_resolve_env_config_to_provisions() {
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let evt = Event {
             test_execution: TestExecution::create_stub(1, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::ResolveConfig,
         };
 
         q.push_event(evt).await;
 
         q.with_inner(|inner| {
-            assert_eq!(inner.pending_provisions.len(), 1);
+            assert_eq!(
+                inner
+                    .pending_provisions
+                    .get(&alpha_cluster())
+                    .unwrap()
+                    .len(),
+                1
+            );
             assert_eq!(inner.pending_non_provisions.len(), 0);
         })
         .await;
@@ -1272,16 +1496,17 @@ mod tests {
 
     #[tokio::test]
     async fn push_event_routes_create_env_argo_workflow_to_non_provisions() {
-        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let evt = Event {
             test_execution: TestExecution::create_stub(1, 1, 0, "test"),
+            cluster: alpha_cluster(),
             data: EventData::CreateEnvArgoWorkflow,
         };
 
         q.push_event(evt).await;
 
         q.with_inner(|inner| {
-            assert_eq!(inner.pending_provisions.len(), 0);
+            assert!(!inner.pending_provisions.contains_key(&alpha_cluster()));
             assert_eq!(inner.pending_non_provisions.len(), 1);
         })
         .await;
@@ -1329,7 +1554,7 @@ mod tests {
     #[tokio::test]
     async fn resolve_and_cache_config_caches_null_environment_with_no_prometheus_queries() {
         let cfg = dummy_config();
-        let (_, ph, _, _) = EventQueue::new(1, 100);
+        let (_, ph, _, _) = EventQueue::new(1, 100, vec![alpha_cluster()], alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -1370,7 +1595,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolved_environment_for_execution_returns_cached_environment() {
-        let (eq, ph, _, _) = EventQueue::new(1, 100);
+        let (eq, ph, _, _) = EventQueue::new(1, 100, vec![alpha_cluster()], alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eq.resolved_environment_for_execution(ex.uuid()).await;
@@ -1408,7 +1633,7 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_evicts_resolved_execution_cache() {
-        let (mut eq, h, _, _) = EventQueue::new(1, 5);
+        let (mut eq, h, _, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let run_uuid = Uuid::new_v4();
         let ex_id = Uuid::new_v4();
 
@@ -1432,7 +1657,8 @@ mod tests {
             );
         })
         .await;
-        eq.inner.lock().await.running_executions.insert(ex_id);
+        eq.with_inner(|inner| inner.insert_running_execution(ex_id, alpha_cluster()))
+            .await;
 
         eq.mark_execution_complete(ex_id).await;
 
@@ -1447,7 +1673,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_environment_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let (_, _, eqs, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_environment_for_execution(&ex).await;
@@ -1460,7 +1686,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_scenario_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let (_, _, eqs, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_scenario_for_execution(&ex).await;
@@ -1473,7 +1699,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_output_collection_for_execution_returns_error_when_cache_empty() {
-        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let (_, _, eqs, _) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         let res = eqs.resolve_output_collection_for_execution(&ex).await;
@@ -1486,15 +1712,15 @@ mod tests {
 
     #[tokio::test]
     async fn send_to_resolver_forwards_resolve_env_config() {
-        let (eq, _, _, mut rx) = EventQueue::new(1, 5);
+        let (eq, _, _, mut rx) = EventQueue::new(1, 5, vec![alpha_cluster()], alpha_cluster());
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        eq.send_to_resolver(ResolverInput::ResolveConfig(ex.clone()))
+        eq.send_to_resolver(ResolverInput::ResolveConfig(ex.clone(), alpha_cluster()))
             .unwrap();
 
         let input = rx.try_recv().expect("ResolverInput should be forwarded");
         assert!(
-            matches!(input, ResolverInput::ResolveConfig(ref e) if e.uuid() == ex.uuid()),
+            matches!(input, ResolverInput::ResolveConfig(ref e, _) if e.uuid() == ex.uuid()),
             "wrong input forwarded: {input:?}"
         );
     }
@@ -1518,7 +1744,7 @@ mod tests {
         statuses: [Status; N],
     ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
         let cfg = dummy_config();
-        let (mut eq, _, _, _) = EventQueue::new(10, 100);
+        let (mut eq, _, _, _) = EventQueue::new(10, 100, vec![alpha_cluster()], alpha_cluster());
 
         let tr = TestRun::create_stub(1, "test");
         let mut c = MockUpdateHandle::with_run(tr.clone());
@@ -1587,7 +1813,10 @@ mod tests {
 
         eq.with_inner(|inner| {
             assert_eq!(
-                inner.running_executions.contains(&ex_uuid),
+                inner
+                    .running_executions
+                    .get(&alpha_cluster())
+                    .is_some_and(|r| r.contains(&ex_uuid)),
                 running,
                 "incorrect running state"
             );
@@ -1599,6 +1828,7 @@ mod tests {
                 evt,
                 Event {
                     test_execution: ex,
+                    cluster: alpha_cluster(),
                     data
                 }
             ),

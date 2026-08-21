@@ -1,6 +1,6 @@
 use crate::{
     db::{TestExecution, UpdateHandle},
-    event_loop::{Error, Event, EventData, Result},
+    event_loop::{ClusterId, Error, Event, EventData, Result},
     k8s::{WatchOutcome, WorkloadClient, scenario_job},
 };
 use rtf_orchestrator_shared::SCENARIO_JOB_NAME;
@@ -72,8 +72,10 @@ where
     Ok(Some(EventData::WaitForScenarioJob))
 }
 
+#[expect(clippy::too_many_arguments)]
 pub(super) async fn wait_for_job<K, H>(
     test_execution: TestExecution,
+    cluster: ClusterId,
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
@@ -96,6 +98,7 @@ where
         wait_and_update(
             &namespace,
             test_execution,
+            cluster,
             failed_execution_ttl_seconds,
             poll_interval_secs,
             retry_window_secs,
@@ -108,9 +111,11 @@ where
     Ok(None)
 }
 
+#[expect(clippy::too_many_arguments)]
 async fn wait_and_update<K>(
     namespace: &str,
     test_execution: TestExecution,
+    cluster: ClusterId,
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
@@ -164,6 +169,7 @@ async fn wait_and_update<K>(
     for data in to_send.into_iter() {
         let _ = etx.send(Event {
             test_execution: test_execution.clone(),
+            cluster: cluster.clone(),
             data,
         });
     }
@@ -181,6 +187,10 @@ mod tests {
     };
     use simple_test_case::test_case;
     use tokio::sync::mpsc;
+
+    fn alpha_cluster() -> ClusterId {
+        ClusterId::new("alpha")
+    }
 
     #[tokio::test]
     async fn full_happy_path_sets_expected_statuses() {
@@ -207,7 +217,7 @@ mod tests {
         assert!(res.is_ok(), "create_job: {res:?}");
 
         // wait for job to complete
-        let res = wait_for_job(ex, 600, 10, 300, etx, clients, &mut handle).await;
+        let res = wait_for_job(ex, alpha_cluster(), 600, 10, 300, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait_for_job: {res:?}");
 
         use Status::*;
@@ -266,7 +276,17 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, 600, 10, 300, &etx, clients).await;
+        wait_and_update(
+            "test-namespace",
+            ex,
+            alpha_cluster(),
+            600,
+            10,
+            300,
+            &etx,
+            clients,
+        )
+        .await;
 
         let evt = erx.try_recv().unwrap();
         assert!(matches!(evt.data, EventData::CleanupNamespace), "{evt:?}");
@@ -286,7 +306,17 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, 600, 10, 300, &etx, clients).await;
+        wait_and_update(
+            "test-namespace",
+            ex,
+            alpha_cluster(),
+            600,
+            10,
+            300,
+            &etx,
+            clients,
+        )
+        .await;
 
         let first = erx.try_recv().unwrap();
         let second = erx.try_recv().unwrap();
