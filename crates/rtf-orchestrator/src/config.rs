@@ -1,79 +1,46 @@
+use crate::db::ClusterId;
 use rtf_config::context::Context;
 use serde::Deserialize;
-use std::{net::SocketAddr, sync::LazyLock};
-use tracing::warn;
+use std::{collections::HashMap, env, fs, net::SocketAddr, sync::LazyLock};
 
-use crate::k8s::{DEFAULT_TOOLBOX_IMAGE_REPOSITORY, DEFAULT_TOOLBOX_IMAGE_TAG};
+static CONFIG_FILE: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_env() {
+    Ok(cfg) => cfg,
+    Err(e) => panic!("invalid config file: {e}"),
+});
 
-static CONFIG: LazyLock<Config> =
-    LazyLock::new(|| match envy::prefixed("RTF_").from_env::<Config>() {
-        Ok(cfg) => cfg,
-        Err(e) => panic!("unable to load config from env: {e}"),
-    });
-
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Config {
     pub apollo_key: String,
-    pub db_host: String,
-    pub db_port: u16,
-    pub db_name: String,
-    pub db_user: String,
-    #[serde(default)]
-    pub db_pass: Option<String>,
-    pub github_app_id: u64,
-    pub github_app_private_key_pem: String,
-    #[serde(default = "default_host")]
-    pub host: String,
-    #[serde(default = "default_port")]
-    pub port: u16,
-    #[serde(default = "default_max_concurrent")]
-    pub max_concurrent_executions: usize,
-    #[serde(default = "default_max_queued")]
-    pub max_queued_executions: usize,
-    #[serde(default = "default_body_limit_mb")]
-    pub body_limit_mb: usize,
-    pub kubeconfig_path: String,
-    #[serde(default = "default_kubeconfig_secret_name")]
-    pub kubeconfig_secret_name: String,
     pub admins_path: String,
-    pub workload_context: String,
-    #[serde(default)]
-    pub router_perf_kubeconfig_path: Option<String>,
-    #[serde(default)]
-    pub router_perf_kubeconfig_secret_name: Option<String>,
-    #[serde(default)]
-    pub router_perf_workload_context: Option<String>,
-    pub orchestrator_url: String,
-    pub toolbox_pull_policy: String,
-    #[serde(default = "default_toolbox_image_repository")]
-    pub toolbox_image_repository: String,
-    #[serde(default = "default_toolbox_image_tag")]
-    pub toolbox_image_tag: String,
-    pub otel_collector_grpc: String,
-    pub otel_collector_http: String,
-    pub prometheus_endpoint: String,
-    pub gcs_bucket: String,
-    #[serde(default = "default_gcs_url_ttl_secs")]
-    pub gcs_url_ttl_secs: u64,
-    #[serde(default = "default_failed_execution_ttl_secs")]
-    pub failed_execution_ttl_secs: u64,
-    #[serde(default = "default_retry_window_secs")]
-    pub retry_window_secs: u64,
-    #[serde(default = "default_poll_interval_secs")]
-    pub poll_interval_secs: u64,
-    #[serde(default)]
-    pub mock_internal_gcs_url: Option<String>,
-    #[serde(default)]
-    pub mock_public_gcs_url: Option<String>,
+    pub github: GithubConfig,
+    pub db: DbConfig,
+    pub server: ServerConfig,
+    pub workload_clusters: WorkloadClusters,
+    pub toolbox: ToolboxConfig,
+    pub otel: OtelConfig,
+    pub gcs: GcsConfig,
 }
 
 impl Config {
+    pub fn try_parse_from_env() -> Result<Self, serde_yaml::Error> {
+        let path = env::var("RTF_CONFIG_PATH").expect("RTF_CONFIG_PATH not set");
+
+        match fs::read_to_string(path) {
+            Ok(text) => Self::try_parse(&text),
+            Err(e) => panic!("unable to read config file: {e}"),
+        }
+    }
+
+    pub fn try_parse(text: &str) -> Result<Self, serde_yaml::Error> {
+        serde_yaml::from_str(text)
+    }
+
     pub fn get() -> &'static Self {
-        &CONFIG
+        &CONFIG_FILE
     }
 
     pub fn socket_addr(&self) -> SocketAddr {
-        match format!("{}:{}", self.host, self.port).parse() {
+        match format!("{}:{}", self.server.host, self.server.port).parse() {
             Ok(sa) => sa,
             Err(e) => panic!("invalid socker addr from config: {e}"),
         }
@@ -82,77 +49,210 @@ impl Config {
     pub fn toolbox_image(&self) -> String {
         format!(
             "{}:{}",
-            self.toolbox_image_repository, self.toolbox_image_tag
+            self.toolbox.image_repository, self.toolbox.image_tag
         )
-    }
-
-    pub fn router_perf_cluster_config(&self) -> Option<(&str, &str, &str)> {
-        match (
-            &self.router_perf_kubeconfig_path,
-            &self.router_perf_workload_context,
-            &self.router_perf_kubeconfig_secret_name,
-        ) {
-            (Some(path), Some(context), Some(secret_name)) => Some((path, context, secret_name)),
-            _ => None,
-        }
     }
 
     pub fn server_context(&self) -> Context {
         let mut ctx = Context::new();
         // apollo_sudo always true; graphos_staging always false for the orchestrator
         ctx.with_platform_config(&self.apollo_key, false, true);
-        ctx.with_github_app_config(self.github_app_id, self.github_app_private_key_pem.clone());
+        ctx.with_github_app_config(self.github.app_id, self.github.app_private_key_pem.clone());
 
         ctx
     }
 }
 
-fn default_host() -> String {
-    "0.0.0.0".to_owned()
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct GithubConfig {
+    pub app_id: u64,
+    pub app_private_key_pem: String,
 }
 
-fn default_port() -> u16 {
-    8035
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct DbConfig {
+    pub host: String,
+    pub port: u16,
+    pub name: String,
+    pub user: String,
+    #[serde(default)]
+    pub pass: Option<String>,
 }
 
-fn default_max_concurrent() -> usize {
-    10
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub body_limit_mb: usize,
+    pub orchestrator_url: String,
 }
 
-fn default_max_queued() -> usize {
-    100
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct WorkloadClusters {
+    pub default_cluster: String,
+    pub max_queued_executions: usize,
+    pub available_clusters: Vec<WorkloadClusterConfig>,
 }
 
-fn default_body_limit_mb() -> usize {
-    50
+impl WorkloadClusters {
+    pub fn available_clusters(&self) -> Vec<ClusterId> {
+        self.available_clusters
+            .iter()
+            .map(|c| ClusterId::new(&c.name))
+            .collect()
+    }
+
+    pub fn default_workload_cluster(&self) -> ClusterId {
+        ClusterId::new(&self.default_cluster)
+    }
+
+    pub fn per_cluster_config(&self) -> HashMap<ClusterId, WorkloadClusterConfig> {
+        self.available_clusters
+            .iter()
+            .map(|c| (ClusterId::new(&c.name), c.clone()))
+            .collect()
+    }
+
+    pub fn max_concurrent_executions(&self) -> HashMap<ClusterId, usize> {
+        self.available_clusters
+            .iter()
+            .map(|c| (ClusterId::new(&c.name), c.execution.max_concurrent))
+            .collect()
+    }
 }
 
-fn default_gcs_url_ttl_secs() -> u64 {
-    300
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct WorkloadClusterConfig {
+    pub name: String,
+    pub kubeconfig_path: String,
+    pub kubeconfig_secret_name: String,
+    pub workload_context: String,
+    pub execution: ClusterExecutionConfig,
 }
 
-fn default_toolbox_image_repository() -> String {
-    DEFAULT_TOOLBOX_IMAGE_REPOSITORY.to_owned()
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ClusterExecutionConfig {
+    pub max_concurrent: usize,
+    pub failed_execution_ttl_secs: u64,
+    pub retry_window_secs: u64,
+    pub poll_interval_secs: u64,
 }
 
-fn default_toolbox_image_tag() -> String {
-    DEFAULT_TOOLBOX_IMAGE_TAG.to_owned()
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ToolboxConfig {
+    pub pull_policy: String,
+    pub image_repository: String,
+    pub image_tag: String,
 }
 
-fn default_kubeconfig_secret_name() -> String {
-    warn!("RTF_KUBECONFIG_SECRET_NAME not set. Using default value for local cluster");
-
-    "workload-kubeconfig".to_string()
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct OtelConfig {
+    pub collector_grpc: String,
+    pub collector_http: String,
+    pub prometheus_endpoint: String,
 }
 
-fn default_failed_execution_ttl_secs() -> u64 {
-    600
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct GcsConfig {
+    pub bucket: String,
+    pub url_ttl_secs: u64,
+    #[serde(default)]
+    pub mock_internal_url: Option<String>,
+    #[serde(default)]
+    pub mock_public_url: Option<String>,
 }
 
-fn default_retry_window_secs() -> u64 {
-    5 * 60
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-fn default_poll_interval_secs() -> u64 {
-    10
+    impl Config {
+        pub fn for_test() -> Self {
+            Self {
+                apollo_key: "dummy".to_string(),
+                admins_path: "dummy".to_string(),
+                github: GithubConfig {
+                    app_id: 1,
+                    app_private_key_pem: "dummy".to_string(),
+                },
+                db: DbConfig {
+                    host: "localhost".to_string(),
+                    port: 5432,
+                    name: "test".to_string(),
+                    user: "test".to_string(),
+                    pass: Some("test".to_string()),
+                },
+                server: ServerConfig {
+                    host: "0.0.0.0".to_string(),
+                    port: 8035,
+                    body_limit_mb: 50,
+                    orchestrator_url: "http://localhost:8035".to_string(),
+                },
+                workload_clusters: WorkloadClusters::for_test_with_available_clusters(
+                    10,
+                    "alpha",
+                    &["alpha"],
+                ),
+                toolbox: ToolboxConfig {
+                    pull_policy: "IfNotPresent".to_string(),
+                    image_repository: "rtf-toolbox".to_string(),
+                    image_tag: "edge".to_string(),
+                },
+                otel: OtelConfig {
+                    collector_grpc: "http://otel:4317".to_string(),
+                    collector_http: "http://otel:4318".to_string(),
+                    prometheus_endpoint: "http://prometheus:9090".to_string(),
+                },
+                gcs: GcsConfig {
+                    bucket: "test-bucket".to_string(),
+                    url_ttl_secs: 300,
+                    mock_internal_url: Some("http://mock-gcs-internal".to_string()),
+                    mock_public_url: Some("http://mock-gcs-public".to_string()),
+                },
+            }
+        }
+    }
+
+    impl WorkloadClusters {
+        pub fn for_test() -> Self {
+            Self::for_test_with_available_clusters(10, "alpha", &["alpha"])
+        }
+
+        pub fn for_test_with_available_clusters(
+            max_concurrent: usize,
+            default_cluster: &str,
+            names: &[&str],
+        ) -> Self {
+            Self {
+                default_cluster: default_cluster.to_string(),
+                max_queued_executions: 100,
+                available_clusters: names
+                    .iter()
+                    .map(|name| WorkloadClusterConfig {
+                        name: name.to_string(),
+                        kubeconfig_path: "dummy".to_string(),
+                        kubeconfig_secret_name: "workload-kubeconfig".to_string(),
+                        workload_context: "dummy".to_string(),
+                        execution: ClusterExecutionConfig {
+                            max_concurrent,
+                            failed_execution_ttl_secs: 600,
+                            retry_window_secs: 5 * 60,
+                            poll_interval_secs: 10,
+                        },
+                    })
+                    .collect(),
+            }
+        }
+    }
+
+    #[test]
+    fn local_stack_config_parses() {
+        let text = fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/local-stack/config.yaml"
+        ))
+        .unwrap();
+
+        Config::try_parse(&text).expect("local-stack/config.yaml should parse");
+    }
 }

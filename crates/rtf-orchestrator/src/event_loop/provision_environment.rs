@@ -165,6 +165,7 @@ async fn wait_and_update<K>(
 mod tests {
     use super::*;
     use crate::{
+        config::ClusterExecutionConfig,
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
         event_loop::WorkloadClusterConfig,
         k8s::{
@@ -192,6 +193,21 @@ mod tests {
         })
     }
 
+    fn stub_workload_cluster_config() -> WorkloadClusterConfig {
+        WorkloadClusterConfig {
+            name: "alpha".into(),
+            kubeconfig_path: "/config".into(),
+            kubeconfig_secret_name: "workload-kubeconfig".into(),
+            workload_context: "alpha-context".into(),
+            execution: ClusterExecutionConfig {
+                max_concurrent: 1,
+                failed_execution_ttl_secs: 300,
+                retry_window_secs: 10,
+                poll_interval_secs: 10,
+            },
+        }
+    }
+
     #[tokio::test]
     async fn full_happy_path_sets_expected_statuses() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
@@ -213,12 +229,9 @@ mod tests {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),
                 },
-                failed_execution_ttl_seconds: 1,
-                retry_window_secs: 300,
-                poll_interval_secs: 10,
-                workload_clusters: HashMap::from([(
+                workload_clusters: &HashMap::from([(
                     alpha_cluster(),
-                    WorkloadClusterConfig::new("", "workload-kubeconfig", ""),
+                    stub_workload_cluster_config(),
                 )]),
             },
             clients.clone(),
@@ -264,12 +277,9 @@ mod tests {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),
                 },
-                failed_execution_ttl_seconds: 1,
-                retry_window_secs: 300,
-                poll_interval_secs: 10,
-                workload_clusters: HashMap::from([(
+                workload_clusters: &HashMap::from([(
                     alpha_cluster(),
-                    WorkloadClusterConfig::new("", "workload-kubeconfig", ""),
+                    stub_workload_cluster_config(),
                 )]),
             },
             clients,

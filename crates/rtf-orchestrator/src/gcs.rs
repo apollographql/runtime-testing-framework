@@ -163,17 +163,17 @@ impl GCSClient {
     /// Uses [MockClient] when `RTF_MOCK_GCS_URL` is set; otherwise attempts to initialise a
     /// [RealClient] using Application Default Credentials.
     pub async fn new_from_config(cfg: &Config) -> Result<Self> {
-        let client = match (&cfg.mock_internal_gcs_url, &cfg.mock_public_gcs_url) {
+        let client = match (&cfg.gcs.mock_internal_url, &cfg.gcs.mock_public_url) {
             (Some(internal), Some(public)) => Self::Mock(MockClient::new(
                 internal.clone(),
                 public.clone(),
-                cfg.gcs_bucket.clone(),
+                cfg.gcs.bucket.clone(),
             )),
 
             (None, None) => Self::Real(RealClient {
                 signer: Builder::default().build_signer()?,
-                bucket: cfg.gcs_bucket.clone(),
-                ttl: Duration::from_secs(cfg.gcs_url_ttl_secs),
+                bucket: cfg.gcs.bucket.clone(),
+                ttl: Duration::from_secs(cfg.gcs.url_ttl_secs),
             }),
 
             _ => panic!("when setting mock GCS URLs, both must be set"),

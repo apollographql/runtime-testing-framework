@@ -1,0 +1,62 @@
+# Orchestrator config file for use inside of the local Tilt stack.
+#
+# There are several URLs required for this configuration which only become
+# known once the Tilt stack is running. As such, this file is templated by Tilt
+# before being provided to the running orchestrator service. Such values are
+# identified as "__PLACEHOLDER__"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestrator-config
+  namespace: orchestrator
+data:
+  config.yaml: |
+    apollo_key: dummy
+    admins_path: /etc/rtf-orchestrator/admins/members
+
+    github:
+      app_id: 1
+      app_private_key_pem: dummy
+
+    db:
+      host: postgres
+      port: 5432
+      name: rtf_orchestrator
+      user: service_user
+      pass: password
+
+    server:
+      host: 0.0.0.0
+      port: 8035
+      body_limit_mb: 50
+      orchestrator_url: __ORCHESTRATOR_URL__
+
+    workload_clusters:
+      default_cluster: alpha
+      max_queued_executions: 100
+      available_clusters:
+        - name: alpha
+          kubeconfig_path: /root/.kube/config
+          kubeconfig_secret_name: orchestrator-kubeconfig
+          workload_context: kind-rtf-workload
+          execution:
+            max_concurrent: 10
+            failed_execution_ttl_secs: 60
+            retry_window_secs: 300
+            poll_interval_secs: 10
+
+    toolbox:
+      pull_policy: IfNotPresent
+      image_repository: rtf-toolbox
+      image_tag: edge
+
+    otel:
+      collector_grpc: http://otel-collector.monitoring:4317
+      collector_http: http://otel-collector.monitoring:4318
+      prometheus_endpoint: __PROMETHEUS_ENDPOINT__
+
+    gcs:
+      bucket: rtf-local
+      url_ttl_secs: 300
+      mock_internal_url: __MOCK_INTERNAL_GCS_URL__
+      mock_public_url: http://localhost:8080/gcs

@@ -323,45 +323,6 @@ mod tests {
         ClusterId::new("alpha")
     }
 
-    fn dummy_config() -> Config {
-        Config {
-            apollo_key: "dummy".to_string(),
-            db_host: "localhost".to_string(),
-            db_port: 5432,
-            db_name: "test".to_string(),
-            db_user: "test".to_string(),
-            db_pass: Some("test".to_string()),
-            github_app_id: 1,
-            github_app_private_key_pem: "dummy".to_string(),
-            host: "0.0.0.0".to_string(),
-            port: 8035,
-            max_concurrent_executions: 10,
-            max_queued_executions: 100,
-            body_limit_mb: 50,
-            kubeconfig_path: "dummy".to_string(),
-            kubeconfig_secret_name: "workload-kubeconfig".to_string(),
-            admins_path: "dummy".to_string(),
-            workload_context: "dummy".to_string(),
-            router_perf_kubeconfig_path: None,
-            router_perf_kubeconfig_secret_name: None,
-            router_perf_workload_context: None,
-            orchestrator_url: "http://localhost:8035".to_string(),
-            toolbox_pull_policy: "IfNotPresent".to_string(),
-            toolbox_image_repository: "rtf-toolbox".to_string(),
-            toolbox_image_tag: "edge".to_string(),
-            otel_collector_grpc: "http://otel_collector_grpc:4317".to_string(),
-            otel_collector_http: "http://otel:4318".to_string(),
-            prometheus_endpoint: "http://prometheus:9090".to_string(),
-            gcs_bucket: "test-bucket".to_string(),
-            gcs_url_ttl_secs: 300,
-            mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),
-            mock_public_gcs_url: Some("http://mock-gcs-public".to_string()),
-            failed_execution_ttl_secs: 600,
-            retry_window_secs: 300,
-            poll_interval_secs: 10,
-        }
-    }
-
     fn minimal_orchestrator_test_plan(
         compose_files: Vec<NamedComposeFileProvider>,
     ) -> OrchestratorTestPlan {
@@ -479,13 +440,8 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_config_success_sends_create_env_argo_workflow() {
-        let cfg = dummy_config();
-        let (mut eq, ph, eqs, _) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let cfg = Config::for_test();
+        let (mut eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);
         let run_uuid = Uuid::new_v4();
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -524,13 +480,8 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_config_failure_sends_mark_unrunnable_and_cleanup() {
-        let cfg = dummy_config();
-        let (mut eq, ph, _, _) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let cfg = Config::for_test();
+        let (mut eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
         // execution NOT registered → resolve_and_cache_env_config will fail
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
@@ -561,13 +512,8 @@ mod tests {
         let test_run = TestRun::create_stub(1, "test");
         // Empty handle — test_run is not registered, so update_test_run_status will fail
         let mut handle = MockUpdateHandle::default();
-        let cfg = dummy_config();
-        let (_eq, ph, _, _) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let cfg = Config::for_test();
+        let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
         _ = resolve_test_plan(test_run, empty_payload(), &cfg, &mut handle, &ph).await;
 
@@ -583,13 +529,8 @@ mod tests {
     ) {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
-        let cfg = dummy_config();
-        let (_eq, ph, _, _) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let cfg = Config::for_test();
+        let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
         _ = resolve_test_plan(test_run.clone(), payload, &cfg, &mut handle, &ph).await;
 
@@ -625,13 +566,8 @@ mod tests {
     async fn resolve_test_plan_variant_static_check_fails_sets_run_unrunnable() {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
-        let cfg = dummy_config();
-        let (_eq, ph, _, _) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let cfg = Config::for_test();
+        let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
         // compose_files with a required provider — try_check always fails for RequiredFile
         let required_compose: NamedComposeFileProvider = serde_yaml::from_str(indoc!(
@@ -696,13 +632,8 @@ mod tests {
     async fn resolve_test_plan_success_sends_provision_event() {
         let tr = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&tr);
-        let cfg = dummy_config();
-        let (mut eq, ph, eqs, mut rx) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let cfg = Config::for_test();
+        let (mut eq, ph, eqs, mut rx) = EventQueue::new(&cfg.workload_clusters);
 
         // The checks we have in place around submitting test plans for resolution mean that we
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
@@ -769,13 +700,8 @@ mod tests {
         // No `test_runs` registered on the handle: init_execution will fail with
         // `UnknownTestRun` for every variant.
         let mut handle = MockUpdateHandle::default();
-        let cfg = dummy_config();
-        let (_eq, ph, _, _) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let cfg = Config::for_test();
+        let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
         _ = resolve_test_plan(tr.clone(), empty_payload(), &cfg, &mut handle, &ph).await;
 
@@ -787,14 +713,9 @@ mod tests {
     async fn resolve_test_plan_event_loop_closed_stops_processing() {
         let tr = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&tr);
-        let cfg = dummy_config();
+        let cfg = Config::for_test();
         // dropping the receiver for the event loop so sends will fail
-        let (_, ph, eqs, mut rx) = EventQueue::new(
-            cfg.max_concurrent_executions,
-            cfg.max_queued_executions,
-            vec![alpha_cluster()],
-            alpha_cluster(),
-        );
+        let (_, ph, eqs, mut rx) = EventQueue::new(&cfg.workload_clusters);
 
         // The checks we have in place around submitting test plans for resolution mean that we
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.

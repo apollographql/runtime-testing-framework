@@ -6,8 +6,17 @@ update_settings(max_parallel_updates=6)
 
 allow_k8s_contexts("kind-rtf-mgmt")
 
-config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests for the orchestrator crate (off by default)")
-config.define_bool("ui", args=False, usage="Build and deploy the orchestrator status UI (off by default; not part of CI/integration tests)")
+config.define_bool(
+    "orchestrator-tests",
+    args=False,
+    usage="Run all cargo tests for the orchestrator crate (off by default)"
+)
+config.define_bool(
+    "ui",
+    args=False,
+    usage="Build and deploy the orchestrator status UI (off by default; not part of CI/integration tests)"
+)
+
 cfg = config.parse()
 run_orchestrator_tests = cfg.get("orchestrator-tests", False)
 run_ui = cfg.get("ui", False)
@@ -50,6 +59,26 @@ k8s_yaml("k8s/namespace.yaml")
 
 # Admins allowlist — mounted into the orchestrator pod for validating admin actions
 k8s_yaml("k8s/admins.yaml")
+
+# Mounted into the orchestrator pod at RTF_CONFIG_PATH.
+#
+# orchestrator_url, prometheus_endpoint, and gcs.mock_internal_url use the mgmt
+# cluster container IP so they're reachable from workload cluster pods as well
+# as from within the mgmt cluster.
+# That address isn't known until Tilt runs, so config.yaml carries placeholder
+# tokens for them that get substituted in here before the ConfigMap is created.
+orchestrator_config = str(read_file("k8s/orchestrator-config.yaml"))
+orchestrator_config = orchestrator_config.replace(
+    "__ORCHESTRATOR_URL__", "http://%s:%s" % (mgmt_ip, ORCH_NODEPORT)
+)
+orchestrator_config = orchestrator_config.replace(
+    "__PROMETHEUS_ENDPOINT__", "http://%s:%s" % (mgmt_ip, MOCK_BACKEND_NODEPORT)
+)
+orchestrator_config = orchestrator_config.replace(
+    "__MOCK_INTERNAL_GCS_URL__", "http://%s:%s/gcs" % (mgmt_ip, MOCK_BACKEND_NODEPORT)
+)
+
+k8s_yaml(blob(orchestrator_config))
 
 # Workload kubeconfig —  mounted into the orchestrator pod via kubeconfigSecretRef.key so it can reach the
 # workload cluster, and into Argo Workflow step pods, which mount the whole secret and read it
@@ -117,6 +146,7 @@ k8s_resource(
         "github-app-private-key:secret:orchestrator",
         "rtf-orchestrator:secret:orchestrator",
         "orchestrator-admins:configmap:orchestrator",
+        "orchestrator-config:configmap:orchestrator",
         "orchestrator-workflow-submitter:role:orchestrator",
         "orchestrator-workflow-submitter:rolebinding:orchestrator",
     ],
@@ -228,9 +258,8 @@ k8s_resource(
     labels=["rtf-orchestrator"]
 )
 
-# Helm deploy — DB connection wired to local postgres service.
-# orchestratorUrl, gcs.mockInternalUrl, and prometheus.endpoint use the mgmt cluster container IP
-# so they are reachable from workload cluster pods as well as from within the mgmt cluster.
+# Helm deploy — all application config now comes from the orchestrator-config ConfigMap above;
+# the chart itself only wires up secrets, volumes, and Kubernetes-native concerns.
 k8s_yaml(helm(
     "../helm/rtf-orchestrator",
     name="rtf-orchestrator",
@@ -238,12 +267,6 @@ k8s_yaml(helm(
     values=[
         "../helm/rtf-orchestrator/values.yaml",
         "../helm/rtf-orchestrator/values-local.yaml",
-    ],
-    set=[
-        "db.host=postgres",
-        "config.orchestratorUrl=http://%s:%s" % (mgmt_ip, ORCH_NODEPORT),
-        "gcs.mockInternalUrl=http://%s:%s/gcs" % (mgmt_ip, MOCK_BACKEND_NODEPORT),
-        "prometheus.endpoint=http://%s:%s" % (mgmt_ip, MOCK_BACKEND_NODEPORT),
     ],
 ))
 
