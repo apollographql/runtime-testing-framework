@@ -24,10 +24,11 @@ db:
   password: password
 
 k8s:
-  workload:
-    kubeconfigSecretRef:
-      name: "orchestrator-kubeconfig"
-      key: "value"
+  workloadClusters:
+    - name: alpha
+      kubeconfigSecretRef:
+        name: "orchestrator-kubeconfig"
+        key: "value"
 
 configMaps:
   admins: "orchestrator-admins"

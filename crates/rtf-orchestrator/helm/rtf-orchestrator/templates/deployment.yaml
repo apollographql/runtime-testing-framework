@@ -67,14 +67,9 @@ spec:
             - name: config
               mountPath: /etc/rtf-orchestrator/config
               readOnly: true
-            {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
-            - name: kubeconfig
-              mountPath: /root/.kube
-              readOnly: true
-            {{- end }}
-            {{- if .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
-            - name: router-perf-kubeconfig
-              mountPath: /etc/rtf-orchestrator/router-perf-kubeconfig
+            {{- range .Values.k8s.workloadClusters }}
+            - name: kubeconfig-{{ .name }}
+              mountPath: /etc/rtf-orchestrator/kubeconfigs/{{ .name }}
               readOnly: true
             {{- end }}
             {{- if .Values.configMaps.admins }}
@@ -118,20 +113,12 @@ spec:
             items:
               - key: config.yaml
                 path: config.yaml
-        {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
-        - name: kubeconfig
+        {{- range .Values.k8s.workloadClusters }}
+        - name: kubeconfig-{{ .name }}
           secret:
-            secretName: {{ .Values.k8s.workload.kubeconfigSecretRef.name }}
+            secretName: {{ required (printf "k8s.workloadClusters[%s].kubeconfigSecretRef.name is required" .name) .kubeconfigSecretRef.name }}
             items:
-              - key: {{ .Values.k8s.workload.kubeconfigSecretRef.key }}
-                path: config
-        {{- end }}
-        {{- if .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
-        - name: router-perf-kubeconfig
-          secret:
-            secretName: {{ .Values.k8s.routerPerf.kubeconfigSecretRef.name }}
-            items:
-              - key: {{ .Values.k8s.routerPerf.kubeconfigSecretRef.key }}
+              - key: {{ .kubeconfigSecretRef.key | default "config" }}
                 path: config
         {{- end }}
         {{- if .Values.configMaps.admins }}

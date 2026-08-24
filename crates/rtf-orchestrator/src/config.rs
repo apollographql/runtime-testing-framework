@@ -3,6 +3,8 @@ use rtf_config::context::Context;
 use serde::Deserialize;
 use std::{collections::HashMap, env, fs, net::SocketAddr, sync::LazyLock};
 
+const KUBECONFIG_MOUNT_ROOT: &str = "/etc/rtf-orchestrator/kubeconfigs";
+
 static CONFIG_FILE: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_env() {
     Ok(cfg) => cfg,
     Err(e) => panic!("invalid config file: {e}"),
@@ -124,10 +126,15 @@ impl WorkloadClusters {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct WorkloadClusterConfig {
     pub name: String,
-    pub kubeconfig_path: String,
     pub kubeconfig_secret_name: String,
     pub workload_context: String,
     pub execution: ClusterExecutionConfig,
+}
+
+impl WorkloadClusterConfig {
+    pub fn kubeconfig_path(&self) -> String {
+        format!("{KUBECONFIG_MOUNT_ROOT}/{}/config", self.name)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -230,7 +237,6 @@ mod tests {
                     .iter()
                     .map(|name| WorkloadClusterConfig {
                         name: name.to_string(),
-                        kubeconfig_path: "dummy".to_string(),
                         kubeconfig_secret_name: "workload-kubeconfig".to_string(),
                         workload_context: "dummy".to_string(),
                         execution: ClusterExecutionConfig {
@@ -247,12 +253,8 @@ mod tests {
 
     #[test]
     fn local_stack_config_parses() {
-        let text = fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/local-stack/config.yaml"
-        ))
-        .unwrap();
+        let raw = include_str!("../resources/local-config.yaml");
 
-        Config::try_parse(&text).expect("local-stack/config.yaml should parse");
+        Config::try_parse(raw).expect("local config used in tests should parse");
     }
 }

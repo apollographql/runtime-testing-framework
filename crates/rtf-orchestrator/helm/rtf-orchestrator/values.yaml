@@ -50,27 +50,21 @@ image:
 imagePullSecrets: []
 
 # -- References to Secrets containing kubeconfig files for workload clusters, mounted as volumes.
-# The cluster names, contexts, and mounted paths used by the orchestrator itself are configured in
-# the config file (configMaps.config), not here — these values only control which Secrets get
-# mounted into the pod.
+# The cluster names and contexts used by the orchestrator itself are configured in the config file
+# (configMaps.config), not here.
 k8s:
-  # -- Primary workload cluster kubeconfig
-  workload:
-    # -- Reference to a Secret containing the kubeconfig; the file is mounted at /root/.kube/config
-    kubeconfigSecretRef:
-      # -- Secret name. When set, the kubeconfig is mounted from this Secret
-      name: null
-      # -- Key within the Secret
-      key: "config"
-  # -- Optional second workload cluster kubeconfig (e.g. for Router performance tests). Leave
-  # kubeconfigSecretRef.name unset to disable it
-  routerPerf:
-    # -- Reference to a Secret containing the kubeconfig; the file is mounted at /root/.kube/router-perf-config
-    kubeconfigSecretRef:
-      # -- Secret name. When set, the kubeconfig is mounted from this Secret
-      name: null
-      # -- Key within the Secret
-      key: "config"
+  # -- One entry per workload cluster listed under workload_clusters.available_clusters in the
+  # config file — `name` must match exactly. Each cluster's kubeconfig Secret is mounted at
+  # /etc/rtf-orchestrator/kubeconfigs/<name>/config, which must match
+  # WorkloadClusterConfig::kubeconfig_path in src/config.rs. `name` becomes part of a Kubernetes
+  # volume name, so it must be a valid DNS-1123 label (lowercase alphanumeric and `-`).
+  workloadClusters: []
+  # - name: alpha
+  #   kubeconfigSecretRef:
+  #     # -- Secret name containing the kubeconfig
+  #     name: my-kubeconfig-secret
+  #     # -- Key within the Secret
+  #     key: "config"
 
 # -- Overrides the chart name
 nameOverride: ""

@@ -80,9 +80,10 @@ orchestrator_config = orchestrator_config.replace(
 
 k8s_yaml(blob(orchestrator_config))
 
-# Workload kubeconfig —  mounted into the orchestrator pod via kubeconfigSecretRef.key so it can reach the
-# workload cluster, and into Argo Workflow step pods, which mount the whole secret and read it
-# straight from KUBECONFIG_PATH.
+# Workload kubeconfig — mounted into the orchestrator pod via
+# k8s.workloadClusters[0].kubeconfigSecretRef so it can reach the workload
+# cluster, and into Argo Workflow step pods, which mount the whole secret and
+# read it straight from KUBECONFIG_PATH.
 k8s_yaml(
     secret_from_dict(
         "orchestrator-kubeconfig",

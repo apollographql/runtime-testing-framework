@@ -237,7 +237,7 @@ impl Event {
             EventData::WaitForEnvArgoWorkflow => {
                 let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
                 let clients = ClusterClients::try_new_full(
-                    &cluster_cfg.kubeconfig_path,
+                    &cluster_cfg.kubeconfig_path(),
                     &cluster_cfg.workload_context,
                 )
                 .await
@@ -269,14 +269,10 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
-                let WorkloadClusterConfig {
-                    kubeconfig_path,
-                    workload_context,
-                    ..
-                } = cfg.workload_cluster_config(&self.cluster)?;
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
-                    kubeconfig_path,
-                    workload_context,
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -313,7 +309,7 @@ impl Event {
             EventData::WaitForScenarioJob => {
                 let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
                 let clients = ClusterClients::try_new_workload(
-                    &cluster_cfg.kubeconfig_path,
+                    &cluster_cfg.kubeconfig_path(),
                     &cluster_cfg.workload_context,
                 )
                 .await
@@ -352,14 +348,10 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
-                let WorkloadClusterConfig {
-                    kubeconfig_path,
-                    workload_context,
-                    ..
-                } = cfg.workload_cluster_config(&self.cluster)?;
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
-                    kubeconfig_path,
-                    workload_context,
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
                 )
                 .await
                 .inspect_err(

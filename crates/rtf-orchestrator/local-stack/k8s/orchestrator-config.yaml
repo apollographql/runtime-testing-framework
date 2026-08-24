@@ -36,7 +36,6 @@ data:
       max_queued_executions: 100
       available_clusters:
         - name: alpha
-          kubeconfig_path: /root/.kube/config
           kubeconfig_secret_name: orchestrator-kubeconfig
           workload_context: kind-rtf-workload
           execution:

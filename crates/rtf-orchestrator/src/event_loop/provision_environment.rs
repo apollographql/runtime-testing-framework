@@ -196,7 +196,6 @@ mod tests {
     fn stub_workload_cluster_config() -> WorkloadClusterConfig {
         WorkloadClusterConfig {
             name: "alpha".into(),
-            kubeconfig_path: "/config".into(),
             kubeconfig_secret_name: "workload-kubeconfig".into(),
             workload_context: "alpha-context".into(),
             execution: ClusterExecutionConfig {

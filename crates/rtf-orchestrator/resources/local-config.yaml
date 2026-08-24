@@ -31,7 +31,6 @@ workload_clusters:
   max_queued_executions: 100
   available_clusters:
     - name: alpha
-      kubeconfig_path: dummy
       kubeconfig_secret_name: dummy
       workload_context: dummy
       execution:
