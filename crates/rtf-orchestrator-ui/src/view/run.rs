@@ -108,6 +108,10 @@ impl RunView {
     pub fn is_status_selected(&self, value: &str) -> bool {
         self.execution_status_filter == value
     }
+
+    pub fn run_output_cmd(&self) -> String {
+        format!("rtf remote run-output {}", self.id)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -557,6 +561,7 @@ mod tests {
             .iter()
             .map(|row| (row.status.label.as_str(), row.count))
             .collect();
+
         assert_eq!(
             labels_and_counts,
             vec![("SUCCESSFUL", 2), ("FAILED", 1)],

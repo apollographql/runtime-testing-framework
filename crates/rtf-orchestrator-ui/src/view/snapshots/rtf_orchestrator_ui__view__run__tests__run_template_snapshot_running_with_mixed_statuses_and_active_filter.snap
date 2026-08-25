@@ -96,6 +96,16 @@ expression: body
             <p>The Orchestrator doesn't bundle a whole run's output for download. Run this locally
                 instead:</p>
             <pre><code>rtf remote run-output 00000000-0000-0000-0000-000000000001</code></pre>
+            
+<button type="button" class="copy-btn" data-copy="rtf remote run-output 00000000-0000-0000-0000-000000000001" aria-label="Copy run output command"
+    title="Copy to clipboard">
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"
+        stroke-linejoin="round">
+        <rect x="5" y="5" width="9" height="9" rx="1.5"></rect>
+        <rect x="2" y="2" width="9" height="9" rx="1.5"></rect>
+    </svg>
+</button>
+
             <p class="muted">This downloads a <code>run-summary.json</code> plus each execution's
                 <code>log.txt</code> and <code>output.zip</code> into an <code>output/</code>
                 directory.

@@ -57,6 +57,7 @@
             <p>The Orchestrator doesn't bundle a whole run's output for download. Run this locally
                 instead:</p>
             <pre><code>rtf remote run-output {{ run.id }}</code></pre>
+            {% call macros::copy_button(run.run_output_cmd(), "run output command") %}{% endcall %}
             <p class="muted">This downloads a <code>run-summary.json</code> plus each execution's
                 <code>log.txt</code> and <code>output.zip</code> into an <code>output/</code>
                 directory.
