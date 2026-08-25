@@ -190,6 +190,7 @@ impl TestExecution {
         Ok(TestExecutionSummary {
             id: self.uuid,
             test_run_id: None,
+            test_plan_id: None,
             name: self.name,
             current_status: current.status,
             exit_code: self.exit_code,

@@ -188,6 +188,7 @@ impl TestRun {
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestRunSummary> {
         let trigger_variables = self.variables(conn).await?;
+        let test_plan_id = self.test_plan_uuid(conn).await?;
         let status_history = self.status_history(conn).await?;
         let current = status_history
             .first()
@@ -196,6 +197,7 @@ impl TestRun {
 
         Ok(TestRunSummary {
             id: self.uuid,
+            test_plan_id,
             name: self.name,
             trigger_variables,
             current_status: current.status.into(),
@@ -313,6 +315,24 @@ impl TestRun {
         Ok(())
     }
 
+    pub async fn test_plan_uuid(&self, conn: &mut PgConnection) -> Result<Option<Uuid>> {
+        Ok(sqlx::query_scalar(
+            r#"SELECT
+               ktp.uuid
+             FROM
+               known_test_plan ktp
+             JOIN
+               known_test_plan_run ktpr
+             ON
+               ktpr.known_test_plan_id = ktp.id
+             WHERE
+               ktpr.test_run_id = $1;"#,
+        )
+        .bind(self.id)
+        .fetch_optional(conn)
+        .await?)
+    }
+
     async fn variables(&self, conn: &mut PgConnection) -> Result<Option<Value>> {
         let id = match self.variables_id {
             Some(id) => id,
@@ -399,7 +419,10 @@ mod tests {
     use super::*;
     use crate::{
         conn,
-        db::status::{Status, StatusTracked},
+        db::{
+            KnownTestPlan, KnownTestPlanRun,
+            status::{Status, StatusTracked},
+        },
     };
     use Status::*;
     use rtf_config::{
@@ -422,6 +445,10 @@ mod tests {
 
     fn perf_cluster() -> ClusterId {
         ClusterId::new("router_perf")
+    }
+
+    fn unique(label: &str) -> String {
+        format!("{label}-{}", Uuid::new_v4())
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -889,6 +916,32 @@ mod tests {
 
         let summary = tr.try_into_summary_with_executions(c).await?;
         assert_eq!(summary.executions.len(), 1, "{summary:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn test_plan_uuid_returns_none_for_unlinked_run() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+
+        assert_eq!(tr.test_plan_uuid(c).await?, None);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn test_plan_uuid_returns_the_linked_known_test_plan() -> Result<()> {
+        let c = conn!();
+        let known =
+            KnownTestPlan::register(&unique("run"), None, "org", "repo", &unique("path"), c)
+                .await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
+
+        assert_eq!(tr.test_plan_uuid(c).await?, Some(known.uuid()));
 
         Ok(())
     }
