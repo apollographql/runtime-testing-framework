@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 pub struct ExecutionDetailView {
     pub id: Uuid,
-    pub run_id: Option<Uuid>,
+    pub run_id: Uuid,
     pub test_plan_id: Option<Uuid>,
     pub name: String,
     pub status: StatusView,
@@ -31,7 +31,9 @@ impl ExecutionDetailView {
 
         Self {
             id: ex.id,
-            run_id: ex.test_run_id,
+            run_id: ex
+                .test_run_id
+                .expect("an execution fetched standalone always carries its parent run's id"),
             test_plan_id: ex.test_plan_id,
             name: ex.name,
             status: ex.current_status.into(),
@@ -77,7 +79,7 @@ mod tests {
     use rtf_orchestrator_shared::status::Status;
 
     fn snapshot_execution(
-        test_run_id: Option<Uuid>,
+        test_run_id: Uuid,
         test_plan_id: Option<Uuid>,
         id: Uuid,
     ) -> TestExecutionSummary {
@@ -86,7 +88,7 @@ mod tests {
 
         TestExecutionSummary {
             id,
-            test_run_id,
+            test_run_id: Some(test_run_id),
             test_plan_id,
             name: "exec-alpha".to_owned(),
             current_status: Status::Successful,
@@ -161,21 +163,12 @@ mod tests {
     }
 
     #[test]
-    fn execution_detail_view_has_no_run_id_when_the_execution_has_no_parent_run() {
-        let mut execution = sample_execution(Uuid::from_u128(1), Uuid::from_u128(2));
-        execution.test_run_id = None;
-        let view = ExecutionDetailView::new(execution, &sample_config());
-
-        assert_eq!(view.run_id, None);
-    }
-
-    #[test]
     fn execution_template_snapshot_with_test_plan() {
         let run_id = Uuid::from_u128(1);
         let plan_id = Uuid::from_u128(2);
         let ex_id = Uuid::from_u128(3);
         let view = ExecutionDetailView::new(
-            snapshot_execution(Some(run_id), Some(plan_id), ex_id),
+            snapshot_execution(run_id, Some(plan_id), ex_id),
             &sample_config(),
         );
         let body = ExecutionTemplate { execution: view }
@@ -190,7 +183,7 @@ mod tests {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let view = ExecutionDetailView::new(
-            snapshot_execution(Some(run_id), None, ex_id),
+            snapshot_execution(run_id, None, ex_id),
             &sample_config(),
         );
         let body = ExecutionTemplate { execution: view }

@@ -4,11 +4,7 @@
 {% block title %}Execution {{ execution.name }}{% endblock %}
 
 {% block content %}
-{% match execution.run_id %}
-{% when Some with (run_id) %}
-<p><a href="/ui/run/{{ run_id }}">&larr; Back to run</a></p>
-{% when None %}
-{% endmatch %}
+<p><a href="/ui/run/{{ execution.run_id }}">&larr; Back to run</a></p>
 {% match execution.test_plan_id %}
 {% when Some with (test_plan_id) %}
 <p><a href="/ui/test-plan/{{ test_plan_id }}">&larr; Back to test plan</a></p>
