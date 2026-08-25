@@ -12,12 +12,12 @@
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">pub async fn </span>init_pool(cfg: <span class="kw-2">&amp;</span>Config) -&gt; <span class="prelude-ty">Result</span>&lt;PgPool&gt; {
 <a href=#13 id=13 data-nosnippet>13</a>    <span class="macro">info!</span>(<span class="string">"Initialising DB connection pool"</span>);
 <a href=#14 id=14 data-nosnippet>14</a>    <span class="kw">let </span><span class="kw-2">mut </span>opts = PgConnectOptions::new()
-<a href=#15 id=15 data-nosnippet>15</a>        .host(<span class="kw-2">&amp;</span>cfg.db_host)
-<a href=#16 id=16 data-nosnippet>16</a>        .port(cfg.db_port)
-<a href=#17 id=17 data-nosnippet>17</a>        .username(<span class="kw-2">&amp;</span>cfg.db_user)
-<a href=#18 id=18 data-nosnippet>18</a>        .database(<span class="kw-2">&amp;</span>cfg.db_name);
+<a href=#15 id=15 data-nosnippet>15</a>        .host(<span class="kw-2">&amp;</span>cfg.db.host)
+<a href=#16 id=16 data-nosnippet>16</a>        .port(cfg.db.port)
+<a href=#17 id=17 data-nosnippet>17</a>        .username(<span class="kw-2">&amp;</span>cfg.db.user)
+<a href=#18 id=18 data-nosnippet>18</a>        .database(<span class="kw-2">&amp;</span>cfg.db.name);
 <a href=#19 id=19 data-nosnippet>19</a>
-<a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>pass) = cfg.db_pass {
+<a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>pass) = cfg.db.pass {
 <a href=#21 id=21 data-nosnippet>21</a>        opts = opts.password(pass);
 <a href=#22 id=22 data-nosnippet>22</a>    }
 <a href=#23 id=23 data-nosnippet>23</a>

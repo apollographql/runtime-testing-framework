@@ -163,17 +163,17 @@
 <a href=#163 id=163 data-nosnippet>163</a>    /// Uses [MockClient] when `RTF_MOCK_GCS_URL` is set; otherwise attempts to initialise a
 <a href=#164 id=164 data-nosnippet>164</a>    /// [RealClient] using Application Default Credentials.
 <a href=#165 id=165 data-nosnippet>165</a>    </span><span class="kw">pub async fn </span>new_from_config(cfg: <span class="kw-2">&amp;</span>Config) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
-<a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>client = <span class="kw">match </span>(<span class="kw-2">&amp;</span>cfg.mock_internal_gcs_url, <span class="kw-2">&amp;</span>cfg.mock_public_gcs_url) {
+<a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>client = <span class="kw">match </span>(<span class="kw-2">&amp;</span>cfg.gcs.mock_internal_url, <span class="kw-2">&amp;</span>cfg.gcs.mock_public_url) {
 <a href=#167 id=167 data-nosnippet>167</a>            (<span class="prelude-val">Some</span>(internal), <span class="prelude-val">Some</span>(public)) =&gt; <span class="self">Self</span>::Mock(MockClient::new(
 <a href=#168 id=168 data-nosnippet>168</a>                internal.clone(),
 <a href=#169 id=169 data-nosnippet>169</a>                public.clone(),
-<a href=#170 id=170 data-nosnippet>170</a>                cfg.gcs_bucket.clone(),
+<a href=#170 id=170 data-nosnippet>170</a>                cfg.gcs.bucket.clone(),
 <a href=#171 id=171 data-nosnippet>171</a>            )),
 <a href=#172 id=172 data-nosnippet>172</a>
 <a href=#173 id=173 data-nosnippet>173</a>            (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="self">Self</span>::Real(RealClient {
 <a href=#174 id=174 data-nosnippet>174</a>                signer: Builder::default().build_signer()<span class="question-mark">?</span>,
-<a href=#175 id=175 data-nosnippet>175</a>                bucket: cfg.gcs_bucket.clone(),
-<a href=#176 id=176 data-nosnippet>176</a>                ttl: Duration::from_secs(cfg.gcs_url_ttl_secs),
+<a href=#175 id=175 data-nosnippet>175</a>                bucket: cfg.gcs.bucket.clone(),
+<a href=#176 id=176 data-nosnippet>176</a>                ttl: Duration::from_secs(cfg.gcs.url_ttl_secs),
 <a href=#177 id=177 data-nosnippet>177</a>            }),
 <a href=#178 id=178 data-nosnippet>178</a>
 <a href=#179 id=179 data-nosnippet>179</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"when setting mock GCS URLs, both must be set"</span>),
