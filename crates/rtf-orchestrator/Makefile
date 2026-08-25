@@ -13,45 +13,18 @@ cluster-teardown:
 
 .PHONY: db-tests
 db-tests:
-	@RTF_DB_HOST=localhost \
-		RTF_DB_PORT=5432 \
-		RTF_DB_NAME=rtf_orchestrator \
-		RTF_DB_USER=service_user \
-		RTF_DB_PASS=password \
-		RTF_APOLLO_KEY=dummy \
-		RTF_GITHUB_APP_ID=1 \
-		RTF_GITHUB_APP_PRIVATE_KEY_PEM=dummy \
-		RTF_KUBECONFIG_PATH=dummy \
-		RTF_ADMINS_PATH=dummy \
-		RTF_WORKLOAD_CONTEXT=dummy \
-		RTF_GCS_BUCKET=dummy \
-		RTF_MOCK_GCS_URL="mock-backend" \
-		RTF_ORCHESTRATOR_URL="http://localhost:8035" \
-		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
-		RTF_OTEL_COLLECTOR_GRPC=dummy \
-		RTF_OTEL_COLLECTOR_HTTP=dummy \
-		RTF_PROMETHEUS_ENDPOINT=dummy \
+	@RTF_CONFIG_PATH="resources/local-config.yaml" \
+		RTF_APOLLO_KEY="dummy" \
+		RTF_GITHUB_APP_ID="1" \
+		RTF_GITHUB_APP_PRIVATE_KEY_PEM="dummy" \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
 integration-tests: clear-db-data
-	@RTF_DB_HOST=localhost \
-		RTF_DB_PORT=5432 \
-		RTF_DB_NAME=rtf_orchestrator \
-		RTF_DB_USER=service_user \
-		RTF_DB_PASS=password \
-		RTF_APOLLO_KEY=dummy \
-		RTF_GITHUB_APP_ID=1 \
-		RTF_GITHUB_APP_PRIVATE_KEY_PEM=dummy \
-		RTF_KUBECONFIG_PATH=$(HOME)/.kube/config \
-		RTF_WORKLOAD_CONTEXT=kind-rtf-workload \
-		RTF_GCS_BUCKET=dummy \
-		RTF_MOCK_GCS_URL="dummy" \
-		RTF_ORCHESTRATOR_URL="http://localhost:8035" \
-		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
-		RTF_OTEL_COLLECTOR_GRPC=dummy \
-		RTF_OTEL_COLLECTOR_HTTP=dummy \
-		RTF_PROMETHEUS_ENDPOINT=dummy \
+	@RTF_CONFIG_PATH="resources/local-config.yaml" \
+		RTF_APOLLO_KEY="dummy" \
+		RTF_GITHUB_APP_ID="1" \
+		RTF_GITHUB_APP_PRIVATE_KEY_PEM="dummy" \
 		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all

@@ -34,7 +34,6 @@ axum.workspace = true
 axum-extra = { version = "0.12", features = ["typed-header"] }
 cached.workspace = true
 chrono.workspace = true
-envy.workspace = true
 google-cloud-auth.workspace = true
 google-cloud-storage.workspace = true
 k8s-openapi.workspace = true

@@ -333,7 +333,7 @@ mod tests {
     #[tokio::test]
     async fn handler_returns_service_unavailable_when_queue_is_full() -> anyhow::Result<()> {
         let mut cfg = Config::get().clone();
-        cfg.max_queued_executions = 0;
+        cfg.workload_clusters.max_queued_executions = 0;
 
         let tss = TestServerState::new_with_config(&cfg);
         let payload = tss.minimal_trigger_payload();

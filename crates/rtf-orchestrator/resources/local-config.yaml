@@ -1,0 +1,51 @@
+# Orchestrator config file for _local_ use when loading Config for use inside of
+# db-tests and running integration tests as the config for the server itself is
+# provided by Tilt there and lives in local-stack/tilt-config.yaml.
+#
+# This file is needed as db-tests attempt to load config and run on the _host_
+# machine running the test suite rather than inside of the rtf-orchestrator
+# binary spun up by Tilt.
+
+admins_path: dummy
+
+db:
+  host: localhost
+  port: 5432
+  name: rtf_orchestrator
+  user: service_user
+  pass: password
+
+server:
+  host: 0.0.0.0
+  port: 8035
+  body_limit_mb: 50
+  orchestrator_url: http://localhost:8035
+
+workload_clusters:
+  default_cluster: alpha
+  max_queued_executions: 100
+  available_clusters:
+    - name: alpha
+      kubeconfig_secret_name: dummy
+      workload_context: dummy
+      execution:
+        max_concurrent: 10
+        failed_execution_ttl_secs: 60
+        retry_window_secs: 300
+        poll_interval_secs: 10
+
+toolbox:
+  pull_policy: IfNotPresent
+  image_repository: rtf-toolbox
+  image_tag: edge
+
+otel:
+  collector_grpc: dummy
+  collector_http: dummy
+  prometheus_endpoint: dummy
+
+gcs:
+  bucket: rtf-local
+  url_ttl_secs: 300
+  mock_internal_url: dummy
+  mock_public_url: dummy

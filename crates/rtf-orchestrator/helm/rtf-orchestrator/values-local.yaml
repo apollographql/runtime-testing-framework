@@ -7,16 +7,8 @@ service:
   type: NodePort
   nodePort: 30035
 
-gcs:
-  bucket: "rtf-local"
-  mockPublicUrl: "http://localhost:8080/gcs"
-  # mockInternalUrl, config.orchestratorUrl, and prometheus.endpoint are set by the Tiltfile using
-  # the mgmt cluster container IP
-
 config:
   logLevel: "info,hyper=error,rtf_orchestrator=debug"
-  toolboxPullPolicy: "IfNotPresent"
-  failedExecutionTtlSecs: "60"
 
 secrets:
   apolloKey:
@@ -32,17 +24,12 @@ db:
   password: password
 
 k8s:
-  workload:
-    context: "kind-rtf-workload"
-    kubeconfigSecretRef:
-      name: "orchestrator-kubeconfig"
-      key: "value"
+  workloadClusters:
+    - name: alpha
+      kubeconfigSecretRef:
+        name: "orchestrator-kubeconfig"
+        key: "value"
 
 configMaps:
   admins: "orchestrator-admins"
-
-# Tiltfile builds the toolbox image locally as rtf-toolbox:edge, not the full registry path/tag
-# in values.yaml
-toolboxImage:
-  repository: "rtf-toolbox"
-  tag: "edge"
+  config: "orchestrator-config"

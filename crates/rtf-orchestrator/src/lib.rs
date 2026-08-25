@@ -1,5 +1,5 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
-use crate::{db::ClusterId, gcs::GCSClient};
+use crate::gcs::GCSClient;
 use axum::{
     Extension, Router,
     extract::DefaultBodyLimit,
@@ -29,27 +29,14 @@ use db::pool::check_db_conn;
 use event_loop::EventQueue;
 use state::ServerState;
 
-const DEFAULT_WORKLOAD_CLUSTER: &str = "alpha";
-const ROUTER_PERF_WORKLOAD_CLUSTER: &str = "beta";
-
 pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
-    info!("Loading config from environment");
+    info!("Loading config from file");
     let cfg = Config::get();
 
     info!("Checking database connection");
     check_db_conn().await?;
 
-    let mut available_clusters = vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)];
-    if cfg.router_perf_cluster_config().is_some() {
-        available_clusters.push(ClusterId::new(ROUTER_PERF_WORKLOAD_CLUSTER));
-    }
-
-    let (mut event_queue, prov_handle, eq_state, rx) = EventQueue::new(
-        cfg.max_concurrent_executions,
-        cfg.max_queued_executions,
-        available_clusters,
-        ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
-    );
+    let (mut event_queue, prov_handle, eq_state, rx) = EventQueue::new(&cfg.workload_clusters);
 
     info!("Initialising event queue state");
     event_queue.init_queue_state(cfg, conn!()).await?;
@@ -135,7 +122,9 @@ fn build_routes(
         .route("/test-run/trigger", post(trigger::handler))
         .route("/whoami", get(whoami::handler))
         .with_state(state)
-        .layer(DefaultBodyLimit::max(cfg.body_limit_mb * 1024 * 1024));
+        .layer(DefaultBodyLimit::max(
+            cfg.server.body_limit_mb * 1024 * 1024,
+        ));
 
     if let Some(reload_handle) = reload_handle {
         router = router.route(
@@ -194,15 +183,11 @@ mod test_helpers {
             )
         }
 
-        pub fn new_with_admins_and_clusters(
-            admins: &[&str],
-            available_clusters: Vec<ClusterId>,
-        ) -> Self {
+        pub fn new_with_config_and_admins(cfg: &Config, admins: &[&str]) -> Self {
             Self::new_with_params_and_clusters(
-                Config::get(),
+                cfg,
                 GCSClient::new_mock("internal_url", "public_url", "bucket", None),
                 Some(admins),
-                available_clusters,
             )
         }
 
@@ -211,26 +196,15 @@ mod test_helpers {
             gcs_client: GCSClient,
             admins: Option<&[&str]>,
         ) -> Self {
-            Self::new_with_params_and_clusters(
-                cfg,
-                gcs_client,
-                admins,
-                vec![ClusterId::new(DEFAULT_WORKLOAD_CLUSTER)],
-            )
+            Self::new_with_params_and_clusters(cfg, gcs_client, admins)
         }
 
         pub fn new_with_params_and_clusters(
             cfg: &Config,
             gcs_client: GCSClient,
             admins: Option<&[&str]>,
-            available_clusters: Vec<ClusterId>,
         ) -> Self {
-            let (_, prov_handle, eq_state, resolver_rx) = EventQueue::new(
-                cfg.max_concurrent_executions,
-                cfg.max_queued_executions,
-                available_clusters,
-                ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
-            );
+            let (_, prov_handle, eq_state, resolver_rx) = EventQueue::new(&cfg.workload_clusters);
 
             let mut state = ServerState::new(eq_state, gcs_client);
             if let Some(admins) = admins {

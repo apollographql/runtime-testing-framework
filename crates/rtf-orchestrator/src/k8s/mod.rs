@@ -21,13 +21,6 @@ const CLI_BINARY: &str = "rtf-orchestrator-cli";
 pub(crate) const OUTPUT_COLLECTOR: &str = "output-collector";
 pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";
 pub const ORCHESTRATOR_NAMESPACE: &str = "orchestrator";
-/// Default rtf-toolbox image repository, used as the [Config](crate::config::Config) default when
-/// `RTF_TOOLBOX_IMAGE_REPOSITORY` isn't set (e.g. via the Helm chart's `toolboxImage.repository`).
-pub(crate) const DEFAULT_TOOLBOX_IMAGE_REPOSITORY: &str =
-    "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox";
-/// Default rtf-toolbox image tag, used as the [Config](crate::config::Config) default when
-/// `RTF_TOOLBOX_IMAGE_TAG` isn't set (e.g. via the Helm chart's `toolboxImage.tag`).
-pub(crate) const DEFAULT_TOOLBOX_IMAGE_TAG: &str = "main";
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

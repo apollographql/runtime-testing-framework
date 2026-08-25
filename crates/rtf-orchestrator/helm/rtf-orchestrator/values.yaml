@@ -17,56 +17,25 @@ command: []
 
 # -- Application configuration
 config:
-  # -- Host address the server listens on
-  host: "0.0.0.0"
-  # -- Port the server listens on
-  port: "8035"
   # -- Log level for the RUST_LOG environment variable
   logLevel: "warn"
-  # -- Maximum number of concurrent test executions
-  maxConcurrentExecutions: "10"
-  # -- Maximum number of queued test executions
-  maxQueuedExecutions: "100"
-  # -- Maximum accepted request body size, in megabytes. The axum default is 2; this should never be set lower
-  bodyLimitMb: "50"
-  # -- URL for this orchestrator instance, reachable from both management and workload cluster pods. Required
-  orchestratorUrl: ""
-  # -- Image pull policy for toolbox images
-  toolboxPullPolicy: "Always"
-  # -- The ttl of a namespace after its execution fails
-  failedExecutionTtlSecs: "600"
-  # -- Maximum time to keep retrying a k8s watch after consecutive transient errors before giving up
-  retryWindowSecs: "300"
-  # -- How often to poll k8s for the status of a Job or Workflow being waited on
-  pollIntervalSecs: "10"
 
 # -- External ConfigMap references for Deployment volumes. Set each value to point at your externally-managed ConfigMap
 configMaps:
   # -- Name of the ConfigMap containing the admins list (data key: members). When unset, nothing is mounted
   admins: null
+  # -- Name of the ConfigMap containing the orchestrator's YAML config file (data key: config.yaml). Required
+  config: ""
 
-# -- Database connection settings
+# -- Cloud SQL proxy sidecar port. Only used when cloudSqlProxy.enabled is true
 db:
-  # -- Database host. Set to 127.0.0.1 when using Cloud SQL Proxy. Required
-  host: ""
-  # -- Database port
+  # -- Port the Cloud SQL proxy sidecar listens on
   port: "5432"
-  # -- Database name
-  name: "rtf_orchestrator"
-  # -- Database user
-  user: "service_user"
   # -- Set to a non-null value to enable password authentication; RTF_DB_PASS will be mounted from secrets.dbPassword. Omit when using Cloud SQL Proxy IAM auth
   password: null
 
 # -- Overrides the fully qualified app name
 fullnameOverride: ""
-
-# -- Google Cloud Storage configuration
-gcs:
-  # -- GCS bucket name. Required
-  bucket: ""
-  # -- Signed URL TTL in seconds
-  urlTtlSecs: "300"
 
 # -- Container image configuration
 image:
@@ -80,51 +49,28 @@ image:
 # -- List of image pull secrets
 imagePullSecrets: []
 
-# -- Kubernetes cluster configuration
+# -- References to Secrets containing kubeconfig files for workload clusters, mounted as volumes.
+# The cluster names and contexts used by the orchestrator itself are configured in the config file
+# (configMaps.config), not here.
 k8s:
-  # -- Workload cluster configuration
-  workload:
-    # -- Kubernetes context name for the workload cluster. Required
-    context: ""
-    # -- Reference to a Secret containing the kubeconfig; the file is mounted at /root/.kube/config
-    kubeconfigSecretRef:
-      # -- Secret name. When set, the kubeconfig is mounted from this Secret
-      name: null
-      # -- Key within the Secret
-      key: "config"
-    # -- Path to a kubeconfig file already present in the container. Ignored when kubeconfigSecretRef.name is set
-    kubeconfigPath: ""
-  # -- Optional second workload cluster reserved for Router performance tests. Leave context unset
-  # to disable it entirely — the orchestrator falls back to only the primary workload cluster
-  routerPerf:
-    # -- Kubernetes context name for the router-perf workload cluster. Leave unset to disable this cluster
-    context: ""
-    # -- Reference to a Secret containing the kubeconfig; the file is mounted at /root/.kube/router-perf-config
-    kubeconfigSecretRef:
-      # -- Secret name. When set, the kubeconfig is mounted from this Secret
-      name: null
-      # -- Key within the Secret
-      key: "config"
-    # -- Path to a kubeconfig file already present in the container. Ignored when kubeconfigSecretRef.name is set
-    kubeconfigPath: ""
+  # -- One entry per workload cluster listed under workload_clusters.available_clusters in the
+  # config file — `name` must match exactly. Each cluster's kubeconfig Secret is mounted at
+  # /etc/rtf-orchestrator/kubeconfigs/<name>/config, which must match
+  # WorkloadClusterConfig::kubeconfig_path in src/config.rs. `name` becomes part of a Kubernetes
+  # volume name, so it must be a valid DNS-1123 label (lowercase alphanumeric and `-`).
+  workloadClusters: []
+  # - name: alpha
+  #   kubeconfigSecretRef:
+  #     # -- Secret name containing the kubeconfig
+  #     name: my-kubeconfig-secret
+  #     # -- Key within the Secret
+  #     key: "config"
 
 # -- Overrides the chart name
 nameOverride: ""
 
-# -- OpenTelemetry collector configuration for RTF Orchestrator workload pods
-otel:
-  # -- gRPC endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_GRPC
-  collectorGrpc: "http://otel-collector.monitoring:4317"
-  # -- HTTP endpoint for the OTEL collector, passed to workload pods as RTF_OTEL_COLLECTOR_HTTP
-  collectorHttp: "http://otel-collector.monitoring:4318"
-
 # -- Annotations to add to the pod template
 podAnnotations: {}
-
-# -- Prometheus endpoint configuration for RTF Orchestrator workload pods
-prometheus:
-  # -- Endpoint for retrieving prometheus metrics during output collection
-  endpoint: "http://observability-kube-prometh-prometheus.monitoring.svc.cluster.local:9090"
 
 # -- Resource requests and limits for the rtf-orchestrator container
 resources: {}
@@ -174,10 +120,3 @@ serviceAccount:
   # -- Annotations to add to the ServiceAccount.
   # e.g. iam.gke.io/gcp-service-account: sa@project.iam.gserviceaccount.com
   annotations: {}
-
-# -- Container image configuration for the rtf-toolbox image used by toolbox init/sidecar containers and Argo workflow tasks
-toolboxImage:
-  # -- Image repository
-  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox"
-  # -- Image tag
-  tag: "edge"

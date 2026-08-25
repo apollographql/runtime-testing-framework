@@ -12,12 +12,12 @@ static POOL: OnceCell<PgPool> = OnceCell::const_new();
 pub async fn init_pool(cfg: &Config) -> Result<PgPool> {
     info!("Initialising DB connection pool");
     let mut opts = PgConnectOptions::new()
-        .host(&cfg.db_host)
-        .port(cfg.db_port)
-        .username(&cfg.db_user)
-        .database(&cfg.db_name);
+        .host(&cfg.db.host)
+        .port(cfg.db.port)
+        .username(&cfg.db.user)
+        .database(&cfg.db.name);
 
-    if let Some(ref pass) = cfg.db_pass {
+    if let Some(ref pass) = cfg.db.pass {
         opts = opts.password(pass);
     }
 

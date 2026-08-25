@@ -102,7 +102,7 @@ jobs:
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
     - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
       with:
-        rust-version: nightly
+        rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
       with:
         shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"

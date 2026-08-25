@@ -64,7 +64,9 @@ pub async fn clear_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{iap_identity::IAP_USER_EMAIL_HEADER, test_helpers::TestServerState};
+    use crate::{
+        config::Config, iap_identity::IAP_USER_EMAIL_HEADER, test_helpers::TestServerState,
+    };
     use reqwest::StatusCode;
     use sqlx::PgConnection;
 
@@ -87,10 +89,12 @@ mod tests {
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn admin_can_pin_and_unpin_a_configured_cluster() -> anyhow::Result<()> {
-        let tss = TestServerState::new_with_admins_and_clusters(
-            &[ADMIN_EMAIL],
-            vec![ClusterId::new("alpha"), ClusterId::new("beta")],
-        );
+        let mut cfg = Config::get().clone();
+        let mut cluster_cfg = cfg.workload_clusters.available_clusters[0].clone();
+        cluster_cfg.name = "beta".into();
+        cfg.workload_clusters.available_clusters.push(cluster_cfg);
+
+        let tss = TestServerState::new_with_config_and_admins(&cfg, &[ADMIN_EMAIL]);
 
         let plan = register_plan(conn!()).await;
         assert_eq!(plan.pinned_workload_cluster(), None);

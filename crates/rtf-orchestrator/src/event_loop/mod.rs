@@ -9,8 +9,7 @@
 //! functions must be written to return a Result that the `Event::handle` method will use to record
 //! an Unrunnable status.
 use crate::{
-    DEFAULT_WORKLOAD_CLUSTER, ROUTER_PERF_WORKLOAD_CLUSTER,
-    config::Config,
+    config::{Config, WorkloadClusterConfig},
     conn,
     db::{ClusterId, TestExecution, UpdateHandle},
     event_loop::{provision_environment::MSG_ARGO_COMPLETE, run_scenario::CreateJobConfig},
@@ -41,39 +40,23 @@ struct EventLoopConfig<'a> {
     toolbox_pull_policy: &'a str,
     toolbox_image: &'a str,
     otel: &'a OtelConfig,
-    failed_execution_ttl_seconds: u64,
-    retry_window_secs: u64,
-    poll_interval_secs: u64,
-    workload_clusters: HashMap<ClusterId, WorkloadClusterConfig<'a>>,
+    workload_clusters: &'a HashMap<ClusterId, WorkloadClusterConfig>,
 }
 
 impl<'a> EventLoopConfig<'a> {
-    fn workload_cluster_config(&self, cluster: &ClusterId) -> Result<WorkloadClusterConfig<'a>> {
+    fn workload_cluster_config(&self, cluster: &ClusterId) -> Result<&'a WorkloadClusterConfig> {
         self.workload_clusters
             .get(cluster)
-            .copied()
             .ok_or_else(|| Error::UnknownWorkloadCluster(cluster.to_string()))
     }
-}
 
-#[derive(Debug, Clone, Copy)]
-struct WorkloadClusterConfig<'a> {
-    kubeconfig_path: &'a str,
-    workload_context: &'a str,
-    kubeconfig_secret_name: &'a str,
-}
-
-impl<'a> WorkloadClusterConfig<'a> {
-    pub fn new(
-        kubeconfig_path: &'a str,
-        workload_context: &'a str,
-        kubeconfig_secret_name: &'a str,
-    ) -> Self {
-        Self {
-            kubeconfig_path,
-            workload_context,
-            kubeconfig_secret_name,
-        }
+    /// Only used on an error path reached after `workload_cluster_config` has already been
+    /// looked up successfully for `cluster` earlier in the same event handler, so the fallback
+    /// here is unreachable in practice.
+    fn failed_execution_ttl_secs(&self, cluster: &ClusterId) -> u64 {
+        self.workload_cluster_config(cluster)
+            .map(|c| c.execution.failed_execution_ttl_secs)
+            .unwrap_or(600)
     }
 }
 
@@ -81,47 +64,19 @@ impl<'a> WorkloadClusterConfig<'a> {
 /// channel that is shared with the axum server and the event loop's own handler functions.
 pub async fn event_loop_task(mut event_queue: EventQueue) {
     let cfg_ref = Config::get();
-    let Config {
-        kubeconfig_path,
-        workload_context,
-        kubeconfig_secret_name,
-        orchestrator_url,
-        prometheus_endpoint,
-        toolbox_pull_policy,
-        otel_collector_grpc,
-        otel_collector_http,
-        failed_execution_ttl_secs,
-        retry_window_secs,
-        poll_interval_secs,
-        ..
-    } = cfg_ref;
     let toolbox_image = cfg_ref.toolbox_image();
-
-    let mut workload_clusters = HashMap::from([(
-        ClusterId::new(DEFAULT_WORKLOAD_CLUSTER),
-        WorkloadClusterConfig::new(kubeconfig_path, workload_context, kubeconfig_secret_name),
-    )]);
-
-    if let Some((path, context, secret_name)) = cfg_ref.router_perf_cluster_config() {
-        workload_clusters.insert(
-            ClusterId::new(ROUTER_PERF_WORKLOAD_CLUSTER),
-            WorkloadClusterConfig::new(path, context, secret_name),
-        );
-    }
+    let workload_clusters = cfg_ref.workload_clusters.per_cluster_config();
 
     let cfg = EventLoopConfig {
-        orchestrator_url,
-        prometheus_endpoint,
-        toolbox_pull_policy,
+        orchestrator_url: &cfg_ref.server.orchestrator_url,
+        prometheus_endpoint: &cfg_ref.otel.prometheus_endpoint,
+        toolbox_pull_policy: &cfg_ref.toolbox.pull_policy,
         toolbox_image: &toolbox_image,
         otel: &OtelConfig {
-            grpc: otel_collector_grpc.to_string(),
-            http: otel_collector_http.to_string(),
+            grpc: cfg_ref.otel.collector_grpc.clone(),
+            http: cfg_ref.otel.collector_http.clone(),
         },
-        failed_execution_ttl_seconds: *failed_execution_ttl_secs,
-        retry_window_secs: *retry_window_secs,
-        poll_interval_secs: *poll_interval_secs,
-        workload_clusters,
+        workload_clusters: &workload_clusters,
     };
 
     while let Some(evt) = event_queue.next_event().await {
@@ -267,7 +222,7 @@ impl Event {
                         provision_environment::create_workflow(
                             self.test_execution.clone(),
                             &environment,
-                            cluster_cfg.kubeconfig_secret_name,
+                            &cluster_cfg.kubeconfig_secret_name,
                             cfg,
                             clients,
                             conn,
@@ -280,23 +235,22 @@ impl Event {
             }
 
             EventData::WaitForEnvArgoWorkflow => {
-                let WorkloadClusterConfig {
-                    kubeconfig_path,
-                    workload_context,
-                    ..
-                } = cfg.workload_cluster_config(&self.cluster)?;
-                let clients = ClusterClients::try_new_full(kubeconfig_path, workload_context)
-                    .await
-                    .inspect_err(
-                        |e| error!(%e, "failed to build k8s clients for WaitForEnvArgoWorkflow"),
-                    )?;
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let clients = ClusterClients::try_new_full(
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build k8s clients for WaitForEnvArgoWorkflow"),
+                )?;
 
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
                     self.cluster.clone(),
-                    cfg.failed_execution_ttl_seconds,
-                    cfg.poll_interval_secs,
-                    cfg.retry_window_secs,
+                    cluster_cfg.execution.failed_execution_ttl_secs,
+                    cluster_cfg.execution.poll_interval_secs,
+                    cluster_cfg.execution.retry_window_secs,
                     event_queue.tx(),
                     clients,
                     conn,
@@ -315,14 +269,10 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
-                let WorkloadClusterConfig {
-                    kubeconfig_path,
-                    workload_context,
-                    ..
-                } = cfg.workload_cluster_config(&self.cluster)?;
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
-                    kubeconfig_path,
-                    workload_context,
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -357,23 +307,22 @@ impl Event {
             }
 
             EventData::WaitForScenarioJob => {
-                let WorkloadClusterConfig {
-                    kubeconfig_path,
-                    workload_context,
-                    ..
-                } = cfg.workload_cluster_config(&self.cluster)?;
-                let clients = ClusterClients::try_new_workload(kubeconfig_path, workload_context)
-                    .await
-                    .inspect_err(
-                        |e| error!(%e, "failed to build workload k8s client for WaitForScenarioJob"),
-                    )?;
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let clients = ClusterClients::try_new_workload(
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build workload k8s client for WaitForScenarioJob"),
+                )?;
 
                 run_scenario::wait_for_job(
                     self.test_execution.clone(),
                     self.cluster.clone(),
-                    cfg.failed_execution_ttl_seconds,
-                    cfg.poll_interval_secs,
-                    cfg.retry_window_secs,
+                    cluster_cfg.execution.failed_execution_ttl_secs,
+                    cluster_cfg.execution.poll_interval_secs,
+                    cluster_cfg.execution.retry_window_secs,
                     event_queue.tx(),
                     clients,
                     conn,
@@ -399,14 +348,10 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
-                let WorkloadClusterConfig {
-                    kubeconfig_path,
-                    workload_context,
-                    ..
-                } = cfg.workload_cluster_config(&self.cluster)?;
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
-                    kubeconfig_path,
-                    workload_context,
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -449,10 +394,11 @@ impl Event {
                     .await;
 
                 if cleanup_on_error {
+                    let ttl_secs = cfg.failed_execution_ttl_secs(&self.cluster);
                     let _ = event_queue.tx().send(Event {
                         test_execution: self.test_execution,
                         cluster: self.cluster,
-                        data: EventData::CleanupNamespaceAfter(cfg.failed_execution_ttl_seconds),
+                        data: EventData::CleanupNamespaceAfter(ttl_secs),
                     });
                 }
             }
