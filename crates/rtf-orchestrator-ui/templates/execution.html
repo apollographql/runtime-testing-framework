@@ -9,6 +9,11 @@
 <p><a href="/ui/run/{{ run_id }}">&larr; Back to run</a></p>
 {% when None %}
 {% endmatch %}
+{% match execution.test_plan_id %}
+{% when Some with (test_plan_id) %}
+<p><a href="/ui/test-plan/{{ test_plan_id }}">&larr; Back to test plan</a></p>
+{% when None %}
+{% endmatch %}
 
 <section class="banner">
     <h2>{{ execution.name }}</h2>

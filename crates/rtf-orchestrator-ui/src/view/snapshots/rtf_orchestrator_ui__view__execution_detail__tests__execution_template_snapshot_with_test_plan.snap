@@ -1,6 +1,5 @@
 ---
 source: crates/rtf-orchestrator-ui/src/view/execution_detail.rs
-assertion_line: 166
 expression: body
 ---
 <!DOCTYPE html>
@@ -42,13 +41,16 @@ expression: body
 <p><a href="/ui/run/00000000-0000-0000-0000-000000000001">&larr; Back to run</a></p>
 
 
+<p><a href="/ui/test-plan/00000000-0000-0000-0000-000000000002">&larr; Back to test plan</a></p>
+
+
 <section class="banner">
     <h2>exec-alpha</h2>
     <p><span class="status status--success">SUCCESSFUL</span></p>
     <dl>
         <dt>Execution ID</dt>
-        <dd><code>00000000-0000-0000-0000-000000000002</code> 
-<button type="button" class="copy-btn" data-copy="00000000-0000-0000-0000-000000000002" aria-label="Copy execution ID"
+        <dd><code>00000000-0000-0000-0000-000000000003</code> 
+<button type="button" class="copy-btn" data-copy="00000000-0000-0000-0000-000000000003" aria-label="Copy execution ID"
     title="Copy to clipboard">
     <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"
         stroke-linejoin="round">
@@ -70,15 +72,15 @@ expression: body
         
     </dl>
     <p>
-        <a href="https://console.cloud.google.com/logs/query;query=resource.labels.cluster_name%3D%22cluster_name%22%0Aresource.labels.namespace_name%3D%2200000000-0000-0000-0000-000000000002%22;cursorTimestamp=2024-03-15T09:00:00.000Z;startTime=2024-03-15T09:00:00.000Z;endTime=2024-03-15T09:05:00.000Z?referrer=search&#38;project=gcp-project&#38;supportedpurview=project" target="_blank" rel="noopener noreferrer">View logs in GCP &#8599;</a>
+        <a href="https://console.cloud.google.com/logs/query;query=resource.labels.cluster_name%3D%22cluster_name%22%0Aresource.labels.namespace_name%3D%2200000000-0000-0000-0000-000000000003%22;cursorTimestamp=2024-03-15T09:00:00.000Z;startTime=2024-03-15T09:00:00.000Z;endTime=2024-03-15T09:05:00.000Z?referrer=search&#38;project=gcp-project&#38;supportedpurview=project" target="_blank" rel="noopener noreferrer">View logs in GCP &#8599;</a>
         &middot;
-        <a href="http://grafana.com/d/dash-uuid/dash-slug?orgId=1&#38;from=2024-03-15T09:00:00.000Z&#38;to=2024-03-15T09:05:00.000Z&#38;timezone=utc&#38;var-datasource=data-uuid&#38;var-cluster=&#38;var-namespace=00000000-0000-0000-0000-000000000002&#38;refresh=10s" target="_blank" rel="noopener noreferrer">View dashboard in Grafana
+        <a href="http://grafana.com/d/dash-uuid/dash-slug?orgId=1&#38;from=2024-03-15T09:00:00.000Z&#38;to=2024-03-15T09:05:00.000Z&#38;timezone=utc&#38;var-datasource=data-uuid&#38;var-cluster=&#38;var-namespace=00000000-0000-0000-0000-000000000003&#38;refresh=10s" target="_blank" rel="noopener noreferrer">View dashboard in Grafana
             &#8599;</a>
     </p>
     <p>
-        <a href="/ui/execution/00000000-0000-0000-0000-000000000002/log.txt">Download log.txt</a>
+        <a href="/ui/execution/00000000-0000-0000-0000-000000000003/log.txt">Download log.txt</a>
         &middot;
-        <a href="/ui/execution/00000000-0000-0000-0000-000000000002/output.zip">Download output.zip</a>
+        <a href="/ui/execution/00000000-0000-0000-0000-000000000003/output.zip">Download output.zip</a>
     </p>
 </section>
 

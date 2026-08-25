@@ -21,6 +21,7 @@ const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 
 pub struct RunView {
     pub id: Uuid,
+    pub test_plan_id: Option<Uuid>,
     pub name: String,
     pub status: StatusView,
     pub trigger_variables: Vec<TriggerVariableView>,
@@ -53,6 +54,7 @@ impl RunView {
 
         Self {
             id: run.id,
+            test_plan_id: run.test_plan_id,
             name: run.name,
             status: run.current_status.into(),
             trigger_variables: TriggerVariableView::from_raw(run.trigger_variables),
@@ -274,6 +276,24 @@ mod tests {
     }
 
     #[test]
+    fn run_template_links_back_to_the_test_plan_when_known() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let test_plan_id = Uuid::from_u128(3);
+        let mut run = sample_summary(run_id, ex_id, Status::Running);
+        run.test_plan_id = Some(test_plan_id);
+        let view = RunView::new(run, Utc::now(), &sample_config(), String::new());
+        let body = RunTemplate { run: view }
+            .render()
+            .expect("template renders");
+
+        assert!(
+            body.contains(&format!("/ui/test-plan/{test_plan_id}")),
+            "run page should link back to its known test plan"
+        );
+    }
+
+    #[test]
     fn run_template_omits_the_poll_trigger_once_terminal() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
@@ -466,10 +486,11 @@ mod tests {
 
     #[test]
     fn run_template_snapshot_running_with_mixed_statuses_and_active_filter() {
-        let run_id = Uuid::from_u128(1);
         let started = Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0).unwrap();
+
         let run = TestRunSummary {
-            id: run_id,
+            id: Uuid::from_u128(1),
+            test_plan_id: Some(Uuid::from_u128(2)),
             name: "nightly-smoke".to_owned(),
             trigger_variables: Some(json!({"foo": "bar", "baz": [1, 2, 3]})),
             current_status: Status::Running,
@@ -478,7 +499,7 @@ mod tests {
             updated_at: started + Duration::minutes(5),
             executions: vec![
                 TestExecutionSummary {
-                    id: Uuid::from_u128(10),
+                    id: Uuid::from_u128(3),
                     name: "exec-ok".to_owned(),
                     current_status: Status::Successful,
                     exit_code: Some(0),
@@ -488,7 +509,7 @@ mod tests {
                     ..Default::default()
                 },
                 TestExecutionSummary {
-                    id: Uuid::from_u128(11),
+                    id: Uuid::from_u128(4),
                     name: "exec-broke".to_owned(),
                     current_status: Status::Failed,
                     exit_code: Some(1),
@@ -510,12 +531,12 @@ mod tests {
 
     #[test]
     fn run_template_snapshot_terminal_run_with_completed_at() {
-        let run_id = Uuid::from_u128(2);
-        let ex_id = Uuid::from_u128(20);
         let started = Utc.with_ymd_and_hms(2024, 3, 15, 9, 0, 0).unwrap();
         let completed = started + Duration::minutes(12);
+
         let run = TestRunSummary {
-            id: run_id,
+            id: Uuid::from_u128(1),
+            test_plan_id: Some(Uuid::from_u128(2)),
             name: "release-check".to_owned(),
             current_status: Status::Successful,
             initiated_by: "someone@apollographql.com".to_owned(),
@@ -523,7 +544,7 @@ mod tests {
             updated_at: completed,
             completed_at: Some(completed),
             executions: vec![TestExecutionSummary {
-                id: ex_id,
+                id: Uuid::from_u128(3),
                 name: "exec-alpha".to_owned(),
                 current_status: Status::Successful,
                 exit_code: Some(0),
