@@ -23,7 +23,6 @@ use serde::Serialize;
 use sqlx::PgConnection;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    mem::take,
     sync::Arc,
 };
 use tokio::sync::{
@@ -584,9 +583,11 @@ impl ProvisioningHandle {
             .with_shared(|shared| shared.variant_with_context(ex))
             .await?;
 
-        let variables = take(&mut test_plan.variables);
-        let template_ctx =
-            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
+        let template_ctx = TemplateContext::new(
+            test_plan.variables.clone(),
+            HashMap::new(),
+            ctx.custom_provider_definitions(),
+        );
 
         test_plan
             .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
@@ -639,6 +640,8 @@ impl ProvisioningHandle {
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
         let scenario_yaml = serde_yaml::to_string(&test_plan.scenario)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
+        let execution_variables = serde_json::to_string_pretty(&test_plan.variables)
+            .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
 
         let env_prom_queries = test_plan
             .environment
@@ -662,6 +665,7 @@ impl ProvisioningHandle {
             })
             .collect();
         let output_collection = OutputCollectionResponse {
+            execution_variables,
             prometheus: PrometheusQueries {
                 environment: env_prom_queries,
                 scenario: scenario_prom_queries,
@@ -1574,6 +1578,7 @@ mod tests {
                     env_yaml: "yaml".to_string(),
                     scenario_yaml: "yaml".to_string(),
                     output_collection: OutputCollectionResponse {
+                        execution_variables: String::new(),
                         prometheus: PrometheusQueries {
                             environment: Vec::new(),
                             scenario: Vec::new(),
@@ -1608,6 +1613,7 @@ mod tests {
                     env_yaml: "yaml".to_string(),
                     scenario_yaml: "yaml".to_string(),
                     output_collection: OutputCollectionResponse {
+                        execution_variables: String::new(),
                         prometheus: PrometheusQueries {
                             environment: Vec::new(),
                             scenario: Vec::new(),

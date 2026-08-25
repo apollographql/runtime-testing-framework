@@ -34,6 +34,7 @@ pub struct OtelConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputCollectionResponse {
+    pub execution_variables: String,
     pub prometheus: PrometheusQueries,
 }
 

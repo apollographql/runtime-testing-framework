@@ -90,7 +90,7 @@ async fn collect_output_inner(
     let ns = ctx.execution_namespace();
     let output_dir = paths.base.join("output");
 
-    match ctx.orchestrator_client().fetch_output_collection().await {
+    let execution_variables = match ctx.orchestrator_client().fetch_output_collection().await {
         Ok(output) => {
             let prometheus_client = PrometheusClient::new(prometheus_endpoint);
             collect_prometheus_metrics(
@@ -101,7 +101,10 @@ async fn collect_output_inner(
                 ctx,
             )
             .await;
+
+            output.execution_variables
         }
+
         Err(e) => {
             let path = output_dir.join("prometheus.txt");
             let err_str = format!(
@@ -112,8 +115,15 @@ async fn collect_output_inner(
             if let Err(e) = fs::write(&path, &err_str).await {
                 warn!("failed to write {}: {e}", path.display());
             }
+
+            "{}".to_string()
         }
     };
+
+    let path = output_dir.join("variables.json");
+    if let Err(e) = fs::write(&path, &execution_variables).await {
+        warn!("failed to write {}: {e}", path.display());
+    }
 
     info!("collecting execution namespace artifacts");
     ctx.kube_client()

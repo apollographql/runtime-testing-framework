@@ -43,6 +43,7 @@ async fn full_test_run_happy_path_completes_successfully() {
     assert!(zip.contains_path_prefix("output/logs/"));
 
     zip.read_json("output/events.json").unwrap();
+    zip.read_json("output/variables.json").unwrap();
     zip.read_json("output/resource-metrics.json").unwrap();
 
     assert_eq!(
