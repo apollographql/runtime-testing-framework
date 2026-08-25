@@ -22,6 +22,7 @@ const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 pub struct RunView {
     pub id: Uuid,
     pub test_plan_id: Option<Uuid>,
+    pub rerun_url: Option<String>,
     pub name: String,
     pub status: StatusView,
     pub trigger_variables: Vec<TriggerVariableView>,
@@ -55,6 +56,9 @@ impl RunView {
         Self {
             id: run.id,
             test_plan_id: run.test_plan_id,
+            rerun_url: run
+                .test_plan_id
+                .map(|test_plan_id| rerun_url(test_plan_id, run.trigger_variables.as_ref())),
             name: run.name,
             status: run.current_status.into(),
             trigger_variables: TriggerVariableView::from_raw(run.trigger_variables),
@@ -211,6 +215,17 @@ fn should_poll(status: Status, started_at: DateTime<Utc>, now: DateTime<Utc>) ->
     !status.is_terminal() && (now.timestamp() - started_at.timestamp()) < MAX_POLL_AGE_SECS
 }
 
+fn rerun_url(test_plan_id: Uuid, trigger_variables: Option<&Value>) -> String {
+    match trigger_variables {
+        Some(vars) => {
+            let mut qs = form_urlencoded::Serializer::new(String::new());
+            qs.append_pair("trigger_variables", &vars.to_string());
+            format!("/ui/test-plan/{test_plan_id}?{}", qs.finish())
+        }
+        None => format!("/ui/test-plan/{test_plan_id}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,6 +236,7 @@ mod tests {
     use chrono::{Duration, TimeZone};
     use serde_json::json;
     use simple_test_case::test_case;
+    use std::collections::HashMap;
 
     fn fixed_now() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2024, 3, 15, 12, 30, 0).unwrap()
@@ -291,6 +307,70 @@ mod tests {
             body.contains(&format!("/ui/test-plan/{test_plan_id}")),
             "run page should link back to its known test plan"
         );
+    }
+
+    #[test]
+    fn rerun_url_carries_the_test_plan_id_with_no_variables_param_when_the_run_had_none() {
+        let test_plan_id = Uuid::from_u128(3);
+        let mut run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);
+        run.test_plan_id = Some(test_plan_id);
+        let view = RunView::new(run, Utc::now(), &sample_config(), String::new());
+
+        assert_eq!(
+            view.rerun_url,
+            Some(format!("/ui/test-plan/{test_plan_id}"))
+        );
+    }
+
+    #[test]
+    fn rerun_url_carries_the_runs_trigger_variables_as_json() {
+        let test_plan_id = Uuid::from_u128(3);
+        let mut run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);
+        run.test_plan_id = Some(test_plan_id);
+        run.trigger_variables = Some(json!({"env": "prod", "tier": ["gold", "silver"]}));
+        let view = RunView::new(run, Utc::now(), &sample_config(), String::new());
+
+        let url = view.rerun_url.expect("test plan is known");
+        let (_, query) = url.split_once('?').expect("expected a query string");
+        let decoded: HashMap<_, _> = form_urlencoded::parse(query.as_bytes()).collect();
+
+        assert_eq!(
+            decoded.get("trigger_variables").map(|v| v.as_ref()),
+            Some(r#"{"env":"prod","tier":["gold","silver"]}"#)
+        );
+    }
+
+    #[test]
+    fn run_template_shows_a_rerun_link_when_the_run_has_a_known_test_plan() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let test_plan_id = Uuid::from_u128(3);
+        let mut run = sample_summary(run_id, ex_id, Status::Running);
+        run.test_plan_id = Some(test_plan_id);
+        run.trigger_variables = Some(json!({"env": "prod"}));
+        let view = RunView::new(run, Utc::now(), &sample_config(), String::new());
+        let body = RunTemplate { run: view }
+            .render()
+            .expect("template renders");
+
+        assert!(body.contains(&format!("/ui/test-plan/{test_plan_id}?trigger_variables=")));
+    }
+
+    #[test]
+    fn run_template_omits_the_rerun_link_when_the_run_has_no_known_test_plan() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let view = RunView::new(
+            sample_summary(run_id, ex_id, Status::Running),
+            Utc::now(),
+            &sample_config(),
+            String::new(),
+        );
+        let body = RunTemplate { run: view }
+            .render()
+            .expect("template renders");
+
+        assert!(!body.contains("Re-run"));
     }
 
     #[test]

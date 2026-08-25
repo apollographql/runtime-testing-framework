@@ -102,6 +102,10 @@ expression: body
             </p>
             <button type="button" popovertarget="run-output-cmd" popovertargetaction="hide">Close</button>
         </div>
+
+        
+        <p><a href="/ui/test-plan/00000000-0000-0000-0000-000000000002?trigger_variables=%7B%22baz%22%3A%5B1%2C2%2C3%5D%2C%22foo%22%3A%22bar%22%7D">Re-run</a></p>
+        
     </section>
 
     <h3>Status breakdown</h3>

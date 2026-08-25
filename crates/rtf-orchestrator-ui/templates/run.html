@@ -63,6 +63,12 @@
             </p>
             <button type="button" popovertarget="run-output-cmd" popovertargetaction="hide">Close</button>
         </div>
+
+        {% match run.rerun_url %}
+        {% when Some with (rerun_url) %}
+        <p><a href="{{ rerun_url }}">Re-run</a></p>
+        {% when None %}
+        {% endmatch %}
     </section>
 
     <h3>Status breakdown</h3>
