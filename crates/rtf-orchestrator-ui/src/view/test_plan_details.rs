@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use rtf_orchestrator_shared::{
     test_plan::{EnvironmentService, ServiceReplicas},
     test_plan_details::{
@@ -184,7 +184,7 @@ impl TestPlanDetailsView {
             services_vary_by_matrix: environment.services_vary_by_matrix,
             n_containers_per_execution,
             history_from_label: format_day(history.window.from),
-            history_to_label: format_day(history.window.to),
+            history_to_label: format_day(history.window.to - Duration::days(1)),
             sampled_runs: history.execution_durations.total,
             variables: details
                 .variables
@@ -230,13 +230,18 @@ impl TestPlanDetailsView {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
     use rtf_config::templating::Scalar;
     use rtf_orchestrator_shared::test_plan_details::{
-        DEFAULT_DAYS, DEFAULT_DAYS_BACK, EnvironmentSummary, MatrixSummary, TestPlanSource,
-        VariableDeclaration,
+        DEFAULT_DAYS, DEFAULT_DAYS_BACK, EnvironmentSummary, HistoryWindow, MatrixSummary,
+        TestPlanSource, VariableDeclaration,
     };
     use simple_test_case::test_case;
     use std::collections::BTreeMap;
+
+    fn day(y: i32, m: u32, d: u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(y, m, d, 0, 0, 0).unwrap()
+    }
 
     fn sample_variable(
         name: &str,
@@ -417,6 +422,21 @@ mod tests {
             },
             history: TestPlanHistory::default(),
         }
+    }
+
+    #[test]
+    fn test_plan_details_view_to_label_shows_the_last_included_day() {
+        let uuid = Uuid::from_u128(1);
+        let mut details = sample_details(uuid);
+        details.history.window = HistoryWindow {
+            from: day(2026, 7, 18),
+            to: day(2026, 8, 18),
+        };
+
+        let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
+
+        assert_eq!(view.history_from_label, "2026-07-18");
+        assert_eq!(view.history_to_label, "2026-08-17");
     }
 
     #[test]

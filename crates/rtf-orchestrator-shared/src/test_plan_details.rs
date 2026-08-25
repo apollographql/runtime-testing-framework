@@ -67,10 +67,15 @@ impl TestPlanDetailsParams {
                 .checked_sub_days(Days::new(days_back.into()))
                 .unwrap_or(today),
         );
-        let to = from
+        let raw_to = from
             .checked_add_days(Days::new(days.into()))
-            .unwrap_or(end_of_today)
-            .min(end_of_today);
+            .unwrap_or(end_of_today);
+
+        let to = if raw_to >= midnight(today) {
+            end_of_today
+        } else {
+            raw_to
+        };
 
         HistoryWindow { from, to }
     }
@@ -508,12 +513,26 @@ mod tests {
     }
 
     #[test_case(0, 1; "zero days clamped up to one")]
-    #[test_case(MAX_DAYS + 1, MAX_DAYS; "days capped at the maximum")]
+    #[test_case(MAX_DAYS + 1, MAX_DAYS + 1; "days capped at the maximum")]
     #[test]
     fn history_window_clamps_days(days: u32, expected: u32) {
         let window = window_params(MAX_DAYS_BACK, days).history_window(now());
 
         assert_eq!(window.days().len(), expected as usize);
+    }
+
+    #[test_case(DEFAULT_DAYS_BACK, DEFAULT_DAYS, true; "default days_back and days include today")]
+    #[test_case(60, 30, false; "before today")]
+    #[test]
+    fn history_window_includes_all_of_today_when_the_window_intersects_it(
+        days_back: u32,
+        days: u32,
+        included: bool,
+    ) {
+        let window = window_params(days_back, days).history_window(now());
+        let today = day(2026, 8, 17);
+
+        assert_eq!(window.to > today, included, "window: {window:?}");
     }
 
     #[test_case(ServiceReplicas::Fixed(3), false; "fixed replicas")]

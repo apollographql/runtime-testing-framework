@@ -182,10 +182,8 @@ mod tests {
     fn execution_template_snapshot_without_test_plan() {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let view = ExecutionDetailView::new(
-            snapshot_execution(run_id, None, ex_id),
-            &sample_config(),
-        );
+        let view =
+            ExecutionDetailView::new(snapshot_execution(run_id, None, ex_id), &sample_config());
         let body = ExecutionTemplate { execution: view }
             .render()
             .expect("template renders");

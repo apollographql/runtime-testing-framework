@@ -317,8 +317,25 @@ mod tests {
 
         let counts = plan.runs_by_day(ten_day_window(), c).await?;
 
-        assert_eq!(counts.len(), 10, "should be every day in the window");
+        // `ten_day_window()` uses `days_back == days`, which intersects today so
+        // we get 10 days back plus today.
+        assert_eq!(counts.len(), 11, "should be every day in the window");
         assert_eq!(counts.get(&day_key(4)), Some(&DayCounts::default()));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn runs_by_day_counts_a_run_started_today_when_the_window_reaches_it() -> Result<()> {
+        let c = conn!();
+        let plan = register_plan(c).await?;
+
+        run_started(&plan, 0, Status::Successful, c).await?;
+
+        let counts = plan.runs_by_day(ten_day_window(), c).await?;
+
+        assert_eq!(counts.get(&day_key(0)).map(|c| c.successful), Some(1));
 
         Ok(())
     }
