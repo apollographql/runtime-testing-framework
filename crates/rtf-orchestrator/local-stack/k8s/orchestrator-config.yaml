@@ -11,12 +11,7 @@ metadata:
   namespace: orchestrator
 data:
   config.yaml: |
-    apollo_key: dummy
     admins_path: /etc/rtf-orchestrator/admins/members
-
-    github:
-      app_id: 1
-      app_private_key_pem: dummy
 
     db:
       host: postgres

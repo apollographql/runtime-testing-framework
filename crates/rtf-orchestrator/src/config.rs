@@ -3,42 +3,63 @@ use rtf_config::context::Context;
 use serde::Deserialize;
 use std::{collections::HashMap, env, fs, net::SocketAddr, sync::LazyLock};
 
+const APOLLO_KEY_VAR: &str = "RTF_APOLLO_KEY";
+const CONFIG_PATH_VAR: &str = "RTF_CONFIG_PATH";
+const GH_APP_ID_VAR: &str = "RTF_GITHUB_APP_ID";
+const GH_PEM_VAR: &str = "RTF_GITHUB_APP_PRIVATE_KEY_PEM";
 const KUBECONFIG_MOUNT_ROOT: &str = "/etc/rtf-orchestrator/kubeconfigs";
 
-static CONFIG_FILE: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_env() {
+static CONFIG: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_env() {
     Ok(cfg) => cfg,
     Err(e) => panic!("invalid config file: {e}"),
 });
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct Config {
-    pub apollo_key: String,
     pub admins_path: String,
-    pub github: GithubConfig,
     pub db: DbConfig,
     pub server: ServerConfig,
     pub workload_clusters: WorkloadClusters,
     pub toolbox: ToolboxConfig,
     pub otel: OtelConfig,
     pub gcs: GcsConfig,
+    // The apollo and github API credentials we hold are passed via environment variables rather
+    // than as part of the config file directly (see `try_parse_from_env`).
+    #[serde(skip)]
+    pub apollo_key: String,
+    #[serde(skip)]
+    pub github: GithubConfig,
 }
 
 impl Config {
+    /// Attempt to load and parse the server config file from the path specified by
+    /// `CONFIG_PATH_VAR` and combine it with the credentials provided via the following env vars:
+    /// - `APOLLO_KEY_VAR`
+    /// - `GH_APP_ID_VAR`
+    /// - `GH_PEM_VAR`
     pub fn try_parse_from_env() -> Result<Self, serde_yaml::Error> {
-        let path = env::var("RTF_CONFIG_PATH").expect("RTF_CONFIG_PATH not set");
+        let expect_env = |var| env::var(var).unwrap_or_else(|_| panic!("{var} not set"));
 
-        match fs::read_to_string(path) {
-            Ok(text) => Self::try_parse(&text),
+        let mut cfg = match fs::read_to_string(expect_env(CONFIG_PATH_VAR)) {
+            Ok(text) => Self::try_parse(&text)?,
             Err(e) => panic!("unable to read config file: {e}"),
-        }
+        };
+
+        cfg.apollo_key = expect_env(APOLLO_KEY_VAR);
+        cfg.github = GithubConfig {
+            app_id: expect_env(GH_APP_ID_VAR).parse().unwrap(),
+            app_private_key_pem: expect_env(GH_PEM_VAR),
+        };
+
+        Ok(cfg)
     }
 
-    pub fn try_parse(text: &str) -> Result<Self, serde_yaml::Error> {
+    fn try_parse(text: &str) -> Result<Self, serde_yaml::Error> {
         serde_yaml::from_str(text)
     }
 
     pub fn get() -> &'static Self {
-        &CONFIG_FILE
+        &CONFIG
     }
 
     pub fn socket_addr(&self) -> SocketAddr {
@@ -65,7 +86,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct GithubConfig {
     pub app_id: u64,
     pub app_private_key_pem: String,
@@ -176,12 +197,7 @@ mod tests {
     impl Config {
         pub fn for_test() -> Self {
             Self {
-                apollo_key: "dummy".to_string(),
                 admins_path: "dummy".to_string(),
-                github: GithubConfig {
-                    app_id: 1,
-                    app_private_key_pem: "dummy".to_string(),
-                },
                 db: DbConfig {
                     host: "localhost".to_string(),
                     port: 5432,
@@ -215,6 +231,11 @@ mod tests {
                     url_ttl_secs: 300,
                     mock_internal_url: Some("http://mock-gcs-internal".to_string()),
                     mock_public_url: Some("http://mock-gcs-public".to_string()),
+                },
+                apollo_key: "dummy".to_string(),
+                github: GithubConfig {
+                    app_id: 1,
+                    app_private_key_pem: "dummy".to_string(),
                 },
             }
         }

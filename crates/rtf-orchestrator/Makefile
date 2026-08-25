@@ -14,11 +14,17 @@ cluster-teardown:
 .PHONY: db-tests
 db-tests:
 	@RTF_CONFIG_PATH="resources/local-config.yaml" \
+		RTF_APOLLO_KEY="dummy" \
+		RTF_GITHUB_APP_ID="1" \
+		RTF_GITHUB_APP_PRIVATE_KEY_PEM="dummy" \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
 integration-tests: clear-db-data
 	@RTF_CONFIG_PATH="resources/local-config.yaml" \
+		RTF_APOLLO_KEY="dummy" \
+		RTF_GITHUB_APP_ID="1" \
+		RTF_GITHUB_APP_PRIVATE_KEY_PEM="dummy" \
 		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all

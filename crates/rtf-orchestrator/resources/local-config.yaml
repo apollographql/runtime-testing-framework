@@ -6,12 +6,7 @@
 # machine running the test suite rather than inside of the rtf-orchestrator
 # binary spun up by Tilt.
 
-apollo_key: dummy
 admins_path: dummy
-
-github:
-  app_id: 1
-  app_private_key_pem: dummy
 
 db:
   host: localhost
