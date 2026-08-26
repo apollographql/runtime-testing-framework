@@ -362,6 +362,7 @@ pub(crate) mod mocks {
                 log_file_url: "http://mock/log".to_owned(),
                 output_zip_url: "http://mock/zip".to_owned(),
                 output: OutputCollectionResponse {
+                    execution_variables: String::new(),
                     prometheus: PrometheusQueries {
                         environment: Vec::new(),
                         scenario: Vec::new(),
@@ -382,6 +383,7 @@ pub(crate) mod mocks {
         pub fn with_prometheus_queries(queries: PrometheusQueries) -> Self {
             Self {
                 output: OutputCollectionResponse {
+                    execution_variables: String::new(),
                     prometheus: queries,
                 },
                 ..Default::default()
