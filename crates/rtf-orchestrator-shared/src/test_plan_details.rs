@@ -409,11 +409,12 @@ mod tests {
             region:
               - us-east-1
               - eu-west-1
-          include:
-            - tier: free
-              quota: 10
-            - tier: paid
-              quota: 100
+          compound:
+            include:
+              - tier: free
+                quota: 10
+              - tier: paid
+                quota: 100
         scenario:
           name: my-scenario
           description: a scenario
