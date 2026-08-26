@@ -9,7 +9,8 @@ use uuid::Uuid;
 
 pub struct ExecutionDetailView {
     pub id: Uuid,
-    pub run_id: Option<Uuid>,
+    pub run_id: Uuid,
+    pub test_plan_id: Option<Uuid>,
     pub name: String,
     pub status: StatusView,
     pub exit_code_label: String,
@@ -30,7 +31,10 @@ impl ExecutionDetailView {
 
         Self {
             id: ex.id,
-            run_id: ex.test_run_id,
+            run_id: ex
+                .test_run_id
+                .expect("an execution fetched standalone always carries its parent run's id"),
+            test_plan_id: ex.test_plan_id,
             name: ex.name,
             status: ex.current_status.into(),
             exit_code_label: exit_code_label(effective_exit_code(ex.current_status, ex.exit_code)),
@@ -74,12 +78,18 @@ mod tests {
     use chrono::TimeZone;
     use rtf_orchestrator_shared::status::Status;
 
-    fn snapshot_execution(run_id: Option<Uuid>, ex_id: Uuid) -> TestExecutionSummary {
+    fn snapshot_execution(
+        test_run_id: Uuid,
+        test_plan_id: Option<Uuid>,
+        id: Uuid,
+    ) -> TestExecutionSummary {
         let started = Utc.with_ymd_and_hms(2024, 3, 15, 9, 0, 0).unwrap();
         let completed = started + chrono::Duration::minutes(5);
+
         TestExecutionSummary {
-            id: ex_id,
-            test_run_id: run_id,
+            id,
+            test_run_id: Some(test_run_id),
+            test_plan_id,
             name: "exec-alpha".to_owned(),
             current_status: Status::Successful,
             exit_code: Some(0),
@@ -135,20 +145,32 @@ mod tests {
     }
 
     #[test]
-    fn execution_detail_view_has_no_run_id_when_the_execution_has_no_parent_run() {
-        let mut execution = sample_execution(Uuid::from_u128(1), Uuid::from_u128(2));
-        execution.test_run_id = None;
+    fn execution_template_links_back_to_the_test_plan_when_known() {
+        let run_id = Uuid::from_u128(1);
+        let ex_id = Uuid::from_u128(2);
+        let test_plan_id = Uuid::from_u128(3);
+        let mut execution = sample_execution(run_id, ex_id);
+        execution.test_plan_id = Some(test_plan_id);
         let view = ExecutionDetailView::new(execution, &sample_config());
+        let body = ExecutionTemplate { execution: view }
+            .render()
+            .expect("template renders");
 
-        assert_eq!(view.run_id, None);
+        assert!(
+            body.contains(&format!("/ui/test-plan/{test_plan_id}")),
+            "execution detail page should link back to its known test plan"
+        );
     }
 
     #[test]
-    fn execution_template_snapshot_with_parent_run() {
+    fn execution_template_snapshot_with_test_plan() {
         let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let view =
-            ExecutionDetailView::new(snapshot_execution(Some(run_id), ex_id), &sample_config());
+        let plan_id = Uuid::from_u128(2);
+        let ex_id = Uuid::from_u128(3);
+        let view = ExecutionDetailView::new(
+            snapshot_execution(run_id, Some(plan_id), ex_id),
+            &sample_config(),
+        );
         let body = ExecutionTemplate { execution: view }
             .render()
             .expect("template renders");
@@ -157,9 +179,11 @@ mod tests {
     }
 
     #[test]
-    fn execution_template_snapshot_without_parent_run() {
+    fn execution_template_snapshot_without_test_plan() {
+        let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
-        let view = ExecutionDetailView::new(snapshot_execution(None, ex_id), &sample_config());
+        let view =
+            ExecutionDetailView::new(snapshot_execution(run_id, None, ex_id), &sample_config());
         let body = ExecutionTemplate { execution: view }
             .render()
             .expect("template renders");

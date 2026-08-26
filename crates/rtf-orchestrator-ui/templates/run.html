@@ -5,6 +5,11 @@
 
 {% block content %}
 <p><a href="/ui">&larr; Find another run</a></p>
+{% match run.test_plan_id %}
+{% when Some with (test_plan_id) %}
+<p><a href="/ui/test-plan/{{ test_plan_id }}">&larr; Back to test plan</a></p>
+{% when None %}
+{% endmatch %}
 <div id="run" {% if run.should_poll %} hx-get="{{ run.poll_url() }}" hx-select="#run" hx-trigger="every 10s"
     hx-swap="outerHTML" {% endif %}>
     <section class="banner">
@@ -52,12 +57,19 @@
             <p>The Orchestrator doesn't bundle a whole run's output for download. Run this locally
                 instead:</p>
             <pre><code>rtf remote run-output {{ run.id }}</code></pre>
+            {% call macros::copy_button(run.run_output_cmd(), "run output command") %}{% endcall %}
             <p class="muted">This downloads a <code>run-summary.json</code> plus each execution's
                 <code>log.txt</code> and <code>output.zip</code> into an <code>output/</code>
                 directory.
             </p>
             <button type="button" popovertarget="run-output-cmd" popovertargetaction="hide">Close</button>
         </div>
+
+        {% match run.rerun_url %}
+        {% when Some with (rerun_url) %}
+        <p><a href="{{ rerun_url }}">Re-run</a></p>
+        {% when None %}
+        {% endmatch %}
     </section>
 
     <h3>Status breakdown</h3>

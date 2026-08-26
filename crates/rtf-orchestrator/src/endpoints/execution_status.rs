@@ -17,9 +17,12 @@ pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSumma
 
     match TestExecution::get_by_uuid(&id, conn).await? {
         Some(ex) => {
-            let test_run_id = ex.test_run(conn).await?.uuid();
+            let tr = ex.test_run(conn).await?;
+            let test_run_id = tr.uuid();
+            let test_plan_id = tr.test_plan_uuid(conn).await?;
             let mut summary = ex.try_into_summary_with_status_history(conn).await?;
             summary.test_run_id = Some(test_run_id);
+            summary.test_plan_id = test_plan_id;
 
             Ok(Json(summary))
         }
@@ -61,7 +64,7 @@ pub async fn post_handler(
 mod tests {
     use super::*;
     use crate::{
-        db::{ClusterId, TestRun},
+        db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
         test_helpers::TestServerState,
     };
     use SharedStatus::*;
@@ -75,6 +78,10 @@ mod tests {
 
     fn alpha_cluster() -> ClusterId {
         ClusterId::new("alpha")
+    }
+
+    fn unique(label: &str) -> String {
+        format!("{label}-{}", Uuid::new_v4())
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -111,12 +118,38 @@ mod tests {
         assert_eq!(resp.status_code(), StatusCode::OK);
         let summary: TestExecutionSummary = resp.json();
         assert_eq!(summary.test_run_id, Some(run_id));
+        assert_eq!(summary.test_plan_id, None);
         assert_eq!(
             summary.status_history.len(),
             1,
             "expected a single status history item, got {:?}",
             summary.status_history
         );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn get_handler_populates_test_plan_id_when_run_is_linked_to_a_known_test_plan()
+    -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let known =
+            KnownTestPlan::register(&unique("run"), None, "org", "repo", &unique("path"), conn)
+                .await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+        let ex_id = tr.init_execution("test", 0, conn).await?.uuid();
+        KnownTestPlanRun::link(known.id(), tr.id(), None, conn).await?;
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-execution/{ex_id}/status"))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
+        let summary: TestExecutionSummary = resp.json();
+        assert_eq!(summary.test_plan_id, Some(known.uuid()));
 
         Ok(())
     }

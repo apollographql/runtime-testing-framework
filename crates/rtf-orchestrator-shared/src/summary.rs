@@ -16,6 +16,8 @@ pub struct TestRunListResponse {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TestRunSummary {
     pub id: Uuid,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_plan_id: Option<Uuid>,
     pub name: String,
     pub trigger_variables: Option<Value>,
     pub current_status: Status,
@@ -30,11 +32,12 @@ pub struct TestRunSummary {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TestExecutionSummary {
     pub id: Uuid,
-    /// The parent [TestRunSummary]'s id. Only populated when this summary is fetched directly
-    /// (i.e. not as part of a [TestRunSummary]'s `executions`), to avoid redundantly repeating the
-    /// same id on every execution in a run.
+    /// Only populated when this summary is fetched directly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub test_run_id: Option<Uuid>,
+    /// Only populated when this summary is fetched directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_plan_id: Option<Uuid>,
     pub name: String,
     pub current_status: Status,
     pub exit_code: Option<i32>,

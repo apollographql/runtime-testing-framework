@@ -102,6 +102,34 @@
         syncVariablesJson();
     }
 
+    // Populates the structured fields from the raw variables JSON the server rendered into the
+    // textarea (set when repopulating the form after a rejected trigger, or via the run page's
+    // "Re-run" link) - `recompute()` reads the fields back out, so this must run before it.
+    function seedFieldsFromInitialVariables() {
+        const textarea = document.getElementById("variables");
+        if (!textarea || !textarea.value.trim()) return;
+
+        let overrides;
+        try {
+            overrides = JSON.parse(textarea.value);
+        } catch {
+            return; // invalid JSON can't be decomposed into fields; leave it for the raw textarea
+        }
+        if (typeof overrides !== "object" || overrides === null || Array.isArray(overrides)) return;
+
+        Object.entries(overrides).forEach(([name, value]) => {
+            const el = fieldFor(name);
+            if (!el) return;
+            const values = (Array.isArray(value) ? value : [value]).map(String);
+
+            if (el.tagName === "SELECT") {
+                Array.from(el.options).forEach((o) => { o.selected = values.includes(o.value); });
+            } else {
+                el.value = values.join(", ");
+            }
+        });
+    }
+
     function attachFieldListeners() {
         data.variables.forEach((variable) => {
             const el = fieldFor(variable.name);
@@ -234,6 +262,7 @@
         attributeFilter: ["data-theme"],
     });
 
+    seedFieldsFromInitialVariables();
     attachFieldListeners();
     recompute();
     renderCharts();

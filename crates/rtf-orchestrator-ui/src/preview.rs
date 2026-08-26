@@ -48,6 +48,7 @@ pub fn index() -> IndexTemplate {
 
 pub fn run_running() -> RunTemplate {
     let run = TestRunSummary {
+        test_plan_id: Some(run_id(10)),
         trigger_variables: Some(
             json!({"environment": "staging", "regions": ["us-east-1", "eu-west-1"]}),
         ),
@@ -62,6 +63,7 @@ pub fn run_running() -> RunTemplate {
 pub fn run_terminal() -> RunTemplate {
     let now = Utc::now();
     let run = TestRunSummary {
+        test_plan_id: Some(run_id(10)),
         completed_at: Some(now),
         ..mocks::sample_summary(run_id(3), run_id(4), Status::Successful)
     };
