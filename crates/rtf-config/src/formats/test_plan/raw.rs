@@ -103,27 +103,62 @@ impl RawTestPlanConfig {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum RawMatrix {
-    Full(Matrix),
+    Full(RawCompatMatrix),
     Dimensions(HashMap<String, Vec<Scalar>>),
 }
 
 impl Default for RawMatrix {
     fn default() -> Self {
-        Self::Full(Matrix::default())
+        Self::Full(RawCompatMatrix::default())
     }
 }
 
 impl From<RawMatrix> for Matrix {
     fn from(m: RawMatrix) -> Self {
         match m {
-            RawMatrix::Full(m) => m,
+            RawMatrix::Full(raw) => {
+                let mut m = Matrix {
+                    variant_names: raw.variant_names,
+                    dimensions: raw.dimensions,
+                    compound: raw.compound,
+                };
+                if !raw.include.is_empty() {
+                    m.compound.insert("include".into(), raw.include);
+                }
+
+                m
+            }
+
             RawMatrix::Dimensions(dimensions) => Matrix {
                 variant_names: None,
                 dimensions,
-                include: Vec::new(),
+                compound: HashMap::new(),
             },
         }
     }
+}
+
+/// A matrix of user provided variable dimensions that is expanded out into multiple variable sets for
+/// templating the test plan containing the matrix.
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct RawCompatMatrix {
+    /// Optional template string for customising the names of each variants output subdirectory.
+    #[serde(default)]
+    pub variant_names: Option<String>,
+    /// The actual dimensions and their allowed variables that will be used to produce the matrix
+    #[serde(default)]
+    pub dimensions: HashMap<String, Vec<Scalar>>,
+    /// Additional _groups_ of variables that will be combined with known dimensions to produce the
+    /// full set of variables for each dimension.
+    ///
+    /// Used for tying subsets of variables together and reducing the number of variants we expand to.
+    /// Each entry within this array is required to define the same keys and scalar variable types.
+    #[serde(default)]
+    pub compound: HashMap<String, Vec<HashMap<String, Scalar>>>,
+    /// Deprecated mechanism for providing compound dimensions.
+    /// Use "compound" instead.
+    #[serde(default)]
+    pub include: Vec<HashMap<String, Scalar>>,
 }
 
 /// # Config Spec
