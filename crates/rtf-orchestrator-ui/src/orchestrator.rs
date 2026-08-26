@@ -535,12 +535,39 @@ pub(crate) mod mocks {
                 },
             ],
             matrix: MatrixSummary {
-                n_executions: 2,
+                n_executions: 8,
                 dimensions: BTreeMap::from([(
                     "region".to_owned(),
                     vec![Scalar::from("us-east-1"), Scalar::from("eu-west-1")],
                 )]),
-                include_groups: Vec::new(),
+                compound_groups: BTreeMap::from([
+                    (
+                        "subjects".to_owned(),
+                        vec![
+                            BTreeMap::from([
+                                ("setup_subject".to_owned(), Scalar::from("world!")),
+                                ("scenario_subject".to_owned(), Scalar::from("sailor")),
+                            ]),
+                            BTreeMap::from([
+                                ("setup_subject".to_owned(), Scalar::from("mother")),
+                                ("scenario_subject".to_owned(), Scalar::from("father")),
+                            ]),
+                        ],
+                    ),
+                    (
+                        "colours".to_owned(),
+                        vec![
+                            BTreeMap::from([
+                                ("foreground".to_owned(), Scalar::from("red")),
+                                ("background".to_owned(), Scalar::from("blue")),
+                            ]),
+                            BTreeMap::from([
+                                ("foreground".to_owned(), Scalar::from("black")),
+                                ("background".to_owned(), Scalar::from("white")),
+                            ]),
+                        ],
+                    ),
+                ]),
             },
             environment: EnvironmentSummary {
                 services: vec![

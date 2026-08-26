@@ -45,12 +45,14 @@
                 <dt>Services / execution</dt>
                 <dd>{{ d.n_services }}</dd>
 
-                {% if !d.fixed_groups.is_empty() %}
-                <dt>Include groups (fixed &mdash; not alterable per trigger)</dt>
+                {% for group in d.compound_groups %}
+                <dt>{{ group.name }} (fixed &mdash; not alterable per trigger)
+                    <span class="hint" title="This dimension can't be edited via the fields below. To change its entries, or move one of its variables into or out of it, edit the raw variables JSON directly.">?</span>
+                </dt>
                 <dd>
-                    {% for group in d.fixed_groups %}{% if !loop.first %}; {% endif %}{% for kv in group %}{% if !loop.first %} &middot; {% endif %}{{ kv.0 }}: {{ kv.1 }}{% endfor %}{% endfor %}
+                    {% for entry in group.entries %}{% if !loop.first %}; {% endif %}{% for kv in entry %}{% if !loop.first %} &middot; {% endif %}{{ kv.0 }}: {{ kv.1 }}{% endfor %}{% endfor %}
                 </dd>
-                {% endif %}
+                {% endfor %}
             </dl>
         </section>
 
