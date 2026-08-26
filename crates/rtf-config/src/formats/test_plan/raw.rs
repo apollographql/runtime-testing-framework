@@ -141,6 +141,7 @@ impl From<RawMatrix> for Matrix {
 /// A matrix of user provided variable dimensions that is expanded out into multiple variable sets for
 /// templating the test plan containing the matrix.
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RawCompatMatrix {
     /// Optional template string for customising the names of each variants output subdirectory.
     #[serde(default)]
