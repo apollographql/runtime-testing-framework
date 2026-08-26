@@ -32,9 +32,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum ScalarOrArray {
+pub enum VariableOverride {
     Scalar(Scalar),
     Array(Vec<Scalar>),
+    Compound(Vec<HashMap<String, Scalar>>),
 }
 
 #[derive(Debug, Default)]
@@ -58,7 +59,7 @@ impl Variables {
         let variable_json_data = match self.vars.as_ref() {
             Some(path) => {
                 let s = ctx.read_path_to_string(path)?;
-                let variables_json: HashMap<String, ScalarOrArray> = serde_json::from_str(&s)?;
+                let variables_json: HashMap<String, VariableOverride> = serde_json::from_str(&s)?;
                 let source_dir = ctx
                     .canonicalize_path(path)?
                     .parent()
@@ -81,21 +82,26 @@ impl Variables {
 
     fn parse_inner(
         self,
-        variable_json_data: Option<(StableSource, HashMap<String, ScalarOrArray>)>,
+        variable_json_data: Option<(StableSource, HashMap<String, VariableOverride>)>,
     ) -> Result<ParsedVariables> {
         let mut variables = HashMap::new();
         let mut matrix_dimensions = HashMap::new();
+        let mut compound_dimensions = HashMap::new();
         let mut variable_sources = HashMap::new();
 
-        // --vars variables read from a file can be individual variables or matrix dimensions
+        // --vars variables read from a file can be individual variables, matrix dimensions, or
+        // compound matrix dimension groups
         if let Some((source, from_variables)) = variable_json_data {
             for (k, v) in from_variables.into_iter() {
                 match v {
-                    ScalarOrArray::Scalar(s) => {
+                    VariableOverride::Scalar(s) => {
                         variables.insert(k.clone(), s);
                     }
-                    ScalarOrArray::Array(arr) => {
+                    VariableOverride::Array(arr) => {
                         matrix_dimensions.insert(k.clone(), arr);
+                    }
+                    VariableOverride::Compound(entries) => {
+                        compound_dimensions.insert(k.clone(), entries);
                     }
                 }
 
@@ -124,6 +130,7 @@ impl Variables {
         Ok(ParsedVariables {
             variables,
             matrix_dimensions,
+            compound_dimensions,
             variable_sources,
         })
     }
@@ -146,28 +153,32 @@ impl Variables {
     }
 }
 
-/// Result of parsing CLI variables, containing scalar variables, array variables, and their sources.
 #[derive(Debug, Default)]
 pub struct ParsedVariables {
     pub variables: HashMap<String, Scalar>,
     pub matrix_dimensions: HashMap<String, Vec<Scalar>>,
+    pub compound_dimensions: HashMap<String, Vec<HashMap<String, Scalar>>>,
     pub variable_sources: HashMap<String, StableSource>,
 }
 
 impl ParsedVariables {
-    pub fn from_flat(flat: HashMap<String, ScalarOrArray>) -> Self {
+    pub fn from_flat(flat: HashMap<String, VariableOverride>) -> Self {
         let mut vars = Self::default();
 
         for (k, v) in flat.into_iter() {
             vars.variable_sources.insert(k.clone(), StableSource::Cli);
 
             match v {
-                ScalarOrArray::Scalar(s) => {
+                VariableOverride::Scalar(s) => {
                     vars.variables.insert(k, s);
                 }
 
-                ScalarOrArray::Array(arr) => {
+                VariableOverride::Array(arr) => {
                     vars.matrix_dimensions.insert(k, arr);
+                }
+
+                VariableOverride::Compound(entries) => {
+                    vars.compound_dimensions.insert(k, entries);
                 }
             }
         }
@@ -175,23 +186,30 @@ impl ParsedVariables {
         vars
     }
 
-    /// Reconstruct the flat map of runtime overrides — scalars and matrix-dimension arrays in a
-    /// single object, mirroring the user's `--vars` / `-v` input. This is the form captured for the
-    /// Orchestrator's trigger payload.
+    /// Reconstruct the flat map of runtime overrides — scalars, matrix-dimension arrays, and
+    /// compound matrix dimension groups in a single object, mirroring the user's `--vars` / `-v`
+    /// input. This is the form captured for the Orchestrator's trigger payload.
     ///
-    /// A key can appear in both maps when the same name is supplied as a `-v` scalar and a `--vars`
-    /// array (`parse` keeps both; `merge` resolves it). Matrix dimensions are emitted first so a
-    /// scalar wins such a collision, matching the CLI-over-file merge precedence.
-    pub fn as_flat(&self) -> HashMap<String, ScalarOrArray> {
-        self.matrix_dimensions
+    /// A key can appear in more than one of these maps when the same name is supplied as a `-v`
+    /// scalar and a `--vars` array or compound group (`parse` keeps both; `merge` resolves it).
+    /// Compound groups are emitted first, then matrix dimensions, then scalars, so a scalar wins
+    /// such a collision, matching the CLI-over-file merge precedence.
+    pub fn as_flat(&self) -> HashMap<String, VariableOverride> {
+        self.compound_dimensions
             .clone()
             .into_iter()
-            .map(|(k, v)| (k, ScalarOrArray::Array(v)))
+            .map(|(k, v)| (k, VariableOverride::Compound(v)))
+            .chain(
+                self.matrix_dimensions
+                    .clone()
+                    .into_iter()
+                    .map(|(k, v)| (k, VariableOverride::Array(v))),
+            )
             .chain(
                 self.variables
                     .clone()
                     .into_iter()
-                    .map(|(k, v)| (k, ScalarOrArray::Scalar(v))),
+                    .map(|(k, v)| (k, VariableOverride::Scalar(v))),
             )
             .collect()
     }
@@ -202,22 +220,43 @@ impl ParsedVariables {
         self,
         test_plan: &mut TestPlan<E>,
     ) -> Result<HashMap<String, StableSource>> {
-        self.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)
+        self.merge_inner(
+            &mut test_plan.variables,
+            &mut test_plan.matrix.dimensions,
+            &mut test_plan.matrix.compound,
+        )
     }
 
     #[inline]
     fn merge_inner(
         self,
         variables_from_test_plan: &mut HashMap<String, Scalar>,
-        matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
+        dimensions_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
+        compound_from_test_plan: &mut HashMap<String, Vec<HashMap<String, Scalar>>>,
     ) -> Result<HashMap<String, StableSource>> {
         for (k, dim) in self.matrix_dimensions.into_iter() {
+            if dim.is_empty() && compound_from_test_plan.contains_key(&k) {
+                // "k" here is the name of a compound dimension rather than a real variable name,
+                // so there is nothing to insert. All we are doing is removing a named compound
+                // dimension to free up those variables for use elsewhere.
+                compound_from_test_plan.remove(&k);
+                continue;
+            }
+
             variables_from_test_plan.remove(&k);
-            matrix_from_test_plan.insert(k.clone(), dim);
+            compound_from_test_plan.remove(&k);
+            dimensions_from_test_plan.insert(k.clone(), dim);
+        }
+
+        for (k, entries) in self.compound_dimensions.into_iter() {
+            variables_from_test_plan.remove(&k);
+            dimensions_from_test_plan.remove(&k);
+            compound_from_test_plan.insert(k.clone(), entries);
         }
 
         for (k, v) in self.variables.into_iter() {
-            matrix_from_test_plan.remove(&k);
+            dimensions_from_test_plan.remove(&k);
+            compound_from_test_plan.remove(&k);
             variables_from_test_plan.insert(k.clone(), v);
         }
 
@@ -250,7 +289,8 @@ mod tests {
     #[test]
     fn variables_are_merged_in_the_correct_order() {
         let mut variables = variables_map!("foo" => 42, "bar" => "live", "baz" => true);
-        let mut matrix = HashMap::default();
+        let mut dimensions = HashMap::default();
+        let mut compound = HashMap::default();
         let from_cli = Variables {
             var: vec![
                 "bar=love".to_string(),
@@ -268,9 +308,11 @@ mod tests {
                 }),
             )))
             .unwrap();
-        parsed.merge_inner(&mut variables, &mut matrix).unwrap();
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
 
-        assert!(matrix.is_empty());
+        assert!(dimensions.is_empty());
 
         // foo is not overwritten and should remain what was in the test plan
         assert_eq!(variables.get("foo"), Some(&Scalar::from(42)));
@@ -289,9 +331,10 @@ mod tests {
     fn overrides_remove_conflicting_existing_keys() {
         // Start with foo as a variable and bar and baz a matrix dimensions
         let mut variables = variables_map!("foo" => 42);
-        let mut matrix: HashMap<String, Vec<Scalar>> = HashMap::default();
-        matrix.insert("bar".into(), vec![1.into()]);
-        matrix.insert("baz".into(), vec![2.into()]);
+        let mut dimensions: HashMap<String, Vec<Scalar>> = HashMap::default();
+        dimensions.insert("bar".into(), vec![1.into()]);
+        dimensions.insert("baz".into(), vec![2.into()]);
+        let mut compound = HashMap::default();
 
         // change bar to a variable from the cli
         // change baz to a variable from variables.json
@@ -303,7 +346,7 @@ mod tests {
 
         // Keys should start mutually exclusive
         let mut initial_variables: Vec<&String> = variables.keys().collect();
-        let mut initial_matrix_dimensions: Vec<&String> = matrix.keys().collect();
+        let mut initial_matrix_dimensions: Vec<&String> = dimensions.keys().collect();
         initial_variables.sort_unstable();
         initial_matrix_dimensions.sort_unstable();
 
@@ -318,16 +361,124 @@ mod tests {
                 }),
             )))
             .unwrap();
-        parsed.merge_inner(&mut variables, &mut matrix).unwrap();
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
 
         // Keys should end mutually exclusive but flipped
         let mut final_variables: Vec<&String> = variables.keys().collect();
-        let mut final_matrix_dimensions: Vec<&String> = matrix.keys().collect();
+        let mut final_matrix_dimensions: Vec<&String> = dimensions.keys().collect();
         final_variables.sort_unstable();
         final_matrix_dimensions.sort_unstable();
 
         assert_eq!(&final_variables, &["bar", "baz"]);
         assert_eq!(&final_matrix_dimensions, &["foo"]);
+    }
+
+    #[test]
+    fn compound_override_adds_a_new_group() {
+        let mut variables = HashMap::default();
+        let mut dimensions = HashMap::default();
+        let mut compound: HashMap<String, Vec<HashMap<String, Scalar>>> = HashMap::default();
+
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "subjects": [
+                        {"setup_subject": "fish", "scenario_subject": "chips"},
+                        {"setup_subject": "bread", "scenario_subject": "butter"}
+                    ]
+                }),
+            )))
+            .unwrap();
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
+
+        assert_eq!(compound.len(), 1);
+        assert_eq!(
+            compound.get("subjects"),
+            Some(&vec![
+                variables_map!("setup_subject" => "fish", "scenario_subject" => "chips"),
+                variables_map!("setup_subject" => "bread", "scenario_subject" => "butter"),
+            ])
+        );
+    }
+
+    #[test]
+    fn compound_override_replaces_an_existing_group() {
+        let mut variables = HashMap::default();
+        let mut dimensions = HashMap::default();
+        let mut compound: HashMap<String, Vec<HashMap<String, Scalar>>> = HashMap::from([(
+            "subjects".to_string(),
+            vec![variables_map!("setup_subject" => "world", "scenario_subject" => "sailor")],
+        )]);
+
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "subjects": [
+                        {"setup_subject": "fish", "scenario_subject": "chips"}
+                    ]
+                }),
+            )))
+            .unwrap();
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
+
+        assert_eq!(
+            compound.get("subjects"),
+            Some(&vec![
+                variables_map!("setup_subject" => "fish", "scenario_subject" => "chips")
+            ])
+        );
+    }
+
+    #[test]
+    fn empty_array_override_removes_an_existing_compound_group() {
+        let mut variables = HashMap::default();
+        let mut dimensions = HashMap::default();
+        let mut compound: HashMap<String, Vec<HashMap<String, Scalar>>> = HashMap::from([(
+            "subjects".to_string(),
+            vec![variables_map!("setup_subject" => "world", "scenario_subject" => "sailor")],
+        )]);
+
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "subjects": [],
+                    "setup_subject": "fish",
+                    "scenario_subject": "chips"
+                }),
+            )))
+            .unwrap();
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
+
+        assert!(compound.is_empty());
+        assert!(dimensions.is_empty());
+        assert_eq!(variables.get("setup_subject"), Some(&Scalar::from("fish")));
+        assert_eq!(
+            variables.get("scenario_subject"),
+            Some(&Scalar::from("chips"))
+        );
     }
 
     #[test_case("bar should have an equals before variable"; "no equals")]
@@ -355,6 +506,7 @@ mod tests {
                 "tier".to_string(),
                 vec![1.into(), 2.into(), 3.into()],
             )]),
+            compound_dimensions: HashMap::new(),
             variable_sources: HashMap::new(),
         };
 
@@ -363,15 +515,15 @@ mod tests {
         assert_eq!(flat.len(), 3);
         assert_eq!(
             flat.get("foo"),
-            Some(&ScalarOrArray::Scalar(Scalar::from(42)))
+            Some(&VariableOverride::Scalar(Scalar::from(42)))
         );
         assert_eq!(
             flat.get("name"),
-            Some(&ScalarOrArray::Scalar(Scalar::from("live")))
+            Some(&VariableOverride::Scalar(Scalar::from("live")))
         );
         assert_eq!(
             flat.get("tier"),
-            Some(&ScalarOrArray::Array(vec![1.into(), 2.into(), 3.into()]))
+            Some(&VariableOverride::Array(vec![1.into(), 2.into(), 3.into()]))
         );
     }
 
@@ -380,6 +532,7 @@ mod tests {
         let parsed = ParsedVariables {
             variables: variables_map!("dupe" => 99),
             matrix_dimensions: HashMap::from([("dupe".to_string(), vec![1.into(), 2.into()])]),
+            compound_dimensions: HashMap::new(),
             variable_sources: HashMap::new(),
         };
 
@@ -388,7 +541,30 @@ mod tests {
         assert_eq!(flat.len(), 1);
         assert_eq!(
             flat.get("dupe"),
-            Some(&ScalarOrArray::Scalar(Scalar::from(99)))
+            Some(&VariableOverride::Scalar(Scalar::from(99)))
+        );
+    }
+
+    #[test]
+    fn as_flat_round_trips_a_compound_override() {
+        let parsed = ParsedVariables {
+            variables: HashMap::new(),
+            matrix_dimensions: HashMap::new(),
+            compound_dimensions: HashMap::from([(
+                "subjects".to_string(),
+                vec![variables_map!("setup_subject" => "fish", "scenario_subject" => "chips")],
+            )]),
+            variable_sources: HashMap::new(),
+        };
+
+        let flat = parsed.as_flat();
+
+        assert_eq!(flat.len(), 1);
+        assert_eq!(
+            flat.get("subjects"),
+            Some(&VariableOverride::Compound(vec![
+                variables_map!("setup_subject" => "fish", "scenario_subject" => "chips")
+            ]))
         );
     }
 }
