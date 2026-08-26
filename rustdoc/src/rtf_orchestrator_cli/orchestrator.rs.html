@@ -362,190 +362,192 @@
 <a href=#362 id=362 data-nosnippet>362</a>                log_file_url: <span class="string">"http://mock/log"</span>.to_owned(),
 <a href=#363 id=363 data-nosnippet>363</a>                output_zip_url: <span class="string">"http://mock/zip"</span>.to_owned(),
 <a href=#364 id=364 data-nosnippet>364</a>                output: OutputCollectionResponse {
-<a href=#365 id=365 data-nosnippet>365</a>                    prometheus: PrometheusQueries {
-<a href=#366 id=366 data-nosnippet>366</a>                        environment: Vec::new(),
-<a href=#367 id=367 data-nosnippet>367</a>                        scenario: Vec::new(),
-<a href=#368 id=368 data-nosnippet>368</a>                    },
-<a href=#369 id=369 data-nosnippet>369</a>                },
-<a href=#370 id=370 data-nosnippet>370</a>            }
-<a href=#371 id=371 data-nosnippet>371</a>        }
-<a href=#372 id=372 data-nosnippet>372</a>    }
-<a href=#373 id=373 data-nosnippet>373</a>
-<a href=#374 id=374 data-nosnippet>374</a>    <span class="kw">impl </span>MockClient {
-<a href=#375 id=375 data-nosnippet>375</a>        <span class="kw">pub fn </span>failing() -&gt; <span class="self">Self </span>{
-<a href=#376 id=376 data-nosnippet>376</a>            <span class="self">Self </span>{
-<a href=#377 id=377 data-nosnippet>377</a>                update_should_fail: <span class="bool-val">true</span>,
-<a href=#378 id=378 data-nosnippet>378</a>                ..Default::default()
-<a href=#379 id=379 data-nosnippet>379</a>            }
-<a href=#380 id=380 data-nosnippet>380</a>        }
-<a href=#381 id=381 data-nosnippet>381</a>
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">pub fn </span>with_prometheus_queries(queries: PrometheusQueries) -&gt; <span class="self">Self </span>{
-<a href=#383 id=383 data-nosnippet>383</a>            <span class="self">Self </span>{
-<a href=#384 id=384 data-nosnippet>384</a>                output: OutputCollectionResponse {
-<a href=#385 id=385 data-nosnippet>385</a>                    prometheus: queries,
-<a href=#386 id=386 data-nosnippet>386</a>                },
-<a href=#387 id=387 data-nosnippet>387</a>                ..Default::default()
-<a href=#388 id=388 data-nosnippet>388</a>            }
-<a href=#389 id=389 data-nosnippet>389</a>        }
-<a href=#390 id=390 data-nosnippet>390</a>
-<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">pub fn </span>with_failing_output_collection() -&gt; <span class="self">Self </span>{
-<a href=#392 id=392 data-nosnippet>392</a>            <span class="self">Self </span>{
-<a href=#393 id=393 data-nosnippet>393</a>                prometheus_queries_should_fail: <span class="bool-val">true</span>,
-<a href=#394 id=394 data-nosnippet>394</a>                ..Default::default()
-<a href=#395 id=395 data-nosnippet>395</a>            }
-<a href=#396 id=396 data-nosnippet>396</a>        }
-<a href=#397 id=397 data-nosnippet>397</a>
-<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">pub fn </span>read_updates&lt;F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, closure: F)
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">where
-<a href=#400 id=400 data-nosnippet>400</a>            </span>F: FnOnce(RwLockReadGuard&lt;Vec&lt;Status&gt;&gt;),
-<a href=#401 id=401 data-nosnippet>401</a>        {
-<a href=#402 id=402 data-nosnippet>402</a>            <span class="kw">let </span>updates = <span class="self">self</span>.status_updates.read().unwrap();
-<a href=#403 id=403 data-nosnippet>403</a>            closure(updates)
-<a href=#404 id=404 data-nosnippet>404</a>        }
-<a href=#405 id=405 data-nosnippet>405</a>
-<a href=#406 id=406 data-nosnippet>406</a>        <span class="kw">pub fn </span>read_uploads&lt;F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, closure: F)
-<a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">where
-<a href=#408 id=408 data-nosnippet>408</a>            </span>F: FnOnce(RwLockReadGuard&lt;Vec&lt;UploadCall&gt;&gt;),
-<a href=#409 id=409 data-nosnippet>409</a>        {
-<a href=#410 id=410 data-nosnippet>410</a>            <span class="kw">let </span>uploads = <span class="self">self</span>.uploads.read().unwrap();
-<a href=#411 id=411 data-nosnippet>411</a>            closure(uploads)
-<a href=#412 id=412 data-nosnippet>412</a>        }
-<a href=#413 id=413 data-nosnippet>413</a>    }
-<a href=#414 id=414 data-nosnippet>414</a>
-<a href=#415 id=415 data-nosnippet>415</a>    <span class="kw">impl </span>Client <span class="kw">for </span>MockClient {
-<a href=#416 id=416 data-nosnippet>416</a>        <span class="kw">fn </span>kustomize_patch_for_execution(
-<a href=#417 id=417 data-nosnippet>417</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#418 id=418 data-nosnippet>418</a>            _outdir: <span class="kw-2">&amp;</span>Path,
-<a href=#419 id=419 data-nosnippet>419</a>            _pull_policy: <span class="kw-2">&amp;</span>str,
-<a href=#420 id=420 data-nosnippet>420</a>            _toolbox_image: <span class="kw-2">&amp;</span>str,
-<a href=#421 id=421 data-nosnippet>421</a>            _otel: <span class="kw-2">&amp;</span>OtelConfig,
-<a href=#422 id=422 data-nosnippet>422</a>        ) -&gt; String {
-<a href=#423 id=423 data-nosnippet>423</a>            KUSTOMIZE_PATCH.to_string()
-<a href=#424 id=424 data-nosnippet>424</a>        }
-<a href=#425 id=425 data-nosnippet>425</a>
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">async fn </span>update_status(
-<a href=#427 id=427 data-nosnippet>427</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#428 id=428 data-nosnippet>428</a>            status: Status,
-<a href=#429 id=429 data-nosnippet>429</a>            _exit_status: <span class="prelude-ty">Option</span>&lt;ExitStatus&gt;,
-<a href=#430 id=430 data-nosnippet>430</a>            _message: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#431 id=431 data-nosnippet>431</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-<a href=#432 id=432 data-nosnippet>432</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
-<a href=#433 id=433 data-nosnippet>433</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::UpdateStatus {
-<a href=#434 id=434 data-nosnippet>434</a>                    message: <span class="string">"mock update failure"</span>.to_owned(),
-<a href=#435 id=435 data-nosnippet>435</a>                });
-<a href=#436 id=436 data-nosnippet>436</a>            }
-<a href=#437 id=437 data-nosnippet>437</a>            <span class="self">self</span>.status_updates.write().unwrap().push(status);
-<a href=#438 id=438 data-nosnippet>438</a>
-<a href=#439 id=439 data-nosnippet>439</a>            <span class="prelude-val">Ok</span>(())
-<a href=#440 id=440 data-nosnippet>440</a>        }
-<a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="kw">async fn </span>generate_upload_urls(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;UploadUrls, Error&gt; {
-<a href=#443 id=443 data-nosnippet>443</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
-<a href=#444 id=444 data-nosnippet>444</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::GenerateUploadUrls {
-<a href=#445 id=445 data-nosnippet>445</a>                    message: <span class="string">"mock upload urls failure"</span>.to_owned(),
-<a href=#446 id=446 data-nosnippet>446</a>                });
-<a href=#447 id=447 data-nosnippet>447</a>            }
-<a href=#448 id=448 data-nosnippet>448</a>
-<a href=#449 id=449 data-nosnippet>449</a>            <span class="prelude-val">Ok</span>(UploadUrls {
-<a href=#450 id=450 data-nosnippet>450</a>                log_file_url: <span class="self">self</span>.log_file_url.clone(),
-<a href=#451 id=451 data-nosnippet>451</a>                output_zip_url: <span class="self">self</span>.output_zip_url.clone(),
-<a href=#452 id=452 data-nosnippet>452</a>            })
-<a href=#453 id=453 data-nosnippet>453</a>        }
-<a href=#454 id=454 data-nosnippet>454</a>
-<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">async fn </span>upload_to_signed_url(<span class="kw-2">&amp;</span><span class="self">self</span>, url: <span class="kw-2">&amp;</span>str, body: Vec&lt;u8&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-<a href=#456 id=456 data-nosnippet>456</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
-<a href=#457 id=457 data-nosnippet>457</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Upload {
-<a href=#458 id=458 data-nosnippet>458</a>                    message: <span class="string">"mock upload failure"</span>.to_owned(),
-<a href=#459 id=459 data-nosnippet>459</a>                });
-<a href=#460 id=460 data-nosnippet>460</a>            }
-<a href=#461 id=461 data-nosnippet>461</a>            <span class="self">self</span>.uploads.write().unwrap().push(UploadCall {
-<a href=#462 id=462 data-nosnippet>462</a>                url: url.to_owned(),
-<a href=#463 id=463 data-nosnippet>463</a>                body,
-<a href=#464 id=464 data-nosnippet>464</a>            });
-<a href=#465 id=465 data-nosnippet>465</a>
-<a href=#466 id=466 data-nosnippet>466</a>            <span class="prelude-val">Ok</span>(())
-<a href=#467 id=467 data-nosnippet>467</a>        }
-<a href=#468 id=468 data-nosnippet>468</a>
-<a href=#469 id=469 data-nosnippet>469</a>        <span class="kw">async fn </span>fetch_environment_config(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, Error&gt; {
-<a href=#470 id=470 data-nosnippet>470</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
-<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::FetchConfig {
-<a href=#472 id=472 data-nosnippet>472</a>                    kind: <span class="string">"environment"</span>,
-<a href=#473 id=473 data-nosnippet>473</a>                    message: <span class="string">"mock fetch environment config failure"</span>.to_owned(),
-<a href=#474 id=474 data-nosnippet>474</a>                });
-<a href=#475 id=475 data-nosnippet>475</a>            }
-<a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>            <span class="prelude-val">Ok</span>(Vec::new())
-<a href=#478 id=478 data-nosnippet>478</a>        }
-<a href=#479 id=479 data-nosnippet>479</a>
-<a href=#480 id=480 data-nosnippet>480</a>        <span class="kw">async fn </span>fetch_scenario_config(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, Error&gt; {
-<a href=#481 id=481 data-nosnippet>481</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
-<a href=#482 id=482 data-nosnippet>482</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::FetchConfig {
-<a href=#483 id=483 data-nosnippet>483</a>                    kind: <span class="string">"scenario"</span>,
-<a href=#484 id=484 data-nosnippet>484</a>                    message: <span class="string">"mock fetch scenario config failure"</span>.to_owned(),
-<a href=#485 id=485 data-nosnippet>485</a>                });
-<a href=#486 id=486 data-nosnippet>486</a>            }
-<a href=#487 id=487 data-nosnippet>487</a>
-<a href=#488 id=488 data-nosnippet>488</a>            <span class="prelude-val">Ok</span>(Vec::new())
-<a href=#489 id=489 data-nosnippet>489</a>        }
-<a href=#490 id=490 data-nosnippet>490</a>
-<a href=#491 id=491 data-nosnippet>491</a>        <span class="kw">async fn </span>fetch_output_collection(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;OutputCollectionResponse, Error&gt; {
-<a href=#492 id=492 data-nosnippet>492</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail || <span class="self">self</span>.prometheus_queries_should_fail {
-<a href=#493 id=493 data-nosnippet>493</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::FetchPrometheusQueries {
-<a href=#494 id=494 data-nosnippet>494</a>                    message: <span class="string">"mock fetch prometheus queries failure"</span>.to_owned(),
-<a href=#495 id=495 data-nosnippet>495</a>                });
-<a href=#496 id=496 data-nosnippet>496</a>            }
-<a href=#497 id=497 data-nosnippet>497</a>
-<a href=#498 id=498 data-nosnippet>498</a>            <span class="prelude-val">Ok</span>(<span class="self">self</span>.output.clone())
-<a href=#499 id=499 data-nosnippet>499</a>        }
-<a href=#500 id=500 data-nosnippet>500</a>    }
-<a href=#501 id=501 data-nosnippet>501</a>}
-<a href=#502 id=502 data-nosnippet>502</a>
-<a href=#503 id=503 data-nosnippet>503</a><span class="attr">#[cfg(test)]
-<a href=#504 id=504 data-nosnippet>504</a></span><span class="kw">mod </span>tests {
-<a href=#505 id=505 data-nosnippet>505</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#506 id=506 data-nosnippet>506</a>    <span class="kw">use </span><span class="kw">crate</span>::orchestrator::mocks::MockClient;
-<a href=#507 id=507 data-nosnippet>507</a>
-<a href=#508 id=508 data-nosnippet>508</a>    <span class="attr">#[tokio::test]
-<a href=#509 id=509 data-nosnippet>509</a>    </span><span class="kw">async fn </span>mock_generate_upload_urls_returns_canned_urls() {
-<a href=#510 id=510 data-nosnippet>510</a>        <span class="kw">let </span>client = MockClient::default();
-<a href=#511 id=511 data-nosnippet>511</a>        <span class="kw">let </span>urls = client.generate_upload_urls().<span class="kw">await</span>.unwrap();
-<a href=#512 id=512 data-nosnippet>512</a>        <span class="macro">assert_eq!</span>(urls.log_file_url, <span class="string">"http://mock/log"</span>);
-<a href=#513 id=513 data-nosnippet>513</a>        <span class="macro">assert_eq!</span>(urls.output_zip_url, <span class="string">"http://mock/zip"</span>);
-<a href=#514 id=514 data-nosnippet>514</a>    }
-<a href=#515 id=515 data-nosnippet>515</a>
-<a href=#516 id=516 data-nosnippet>516</a>    <span class="attr">#[tokio::test]
-<a href=#517 id=517 data-nosnippet>517</a>    </span><span class="kw">async fn </span>mock_upload_to_signed_url_records_calls() {
-<a href=#518 id=518 data-nosnippet>518</a>        <span class="kw">let </span>client = MockClient::default();
-<a href=#519 id=519 data-nosnippet>519</a>        client
-<a href=#520 id=520 data-nosnippet>520</a>            .upload_to_signed_url(<span class="string">"http://mock/target"</span>, <span class="string">b"payload"</span>.to_vec())
-<a href=#521 id=521 data-nosnippet>521</a>            .<span class="kw">await
-<a href=#522 id=522 data-nosnippet>522</a>            </span>.unwrap();
-<a href=#523 id=523 data-nosnippet>523</a>
-<a href=#524 id=524 data-nosnippet>524</a>        client.read_uploads(|uploads| {
-<a href=#525 id=525 data-nosnippet>525</a>            <span class="macro">assert_eq!</span>(uploads.len(), <span class="number">1</span>);
-<a href=#526 id=526 data-nosnippet>526</a>            <span class="macro">assert_eq!</span>(uploads[<span class="number">0</span>].url, <span class="string">"http://mock/target"</span>);
-<a href=#527 id=527 data-nosnippet>527</a>            <span class="macro">assert_eq!</span>(uploads[<span class="number">0</span>].body, <span class="string">b"payload"</span>);
-<a href=#528 id=528 data-nosnippet>528</a>        });
-<a href=#529 id=529 data-nosnippet>529</a>    }
-<a href=#530 id=530 data-nosnippet>530</a>
-<a href=#531 id=531 data-nosnippet>531</a>    <span class="attr">#[tokio::test]
-<a href=#532 id=532 data-nosnippet>532</a>    </span><span class="kw">async fn </span>mock_failing_client_fails_upload_methods() {
-<a href=#533 id=533 data-nosnippet>533</a>        <span class="kw">let </span>client = MockClient::failing();
-<a href=#534 id=534 data-nosnippet>534</a>        <span class="macro">assert!</span>(client.generate_upload_urls().<span class="kw">await</span>.is_err());
-<a href=#535 id=535 data-nosnippet>535</a>        <span class="macro">assert!</span>(
-<a href=#536 id=536 data-nosnippet>536</a>            client
-<a href=#537 id=537 data-nosnippet>537</a>                .upload_to_signed_url(<span class="string">"url"</span>, Vec::new())
-<a href=#538 id=538 data-nosnippet>538</a>                .<span class="kw">await
-<a href=#539 id=539 data-nosnippet>539</a>                </span>.is_err()
-<a href=#540 id=540 data-nosnippet>540</a>        );
-<a href=#541 id=541 data-nosnippet>541</a>    }
-<a href=#542 id=542 data-nosnippet>542</a>
-<a href=#543 id=543 data-nosnippet>543</a>    <span class="attr">#[tokio::test]
-<a href=#544 id=544 data-nosnippet>544</a>    </span><span class="kw">async fn </span>mock_failing_client_fails_fetch_methods() {
-<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">let </span>client = MockClient::failing();
-<a href=#546 id=546 data-nosnippet>546</a>        <span class="macro">assert!</span>(client.fetch_environment_config().<span class="kw">await</span>.is_err());
-<a href=#547 id=547 data-nosnippet>547</a>        <span class="macro">assert!</span>(client.fetch_scenario_config().<span class="kw">await</span>.is_err());
-<a href=#548 id=548 data-nosnippet>548</a>        <span class="macro">assert!</span>(client.fetch_output_collection().<span class="kw">await</span>.is_err());
-<a href=#549 id=549 data-nosnippet>549</a>    }
-<a href=#550 id=550 data-nosnippet>550</a>}
+<a href=#365 id=365 data-nosnippet>365</a>                    execution_variables: String::new(),
+<a href=#366 id=366 data-nosnippet>366</a>                    prometheus: PrometheusQueries {
+<a href=#367 id=367 data-nosnippet>367</a>                        environment: Vec::new(),
+<a href=#368 id=368 data-nosnippet>368</a>                        scenario: Vec::new(),
+<a href=#369 id=369 data-nosnippet>369</a>                    },
+<a href=#370 id=370 data-nosnippet>370</a>                },
+<a href=#371 id=371 data-nosnippet>371</a>            }
+<a href=#372 id=372 data-nosnippet>372</a>        }
+<a href=#373 id=373 data-nosnippet>373</a>    }
+<a href=#374 id=374 data-nosnippet>374</a>
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">impl </span>MockClient {
+<a href=#376 id=376 data-nosnippet>376</a>        <span class="kw">pub fn </span>failing() -&gt; <span class="self">Self </span>{
+<a href=#377 id=377 data-nosnippet>377</a>            <span class="self">Self </span>{
+<a href=#378 id=378 data-nosnippet>378</a>                update_should_fail: <span class="bool-val">true</span>,
+<a href=#379 id=379 data-nosnippet>379</a>                ..Default::default()
+<a href=#380 id=380 data-nosnippet>380</a>            }
+<a href=#381 id=381 data-nosnippet>381</a>        }
+<a href=#382 id=382 data-nosnippet>382</a>
+<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw">pub fn </span>with_prometheus_queries(queries: PrometheusQueries) -&gt; <span class="self">Self </span>{
+<a href=#384 id=384 data-nosnippet>384</a>            <span class="self">Self </span>{
+<a href=#385 id=385 data-nosnippet>385</a>                output: OutputCollectionResponse {
+<a href=#386 id=386 data-nosnippet>386</a>                    execution_variables: String::new(),
+<a href=#387 id=387 data-nosnippet>387</a>                    prometheus: queries,
+<a href=#388 id=388 data-nosnippet>388</a>                },
+<a href=#389 id=389 data-nosnippet>389</a>                ..Default::default()
+<a href=#390 id=390 data-nosnippet>390</a>            }
+<a href=#391 id=391 data-nosnippet>391</a>        }
+<a href=#392 id=392 data-nosnippet>392</a>
+<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">pub fn </span>with_failing_output_collection() -&gt; <span class="self">Self </span>{
+<a href=#394 id=394 data-nosnippet>394</a>            <span class="self">Self </span>{
+<a href=#395 id=395 data-nosnippet>395</a>                prometheus_queries_should_fail: <span class="bool-val">true</span>,
+<a href=#396 id=396 data-nosnippet>396</a>                ..Default::default()
+<a href=#397 id=397 data-nosnippet>397</a>            }
+<a href=#398 id=398 data-nosnippet>398</a>        }
+<a href=#399 id=399 data-nosnippet>399</a>
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">pub fn </span>read_updates&lt;F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, closure: F)
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">where
+<a href=#402 id=402 data-nosnippet>402</a>            </span>F: FnOnce(RwLockReadGuard&lt;Vec&lt;Status&gt;&gt;),
+<a href=#403 id=403 data-nosnippet>403</a>        {
+<a href=#404 id=404 data-nosnippet>404</a>            <span class="kw">let </span>updates = <span class="self">self</span>.status_updates.read().unwrap();
+<a href=#405 id=405 data-nosnippet>405</a>            closure(updates)
+<a href=#406 id=406 data-nosnippet>406</a>        }
+<a href=#407 id=407 data-nosnippet>407</a>
+<a href=#408 id=408 data-nosnippet>408</a>        <span class="kw">pub fn </span>read_uploads&lt;F&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, closure: F)
+<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">where
+<a href=#410 id=410 data-nosnippet>410</a>            </span>F: FnOnce(RwLockReadGuard&lt;Vec&lt;UploadCall&gt;&gt;),
+<a href=#411 id=411 data-nosnippet>411</a>        {
+<a href=#412 id=412 data-nosnippet>412</a>            <span class="kw">let </span>uploads = <span class="self">self</span>.uploads.read().unwrap();
+<a href=#413 id=413 data-nosnippet>413</a>            closure(uploads)
+<a href=#414 id=414 data-nosnippet>414</a>        }
+<a href=#415 id=415 data-nosnippet>415</a>    }
+<a href=#416 id=416 data-nosnippet>416</a>
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">impl </span>Client <span class="kw">for </span>MockClient {
+<a href=#418 id=418 data-nosnippet>418</a>        <span class="kw">fn </span>kustomize_patch_for_execution(
+<a href=#419 id=419 data-nosnippet>419</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#420 id=420 data-nosnippet>420</a>            _outdir: <span class="kw-2">&amp;</span>Path,
+<a href=#421 id=421 data-nosnippet>421</a>            _pull_policy: <span class="kw-2">&amp;</span>str,
+<a href=#422 id=422 data-nosnippet>422</a>            _toolbox_image: <span class="kw-2">&amp;</span>str,
+<a href=#423 id=423 data-nosnippet>423</a>            _otel: <span class="kw-2">&amp;</span>OtelConfig,
+<a href=#424 id=424 data-nosnippet>424</a>        ) -&gt; String {
+<a href=#425 id=425 data-nosnippet>425</a>            KUSTOMIZE_PATCH.to_string()
+<a href=#426 id=426 data-nosnippet>426</a>        }
+<a href=#427 id=427 data-nosnippet>427</a>
+<a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">async fn </span>update_status(
+<a href=#429 id=429 data-nosnippet>429</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#430 id=430 data-nosnippet>430</a>            status: Status,
+<a href=#431 id=431 data-nosnippet>431</a>            _exit_status: <span class="prelude-ty">Option</span>&lt;ExitStatus&gt;,
+<a href=#432 id=432 data-nosnippet>432</a>            _message: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#433 id=433 data-nosnippet>433</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+<a href=#434 id=434 data-nosnippet>434</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
+<a href=#435 id=435 data-nosnippet>435</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::UpdateStatus {
+<a href=#436 id=436 data-nosnippet>436</a>                    message: <span class="string">"mock update failure"</span>.to_owned(),
+<a href=#437 id=437 data-nosnippet>437</a>                });
+<a href=#438 id=438 data-nosnippet>438</a>            }
+<a href=#439 id=439 data-nosnippet>439</a>            <span class="self">self</span>.status_updates.write().unwrap().push(status);
+<a href=#440 id=440 data-nosnippet>440</a>
+<a href=#441 id=441 data-nosnippet>441</a>            <span class="prelude-val">Ok</span>(())
+<a href=#442 id=442 data-nosnippet>442</a>        }
+<a href=#443 id=443 data-nosnippet>443</a>
+<a href=#444 id=444 data-nosnippet>444</a>        <span class="kw">async fn </span>generate_upload_urls(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;UploadUrls, Error&gt; {
+<a href=#445 id=445 data-nosnippet>445</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
+<a href=#446 id=446 data-nosnippet>446</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::GenerateUploadUrls {
+<a href=#447 id=447 data-nosnippet>447</a>                    message: <span class="string">"mock upload urls failure"</span>.to_owned(),
+<a href=#448 id=448 data-nosnippet>448</a>                });
+<a href=#449 id=449 data-nosnippet>449</a>            }
+<a href=#450 id=450 data-nosnippet>450</a>
+<a href=#451 id=451 data-nosnippet>451</a>            <span class="prelude-val">Ok</span>(UploadUrls {
+<a href=#452 id=452 data-nosnippet>452</a>                log_file_url: <span class="self">self</span>.log_file_url.clone(),
+<a href=#453 id=453 data-nosnippet>453</a>                output_zip_url: <span class="self">self</span>.output_zip_url.clone(),
+<a href=#454 id=454 data-nosnippet>454</a>            })
+<a href=#455 id=455 data-nosnippet>455</a>        }
+<a href=#456 id=456 data-nosnippet>456</a>
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">async fn </span>upload_to_signed_url(<span class="kw-2">&amp;</span><span class="self">self</span>, url: <span class="kw-2">&amp;</span>str, body: Vec&lt;u8&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+<a href=#458 id=458 data-nosnippet>458</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
+<a href=#459 id=459 data-nosnippet>459</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Upload {
+<a href=#460 id=460 data-nosnippet>460</a>                    message: <span class="string">"mock upload failure"</span>.to_owned(),
+<a href=#461 id=461 data-nosnippet>461</a>                });
+<a href=#462 id=462 data-nosnippet>462</a>            }
+<a href=#463 id=463 data-nosnippet>463</a>            <span class="self">self</span>.uploads.write().unwrap().push(UploadCall {
+<a href=#464 id=464 data-nosnippet>464</a>                url: url.to_owned(),
+<a href=#465 id=465 data-nosnippet>465</a>                body,
+<a href=#466 id=466 data-nosnippet>466</a>            });
+<a href=#467 id=467 data-nosnippet>467</a>
+<a href=#468 id=468 data-nosnippet>468</a>            <span class="prelude-val">Ok</span>(())
+<a href=#469 id=469 data-nosnippet>469</a>        }
+<a href=#470 id=470 data-nosnippet>470</a>
+<a href=#471 id=471 data-nosnippet>471</a>        <span class="kw">async fn </span>fetch_environment_config(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, Error&gt; {
+<a href=#472 id=472 data-nosnippet>472</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
+<a href=#473 id=473 data-nosnippet>473</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::FetchConfig {
+<a href=#474 id=474 data-nosnippet>474</a>                    kind: <span class="string">"environment"</span>,
+<a href=#475 id=475 data-nosnippet>475</a>                    message: <span class="string">"mock fetch environment config failure"</span>.to_owned(),
+<a href=#476 id=476 data-nosnippet>476</a>                });
+<a href=#477 id=477 data-nosnippet>477</a>            }
+<a href=#478 id=478 data-nosnippet>478</a>
+<a href=#479 id=479 data-nosnippet>479</a>            <span class="prelude-val">Ok</span>(Vec::new())
+<a href=#480 id=480 data-nosnippet>480</a>        }
+<a href=#481 id=481 data-nosnippet>481</a>
+<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">async fn </span>fetch_scenario_config(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, Error&gt; {
+<a href=#483 id=483 data-nosnippet>483</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail {
+<a href=#484 id=484 data-nosnippet>484</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::FetchConfig {
+<a href=#485 id=485 data-nosnippet>485</a>                    kind: <span class="string">"scenario"</span>,
+<a href=#486 id=486 data-nosnippet>486</a>                    message: <span class="string">"mock fetch scenario config failure"</span>.to_owned(),
+<a href=#487 id=487 data-nosnippet>487</a>                });
+<a href=#488 id=488 data-nosnippet>488</a>            }
+<a href=#489 id=489 data-nosnippet>489</a>
+<a href=#490 id=490 data-nosnippet>490</a>            <span class="prelude-val">Ok</span>(Vec::new())
+<a href=#491 id=491 data-nosnippet>491</a>        }
+<a href=#492 id=492 data-nosnippet>492</a>
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">async fn </span>fetch_output_collection(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;OutputCollectionResponse, Error&gt; {
+<a href=#494 id=494 data-nosnippet>494</a>            <span class="kw">if </span><span class="self">self</span>.update_should_fail || <span class="self">self</span>.prometheus_queries_should_fail {
+<a href=#495 id=495 data-nosnippet>495</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::FetchPrometheusQueries {
+<a href=#496 id=496 data-nosnippet>496</a>                    message: <span class="string">"mock fetch prometheus queries failure"</span>.to_owned(),
+<a href=#497 id=497 data-nosnippet>497</a>                });
+<a href=#498 id=498 data-nosnippet>498</a>            }
+<a href=#499 id=499 data-nosnippet>499</a>
+<a href=#500 id=500 data-nosnippet>500</a>            <span class="prelude-val">Ok</span>(<span class="self">self</span>.output.clone())
+<a href=#501 id=501 data-nosnippet>501</a>        }
+<a href=#502 id=502 data-nosnippet>502</a>    }
+<a href=#503 id=503 data-nosnippet>503</a>}
+<a href=#504 id=504 data-nosnippet>504</a>
+<a href=#505 id=505 data-nosnippet>505</a><span class="attr">#[cfg(test)]
+<a href=#506 id=506 data-nosnippet>506</a></span><span class="kw">mod </span>tests {
+<a href=#507 id=507 data-nosnippet>507</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#508 id=508 data-nosnippet>508</a>    <span class="kw">use </span><span class="kw">crate</span>::orchestrator::mocks::MockClient;
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a>    <span class="attr">#[tokio::test]
+<a href=#511 id=511 data-nosnippet>511</a>    </span><span class="kw">async fn </span>mock_generate_upload_urls_returns_canned_urls() {
+<a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">let </span>client = MockClient::default();
+<a href=#513 id=513 data-nosnippet>513</a>        <span class="kw">let </span>urls = client.generate_upload_urls().<span class="kw">await</span>.unwrap();
+<a href=#514 id=514 data-nosnippet>514</a>        <span class="macro">assert_eq!</span>(urls.log_file_url, <span class="string">"http://mock/log"</span>);
+<a href=#515 id=515 data-nosnippet>515</a>        <span class="macro">assert_eq!</span>(urls.output_zip_url, <span class="string">"http://mock/zip"</span>);
+<a href=#516 id=516 data-nosnippet>516</a>    }
+<a href=#517 id=517 data-nosnippet>517</a>
+<a href=#518 id=518 data-nosnippet>518</a>    <span class="attr">#[tokio::test]
+<a href=#519 id=519 data-nosnippet>519</a>    </span><span class="kw">async fn </span>mock_upload_to_signed_url_records_calls() {
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">let </span>client = MockClient::default();
+<a href=#521 id=521 data-nosnippet>521</a>        client
+<a href=#522 id=522 data-nosnippet>522</a>            .upload_to_signed_url(<span class="string">"http://mock/target"</span>, <span class="string">b"payload"</span>.to_vec())
+<a href=#523 id=523 data-nosnippet>523</a>            .<span class="kw">await
+<a href=#524 id=524 data-nosnippet>524</a>            </span>.unwrap();
+<a href=#525 id=525 data-nosnippet>525</a>
+<a href=#526 id=526 data-nosnippet>526</a>        client.read_uploads(|uploads| {
+<a href=#527 id=527 data-nosnippet>527</a>            <span class="macro">assert_eq!</span>(uploads.len(), <span class="number">1</span>);
+<a href=#528 id=528 data-nosnippet>528</a>            <span class="macro">assert_eq!</span>(uploads[<span class="number">0</span>].url, <span class="string">"http://mock/target"</span>);
+<a href=#529 id=529 data-nosnippet>529</a>            <span class="macro">assert_eq!</span>(uploads[<span class="number">0</span>].body, <span class="string">b"payload"</span>);
+<a href=#530 id=530 data-nosnippet>530</a>        });
+<a href=#531 id=531 data-nosnippet>531</a>    }
+<a href=#532 id=532 data-nosnippet>532</a>
+<a href=#533 id=533 data-nosnippet>533</a>    <span class="attr">#[tokio::test]
+<a href=#534 id=534 data-nosnippet>534</a>    </span><span class="kw">async fn </span>mock_failing_client_fails_upload_methods() {
+<a href=#535 id=535 data-nosnippet>535</a>        <span class="kw">let </span>client = MockClient::failing();
+<a href=#536 id=536 data-nosnippet>536</a>        <span class="macro">assert!</span>(client.generate_upload_urls().<span class="kw">await</span>.is_err());
+<a href=#537 id=537 data-nosnippet>537</a>        <span class="macro">assert!</span>(
+<a href=#538 id=538 data-nosnippet>538</a>            client
+<a href=#539 id=539 data-nosnippet>539</a>                .upload_to_signed_url(<span class="string">"url"</span>, Vec::new())
+<a href=#540 id=540 data-nosnippet>540</a>                .<span class="kw">await
+<a href=#541 id=541 data-nosnippet>541</a>                </span>.is_err()
+<a href=#542 id=542 data-nosnippet>542</a>        );
+<a href=#543 id=543 data-nosnippet>543</a>    }
+<a href=#544 id=544 data-nosnippet>544</a>
+<a href=#545 id=545 data-nosnippet>545</a>    <span class="attr">#[tokio::test]
+<a href=#546 id=546 data-nosnippet>546</a>    </span><span class="kw">async fn </span>mock_failing_client_fails_fetch_methods() {
+<a href=#547 id=547 data-nosnippet>547</a>        <span class="kw">let </span>client = MockClient::failing();
+<a href=#548 id=548 data-nosnippet>548</a>        <span class="macro">assert!</span>(client.fetch_environment_config().<span class="kw">await</span>.is_err());
+<a href=#549 id=549 data-nosnippet>549</a>        <span class="macro">assert!</span>(client.fetch_scenario_config().<span class="kw">await</span>.is_err());
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="macro">assert!</span>(client.fetch_output_collection().<span class="kw">await</span>.is_err());
+<a href=#551 id=551 data-nosnippet>551</a>    }
+<a href=#552 id=552 data-nosnippet>552</a>}
 </code></pre></div></section></main></body></html>
