@@ -148,9 +148,9 @@ impl TestPlanVariable {
     pub fn from_test_plan(test_plan: &OrchestratorTestPlan) -> Vec<Self> {
         let include_keys: HashSet<&String> = test_plan
             .matrix
-            .include
-            .iter()
-            .flat_map(|group| group.keys())
+            .compound
+            .values()
+            .flat_map(|entries| entries.iter().take(1).flat_map(|group| group.keys()))
             .collect();
 
         let sections = [
@@ -253,8 +253,9 @@ impl MatrixSummary {
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
             include_groups: matrix
-                .include
-                .iter()
+                .compound
+                .values()
+                .flat_map(|entries| entries.iter())
                 .map(|g| g.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
                 .collect(),
         }
