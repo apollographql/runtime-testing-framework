@@ -745,6 +745,10 @@ impl Signature {
     ///   2. Conflicting selections without aliases need to have them added.
     ///   3. Input objects with missing required fields are filled out via the same technique used for
     ///      generating variables to acompany the operation.
+    ///   4. `@defer` labels are redacted to `"_"`, so any operation deferring more than one
+    ///      fragment arrives with duplicate labels. Nothing here rejects that - the router does,
+    ///      when it plans the query. They are rewritten to unique values, the same way duplicate
+    ///      field names are given aliases in (2).
     pub fn parse_and_fix(
         &self,
         schema: &Valid<Schema>,
@@ -761,6 +765,7 @@ impl Signature {
         };
 
         fix_aliases(&mut doc);
+        fix_defer_labels(&mut doc);
         fix_missing_input_fields(&mut doc, schema, rng);
         fix_unused_vars(&mut doc);
 
@@ -802,6 +807,76 @@ fn fix_aliases(doc: &mut ExecutableDocument) {
     for operation in doc.operations.named.values_mut() {
         let op = operation.make_mut();
         add_missing_aliases(&mut op.selection_set, &fragments, &mut suffix, &mut seen);
+    }
+}
+
+/// `@defer` labels are redacted to `"_"` before signatures are reported, so an operation
+/// deferring a single fragment survives the round trip but anything deferring two or more comes
+/// back with duplicate labels.
+///
+/// Nothing on this side objects: the pinned apollo-compiler does not check `@defer` labels, so
+/// such a document validates cleanly here. The router is what refuses it, while planning the
+/// query - "Duplicate @defer label: labels must be unique within an operation", raised from
+/// `apollo-federation`, whose own comment there notes it "should've been a validation error".
+///
+/// Give every label a unique value, mirroring what [fix_aliases] does for colliding field names.
+fn fix_defer_labels(doc: &mut ExecutableDocument) {
+    let mut suffix = 0;
+
+    for fragment in doc.fragments.values_mut() {
+        let frag = fragment.make_mut();
+        relabel_defers(&mut frag.selection_set, &mut suffix);
+    }
+
+    if let Some(operation) = doc.operations.anonymous.as_mut() {
+        let op = operation.make_mut();
+        relabel_defers(&mut op.selection_set, &mut suffix);
+    }
+
+    for operation in doc.operations.named.values_mut() {
+        let op = operation.make_mut();
+        relabel_defers(&mut op.selection_set, &mut suffix);
+    }
+}
+
+/// Walk a selection set, giving every `@defer` label encountered a unique value.
+fn relabel_defers(selset: &mut SelectionSet, suffix: &mut usize) {
+    for sel in selset.selections.iter_mut() {
+        match sel {
+            Selection::Field(field) => {
+                let f = field.make_mut();
+                relabel_defers(&mut f.selection_set, suffix);
+            }
+            Selection::InlineFragment(frag) => {
+                let f = frag.make_mut();
+                relabel_defer_directives(&mut f.directives, suffix);
+                relabel_defers(&mut f.selection_set, suffix);
+            }
+            Selection::FragmentSpread(spread) => {
+                let s = spread.make_mut();
+                relabel_defer_directives(&mut s.directives, suffix);
+            }
+        }
+    }
+}
+
+/// Rewrite the `label` argument of any `@defer` in this directive list.
+fn relabel_defer_directives(directives: &mut DirectiveList, suffix: &mut usize) {
+    for directive in directives.iter_mut() {
+        if directive.name != "defer" {
+            continue;
+        }
+
+        let d = directive.make_mut();
+        for arg in d.arguments.iter_mut() {
+            if arg.name != "label" {
+                continue;
+            }
+
+            let a = arg.make_mut();
+            a.value = Node::new(ast::Value::String(format!("rtf_defer_{suffix}")));
+            *suffix += 1;
+        }
     }
 }
 
@@ -1177,6 +1252,119 @@ mod tests {
 
         let res = doc.validate(&schema);
         assert!(res.is_ok(), "{res:?}");
+    }
+
+    /// Collect every `@defer(label:)` value in a document, in no particular order.
+    ///
+    /// Walks the same ground [fix_defer_labels] does - fragment definitions as well as
+    /// operations - so a label the fix fails to reach is a label this fails to see.
+    fn defer_labels(doc: &ExecutableDocument) -> Vec<String> {
+        fn from_directives(directives: &DirectiveList, out: &mut Vec<String>) {
+            for directive in directives.iter() {
+                if directive.name != "defer" {
+                    continue;
+                }
+                for arg in directive.arguments.iter() {
+                    if arg.name == "label"
+                        && let Some(s) = arg.value.as_str()
+                    {
+                        out.push(s.to_string());
+                    }
+                }
+            }
+        }
+
+        fn walk(selset: &SelectionSet, out: &mut Vec<String>) {
+            for sel in selset.selections.iter() {
+                match sel {
+                    Selection::Field(field) => walk(&field.selection_set, out),
+                    Selection::InlineFragment(frag) => {
+                        from_directives(&frag.directives, out);
+                        walk(&frag.selection_set, out);
+                    }
+                    Selection::FragmentSpread(spread) => from_directives(&spread.directives, out),
+                }
+            }
+        }
+
+        let mut out = Vec::new();
+        for fragment in doc.fragments.values() {
+            walk(&fragment.selection_set, &mut out);
+        }
+        for operation in doc.operations.iter() {
+            walk(&operation.selection_set, &mut out);
+        }
+        out
+    }
+
+    /// Uses [schema_with_defer_and_stream] rather than the raw schema: `@defer` is auto-supported
+    /// by the router and so is absent from most supergraph SDL, this test schema included.
+    /// Validating against the raw schema fails with "directive not defined", which is a different
+    /// problem from the one this fix is for.
+    #[test]
+    fn fix_defer_labels_gives_each_label_a_unique_value() {
+        // Four `@defer`s, deliberately spread across the shapes the fix has to reach: two
+        // fragment spreads, one inline fragment in the operation, and one inline fragment nested
+        // inside a fragment *definition* - that last only found if fragments are walked too.
+        let q = r#"
+            query DuplicateDeferLabels($graph_id: ID!) {
+              service(id: $graph_id) {
+                ...Sig @defer(label: "_")
+                ...Sig2 @defer(label: "_")
+                ... on Service @defer(label: "_") {
+                  variant(name: "v1") {
+                    id
+                  }
+                }
+              }
+            }
+
+            fragment Sig on Service {
+              variant(name: "v1") {
+                ... on GraphVariant @defer(label: "_") {
+                  id
+                }
+              }
+            }
+
+            fragment Sig2 on Service {
+              operation(id: "id2") {
+                signature
+              }
+            }
+        "#;
+
+        let schema = schema_with_defer_and_stream(SCHEMA);
+        let mut doc = ExecutableDocument::parse(&schema, q, "test").unwrap();
+
+        let before = defer_labels(&doc);
+        assert_eq!(
+            before,
+            vec!["_"; 4],
+            "fixture should start with four redacted labels"
+        );
+
+        fix_defer_labels(&mut doc);
+
+        // No "invalid before / valid after" pair, unlike the sibling fixes: apollo-compiler
+        // 1.31.1 does not check `@defer` labels at all (`validate_defer_labels` arrived in 2.0),
+        // so the duplicate-labelled input above validates quite happily.  Validity after the
+        // rewrite is still worth asserting - the rewrite must not break anything else.
+        let res = doc.clone().validate(&schema);
+        assert!(res.is_ok(), "{res:?}");
+
+        let after = defer_labels(&doc);
+        assert!(
+            !after.iter().any(|l| l == "_"),
+            "every redacted label should have been rewritten: {after:?}"
+        );
+
+        let unique: HashSet<&String> = after.iter().collect();
+        assert_eq!(
+            unique.len(),
+            4,
+            "expected four labels, all distinct, one per @defer: {after:?}"
+        );
     }
 
     #[test]
