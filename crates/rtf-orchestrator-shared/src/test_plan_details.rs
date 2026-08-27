@@ -148,9 +148,9 @@ impl TestPlanVariable {
     pub fn from_test_plan(test_plan: &OrchestratorTestPlan) -> Vec<Self> {
         let include_keys: HashSet<&String> = test_plan
             .matrix
-            .include
-            .iter()
-            .flat_map(|group| group.keys())
+            .compound
+            .values()
+            .flat_map(|entries| entries.iter().take(1).flat_map(|group| group.keys()))
             .collect();
 
         let sections = [
@@ -240,7 +240,7 @@ impl VariableValue {
 pub struct MatrixSummary {
     pub n_executions: usize,
     pub dimensions: BTreeMap<String, Vec<Scalar>>,
-    pub include_groups: Vec<BTreeMap<String, Scalar>>,
+    pub compound_groups: BTreeMap<String, Vec<BTreeMap<String, Scalar>>>,
 }
 
 impl MatrixSummary {
@@ -252,10 +252,17 @@ impl MatrixSummary {
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
-            include_groups: matrix
-                .include
+            compound_groups: matrix
+                .compound
                 .iter()
-                .map(|g| g.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                .map(|(name, entries)| {
+                    let entries = entries
+                        .iter()
+                        .map(|g| g.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                        .collect();
+
+                    (name.clone(), entries)
+                })
                 .collect(),
         }
     }
@@ -408,11 +415,12 @@ mod tests {
             region:
               - us-east-1
               - eu-west-1
-          include:
-            - tier: free
-              quota: 10
-            - tier: paid
-              quota: 100
+          compound:
+            include:
+              - tier: free
+                quota: 10
+              - tier: paid
+                quota: 100
         scenario:
           name: my-scenario
           description: a scenario
@@ -621,16 +629,55 @@ mod tests {
     }
 
     #[test]
-    fn matrix_summary_multiplies_dimensions_by_include_groups() {
+    fn matrix_summary_multiplies_dimensions_by_compound_groups() {
         let summary = MatrixSummary::new(&test_plan(TEST_PLAN).matrix);
 
-        assert_eq!(summary.n_executions, 4, "2 regions x 2 include groups");
-        assert_eq!(summary.dimensions.len(), 1);
-        assert_eq!(summary.include_groups.len(), 2);
         assert_eq!(
-            summary.include_groups[0].get("tier"),
+            summary.n_executions, 4,
+            "2 regions x 2 compound group entries"
+        );
+        assert_eq!(summary.dimensions.len(), 1);
+        assert_eq!(summary.compound_groups.len(), 1);
+        assert_eq!(summary.compound_groups["include"].len(), 2);
+        assert_eq!(
+            summary.compound_groups["include"][0].get("tier"),
             Some(&Scalar::from("free"))
         );
+    }
+
+    #[test]
+    fn matrix_summary_reports_multiple_compound_groups_separately() {
+        let matrix = Matrix {
+            variant_names: None,
+            dimensions: HashMap::new(),
+            compound: HashMap::from([
+                (
+                    "subjects".to_string(),
+                    vec![
+                        HashMap::from([("setup_subject".to_string(), Scalar::from("world!"))]),
+                        HashMap::from([("setup_subject".to_string(), Scalar::from("mother"))]),
+                    ],
+                ),
+                (
+                    "colours".to_string(),
+                    vec![
+                        HashMap::from([("foreground".to_string(), Scalar::from("red"))]),
+                        HashMap::from([("foreground".to_string(), Scalar::from("black"))]),
+                    ],
+                ),
+            ]),
+        };
+
+        let summary = MatrixSummary::new(&matrix);
+
+        assert_eq!(summary.n_executions, 4, "2 subjects x 2 colours");
+        assert_eq!(
+            summary.compound_groups.keys().collect::<Vec<_>>(),
+            vec!["colours", "subjects"],
+            "groups are reported separately and ordered by name"
+        );
+        assert_eq!(summary.compound_groups["subjects"].len(), 2);
+        assert_eq!(summary.compound_groups["colours"].len(), 2);
     }
 
     #[tokio::test]

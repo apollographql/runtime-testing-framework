@@ -39,8 +39,8 @@ pub enum ErrorKind {
     #[strum(to_string = "Incompatible allowed values across variable definitions")]
     IncompatibleAllowedValues,
 
-    #[strum(to_string = "Inconsistent types for matrix include maps")]
-    InconsistentMatrixInclude,
+    #[strum(to_string = "Inconsistent types for matrix compound group entries")]
+    InconsistentMatrixCompound,
 
     #[strum(to_string = "Inconsistent types for matrix variable")]
     InconsistentMatrixVariable,

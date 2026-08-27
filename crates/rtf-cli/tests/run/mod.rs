@@ -231,6 +231,47 @@ fn matrix_include_completes() {
         .stdout(contains("what a wonderful father"));
 }
 
+#[test]
+fn matrix_compound_override_replaces_the_whole_group() {
+    prepare_rtf_run_with_vars_file(
+        "resources/test-plans/valid/matrix-include",
+        r#"{
+            "include": [
+                {"setup_subject": "fish", "scenario_subject": "chips"},
+                {"setup_subject": "bread", "scenario_subject": "butter"}
+            ]
+        }"#,
+    )
+    .assert()
+    .success()
+    .stdout(contains("hello, fish"))
+    .stdout(contains("hello, chips"))
+    .stdout(contains("hello, bread"))
+    .stdout(contains("hello, butter"))
+    .stdout(contains("what a wonderful fish"))
+    .stdout(contains("what a wonderful chips"))
+    .stdout(contains("what a wonderful bread"))
+    .stdout(contains("what a wonderful butter"));
+}
+
+#[test]
+fn matrix_compound_override_removed_via_empty_array_frees_its_inner_variables() {
+    prepare_rtf_run_with_vars_file(
+        "resources/test-plans/valid/matrix-include",
+        r#"{
+            "include": [],
+            "setup_subject": "beach",
+            "scenario_subject": "towel"
+        }"#,
+    )
+    .assert()
+    .success()
+    .stdout(contains("hello, beach"))
+    .stdout(contains("hello, towel"))
+    .stdout(contains("what a wonderful beach"))
+    .stdout(contains("what a wonderful towel"));
+}
+
 #[test_case("setup-execution-fails", "Unable to execute the setup.sh command:"; "setup script execution fails")]
 #[test_case("setup-file-provider-fails", "Unable to resolve and write frog-no.gif file: stream did not contain valid UTF-8"; "setup file provider fails")]
 #[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario script execution fails")]

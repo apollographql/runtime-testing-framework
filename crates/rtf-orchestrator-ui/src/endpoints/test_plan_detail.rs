@@ -227,7 +227,7 @@ fn test_plan_detail_body(
 pub struct KnownTestPlanTriggerForm {
     #[serde(rename = "ref")]
     git_ref: String,
-    /// A JSON object of `HashMap<String, ScalarOrArray>` - a plain value templates a single
+    /// A JSON object of `HashMap<String, VariableOverride>` - a plain value templates a single
     /// variable, an array value defines a matrix dimension. Blank means no overrides.
     variables: String,
     #[serde(default)]

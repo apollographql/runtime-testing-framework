@@ -5,7 +5,7 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 use reqwest::StatusCode;
-use rtf_core::variables::ScalarOrArray;
+use rtf_core::variables::VariableOverride;
 use std::collections::HashMap;
 use tracing::error;
 
@@ -32,7 +32,7 @@ fn to_response((status, body): (StatusCode, String)) -> Response {
     (status, Html(body)).into_response()
 }
 
-type TriggerVariables = HashMap<String, ScalarOrArray>;
+type TriggerVariables = HashMap<String, VariableOverride>;
 
 fn parse_trigger_ref_and_variables(
     git_ref: &str,
@@ -130,10 +130,10 @@ mod tests {
         .expect("should parse");
         let variables = variables.expect("variables should be present");
 
-        assert_matches!(variables.get("message"), Some(ScalarOrArray::Scalar(_)));
+        assert_matches!(variables.get("message"), Some(VariableOverride::Scalar(_)));
         assert_matches!(
             variables.get("region"),
-            Some(ScalarOrArray::Array(values)) if values.len() == 2
+            Some(VariableOverride::Array(values)) if values.len() == 2
         );
     }
 

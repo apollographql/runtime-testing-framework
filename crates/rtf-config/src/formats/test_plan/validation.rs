@@ -246,20 +246,23 @@ impl<E: Execution> TestPlan<E> {
             }
         }
 
-        // Check matrix include
-        for (idx, include_map) in self.matrix.include.iter().enumerate() {
-            for (name, value) in include_map.iter() {
-                check(
-                    name,
-                    value,
-                    &format!("matrix include[{}]", idx),
-                    vec![
-                        "matrix".into(),
-                        "include".into(),
-                        idx.to_string(),
-                        name.clone(),
-                    ],
-                );
+        // Check matrix compound groups
+        for (group, entries) in self.matrix.compound.iter() {
+            for (idx, entry) in entries.iter().enumerate() {
+                for (name, value) in entry.iter() {
+                    check(
+                        name,
+                        value,
+                        &format!("matrix compound[{group}][{idx}]"),
+                        vec![
+                            "matrix".into(),
+                            "compound".into(),
+                            group.clone(),
+                            idx.to_string(),
+                            name.clone(),
+                        ],
+                    );
+                }
             }
         }
     }
@@ -305,7 +308,7 @@ mod tests {
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
-                include,
+                compound: HashMap::from([("include".to_string(), include)]),
             },
             custom_providers: custom_providers.to_vec(),
             scenario: templatable_scenario(scenario_fields, scenario_fields, &[]),
@@ -545,8 +548,9 @@ mod tests {
         let mut test_plan =
             templatable_test_plan(variables, dimensions, include, &[], &[], &[], &[]);
 
-        let expected_err_kind = ErrorKind::InconsistentMatrixInclude;
-        let expected_err_message = "matrix include maps must share consistent keys and types";
+        let expected_err_kind = ErrorKind::InconsistentMatrixCompound;
+        let expected_err_message =
+            "matrix compound group \"include\" entries must share consistent keys and types";
 
         let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
@@ -1123,7 +1127,7 @@ mod tests {
     )]
     #[test_case(
         Matrix {
-            include: vec![[("foo".into(), "x".into())].into()],
+            compound: [("include".into(), vec![[("foo".into(), "x".into())].into()])].into(),
             ..Default::default()
         },
         "include";

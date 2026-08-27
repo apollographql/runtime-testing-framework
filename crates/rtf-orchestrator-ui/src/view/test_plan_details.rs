@@ -96,10 +96,16 @@ impl ServiceRowView {
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct CompoundGroupView {
+    pub name: String,
+    pub entries: Vec<Vec<(String, String)>>,
+}
+
 #[derive(Serialize)]
 pub struct TestPlanDetailsJsData<'a> {
     pub variables: &'a [TriggerVariableView],
-    pub n_include_groups: usize,
+    pub compound_groups: Vec<(String, usize)>,
     pub history: &'a TestPlanHistory,
 }
 
@@ -111,7 +117,7 @@ pub struct TestPlanDetailsView {
     pub n_executions: usize,
     pub n_services: usize,
     pub matrix_formula: String,
-    pub fixed_groups: Vec<Vec<(String, String)>>,
+    pub compound_groups: Vec<CompoundGroupView>,
     pub services: Vec<ServiceRowView>,
     pub services_vary_by_matrix: bool,
     pub n_containers_per_execution: Option<usize>,
@@ -151,13 +157,12 @@ impl TestPlanDetailsView {
             .iter()
             .map(|(name, values)| format!("{} {name}", values.len()))
             .collect();
-        if !matrix.include_groups.is_empty() {
-            let n = matrix.include_groups.len();
-            matrix_formula_parts.push(format!(
-                "{n} include group{}",
-                if n == 1 { "" } else { "s" }
-            ));
-        }
+        matrix_formula_parts.extend(
+            matrix
+                .compound_groups
+                .iter()
+                .map(|(name, entries)| format!("{} {name}", entries.len())),
+        );
 
         Self {
             uuid: details.uuid,
@@ -166,14 +171,20 @@ impl TestPlanDetailsView {
             n_executions: matrix.n_executions,
             n_services: environment.services.len(),
             matrix_formula: matrix_formula_parts.join(" × "),
-            fixed_groups: matrix
-                .include_groups
+            compound_groups: matrix
+                .compound_groups
                 .iter()
-                .map(|group| {
-                    group
+                .map(|(name, entries)| CompoundGroupView {
+                    name: name.clone(),
+                    entries: entries
                         .iter()
-                        .map(|(k, v)| (k.clone(), v.to_string()))
-                        .collect()
+                        .map(|group| {
+                            group
+                                .iter()
+                                .map(|(k, v)| (k.clone(), v.to_string()))
+                                .collect()
+                        })
+                        .collect(),
                 })
                 .collect(),
             services: environment
@@ -200,7 +211,11 @@ impl TestPlanDetailsView {
     pub fn js_data(&self) -> TestPlanDetailsJsData<'_> {
         TestPlanDetailsJsData {
             variables: &self.variables,
-            n_include_groups: self.fixed_groups.len(),
+            compound_groups: self
+                .compound_groups
+                .iter()
+                .map(|g| (g.name.clone(), g.entries.len()))
+                .collect(),
             history: &self.history,
         }
     }
@@ -412,7 +427,7 @@ mod tests {
             matrix: MatrixSummary {
                 n_executions: 1,
                 dimensions: BTreeMap::new(),
-                include_groups: Vec::new(),
+                compound_groups: BTreeMap::new(),
             },
             environment: EnvironmentSummary {
                 services: Vec::new(),
@@ -440,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    fn test_plan_details_view_formula_omits_include_groups_when_there_are_none() {
+    fn test_plan_details_view_formula_omits_compound_groups_when_there_are_none() {
         let uuid = Uuid::from_u128(1);
         let mut details = sample_details(uuid);
         details.matrix.dimensions.insert(
@@ -454,18 +469,24 @@ mod tests {
     }
 
     #[test]
-    fn test_plan_details_view_formula_includes_a_nonempty_include_group_count() {
+    fn test_plan_details_view_formula_includes_named_compound_groups_separately() {
         let uuid = Uuid::from_u128(1);
         let mut details = sample_details(uuid);
         details.matrix.dimensions.insert(
             "region".to_owned(),
             vec![Scalar::from("a"), Scalar::from("b")],
         );
-        details.matrix.include_groups = vec![BTreeMap::new(), BTreeMap::new(), BTreeMap::new()];
+        details.matrix.compound_groups = BTreeMap::from([
+            ("colours".to_owned(), vec![BTreeMap::new(), BTreeMap::new()]),
+            (
+                "subjects".to_owned(),
+                vec![BTreeMap::new(), BTreeMap::new(), BTreeMap::new()],
+            ),
+        ]);
 
         let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
 
-        assert_eq!(view.matrix_formula, "2 region × 3 include groups");
+        assert_eq!(view.matrix_formula, "2 region × 2 colours × 3 subjects");
     }
 
     #[test]

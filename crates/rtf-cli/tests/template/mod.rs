@@ -156,7 +156,7 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
 )]
 #[test_case(
     "inconsistent-matrix-include.yaml",
-    "(test_plan) Inconsistent types for matrix include maps\nmatrix include maps must share consistent keys and types";
+    "(test_plan) Inconsistent types for matrix compound group entries\nmatrix compound group \"include\" entries must share consistent keys and types";
     "inconsistent matrix include"
 )]
 #[test_case(

@@ -392,7 +392,7 @@ mod tests {
                 vec![Scalar::String("val1".to_string())],
             )]
             .into(),
-            include: vec![],
+            compound: Default::default(),
         };
 
         PreparedPayload {
@@ -415,7 +415,7 @@ mod tests {
         test_plan.matrix = Matrix {
             variant_names: Some("${nonexistent}".to_string()),
             dimensions: [("a".to_string(), vec![Scalar::String("val1".to_string())])].into(),
-            include: vec![],
+            compound: Default::default(),
         };
 
         PreparedPayload {

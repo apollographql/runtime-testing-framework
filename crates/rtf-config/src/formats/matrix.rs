@@ -27,39 +27,51 @@ pub struct Matrix {
     /// full set of variables for each dimension.
     ///
     /// Used for tying subsets of variables together and reducing the number of variants we expand to.
-    /// Each entry within this array is required to define the same keys and scalar variable types.
+    /// Each entry within a given group is required to define the same keys and scalar variable types,
+    /// and no two groups may share an inner variable name.
     #[serde(default)]
-    pub include: Vec<HashMap<String, Scalar>>,
+    pub compound: HashMap<String, Vec<HashMap<String, Scalar>>>,
 }
 
 impl Matrix {
     pub fn is_empty(&self) -> bool {
-        self.dimensions.is_empty() && self.include.is_empty()
+        self.dimensions.is_empty() && self.compound.is_empty()
     }
 
     pub fn keys(&self) -> impl Iterator<Item = &String> {
-        self.dimensions
-            .keys()
-            .chain(self.include.iter().take(1).flat_map(|m| m.keys()))
+        self.dimensions.keys().chain(
+            self.compound
+                .values()
+                .flat_map(|v| v.iter().take(1).flat_map(|m| m.keys())),
+        )
     }
 
     pub fn clear(&mut self) {
         self.dimensions.clear();
-        self.include.clear();
+        self.compound.clear();
     }
 
     pub fn n_variants(&self) -> usize {
         self.dimensions
             .iter()
             .fold(1, |n, (_, vals)| n * vals.len())
-            * max(1, self.include.len())
+            * self
+                .compound
+                .iter()
+                .fold(1, |n, (_, vals)| n * max(1, vals.len()))
     }
 
-    /// Ensure that we have a consistent ordering for the vec we return.
     /// The choice of ordering by the map key here is arbitrary but it is easy to document and
     /// quickly check by hand for users when needed.
-    pub fn sorted_dimensions(&self) -> Vec<(&String, &Vec<Scalar>)> {
+    fn sorted_dimensions(&self) -> Vec<(&String, &Vec<Scalar>)> {
         let mut pairs: Vec<_> = self.dimensions.iter().collect();
+        pairs.sort_unstable_by_key(|(k1, _)| *k1);
+
+        pairs
+    }
+
+    fn sorted_compound(&self) -> Vec<(&String, &Vec<HashMap<String, Scalar>>)> {
+        let mut pairs: Vec<_> = self.compound.iter().collect();
         pairs.sort_unstable_by_key(|(k1, _)| *k1);
 
         pairs
@@ -70,7 +82,8 @@ impl Matrix {
     ///
     /// The ordering for the expanded dimensions is defined as first being by the ascii-betical
     /// sort of the base dimension keys, followed by the user provided ordering of each dimension's
-    /// variables, followed by the user provided `includes`.
+    /// variables, followed by the ascii-betical sort of compound group names, followed by the user
+    /// provided ordering of each compound group's entries.
     ///
     /// When generating variant names from a user provided template we validate the template itself
     /// and also ensure that the generated names are unique.
@@ -91,21 +104,26 @@ impl Matrix {
                 let mut variables = variables.clone();
                 variables.extend(dimension_vals);
 
-                // To handle the case where `self.include` is empty, we ensure that we at least
-                // yield a single empty HashMap as yielding None at this stage will cause the
-                // entire iterator chain to return None.
-                //
-                // Essentially this is "iter_at_least_once" where we yield a default variable if the
-                // iterator was empty.
-                let mut it = self.include.clone().into_iter();
-                let include = std::iter::once(it.next().unwrap_or_default()).chain(it);
+                self.sorted_compound()
+                    .into_iter()
+                    .map(|(_, entries)| {
+                        // Iterate over a compound group's entries, yielding a single default
+                        // (empty) entry if the group itself has none so that it behaves as a no-op
+                        // within the cartesian product rather than collapsing it entirely.
+                        let mut it = entries.iter().cloned();
+                        let first = it.next().unwrap_or_default();
 
-                // Finally, we merge everything we have so far into each map coming from `self.include`
-                // to produce the final expanded dimensions.
-                include.map(move |mut include| {
-                    include.extend(variables.clone());
-                    include
-                })
+                        std::iter::once(first).chain(it)
+                    })
+                    .multi_cartesian_product()
+                    .map(move |compound_vals| {
+                        let mut variables = variables.clone();
+                        for entry in compound_vals {
+                            variables.extend(entry);
+                        }
+
+                        variables
+                    })
             })
             // Once we have the expanded dimensions we can enumerate them and generate their output
             // directory names. We have to do this after fully expanding as we allow users to
@@ -125,8 +143,8 @@ impl Matrix {
         Ok(variants)
     }
 
-    /// Check that all matrix arrays are non-empty and homogeneous, and that all include maps share
-    /// the same keys and types.
+    /// Check that all matrix arrays are non-empty and homogeneous, and that every compound group's
+    /// entries share the same keys and types.
     pub fn check_dimensions(&self, errs: &mut templating::ErrorBuilder) {
         for (k, vals) in self.dimensions.iter() {
             let discriminant = match vals.first() {
@@ -150,40 +168,47 @@ impl Matrix {
             }
         }
 
-        if self.include.len() <= 1 {
-            return;
-        }
+        for (name, entries) in self.compound.iter() {
+            if entries.len() <= 1 {
+                continue;
+            }
 
-        let expected: HashMap<&String, Discriminant<Scalar>> = self.include[0]
-            .iter()
-            .map(|(k, v)| (k, mem::discriminant(v)))
-            .collect();
+            let expected: HashMap<&String, Discriminant<Scalar>> = entries[0]
+                .iter()
+                .map(|(k, v)| (k, mem::discriminant(v)))
+                .collect();
 
-        for map in self.include.iter().skip(1) {
-            let key_types: HashMap<&String, Discriminant<Scalar>> =
-                map.iter().map(|(k, v)| (k, mem::discriminant(v))).collect();
-            if key_types != expected {
-                errs.push(
-                    templating::ErrorKind::InconsistentMatrixInclude,
-                    "matrix include maps must share consistent keys and types",
-                    &["test_plan".to_string()],
-                );
+            for entry in entries.iter().skip(1) {
+                let key_types: HashMap<&String, Discriminant<Scalar>> = entry
+                    .iter()
+                    .map(|(k, v)| (k, mem::discriminant(v)))
+                    .collect();
+                if key_types != expected {
+                    errs.push(
+                        templating::ErrorKind::InconsistentMatrixCompound,
+                        format!(
+                            "matrix compound group {name:?} entries must share consistent keys and types"
+                        ),
+                        &["test_plan".to_string()],
+                    );
+                }
             }
         }
     }
 
-    /// Check if we have any conflicts between matrix variables and scalar variables
+    /// Check if we have any conflicts between matrix variables, dimensions and compound groups.
     pub fn check_conflicting_keys(
         &self,
         variables: &HashMap<String, Scalar>,
         errs: &mut templating::ErrorBuilder,
     ) {
-        let all_keys = variables.keys().chain(self.dimensions.keys());
-        let conflicting_keys = match self.include.first() {
-            Some(m) => duplicate_keys(all_keys.chain(m.keys()), |s| s),
-            None => duplicate_keys(all_keys, |s| s),
-        };
+        let all_keys = variables.keys().chain(self.dimensions.keys()).chain(
+            self.compound
+                .values()
+                .flat_map(|entries| entries.iter().take(1).flat_map(|m| m.keys())),
+        );
 
+        let conflicting_keys = duplicate_keys(all_keys, |s| s);
         if !conflicting_keys.is_empty() {
             errs.push(
                 templating::ErrorKind::ConflictingVariables,
@@ -247,7 +272,7 @@ mod tests {
                 ("b", &[5, 6]),
                 ("C", &[7, 8]),
             ]),
-            include: Vec::new(),
+            compound: HashMap::new(),
         };
 
         let sorted_keys: Vec<_> = m
@@ -257,6 +282,28 @@ mod tests {
             .collect();
 
         // we're sorting ascii-betical so uppercase comes first
+        assert_eq!(&sorted_keys, &["C", "a", "b", "z"]);
+    }
+
+    #[test]
+    fn sorted_compound_orders_by_key() {
+        let m = Matrix {
+            variant_names: None,
+            dimensions: HashMap::new(),
+            compound: HashMap::from([
+                ("z".to_string(), vec![HashMap::new()]),
+                ("a".to_string(), vec![HashMap::new()]),
+                ("b".to_string(), vec![HashMap::new()]),
+                ("C".to_string(), vec![HashMap::new()]),
+            ]),
+        };
+
+        let sorted_keys: Vec<_> = m
+            .sorted_compound()
+            .iter()
+            .map(|(k, _)| k.as_str())
+            .collect();
+
         assert_eq!(&sorted_keys, &["C", "a", "b", "z"]);
     }
 
@@ -270,7 +317,7 @@ mod tests {
             let m = Matrix {
                 variant_names: None,
                 dimensions: dims(dimensions),
-                include: vec![HashMap::new(); n_include],
+                compound: HashMap::from([("include".to_string(), vec![HashMap::new(); n_include])]),
             };
 
             assert_eq!(
@@ -289,7 +336,7 @@ mod tests {
 
     #[test_case(
         dims(&[("a", &["X", "Y"]), ("b", &["1", "2"])]),
-        Vec::new(),
+        HashMap::new(),
         &[
             variable_map(&[("a", "X"), ("b", "1"), ("Z", "Z")]),
             variable_map(&[("a", "X"), ("b", "2"), ("Z", "Z")]),
@@ -300,10 +347,10 @@ mod tests {
     )]
     #[test_case(
         HashMap::new(),
-        vec![
+        HashMap::from([("include".to_string(), vec![
             variable_map(&[("b", "1"), ("c", "2")]),
             variable_map(&[("b", "3"), ("c", "4")])
-        ],
+        ])]),
         &[
             variable_map(&[("b", "1"), ("c", "2"), ("Z", "Z")]),
             variable_map(&[("b", "3"), ("c", "4"), ("Z", "Z")])
@@ -312,10 +359,10 @@ mod tests {
     )]
     #[test_case(
         dims(&[("a", &["X", "Y"])]),
-        vec![
+        HashMap::from([("include".to_string(), vec![
             variable_map(&[("b", "1"), ("c", "2")]),
             variable_map(&[("b", "3"), ("c", "4")])
-        ],
+        ])]),
         &[
             variable_map(&[("a", "X"), ("b", "1"), ("c", "2"), ("Z", "Z")]),
             variable_map(&[("a", "X"), ("b", "3"), ("c", "4"), ("Z", "Z")]),
@@ -326,20 +373,40 @@ mod tests {
     )]
     #[test_case(
         HashMap::new(),
-        Vec::new(),
+        HashMap::new(),
         &[variable_map(&[("Z", "Z")])];
         "no dimensions or include"
+    )]
+    #[test_case(
+        HashMap::new(),
+        HashMap::from([
+            ("A".to_string(), vec![
+                variable_map(&[("a", "1"), ("b", "2")]),
+                variable_map(&[("a", "3"), ("b", "4")]),
+            ]),
+            ("B".to_string(), vec![
+                variable_map(&[("c", "5"), ("d", "6")]),
+                variable_map(&[("c", "7"), ("d", "8")]),
+            ]),
+        ]),
+        &[
+            variable_map(&[("a", "1"), ("b", "2"), ("c", "5"), ("d", "6"), ("Z", "Z")]),
+            variable_map(&[("a", "1"), ("b", "2"), ("c", "7"), ("d", "8"), ("Z", "Z")]),
+            variable_map(&[("a", "3"), ("b", "4"), ("c", "5"), ("d", "6"), ("Z", "Z")]),
+            variable_map(&[("a", "3"), ("b", "4"), ("c", "7"), ("d", "8"), ("Z", "Z")]),
+        ];
+        "multiple non-conflicting compound groups"
     )]
     #[test]
     fn try_expand_generates_the_expected_variables(
         dimensions: HashMap<String, Vec<Scalar>>,
-        include: Vec<HashMap<String, Scalar>>,
+        compound: HashMap<String, Vec<HashMap<String, Scalar>>>,
         expected: &[HashMap<String, Scalar>],
     ) {
         let m = Matrix {
             variant_names: None,
             dimensions,
-            include,
+            compound,
         };
 
         let expanded: Vec<_> = m
@@ -374,7 +441,7 @@ mod tests {
         let m = Matrix {
             variant_names: variant_names.map(String::from),
             dimensions: dims(&[("a", &["X", "Y"]), ("b", &["1", "2"])]),
-            include: vec![m],
+            compound: HashMap::from([("include".to_string(), vec![m])]),
         };
 
         let expanded = m
@@ -393,7 +460,7 @@ mod tests {
         let m = Matrix {
             variant_names: Some(variant_names.into()),
             dimensions: dims(&[("a", &["X", "Y"]), ("b", &["1", "2"])]),
-            include: Vec::new(),
+            compound: HashMap::new(),
         };
 
         match m.try_expand(&Default::default()) {
@@ -411,7 +478,7 @@ mod tests {
         let m = Matrix {
             variant_names: Some("${a}".into()),
             dimensions: dims(&[("a", &["X", "Y"]), ("b", &["1", "2"])]),
-            include: Vec::new(),
+            compound: HashMap::new(),
         };
 
         match m.try_expand(&Default::default()) {
@@ -422,5 +489,51 @@ mod tests {
             Ok(ok) => panic!("expected error, got {ok:?}"),
             Err(e) => panic!("unexpected error: {e}"),
         }
+    }
+
+    #[test]
+    fn check_dimensions_detects_inconsistent_compound_group() {
+        let m = Matrix {
+            variant_names: None,
+            dimensions: HashMap::new(),
+            compound: HashMap::from([(
+                "subjects".to_string(),
+                vec![
+                    variable_map(&[("foo", "a")]),
+                    HashMap::from([("foo".to_string(), Scalar::from(42))]),
+                ],
+            )]),
+        };
+
+        let mut errs = templating::ErrorBuilder::new();
+        m.check_dimensions(&mut errs);
+
+        let errs = errs.into_result(()).unwrap_err();
+        let error = errs.unwrap_single();
+        assert_eq!(
+            error.kind,
+            templating::ErrorKind::InconsistentMatrixCompound
+        );
+        assert!(error.message.contains("subjects"));
+    }
+
+    #[test]
+    fn check_conflicting_keys_detects_conflicts_between_compound_groups() {
+        let m = Matrix {
+            variant_names: None,
+            dimensions: HashMap::new(),
+            compound: HashMap::from([
+                ("subjects".to_string(), vec![variable_map(&[("foo", "a")])]),
+                ("other".to_string(), vec![variable_map(&[("foo", "b")])]),
+            ]),
+        };
+
+        let mut errs = templating::ErrorBuilder::new();
+        m.check_conflicting_keys(&HashMap::new(), &mut errs);
+
+        let errs = errs.into_result(()).unwrap_err();
+        let error = errs.unwrap_single();
+        assert_eq!(error.kind, templating::ErrorKind::ConflictingVariables);
+        assert_eq!(error.message, "foo");
     }
 }

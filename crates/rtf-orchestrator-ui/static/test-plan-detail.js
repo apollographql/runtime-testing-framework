@@ -58,7 +58,8 @@
 
     // Keeps the raw JSON textarea (the actual field submitted to `/trigger`) in sync with whatever
     // the structured fields currently say - a bare value or comma-list becomes a scalar or array
-    // override exactly as `ScalarOrArray` expects.
+    // override exactly as `VariableOverride` expects. Compound dimension overrides aren't
+    // representable by these fields at all - that's what the raw JSON box itself is for.
     function syncVariablesJson() {
         const overrides = {};
         data.variables.forEach((variable) => {
@@ -72,8 +73,7 @@
     }
 
     function recompute() {
-        const groupsFactor = Math.max(data.n_include_groups, 1);
-        let total = groupsFactor;
+        let total = 1;
         const parts = [];
 
         data.variables.forEach((variable) => {
@@ -81,9 +81,10 @@
             total *= count;
             if (count > 1) parts.push(`${count} ${variable.name}`);
         });
-        if (data.n_include_groups > 0) {
-            parts.push(`${data.n_include_groups} include group${data.n_include_groups === 1 ? "" : "s"}`);
-        }
+        data.compound_groups.forEach(([name, count]) => {
+            total *= Math.max(count, 1);
+            parts.push(`${count} ${name}`);
+        });
 
         const statEl = document.getElementById("stat-executions");
         const formulaEl = document.getElementById("stat-formula");

@@ -7,7 +7,7 @@ use rtf_config::{
     run::RunProviders,
     templating::{self, CustomProviderDefinitions, Template, TemplateContext},
 };
-use rtf_core::variables::{self, ParsedVariables, ScalarOrArray};
+use rtf_core::variables::{self, ParsedVariables, VariableOverride};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
@@ -35,7 +35,7 @@ pub struct GitHubPayload {
     #[serde(default, rename = "ref")]
     pub git_ref: Option<String>,
     #[serde(default)]
-    pub variables: Option<HashMap<String, ScalarOrArray>>,
+    pub variables: Option<HashMap<String, VariableOverride>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -45,7 +45,7 @@ pub struct KnownTestPlanUuidPayload {
     #[serde(default, rename = "ref")]
     pub git_ref: Option<String>,
     #[serde(default)]
-    pub variables: Option<HashMap<String, ScalarOrArray>>,
+    pub variables: Option<HashMap<String, VariableOverride>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -55,7 +55,7 @@ pub struct KnownTestPlanNamePayload {
     #[serde(default, rename = "ref")]
     pub git_ref: Option<String>,
     #[serde(default)]
-    pub variables: Option<HashMap<String, ScalarOrArray>>,
+    pub variables: Option<HashMap<String, VariableOverride>>,
 }
 
 impl GitHubPayload {
@@ -84,7 +84,7 @@ pub struct PreparedPayload {
     pub relative_files: SourceKeyedArrayMap<String>,
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
     #[serde(default)]
-    pub variables: Option<HashMap<String, ScalarOrArray>>,
+    pub variables: Option<HashMap<String, VariableOverride>>,
 }
 
 impl PreparedPayload {

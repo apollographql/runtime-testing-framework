@@ -1490,7 +1490,7 @@ mod tests {
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
-                include: include.to_vec(),
+                compound: HashMap::from([("include".to_string(), include.to_vec())]),
             },
             ..TestPlanConfig::empty()
         }
