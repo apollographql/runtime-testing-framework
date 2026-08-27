@@ -227,7 +227,7 @@
 <a href=#227 id=227 data-nosnippet>227</a></span><span class="kw">pub struct </span>KnownTestPlanTriggerForm {
 <a href=#228 id=228 data-nosnippet>228</a>    <span class="attr">#[serde(rename = <span class="string">"ref"</span>)]
 <a href=#229 id=229 data-nosnippet>229</a>    </span>git_ref: String,
-<a href=#230 id=230 data-nosnippet>230</a>    <span class="doccomment">/// A JSON object of `HashMap&lt;String, ScalarOrArray&gt;` - a plain value templates a single
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="doccomment">/// A JSON object of `HashMap&lt;String, VariableOverride&gt;` - a plain value templates a single
 <a href=#231 id=231 data-nosnippet>231</a>    /// variable, an array value defines a matrix dimension. Blank means no overrides.
 <a href=#232 id=232 data-nosnippet>232</a>    </span>variables: String,
 <a href=#233 id=233 data-nosnippet>233</a>    <span class="attr">#[serde(default)]
