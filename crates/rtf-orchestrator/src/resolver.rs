@@ -217,7 +217,12 @@ where
         .cache_payload_for_run(test_run, &payload)
         .await;
     prov_handle
-        .cache_for_test_run(test_run.uuid(), ctx, test_plan)
+        .cache_for_test_run(
+            test_run.uuid(),
+            test_run.initiated_by().map(|s| s.to_owned()),
+            ctx,
+            test_plan,
+        )
         .await;
 
     let mut n_submitted = 0;
@@ -239,7 +244,7 @@ where
     // If we failed to init any executions then there's nothing to clear the cache later, so we
     // clear it now and mark the run as unrunnable.
     if n_submitted == 0 {
-        prov_handle.evict_payload_cache(test_run.uuid()).await;
+        prov_handle.evict_cached_run_state(test_run.uuid()).await;
         update_handle
             .clear_cached_payload_for_run(test_run.uuid())
             .await;
@@ -458,7 +463,7 @@ mod tests {
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(run_uuid, ctx, tp).await;
+        ph.cache_for_test_run(run_uuid, None, ctx, tp).await;
         ph.request_provisioning(ex.clone(), run_uuid, alpha_cluster())
             .await
             .unwrap();
