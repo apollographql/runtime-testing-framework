@@ -89,6 +89,32 @@ impl TestRun {
             .await?)
     }
 
+    pub async fn started_since(
+        initiated_by: &str,
+        cluster: &ClusterId,
+        since: DateTime<Utc>,
+        conn: &mut PgConnection,
+    ) -> Result<i64> {
+        Ok(sqlx::query_scalar(
+            r#"
+            SELECT
+              COUNT(*)
+            FROM
+              test_run
+            WHERE
+              initiated_by = $1
+            AND
+              workload_cluster = $2
+            AND
+              started_at >= $3;"#,
+        )
+        .bind(initiated_by)
+        .bind(cluster.as_str())
+        .bind(since)
+        .fetch_one(conn)
+        .await?)
+    }
+
     /// Create a new run, capturing any runtime variable overrides supplied with it and the test run
     /// initiator.
     ///
@@ -425,6 +451,7 @@ mod tests {
         },
     };
     use Status::*;
+    use chrono::Duration;
     use rtf_config::{
         formats::{
             DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
@@ -942,6 +969,55 @@ mod tests {
         KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
 
         assert_eq!(tr.test_plan_uuid(c).await?, Some(known.uuid()));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn started_since_counts_only_runs_after_the_cutoff() -> Result<()> {
+        let c = conn!();
+        let user = unique("user");
+
+        let old = TestRun::init("old", None, Some(&user), &alpha_cluster(), c).await?;
+        TestRun::init("recent", None, Some(&user), &alpha_cluster(), c).await?;
+
+        sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 hours' WHERE id = $1")
+            .bind(old.id())
+            .execute(&mut *c)
+            .await?;
+
+        let count =
+            TestRun::started_since(&user, &alpha_cluster(), Utc::now() - Duration::hours(1), c)
+                .await?;
+
+        assert_eq!(count, 1);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn started_since_scopes_by_user_and_cluster() -> Result<()> {
+        let c = conn!();
+        let user = unique("user");
+        let other_user = unique("other-user");
+        let since = Utc::now() - Duration::hours(1);
+
+        TestRun::init("mine", None, Some(&user), &alpha_cluster(), c).await?;
+        TestRun::init(
+            "someone-elses",
+            None,
+            Some(&other_user),
+            &alpha_cluster(),
+            c,
+        )
+        .await?;
+        TestRun::init("wrong-cluster", None, Some(&user), &perf_cluster(), c).await?;
+
+        let count = TestRun::started_since(&user, &alpha_cluster(), since, c).await?;
+
+        assert_eq!(count, 1);
 
         Ok(())
     }

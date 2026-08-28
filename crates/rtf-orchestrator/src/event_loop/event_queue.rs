@@ -773,6 +773,66 @@ impl EventQueueState {
             .await
     }
 
+    /// Count how many of `user`'s runs and executions on `cluster` are currently queued (waiting
+    /// for a namespace) versus concurrent (holding one).
+    ///
+    /// A run counts as concurrent as soon as any one of its executions holds a namespace slot on
+    /// `cluster`, mirroring the high-water-mark semantics already used for run status. It counts
+    /// as queued only while none of its executions have reached that point yet. Executions are
+    /// counted individually, with no such deduplication by run.
+    pub async fn user_queue_counts(&self, user: &str, cluster: &ClusterId) -> UserQueueCounts {
+        let (queued, running) = {
+            let inner = self.eq_inner.lock().await;
+            (
+                inner
+                    .pending_provisions
+                    .get(cluster)
+                    .map(|q| q.iter().map(|evt| evt.test_execution.uuid()).collect())
+                    .unwrap_or_else(Vec::new),
+                inner
+                    .running_executions
+                    .get(cluster)
+                    .cloned()
+                    .unwrap_or_default(),
+            )
+        };
+
+        self.with_shared(|shared| {
+            let run_of = |ex: &Uuid| shared.executions.get(ex).map(|e| e.run_uuid);
+            let is_users = |run: &Uuid| {
+                shared
+                    .runs
+                    .get(run)
+                    .is_some_and(|r| r.initiated_by.as_deref() == Some(user))
+            };
+
+            let ongoing_runs: HashSet<Uuid> = running
+                .iter()
+                .filter_map(run_of)
+                .filter(|run| is_users(run))
+                .collect();
+
+            let queued_exececutions: Vec<Uuid> = queued
+                .iter()
+                .copied()
+                .filter(|ex| run_of(ex).is_some_and(|run| is_users(&run)))
+                .collect();
+
+            let queued_runs: HashSet<Uuid> = queued_exececutions
+                .iter()
+                .filter_map(run_of)
+                .filter(|run| !ongoing_runs.contains(run))
+                .collect();
+
+            UserQueueCounts {
+                ongoing_runs: ongoing_runs.len(),
+                queued_runs: queued_runs.len(),
+                queued_executions: queued_exececutions.len(),
+            }
+        })
+        .await
+    }
+
     pub async fn available_clusters(&self) -> Vec<ClusterId> {
         let mut cluster_ids: Vec<_> = self
             .eq_inner
@@ -1053,6 +1113,23 @@ pub struct SnapshotSummary {
     pending_non_provisions: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UserQueueCounts {
+    pub ongoing_runs: usize,
+    pub queued_runs: usize,
+    pub queued_executions: usize,
+}
+
+impl UserQueueCounts {
+    pub fn new(ongoing_runs: usize, queued_runs: usize, queued_executions: usize) -> Self {
+        Self {
+            ongoing_runs,
+            queued_runs,
+            queued_executions,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1175,6 +1252,75 @@ mod tests {
         let (_, _, state, _) = EventQueue::new(&WorkloadClusters::for_test());
 
         assert_eq!(state.initiator_for_run(Uuid::new_v4()).await, None);
+    }
+
+    fn resolve_config_event(ex: &TestExecution, cluster: ClusterId) -> Event {
+        Event {
+            test_execution: ex.clone(),
+            cluster,
+            data: EventData::ResolveConfig,
+        }
+    }
+
+    #[test_case(&[], UserQueueCounts::new(0, 0, 0); "nothing queued at all")]
+    #[test_case(&[("alice", "a", &[false])], UserQueueCounts::new(0, 1, 1); "single execution")]
+    #[test_case(&[("alice", "a", &[true])], UserQueueCounts::new(1, 0, 0); "single ongoing run")]
+    #[test_case(&[("alice", "a", &[false, false])], UserQueueCounts::new(0, 1, 2); "one run with two queued executions")]
+    #[test_case(&[("alice", "a", &[true, false])], UserQueueCounts::new(1, 0, 1); "single ongoing execution marks run ongoing")]
+    #[test_case(&[("alice", "b", &[false])], UserQueueCounts::new(0, 0, 0); "runs for another cluster are ignored")]
+    #[test_case(&[("alice", "a", &[false]), ("bob", "a", &[false])], UserQueueCounts::new(0, 1, 1); "runs for another user are ignored")]
+    #[tokio::test]
+    async fn user_queue_counts_reflects_live_queue_state(
+        queued_executions: &[(&str, &str, &[bool])],
+        expected: UserQueueCounts,
+    ) {
+        let (mut eq, ph, state, _) = EventQueue::new(
+            &WorkloadClusters::for_test_with_available_clusters(10, "a", &["a", "b"]),
+        );
+
+        let cfg = Config::for_test();
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            empty_source_map(),
+            empty_source_map(),
+        );
+
+        let mut ex_id = 1;
+        for (user, cluster, statuses) in queued_executions.iter() {
+            let run_uuid = Uuid::new_v4();
+            let cluster = ClusterId::new(*cluster);
+
+            ph.cache_for_test_run(
+                run_uuid,
+                Some(user.to_string()),
+                ctx.clone(),
+                stub_test_plan(),
+            )
+            .await;
+
+            for (i, &is_running) in statuses.iter().enumerate() {
+                let ex = TestExecution::create_stub(ex_id + i as i32, 1, i, "test");
+                ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
+                    .await;
+
+                if is_running {
+                    eq.with_inner(|inner| {
+                        inner.insert_running_execution(ex.uuid(), cluster.clone())
+                    })
+                    .await
+                } else {
+                    eq.push_event(resolve_config_event(&ex, cluster.clone()))
+                        .await
+                }
+            }
+
+            ex_id += statuses.len() as i32;
+        }
+
+        assert_eq!(
+            state.user_queue_counts("alice", &ClusterId::new("a")).await,
+            expected
+        );
     }
 
     #[tokio::test]
