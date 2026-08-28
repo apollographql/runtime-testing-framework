@@ -1,14 +1,14 @@
 use crate::{
-    config::{Config, PerUserExecutionConfig},
+    config::Config,
     conn,
     context::OrchestratorContext,
     db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
-    error::{Error, RateLimitReason},
-    event_loop::{EventQueueState, SubmitError},
-    state::{ServerState, UserType},
+    error::Error,
+    event_loop::SubmitError,
+    rate_limit,
+    state::ServerState,
 };
 use axum::{Json, extract::State, http::HeaderMap};
-use chrono::{Duration, Utc};
 use rtf_orchestrator_shared::{
     payload::{GitHubPayload, PreparedPayload, TriggerPayload},
     summary::TestRunSummary,
@@ -29,40 +29,26 @@ pub async fn handler(
     let payload = PayloadWithMeta::resolve(trigger_payload, default_cluster, conn).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.cluster)?;
 
-    let queued_executions = match &user {
-        UserType::User(email) => {
-            apply_rate_limits(
-                &state.eq_state,
-                &per_user_cfg,
-                &payload.cluster,
-                email,
-                conn,
-            )
-            .await?
-        }
-
-        // Admin users don't get rate limited
-        UserType::Admin(_) => 0,
-        // Anonymous users are only possible via local triggers: also not rate limited
-        UserType::Unknown => 0,
-    };
+    let queued_executions = rate_limit::apply_rate_limits(
+        &state.eq_state,
+        &per_user_cfg,
+        &payload.cluster,
+        &user,
+        conn,
+    )
+    .await?;
 
     let (cluster, known_link, payload) = payload.finish(cfg).await?;
 
     // The max queued executions limit can only be enforced once we have the actual test plan and
     // can check the number of executions it will result in.
-    if !user.is_admin()
-        && queued_executions + payload.test_plan.matrix.n_variants()
-            > per_user_cfg.max_queued_executions
-    {
-        return Err(Error::RateLimited {
-            cluster,
-            reason: RateLimitReason::QueuedExecutions {
-                current: queued_executions as u64,
-                max: per_user_cfg.max_queued_executions as u64,
-            },
-        });
-    }
+    rate_limit::check_queued_executions(
+        &per_user_cfg,
+        &cluster,
+        &user,
+        queued_executions,
+        payload.test_plan.matrix.n_variants(),
+    )?;
 
     let ctx = OrchestratorContext::new_from_inlined_files(
         cfg,
@@ -134,49 +120,6 @@ pub async fn handler(
             unreachable!("claim is made using the submitted test plan")
         }
     }
-}
-
-async fn apply_rate_limits(
-    eq_state: &EventQueueState,
-    per_user: &PerUserExecutionConfig,
-    cluster: &ClusterId,
-    email: &str,
-    conn: &mut PgConnection,
-) -> Result<usize, Error> {
-    let counts = eq_state.user_queue_counts(email, cluster).await;
-
-    if counts.ongoing_runs >= per_user.max_concurrent_runs {
-        return Err(Error::RateLimited {
-            cluster: cluster.clone(),
-            reason: RateLimitReason::ConcurrentRuns {
-                current: counts.ongoing_runs as u64,
-                max: per_user.max_concurrent_runs as u64,
-            },
-        });
-    } else if counts.queued_runs >= per_user.max_queued_runs {
-        return Err(Error::RateLimited {
-            cluster: cluster.clone(),
-            reason: RateLimitReason::QueuedRuns {
-                current: counts.queued_runs as u64,
-                max: per_user.max_queued_runs as u64,
-            },
-        });
-    }
-
-    let since = Utc::now() - Duration::hours(1);
-    let started_in_last_hour = TestRun::started_since(email, cluster, since, conn).await? as usize;
-
-    if started_in_last_hour >= per_user.max_runs_per_hour {
-        return Err(Error::RateLimited {
-            cluster: cluster.clone(),
-            reason: RateLimitReason::RunsPerHour {
-                current: started_in_last_hour as u64,
-                max: per_user.max_runs_per_hour as u64,
-            },
-        });
-    }
-
-    Ok(counts.queued_executions)
 }
 
 #[expect(clippy::large_enum_variant)]

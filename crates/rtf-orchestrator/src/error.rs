@@ -1,5 +1,6 @@
 use crate::{
     db::{self, ClusterId},
+    rate_limit::RateLimitError,
     resolver::ResolverError,
 };
 use axum::{
@@ -9,7 +10,6 @@ use axum::{
 use rtf_config::formats;
 use rtf_integrations::github;
 use rtf_orchestrator_shared::{payload::PrepareError, test_plan_details::EnvironmentSummaryError};
-use serde::Serialize;
 use serde_json::json;
 use std::io;
 use uuid::Uuid;
@@ -60,7 +60,7 @@ pub enum Error {
     #[error("{reason} on cluster {cluster} for this user")]
     RateLimited {
         cluster: ClusterId,
-        reason: RateLimitReason,
+        reason: RateLimitError,
     },
 
     #[error("resolver channel closed")]
@@ -80,24 +80,6 @@ pub enum Error {
 
     #[error("{cluster} is not a configured workload cluster")]
     UnknownWorkloadCluster { cluster: String },
-}
-
-/// Why a trigger request was rejected for exceeding a per-user rate limit, and on which cluster
-/// the test plan would have run.
-#[derive(thiserror::Error, Debug, Clone, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum RateLimitReason {
-    #[error("{current}/{max} concurrent runs")]
-    ConcurrentRuns { current: u64, max: u64 },
-
-    #[error("{current}/{max} queued runs")]
-    QueuedRuns { current: u64, max: u64 },
-
-    #[error("{current}/{max} queued executions")]
-    QueuedExecutions { current: u64, max: u64 },
-
-    #[error("{current}/{max} runs in the last hour")]
-    RunsPerHour { current: u64, max: u64 },
 }
 
 impl IntoResponse for Error {
@@ -135,7 +117,7 @@ impl IntoResponse for Error {
             Self::RateLimited { cluster, reason } => (
                 StatusCode::TOO_MANY_REQUESTS,
                 Json(
-                    json!({ "error": "TOO_MANY_REQUESTS", "message": msg, "cluster": cluster, "reason": reason }),
+                    json!({ "error": "TOO_MANY_REQUESTS", "message": msg, "cluster": cluster,  "reason": reason }),
                 ),
             ),
 

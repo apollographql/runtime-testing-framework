@@ -19,6 +19,7 @@ pub mod event_loop;
 pub mod gcs;
 pub mod iap_identity;
 pub mod k8s;
+pub mod rate_limit;
 pub mod resolver;
 pub mod state;
 
