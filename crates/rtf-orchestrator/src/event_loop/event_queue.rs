@@ -768,18 +768,6 @@ impl EventQueueState {
         &self.default_cluster
     }
 
-    pub(crate) async fn initiator_for_run(&self, run_uuid: Uuid) -> Option<String> {
-        self.with_shared(|shared| shared.runs.get(&run_uuid)?.initiated_by.clone())
-            .await
-    }
-
-    /// Count how many of `user`'s runs and executions on `cluster` are currently queued (waiting
-    /// for a namespace) versus concurrent (holding one).
-    ///
-    /// A run counts as concurrent as soon as any one of its executions holds a namespace slot on
-    /// `cluster`, mirroring the high-water-mark semantics already used for run status. It counts
-    /// as queued only while none of its executions have reached that point yet. Executions are
-    /// counted individually, with no such deduplication by run.
     pub async fn user_queue_counts(&self, user: &str, cluster: &ClusterId) -> UserQueueCounts {
         let (queued, running) = {
             let inner = self.eq_inner.lock().await;
@@ -1220,6 +1208,13 @@ mod tests {
             evicted, None,
             "no run should be evicted when execution wasn't registered"
         );
+    }
+
+    impl EventQueueState {
+        async fn initiator_for_run(&self, run_uuid: Uuid) -> Option<String> {
+            self.with_shared(|shared| shared.runs.get(&run_uuid)?.initiated_by.clone())
+                .await
+        }
     }
 
     #[tokio::test]

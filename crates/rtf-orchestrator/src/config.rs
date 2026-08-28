@@ -1,4 +1,4 @@
-use crate::db::ClusterId;
+use crate::{Error, db::ClusterId};
 use rtf_config::context::Context;
 use serde::Deserialize;
 use std::{collections::HashMap, env, fs, net::SocketAddr, sync::LazyLock};
@@ -91,6 +91,22 @@ impl Config {
         ctx.with_github_app_config(self.github.app_id, self.github.app_private_key_pem.clone());
 
         ctx
+    }
+
+    pub fn per_user_execution_config(
+        &self,
+        cluster_id: &ClusterId,
+    ) -> Result<PerUserExecutionConfig, Error> {
+        Ok(self
+            .workload_clusters
+            .per_cluster_config()
+            .get(cluster_id)
+            .ok_or_else(|| Error::UnknownWorkloadCluster {
+                cluster: cluster_id.to_string(),
+            })?
+            .execution
+            .per_user
+            .clone())
     }
 }
 
