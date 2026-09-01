@@ -3,7 +3,7 @@ use crate::{
     context::ResolutionContext,
     inlining::{self, InlineMode, InlinedProvider},
     providers::{self, command::CommandSection},
-    run::{Execute, Provider, RunEnvironment, RunProviders},
+    run::{Execute, Provider, RunEnvironment, RunProviders, ValidateEnvironment},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
@@ -15,6 +15,8 @@ pub struct ScriptEnvironment {
     pub setup: CommandSection,
     pub teardown: CommandSection,
 }
+
+impl ValidateEnvironment for ScriptEnvironment {}
 
 impl RunEnvironment for ScriptEnvironment {
     async fn execute_setup(

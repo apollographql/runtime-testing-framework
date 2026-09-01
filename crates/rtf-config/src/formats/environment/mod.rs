@@ -7,7 +7,7 @@ use crate::{
     formats::{CustomProviderDeclaration, OutputCollection, Result},
     inlining::{self, InlineMode, InlinedProvider},
     providers::{self, file::StableSource},
-    run::{Provider, RunEnvironment, RunProviders},
+    run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
     templating::{self, FileType, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -32,7 +32,7 @@ pub use script::ScriptEnvironment;
 ///
 /// Configuration for preparing and cleaning up the test environment as part of a test plan.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct EnvironmentConfig<R: RunEnvironment> {
+pub struct EnvironmentConfig<T: ValidateEnvironment> {
     /// The name of this environment configuration
     pub name: String,
     /// A brief description of how this environment setup works
@@ -45,7 +45,7 @@ pub struct EnvironmentConfig<R: RunEnvironment> {
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
     #[serde(flatten)]
-    pub execution: R,
+    pub execution: T,
 }
 
 impl EnvironmentConfig<EnvironmentExecution> {
@@ -87,7 +87,7 @@ impl EnvironmentConfig<EnvironmentExecution> {
     }
 }
 
-impl<R: RunEnvironment> EnvironmentConfig<R> {
+impl<T: RunEnvironment> EnvironmentConfig<T> {
     pub async fn execute_setup(
         &self,
         name: &str,
@@ -107,7 +107,7 @@ impl<R: RunEnvironment> EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> EnvironmentConfig<T> {
     pub async fn inline(
         &mut self,
         mode: &InlineMode,
@@ -118,7 +118,7 @@ impl<R: RunEnvironment> EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> Template for EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> Template for EnvironmentConfig<T> {
     fn required_variables(&self) -> Vec<String> {
         self.execution.required_variables()
     }
@@ -161,7 +161,7 @@ impl<R: RunEnvironment> Template for EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> Check for EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> Check for EnvironmentConfig<T> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -189,7 +189,7 @@ impl<R: RunEnvironment> Check for EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> CheckArrayDuplicates for EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> CheckArrayDuplicates for EnvironmentConfig<T> {
     const BASE_PATH: &str = "environment";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
@@ -218,6 +218,8 @@ pub enum EnvironmentExecution {
 }
 
 enum_impl_check!(EnvironmentExecution => Null, DockerCompose, Script);
+
+impl ValidateEnvironment for EnvironmentExecution {}
 
 impl RunEnvironment for EnvironmentExecution {
     async fn execute_setup(

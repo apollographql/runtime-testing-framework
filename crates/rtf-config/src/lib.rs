@@ -31,7 +31,7 @@ pub mod providers;
 pub mod run;
 pub mod templating;
 
-pub use formats::{Execution, Generic};
+pub use formats::{Generic, Prepare, Run};
 pub use providers::file::{CustomProviderSection, DirFile, SourceDir, StableSource};
 
 pub const LOG_COLLECTION_LABEL: &str = "rtf.io/log-collection";

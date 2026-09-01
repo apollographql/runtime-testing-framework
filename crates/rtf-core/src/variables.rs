@@ -1,5 +1,5 @@
 use rtf_config::{
-    Execution, SourceDir, StableSource, context::ResolutionContext, formats::TestPlan,
+    Prepare, SourceDir, StableSource, context::ResolutionContext, formats::TestPlan,
     templating::Scalar,
 };
 use serde::{Deserialize, Serialize};
@@ -141,9 +141,9 @@ impl Variables {
     /// Returns the variable sources map alongside the [SourceDir] of the `--vars` file, if one
     /// was provided. Callers are responsible for incorporating this into [rtf_config::formats::Sources] via
     /// [ResolutionContext::set_sources].
-    pub fn merge<E: Execution>(
+    pub fn merge<P: Prepare>(
         self,
-        test_plan: &mut TestPlan<E>,
+        test_plan: &mut TestPlan<P>,
         ctx: &impl ResolutionContext,
     ) -> Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
         let (parsed, vars_file_src) = self.parse(ctx)?;
@@ -216,9 +216,9 @@ impl ParsedVariables {
 
     /// Merge these parsed variables into a test plan, returning the per-variable source map.
     /// See [`Variables::merge`] for the precedence rules applied.
-    pub fn merge_into<E: Execution>(
+    pub fn merge_into<P: Prepare>(
         self,
-        test_plan: &mut TestPlan<E>,
+        test_plan: &mut TestPlan<P>,
     ) -> Result<HashMap<String, StableSource>> {
         self.merge_inner(
             &mut test_plan.variables,

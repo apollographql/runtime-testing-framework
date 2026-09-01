@@ -1,20 +1,28 @@
 use crate::{
     formats::{EnvironmentExecution, ScenarioExecution},
-    run::{RunEnvironment, RunScenario},
+    run::{RunEnvironment, RunScenario, ValidateEnvironment, ValidateScenario},
 };
 use serde::{Serialize, de::DeserializeOwned};
 
-/// Associates a concrete (Scenario, Environment) execution type pair.
-pub trait Execution: Clone {
-    type Scenario: RunScenario + DeserializeOwned + Serialize;
-    type Environment: RunEnvironment + DeserializeOwned + Serialize;
+pub trait Prepare: Clone {
+    type Scenario: ValidateScenario + DeserializeOwned + Serialize;
+    type Environment: ValidateEnvironment + DeserializeOwned + Serialize;
+}
+
+pub trait Run: Prepare
+where
+    Self::Scenario: RunScenario,
+    Self::Environment: RunEnvironment,
+{
 }
 
 /// Marker for the generic (multi-execution-type) test plan variant.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Generic;
 
-impl Execution for Generic {
+impl Prepare for Generic {
     type Scenario = ScenarioExecution;
     type Environment = EnvironmentExecution;
 }
+
+impl Run for Generic {}

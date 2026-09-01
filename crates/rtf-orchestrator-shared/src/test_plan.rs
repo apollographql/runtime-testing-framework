@@ -1,6 +1,6 @@
 //! An Orchestrator specific test plan implementation
 use rtf_config::{
-    Execution,
+    Prepare, Run,
     checks::{Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     enum_impl_check,
@@ -10,7 +10,7 @@ use rtf_config::{
     },
     inlining::{self, InlineMode, InlinedProvider},
     providers,
-    run::{Provider, RunEnvironment, RunProviders},
+    run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
     templating::Template as _,
 };
 use rtf_derive::Template;
@@ -30,10 +30,12 @@ pub type OrchestratorTestPlan = TestPlan<Orchestrator>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Orchestrator;
 
-impl Execution for Orchestrator {
+impl Prepare for Orchestrator {
     type Scenario = DockerScenario;
     type Environment = OrchestratorEnvironment;
 }
+
+impl Run for Orchestrator {}
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(
@@ -103,6 +105,8 @@ impl OrchestratorEnvironment {
 }
 
 enum_impl_check!(OrchestratorEnvironment => Null, DockerCompose);
+
+impl ValidateEnvironment for OrchestratorEnvironment {}
 
 impl RunEnvironment for OrchestratorEnvironment {
     async fn execute_setup(

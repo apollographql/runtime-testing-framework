@@ -105,7 +105,12 @@ pub(crate) trait ExtractRelativeFiles: Send + Sync {
     ) -> impl Future<Output = providers::Result<()>> + Send;
 }
 
-pub trait RunEnvironment: RunProviders + Check + Template + CheckArrayDuplicates + Clone {
+pub trait ValidateEnvironment:
+    RunProviders + Check + Template + CheckArrayDuplicates + Clone
+{
+}
+
+pub trait RunEnvironment: ValidateEnvironment {
     fn execute_setup(
         &self,
         name: &str,
@@ -121,7 +126,8 @@ pub trait RunEnvironment: RunProviders + Check + Template + CheckArrayDuplicates
     ) -> impl Future<Output = providers::Result<String>> + Send;
 }
 
-pub trait RunScenario: Execute + Check + Template + CheckArrayDuplicates + Clone {}
+pub trait ValidateScenario: RunProviders + Check + Template + CheckArrayDuplicates + Clone {}
+pub trait RunScenario: ValidateScenario + Execute {}
 
 pub trait RunProviders: Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;

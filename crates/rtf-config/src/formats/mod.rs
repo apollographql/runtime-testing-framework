@@ -16,7 +16,7 @@ pub use environment::{
     DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, FileProviderServices,
     NullEnvironment, PullPolicyServices, ScriptEnvironment,
 };
-pub use execution::{Execution, Generic};
+pub use execution::{Generic, Prepare, Run};
 pub use matrix::Matrix;
 pub use output_collection::{OutputCollection, PrometheusQuery};
 pub use scenario::{DockerCommand, DockerScenario, ScenarioConfig, ScenarioExecution};

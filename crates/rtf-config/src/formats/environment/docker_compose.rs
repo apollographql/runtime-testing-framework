@@ -13,7 +13,7 @@ use crate::{
     },
     run::{
         DOCKER_COMPOSE_NETWORK, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, Provider, RunEnvironment,
-        RunProviders,
+        RunProviders, ValidateEnvironment,
     },
     templating::{Field, Scalar},
 };
@@ -288,6 +288,8 @@ impl DockerComposeEnvironment {
         Ok(contents)
     }
 }
+
+impl ValidateEnvironment for DockerComposeEnvironment {}
 
 impl RunEnvironment for DockerComposeEnvironment {
     async fn execute_setup(

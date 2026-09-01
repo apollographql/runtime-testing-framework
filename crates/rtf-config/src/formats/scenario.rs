@@ -11,7 +11,7 @@ use crate::{
     },
     run::{
         DOCKER_COMPOSE_NETWORK, Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, Provider, RunProviders,
-        RunScenario,
+        RunScenario, ValidateScenario,
     },
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
@@ -29,7 +29,7 @@ use std::{
 ///
 /// Configuration for a single test scenario to be executed as part of a test plan.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct ScenarioConfig<R: RunScenario> {
+pub struct ScenarioConfig<T: ValidateScenario> {
     /// The name of this scenario
     pub name: String,
     /// A brief description of the purpose / behaviour of this scenario
@@ -43,7 +43,7 @@ pub struct ScenarioConfig<R: RunScenario> {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute as this scenario
     #[serde(flatten)]
-    pub execution: R,
+    pub execution: T,
 }
 
 impl ScenarioConfig<ScenarioExecution> {
@@ -88,7 +88,7 @@ impl ScenarioConfig<ScenarioExecution> {
     }
 }
 
-impl<R: RunScenario> Template for ScenarioConfig<R> {
+impl<T: ValidateScenario> Template for ScenarioConfig<T> {
     fn required_variables(&self) -> Vec<String> {
         self.execution.required_variables()
     }
@@ -133,7 +133,7 @@ impl<R: RunScenario> Template for ScenarioConfig<R> {
     }
 }
 
-impl<R: RunScenario> Check for ScenarioConfig<R> {
+impl<T: ValidateScenario> Check for ScenarioConfig<T> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -151,7 +151,7 @@ impl<R: RunScenario> Check for ScenarioConfig<R> {
     }
 }
 
-impl<R: RunScenario> CheckArrayDuplicates for ScenarioConfig<R> {
+impl<T: ValidateScenario> CheckArrayDuplicates for ScenarioConfig<T> {
     const BASE_PATH: &str = "scenario";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
@@ -195,6 +195,7 @@ impl ScenarioExecution {
     }
 }
 
+impl ValidateScenario for ScenarioExecution {}
 impl RunScenario for ScenarioExecution {}
 
 impl RunProviders for ScenarioExecution {
@@ -391,6 +392,7 @@ impl DockerScenario {
     }
 }
 
+impl ValidateScenario for DockerScenario {}
 impl RunScenario for DockerScenario {}
 
 impl Execute for DockerScenario {
