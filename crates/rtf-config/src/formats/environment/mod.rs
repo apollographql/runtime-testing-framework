@@ -21,6 +21,7 @@ use std::{
 };
 
 mod docker_compose;
+mod k8s;
 mod manifest;
 mod null;
 mod script;
@@ -28,6 +29,7 @@ mod script;
 pub use docker_compose::{
     ComposeResources, DockerComposeEnvironment, FileProviderServices, PullPolicyServices,
 };
+pub use k8s::{K8sEnvironment, K8sResources};
 pub use manifest::{ManifestEnvironment, NamedManifestFiles};
 pub use null::NullEnvironment;
 pub use script::ScriptEnvironment;

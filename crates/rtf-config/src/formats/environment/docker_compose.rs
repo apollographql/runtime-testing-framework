@@ -104,7 +104,6 @@ impl CheckArrayDuplicates for ComposeResources {
     }
 }
 
-/// An environment provisioned from a set of docker compose files.
 pub type DockerComposeEnvironment = ManifestEnvironment<ComposeResources>;
 
 impl DockerComposeEnvironment {
