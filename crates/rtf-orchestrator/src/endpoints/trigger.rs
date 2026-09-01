@@ -5,7 +5,7 @@ use crate::{
     db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
     error::Error,
     event_loop::SubmitError,
-    iap_identity::extract_authenticated_user_email,
+    rate_limit,
     state::ServerState,
 };
 use axum::{Json, extract::State, http::HeaderMap};
@@ -14,29 +14,55 @@ use rtf_orchestrator_shared::{
     summary::TestRunSummary,
 };
 use serde_json::Value;
+use sqlx::PgConnection;
 use tracing::{debug, info};
 
-/// Bookkeeping for a run triggered from a registered [KnownTestPlan], recorded in the
-/// `known_test_plan_run` junction table once the run itself has been created.
-struct KnownTestPlanLink {
-    known_test_plan_id: i32,
-    git_sha: Option<String>,
-    pinned_workload_cluster: Option<ClusterId>,
-}
-
 pub async fn handler(
-    State(ServerState { eq_state, .. }): State<ServerState>,
+    State(state): State<ServerState>,
     headers: HeaderMap,
     Json(trigger_payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
-    let (payload, ctx, known_link) = as_prepared_payload_with_context(trigger_payload).await?;
+    let user = state.identify_user(&headers).await?;
+    let default_cluster = state.eq_state.default_cluster();
+    let conn = conn!();
+    let cfg = Config::get();
+    let payload = PayloadWithMeta::resolve(trigger_payload, default_cluster, conn).await?;
+    let per_user_cfg = cfg.per_user_execution_config(&payload.cluster)?;
+
+    let queued_executions = rate_limit::apply_rate_limits(
+        &state.eq_state,
+        &per_user_cfg,
+        &payload.cluster,
+        &user,
+        conn,
+    )
+    .await?;
+
+    let (cluster, known_link, payload) = payload.finish(cfg).await?;
+
+    // The max queued executions limit can only be enforced once we have the actual test plan and
+    // can check the number of executions it will result in.
+    rate_limit::check_queued_executions(
+        &per_user_cfg,
+        &cluster,
+        &user,
+        queued_executions,
+        payload.test_plan.matrix.n_variants(),
+    )?;
+
+    let ctx = OrchestratorContext::new_from_inlined_files(
+        cfg,
+        payload.relative_files.clone(),
+        payload.custom_providers.clone(),
+    );
 
     debug!("validating test plan file provider usage");
     ctx.validate_environment_file_provider_usage(&payload.test_plan)
         .await?;
 
     debug!("reserving pending executions");
-    let claim = eq_state
+    let claim = state
+        .eq_state
         .try_reserve_pending_executions(&payload.test_plan)
         .await
         .ok_or(Error::InsufficientCapacity)?;
@@ -48,39 +74,39 @@ pub async fn handler(
         .as_ref()
         .map(|v| serde_json::to_value(v).expect("variables to serialize"));
 
-    let initiated_by = extract_authenticated_user_email(&headers);
-
-    let workload_cluster = known_link
-        .as_ref()
-        .and_then(|link| link.pinned_workload_cluster.clone())
-        .unwrap_or_else(|| eq_state.default_cluster().to_owned());
+    let initiated_by = user.into_user_email();
 
     debug!("initialising run");
-    let (test_run, summary) = match init_run_and_build_summary(
-        &payload.test_plan.name,
-        variables,
-        initiated_by,
-        workload_cluster,
-    )
-    .await
-    {
-        Ok((tr, s)) => (tr, s),
-        Err(e) => {
-            eq_state.release_pending_execution_claim(claim).await;
-            return Err(e);
-        }
-    };
+    let (test_run, summary) =
+        match init_run_and_build_summary(&payload.test_plan.name, variables, initiated_by, cluster)
+            .await
+        {
+            Ok((tr, s)) => (tr, s),
+            Err(e) => {
+                state.eq_state.release_pending_execution_claim(claim).await;
+                return Err(e);
+            }
+        };
 
     if let Some(link) = known_link {
         debug!("linking run to known test plan");
-        if let Err(e) = link_known_test_plan(&test_run, link).await {
-            eq_state.release_pending_execution_claim(claim).await;
-            return Err(e);
+        let res = KnownTestPlanRun::link(
+            link.known_test_plan_id,
+            test_run.id(),
+            link.git_sha.as_deref(),
+            conn,
+        )
+        .await;
+
+        if let Err(e) = res {
+            state.eq_state.release_pending_execution_claim(claim).await;
+            return Err(e.into());
         }
     }
 
     debug!("submitting test plan");
-    match eq_state
+    match state
+        .eq_state
         .try_submit_test_plan(claim, test_run, payload)
         .await
     {
@@ -96,98 +122,105 @@ pub async fn handler(
     }
 }
 
-async fn as_prepared_payload_with_context(
-    trigger_payload: TriggerPayload,
-) -> Result<
-    (
-        PreparedPayload,
-        OrchestratorContext,
-        Option<KnownTestPlanLink>,
-    ),
-    Error,
-> {
-    let mut known_link = None;
-
-    let payload = match trigger_payload {
-        TriggerPayload::Prepared(payload) => payload,
-
-        TriggerPayload::GitHub(payload) => {
-            info!("attempting to pull test plan details from GitHub");
-            payload
-                .into_prepared(Config::get().server_context())
-                .await?
-        }
-
-        TriggerPayload::KnownTestPlanUuid(kp) => {
-            info!("attempting to pull a known test plan by UUID");
-            let known = KnownTestPlan::get_by_uuid(&kp.test_plan_uuid, conn!())
-                .await?
-                .ok_or_else(|| Error::UnknownTestPlan {
-                    identifier: kp.test_plan_uuid.to_string(),
-                })?;
-
-            known_link = Some(KnownTestPlanLink {
-                known_test_plan_id: known.id(),
-                git_sha: kp.git_ref.clone(),
-                pinned_workload_cluster: known.pinned_workload_cluster(),
-            });
-
-            GitHubPayload {
-                org: known.org().to_owned(),
-                repo: known.repo().to_owned(),
-                path: known.path().to_owned(),
-                git_ref: kp.git_ref,
-                variables: kp.variables,
-            }
-            .into_prepared(Config::get().server_context())
-            .await?
-        }
-
-        TriggerPayload::KnownTestPlanName(kp) => {
-            info!("attempting to pull a known test plan by name");
-            let known = KnownTestPlan::get_by_name(&kp.test_plan_name, conn!())
-                .await?
-                .ok_or_else(|| Error::UnknownTestPlan {
-                    identifier: kp.test_plan_name.clone(),
-                })?;
-
-            known_link = Some(KnownTestPlanLink {
-                known_test_plan_id: known.id(),
-                git_sha: kp.git_ref.clone(),
-                pinned_workload_cluster: known.pinned_workload_cluster(),
-            });
-
-            GitHubPayload {
-                org: known.org().to_owned(),
-                repo: known.repo().to_owned(),
-                path: known.path().to_owned(),
-                git_ref: kp.git_ref,
-                variables: kp.variables,
-            }
-            .into_prepared(Config::get().server_context())
-            .await?
-        }
-    };
-
-    let ctx = OrchestratorContext::new_from_inlined_files(
-        Config::get(),
-        payload.relative_files.clone(),
-        payload.custom_providers.clone(),
-    );
-
-    Ok((payload, ctx, known_link))
+#[expect(clippy::large_enum_variant)]
+enum PreparedOrGitHub {
+    Prepared(PreparedPayload),
+    GitHub(GitHubPayload),
 }
 
-async fn link_known_test_plan(test_run: &TestRun, link: KnownTestPlanLink) -> Result<(), Error> {
-    KnownTestPlanRun::link(
-        link.known_test_plan_id,
-        test_run.id(),
-        link.git_sha.as_deref(),
-        conn!(),
-    )
-    .await?;
+struct KnownTestPlanLink {
+    known_test_plan_id: i32,
+    git_sha: Option<String>,
+}
 
-    Ok(())
+struct PayloadWithMeta {
+    cluster: ClusterId,
+    payload: PreparedOrGitHub,
+    link: Option<KnownTestPlanLink>,
+}
+
+impl PayloadWithMeta {
+    async fn resolve(
+        trigger_payload: TriggerPayload,
+        default_cluster: &ClusterId,
+        conn: &mut PgConnection,
+    ) -> Result<Self, Error> {
+        let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
+            let pinned = known.pinned_workload_cluster();
+            let cluster = pinned.clone().unwrap_or_else(|| default_cluster.clone());
+            let known_link = KnownTestPlanLink {
+                known_test_plan_id: known.id(),
+                git_sha: git_ref.clone(),
+            };
+            let payload = GitHubPayload {
+                org: known.org().to_owned(),
+                repo: known.repo().to_owned(),
+                path: known.path().to_owned(),
+                git_ref,
+                variables,
+            };
+
+            Self {
+                cluster,
+                payload: PreparedOrGitHub::GitHub(payload),
+                link: Some(known_link),
+            }
+        };
+
+        Ok(match trigger_payload {
+            TriggerPayload::Prepared(payload) => Self {
+                cluster: default_cluster.clone(),
+                link: None,
+                payload: PreparedOrGitHub::Prepared(payload),
+            },
+
+            TriggerPayload::GitHub(payload) => Self {
+                cluster: default_cluster.clone(),
+                link: None,
+                payload: PreparedOrGitHub::GitHub(payload),
+            },
+
+            TriggerPayload::KnownTestPlanUuid(kp) => {
+                info!("attempting to look up a known test plan by UUID");
+                let known = KnownTestPlan::get_by_uuid(&kp.test_plan_uuid, conn)
+                    .await?
+                    .ok_or_else(|| Error::UnknownTestPlan {
+                        identifier: kp.test_plan_uuid.to_string(),
+                    })?;
+
+                from_known(known, kp.git_ref, kp.variables)
+            }
+
+            TriggerPayload::KnownTestPlanName(kp) => {
+                info!("attempting to look up a known test plan by name");
+                let known = KnownTestPlan::get_by_name(&kp.test_plan_name, conn)
+                    .await?
+                    .ok_or_else(|| Error::UnknownTestPlan {
+                        identifier: kp.test_plan_name.clone(),
+                    })?;
+
+                from_known(known, kp.git_ref, kp.variables)
+            }
+        })
+    }
+
+    async fn finish(
+        self,
+        cfg: &Config,
+    ) -> Result<(ClusterId, Option<KnownTestPlanLink>, PreparedPayload), Error> {
+        Ok(match self.payload {
+            PreparedOrGitHub::Prepared(payload) => (self.cluster, self.link, payload),
+
+            PreparedOrGitHub::GitHub(payload) => {
+                info!("attempting to pull test plan details from GitHub");
+                (
+                    self.cluster,
+                    self.link,
+                    payload.into_prepared(cfg.server_context()).await?,
+                )
+            }
+        })
+    }
 }
 
 async fn init_run_and_build_summary(
@@ -216,9 +249,10 @@ async fn init_run_and_build_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config::Config, test_helpers::TestServerState};
+    use crate::test_helpers::TestServerState;
     use reqwest::StatusCode;
     use rtf_orchestrator_shared::status::Status;
+    use uuid::Uuid;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
@@ -367,6 +401,51 @@ mod tests {
             .unwrap()
             .expect("test run should be in the DB");
         assert_eq!(fetched.workload_cluster().as_str(), "router_perf");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_rejects_when_max_runs_per_hour_exceeded() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let payload = tss.minimal_trigger_payload();
+        let bare_email = format!(
+            "rate-limited-{}@my-project.iam.gserviceaccount.com",
+            Uuid::new_v4()
+        );
+        let header_email = format!("accounts.google.com:{bare_email}");
+
+        // The default per-user limit is 10 runs/hour, so this pushes the user right up to it.
+        for _ in 0..10 {
+            TestRun::init(
+                "prior",
+                None,
+                Some(&bare_email),
+                &ClusterId::new("alpha"),
+                conn!(),
+            )
+            .await?;
+        }
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .add_header("x-goog-authenticated-user-email", header_email)
+            .json(&payload)
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(
+            tss.resolver_rx.is_empty(),
+            "should not have submitted the test plan"
+        );
+
+        let body: serde_json::Value = resp.json();
+        assert_eq!(body["reason"]["kind"], "runs_per_hour");
+        assert_eq!(body["reason"]["current"], 10);
+        assert_eq!(body["reason"]["max"], 10);
+        assert_eq!(body["cluster"], "alpha");
 
         Ok(())
     }

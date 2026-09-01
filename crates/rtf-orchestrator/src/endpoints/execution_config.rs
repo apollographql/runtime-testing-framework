@@ -128,7 +128,7 @@ mod tests {
             .await
             .unwrap();
         tss.prov_handle
-            .cache_for_test_run(run_uuid, ctx, test_plan)
+            .cache_for_test_run(run_uuid, None, ctx, test_plan)
             .await;
 
         // Channel is closed at this point because we're not running the event loop, but we just

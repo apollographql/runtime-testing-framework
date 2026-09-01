@@ -1,4 +1,4 @@
-use crate::db::ClusterId;
+use crate::{Error, db::ClusterId};
 use rtf_config::context::Context;
 use serde::Deserialize;
 use std::{collections::HashMap, env, fs, net::SocketAddr, sync::LazyLock};
@@ -8,6 +8,14 @@ const CONFIG_PATH_VAR: &str = "RTF_CONFIG_PATH";
 const GH_APP_ID_VAR: &str = "RTF_GITHUB_APP_ID";
 const GH_PEM_VAR: &str = "RTF_GITHUB_APP_PRIVATE_KEY_PEM";
 const KUBECONFIG_MOUNT_ROOT: &str = "/etc/rtf-orchestrator/kubeconfigs";
+
+// Default values for the per-user execution config options.
+//
+// These are used in the trigger endpoint to gate trigger requests from users.
+const DEFAULT_MAX_CONCURRENT_RUNS: usize = 1;
+const DEFAULT_MAX_QUEUED_RUNS: usize = 5;
+const DEFAULT_MAX_QUEUED_EXECUTIONS: usize = 100;
+const DEFAULT_MAX_RUNS_PER_HOUR: usize = 10;
 
 static CONFIG: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_env() {
     Ok(cfg) => cfg,
@@ -83,6 +91,22 @@ impl Config {
         ctx.with_github_app_config(self.github.app_id, self.github.app_private_key_pem.clone());
 
         ctx
+    }
+
+    pub fn per_user_execution_config(
+        &self,
+        cluster_id: &ClusterId,
+    ) -> Result<PerUserExecutionConfig, Error> {
+        Ok(self
+            .workload_clusters
+            .per_cluster_config()
+            .get(cluster_id)
+            .ok_or_else(|| Error::UnknownWorkloadCluster {
+                cluster: cluster_id.to_string(),
+            })?
+            .execution
+            .per_user
+            .clone())
     }
 }
 
@@ -164,6 +188,47 @@ pub struct ClusterExecutionConfig {
     pub failed_execution_ttl_secs: u64,
     pub retry_window_secs: u64,
     pub poll_interval_secs: u64,
+    #[serde(default)]
+    pub per_user: PerUserExecutionConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct PerUserExecutionConfig {
+    #[serde(default = "max_concurrent_runs")]
+    pub max_concurrent_runs: usize,
+    #[serde(default = "max_queued_runs")]
+    pub max_queued_runs: usize,
+    #[serde(default = "max_queued_executions")]
+    pub max_queued_executions: usize,
+    #[serde(default = "max_runs_per_hour")]
+    pub max_runs_per_hour: usize,
+}
+
+impl Default for PerUserExecutionConfig {
+    fn default() -> Self {
+        Self {
+            max_concurrent_runs: max_concurrent_runs(),
+            max_queued_runs: max_queued_runs(),
+            max_queued_executions: max_queued_executions(),
+            max_runs_per_hour: max_runs_per_hour(),
+        }
+    }
+}
+
+fn max_concurrent_runs() -> usize {
+    DEFAULT_MAX_CONCURRENT_RUNS
+}
+
+fn max_queued_runs() -> usize {
+    DEFAULT_MAX_QUEUED_RUNS
+}
+
+fn max_queued_executions() -> usize {
+    DEFAULT_MAX_QUEUED_EXECUTIONS
+}
+
+fn max_runs_per_hour() -> usize {
+    DEFAULT_MAX_RUNS_PER_HOUR
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -265,6 +330,7 @@ mod tests {
                             failed_execution_ttl_secs: 600,
                             retry_window_secs: 5 * 60,
                             poll_interval_secs: 10,
+                            per_user: Default::default(),
                         },
                     })
                     .collect(),

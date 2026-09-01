@@ -203,6 +203,7 @@ mod tests {
                 failed_execution_ttl_secs: 300,
                 retry_window_secs: 10,
                 poll_interval_secs: 10,
+                per_user: Default::default(),
             },
         }
     }

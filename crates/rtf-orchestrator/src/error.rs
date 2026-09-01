@@ -1,4 +1,8 @@
-use crate::{db, resolver::ResolverError};
+use crate::{
+    db::{self, ClusterId},
+    rate_limit::RateLimitError,
+    resolver::ResolverError,
+};
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
@@ -53,6 +57,12 @@ pub enum Error {
     #[error("manual file provider volume mounts are not supported. Invalid services: {services:?}")]
     InvalidFileProviderUsage { services: Vec<String> },
 
+    #[error("{reason} on cluster {cluster} for this user")]
+    RateLimited {
+        cluster: ClusterId,
+        reason: RateLimitError,
+    },
+
     #[error("resolver channel closed")]
     ResolverChannelClosed,
 
@@ -102,6 +112,13 @@ impl IntoResponse for Error {
             Self::InsufficientCapacity => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": msg })),
+            ),
+
+            Self::RateLimited { cluster, reason } => (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(
+                    json!({ "error": "TOO_MANY_REQUESTS", "message": msg, "cluster": cluster,  "reason": reason }),
+                ),
             ),
 
             Self::Unauthorized => (

@@ -89,3 +89,24 @@ pub enum UserType {
     User(String),
     Unknown,
 }
+
+impl UserType {
+    pub fn is_admin(&self) -> bool {
+        matches!(self, Self::Admin(_))
+    }
+
+    pub fn email(&self) -> Option<&str> {
+        match self {
+            Self::Admin(email) | Self::User(email) => Some(email),
+            Self::Unknown => None,
+        }
+    }
+
+    pub fn into_user_email(self) -> Option<String> {
+        match self {
+            Self::Admin(email) => Some(email),
+            Self::User(email) => Some(email),
+            Self::Unknown => None,
+        }
+    }
+}

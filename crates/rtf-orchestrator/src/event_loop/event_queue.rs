@@ -65,10 +65,8 @@ impl EventQueue {
         UnboundedReceiver<ResolverInput>,
     ) {
         let shared = Arc::new(Mutex::new(Shared {
-            execution_map: HashMap::new(),
-            payload_cache: HashMap::new(),
-            active_run_executions: HashMap::new(),
-            resolved_execution_cache: HashMap::new(),
+            runs: HashMap::new(),
+            executions: HashMap::new(),
             max_queued_executions: cfg.max_queued_executions,
             n_queued: 0,
         }));
@@ -192,14 +190,12 @@ impl EventQueue {
         }
 
         self.with_shared(|shared| {
-            let run_uuid = shared.execution_map.remove(&ex_id)?;
-            let active = shared.active_run_executions.get_mut(&run_uuid)?;
-            active.remove(&ex_id);
-            shared.resolved_execution_cache.remove(&ex_id);
+            let run_uuid = shared.executions.remove(&ex_id)?.run_uuid;
+            let run = shared.runs.get_mut(&run_uuid)?;
+            run.executions.remove(&ex_id);
 
-            if active.is_empty() {
-                shared.active_run_executions.remove(&run_uuid);
-                shared.payload_cache.remove(&run_uuid);
+            if run.executions.is_empty() {
+                shared.runs.remove(&run_uuid);
                 Some(run_uuid)
             } else {
                 None
@@ -214,8 +210,9 @@ impl EventQueue {
     ) -> Option<(String, String)> {
         self.with_shared(|shared| {
             shared
-                .resolved_execution_cache
+                .executions
                 .get(&ex_id)
+                .and_then(|e| e.resolved_config.as_ref())
                 .map(|c| (c.docker_image.clone(), c.docker_command.clone()))
         })
         .await
@@ -227,8 +224,9 @@ impl EventQueue {
     ) -> Option<OrchestratorEnvironment> {
         self.with_shared(|shared| {
             shared
-                .resolved_execution_cache
+                .executions
                 .get(&ex_id)
+                .and_then(|e| e.resolved_config.as_ref())
                 .map(|c| c.environment.clone())
         })
         .await
@@ -272,7 +270,13 @@ impl EventQueue {
             } = payload;
             let ctx =
                 OrchestratorContext::new_from_inlined_files(cfg, relative_files, custom_providers);
-            h.cache_for_test_run(run_uuid, ctx, test_plan).await;
+            h.cache_for_test_run(
+                run_uuid,
+                tr.initiated_by().map(|s| s.to_owned()),
+                ctx,
+                test_plan,
+            )
+            .await;
 
             let executions = conn.executions_for_run(&tr).await?;
             let mut n_in_flight = 0;
@@ -290,7 +294,7 @@ impl EventQueue {
 
             if n_in_flight == 0 {
                 // Nothing left to do for this run so evict from the cache
-                h.evict_payload_cache(run_uuid).await;
+                h.evict_cached_run_state(run_uuid).await;
                 conn.clear_cached_payload_for_run(run_uuid).await;
             }
         }
@@ -520,24 +524,31 @@ impl ProvisioningHandle {
     pub(crate) async fn cache_for_test_run(
         &self,
         run_uuid: Uuid,
+        initiated_by: Option<String>,
         ctx: OrchestratorContext,
         test_plan: OrchestratorTestPlan,
     ) {
         self.with_shared(|shared| {
-            shared
-                .payload_cache
-                .insert(run_uuid, (Arc::new(ctx), test_plan))
+            shared.runs.insert(
+                run_uuid,
+                RunState {
+                    ctx: Arc::new(ctx),
+                    test_plan,
+                    executions: HashSet::new(),
+                    initiated_by,
+                },
+            )
         })
         .await;
     }
 
-    /// Drop the in-memory payload cache entry for the given run uuid without touching the
-    /// ref-count bookkeeping. Used by the resolver when it has cached a payload but every
-    /// `init_execution` for the run failed — there will be no `mark_execution_complete` for
-    /// this run, so eviction has to happen here instead.
-    pub(crate) async fn evict_payload_cache(&self, run_uuid: Uuid) {
+    /// Drop the in-memory run entry for the given run uuid without touching the ref-count
+    /// bookkeeping. Used by the resolver when it has cached a payload but every `init_execution`
+    /// for the run failed — there will be no `mark_execution_complete` for this run, so eviction
+    /// has to happen here instead.
+    pub(crate) async fn evict_cached_run_state(&self, run_uuid: Uuid) {
         self.with_shared(|shared| {
-            shared.payload_cache.remove(&run_uuid);
+            shared.runs.remove(&run_uuid);
         })
         .await;
     }
@@ -673,17 +684,19 @@ impl ProvisioningHandle {
         };
 
         self.with_shared(|shared| {
-            shared.resolved_execution_cache.insert(
-                ex.uuid(),
-                ResolvedExecutionConfig {
-                    env_yaml,
-                    scenario_yaml,
-                    output_collection,
-                    docker_image: image,
-                    docker_command: command,
-                    environment,
-                },
-            );
+            let exec = shared
+                .executions
+                .get_mut(&ex.uuid())
+                .ok_or(ResolverError::UnknownExecution(ex.uuid()))?;
+
+            exec.resolved_config = Some(ResolvedExecutionConfig {
+                env_yaml,
+                scenario_yaml,
+                output_collection,
+                docker_image: image,
+                docker_command: command,
+                environment,
+            });
 
             Ok(())
         })
@@ -755,6 +768,59 @@ impl EventQueueState {
         &self.default_cluster
     }
 
+    pub async fn user_queue_counts(&self, user: &str, cluster: &ClusterId) -> UserQueueCounts {
+        let (queued, running) = {
+            let inner = self.eq_inner.lock().await;
+            (
+                inner
+                    .pending_provisions
+                    .get(cluster)
+                    .map(|q| q.iter().map(|evt| evt.test_execution.uuid()).collect())
+                    .unwrap_or_else(Vec::new),
+                inner
+                    .running_executions
+                    .get(cluster)
+                    .cloned()
+                    .unwrap_or_default(),
+            )
+        };
+
+        self.with_shared(|shared| {
+            let run_of = |ex: &Uuid| shared.executions.get(ex).map(|e| e.run_uuid);
+            let is_users = |run: &Uuid| {
+                shared
+                    .runs
+                    .get(run)
+                    .is_some_and(|r| r.initiated_by.as_deref() == Some(user))
+            };
+
+            let ongoing_runs: HashSet<Uuid> = running
+                .iter()
+                .filter_map(run_of)
+                .filter(|run| is_users(run))
+                .collect();
+
+            let queued_exececutions: Vec<Uuid> = queued
+                .iter()
+                .copied()
+                .filter(|ex| run_of(ex).is_some_and(|run| is_users(&run)))
+                .collect();
+
+            let queued_runs: HashSet<Uuid> = queued_exececutions
+                .iter()
+                .filter_map(run_of)
+                .filter(|run| !ongoing_runs.contains(run))
+                .collect();
+
+            UserQueueCounts {
+                ongoing_runs: ongoing_runs.len(),
+                queued_runs: queued_runs.len(),
+                queued_executions: queued_exececutions.len(),
+            }
+        })
+        .await
+    }
+
     pub async fn available_clusters(&self) -> Vec<ClusterId> {
         let mut cluster_ids: Vec<_> = self
             .eq_inner
@@ -820,9 +886,18 @@ impl EventQueueState {
                 pending_non_provisions,
                 pending_provisions,
                 running_executions,
-                cached_run_payloads: shared.payload_cache.keys().cloned().collect(),
-                active_run_executions: shared.active_run_executions.clone(),
-                resolved_execution_cache: shared.resolved_execution_cache.keys().cloned().collect(),
+                cached_run_payloads: shared.runs.keys().cloned().collect(),
+                active_run_executions: shared
+                    .runs
+                    .iter()
+                    .map(|(run_uuid, run)| (*run_uuid, run.executions.clone()))
+                    .collect(),
+                resolved_execution_cache: shared
+                    .executions
+                    .iter()
+                    .filter(|(_, exec)| exec.resolved_config.is_some())
+                    .map(|(ex_uuid, _)| *ex_uuid)
+                    .collect(),
             }
         })
         .await
@@ -887,8 +962,9 @@ impl EventQueueState {
     ) -> resolver::Result<String> {
         self.with_shared(|shared| {
             shared
-                .resolved_execution_cache
+                .executions
                 .get(&ex.uuid())
+                .and_then(|e| e.resolved_config.as_ref())
                 .map(|c| c.env_yaml.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
@@ -901,8 +977,9 @@ impl EventQueueState {
     ) -> resolver::Result<String> {
         self.with_shared(|shared| {
             shared
-                .resolved_execution_cache
+                .executions
                 .get(&ex.uuid())
+                .and_then(|e| e.resolved_config.as_ref())
                 .map(|c| c.scenario_yaml.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
@@ -915,13 +992,28 @@ impl EventQueueState {
     ) -> resolver::Result<OutputCollectionResponse> {
         self.with_shared(|shared| {
             shared
-                .resolved_execution_cache
+                .executions
                 .get(&ex.uuid())
+                .and_then(|e| e.resolved_config.as_ref())
                 .map(|c| c.output_collection.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
         .await
     }
+}
+
+#[derive(Debug)]
+struct RunState {
+    ctx: Arc<OrchestratorContext>,
+    test_plan: OrchestratorTestPlan,
+    executions: HashSet<Uuid>,
+    initiated_by: Option<String>,
+}
+
+#[derive(Debug)]
+struct ExecutionState {
+    run_uuid: Uuid,
+    resolved_config: Option<ResolvedExecutionConfig>,
 }
 
 /// All config resolved for a single execution ahead of time, kept together since it's always
@@ -938,14 +1030,10 @@ struct ResolvedExecutionConfig {
 
 #[derive(Debug)]
 struct Shared {
-    /// Map of TestExecution uuid to parent TestRun uuid
-    execution_map: HashMap<Uuid, Uuid>,
-    /// Map of TestRun uuid to payload data
-    payload_cache: HashMap<Uuid, (Arc<OrchestratorContext>, OrchestratorTestPlan)>,
-    /// Executions active for each run.
-    active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
-    /// Pre-resolved config keyed by execution UUID
-    resolved_execution_cache: HashMap<Uuid, ResolvedExecutionConfig>,
+    /// Metadata for every run with at least one in-flight execution, keyed by TestRun uuid.
+    runs: HashMap<Uuid, RunState>,
+    /// Metadata for every in-flight TestExecution, keyed by its uuid.
+    executions: HashMap<Uuid, ExecutionState>,
     /// Maximum number of pending executions waiting for a namespace
     max_queued_executions: usize,
     /// The number of currently queued executions
@@ -954,29 +1042,35 @@ struct Shared {
 
 impl Shared {
     fn register_execution(&mut self, ex_uuid: Uuid, run_uuid: Uuid) {
-        self.execution_map.insert(ex_uuid, run_uuid);
-        self.active_run_executions
-            .entry(run_uuid)
-            .or_default()
-            .insert(ex_uuid);
+        self.executions.insert(
+            ex_uuid,
+            ExecutionState {
+                run_uuid,
+                resolved_config: None,
+            },
+        );
+
+        if let Some(run) = self.runs.get_mut(&run_uuid) {
+            run.executions.insert(ex_uuid);
+        }
     }
 
     fn variant_with_context(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<(OrchestratorTestPlan, Arc<OrchestratorContext>)> {
-        let run_uuid = match self.execution_map.get(&ex.uuid()) {
-            Some(id) => id,
+        let run_uuid = match self.executions.get(&ex.uuid()) {
+            Some(exec) => exec.run_uuid,
             None => return Err(ResolverError::UnknownExecution(ex.uuid())),
         };
         let index = ex.test_plan_index();
 
-        match self.payload_cache.get(run_uuid) {
-            Some((ctx, test_plan)) => match test_plan.try_expand_variant(index)? {
-                Some((_, variant)) => Ok((variant, Arc::clone(ctx))),
+        match self.runs.get(&run_uuid) {
+            Some(run) => match run.test_plan.try_expand_variant(index)? {
+                Some((_, variant)) => Ok((variant, Arc::clone(&run.ctx))),
                 None => Err(ResolverError::UnknownExecution(ex.uuid())),
             },
-            None => Err(ResolverError::UnknownRun(*run_uuid)),
+            None => Err(ResolverError::UnknownRun(run_uuid)),
         }
     }
 }
@@ -1005,6 +1099,23 @@ pub struct SnapshotSummary {
     queued: usize,
     pending_provisions: usize,
     pending_non_provisions: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UserQueueCounts {
+    pub ongoing_runs: usize,
+    pub queued_runs: usize,
+    pub queued_executions: usize,
+}
+
+impl UserQueueCounts {
+    pub fn new(ongoing_runs: usize, queued_runs: usize, queued_executions: usize) -> Self {
+        Self {
+            ongoing_runs,
+            queued_runs,
+            queued_executions,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1047,7 +1158,8 @@ mod tests {
             empty_source_map(),
             empty_source_map(),
         );
-        ph.cache_for_test_run(run_uuid, ctx, stub_test_plan()).await;
+        ph.cache_for_test_run(run_uuid, None, ctx, stub_test_plan())
+            .await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
 
@@ -1098,13 +1210,129 @@ mod tests {
         );
     }
 
+    impl EventQueueState {
+        async fn initiator_for_run(&self, run_uuid: Uuid) -> Option<String> {
+            self.with_shared(|shared| shared.runs.get(&run_uuid)?.initiated_by.clone())
+                .await
+        }
+    }
+
+    #[tokio::test]
+    async fn initiated_by_for_run_returns_the_recorded_initiator() {
+        let cfg = Config::for_test();
+        let (_, ph, state, _) = EventQueue::new(&cfg.workload_clusters);
+        let run_uuid = Uuid::new_v4();
+
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            empty_source_map(),
+            empty_source_map(),
+        );
+        ph.cache_for_test_run(
+            run_uuid,
+            Some("alice@example.com".to_string()),
+            ctx,
+            stub_test_plan(),
+        )
+        .await;
+
+        assert_eq!(
+            state.initiator_for_run(run_uuid).await,
+            Some("alice@example.com".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn initiated_by_for_run_returns_none_for_an_unknown_run() {
+        let (_, _, state, _) = EventQueue::new(&WorkloadClusters::for_test());
+
+        assert_eq!(state.initiator_for_run(Uuid::new_v4()).await, None);
+    }
+
+    fn resolve_config_event(ex: &TestExecution, cluster: ClusterId) -> Event {
+        Event {
+            test_execution: ex.clone(),
+            cluster,
+            data: EventData::ResolveConfig,
+        }
+    }
+
+    #[test_case(&[], UserQueueCounts::new(0, 0, 0); "nothing queued at all")]
+    #[test_case(&[("alice", "a", &[false])], UserQueueCounts::new(0, 1, 1); "single execution")]
+    #[test_case(&[("alice", "a", &[true])], UserQueueCounts::new(1, 0, 0); "single ongoing run")]
+    #[test_case(&[("alice", "a", &[false, false])], UserQueueCounts::new(0, 1, 2); "one run with two queued executions")]
+    #[test_case(&[("alice", "a", &[true, false])], UserQueueCounts::new(1, 0, 1); "single ongoing execution marks run ongoing")]
+    #[test_case(&[("alice", "b", &[false])], UserQueueCounts::new(0, 0, 0); "runs for another cluster are ignored")]
+    #[test_case(&[("alice", "a", &[false]), ("bob", "a", &[false])], UserQueueCounts::new(0, 1, 1); "runs for another user are ignored")]
+    #[tokio::test]
+    async fn user_queue_counts_reflects_live_queue_state(
+        queued_executions: &[(&str, &str, &[bool])],
+        expected: UserQueueCounts,
+    ) {
+        let (mut eq, ph, state, _) = EventQueue::new(
+            &WorkloadClusters::for_test_with_available_clusters(10, "a", &["a", "b"]),
+        );
+
+        let cfg = Config::for_test();
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            empty_source_map(),
+            empty_source_map(),
+        );
+
+        let mut ex_id = 1;
+        for (user, cluster, statuses) in queued_executions.iter() {
+            let run_uuid = Uuid::new_v4();
+            let cluster = ClusterId::new(*cluster);
+
+            ph.cache_for_test_run(
+                run_uuid,
+                Some(user.to_string()),
+                ctx.clone(),
+                stub_test_plan(),
+            )
+            .await;
+
+            for (i, &is_running) in statuses.iter().enumerate() {
+                let ex = TestExecution::create_stub(ex_id + i as i32, 1, i, "test");
+                ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
+                    .await;
+
+                if is_running {
+                    eq.with_inner(|inner| {
+                        inner.insert_running_execution(ex.uuid(), cluster.clone())
+                    })
+                    .await
+                } else {
+                    eq.push_event(resolve_config_event(&ex, cluster.clone()))
+                        .await
+                }
+            }
+
+            ex_id += statuses.len() as i32;
+        }
+
+        assert_eq!(
+            state.user_queue_counts("alice", &ClusterId::new("a")).await,
+            expected
+        );
+    }
+
     #[tokio::test]
     async fn mark_execution_complete_evicts_cache_after_last_execution() {
-        let (mut eq, h, _, _) = EventQueue::new(&WorkloadClusters::for_test());
+        let cfg = Config::for_test();
+        let (mut eq, h, _, _) = EventQueue::new(&cfg.workload_clusters);
         let run_uuid = Uuid::new_v4();
         let ex1 = Uuid::new_v4();
         let ex2 = Uuid::new_v4();
 
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            empty_source_map(),
+            empty_source_map(),
+        );
+        h.cache_for_test_run(run_uuid, None, ctx, stub_test_plan())
+            .await;
         h.with_shared(|shared| {
             shared.register_execution(ex1, run_uuid);
             shared.register_execution(ex2, run_uuid);
@@ -1121,15 +1349,12 @@ mod tests {
         assert_eq!(evicted, None);
         eq.with_shared(|shared| {
             assert_eq!(
-                shared
-                    .active_run_executions
-                    .get(&run_uuid)
-                    .map(|set| set.len()),
+                shared.runs.get(&run_uuid).map(|run| run.executions.len()),
                 Some(1),
                 "{:?}",
-                shared.active_run_executions
+                shared.runs
             );
-            assert!(shared.execution_map.contains_key(&ex2));
+            assert!(shared.executions.contains_key(&ex2));
         })
         .await;
 
@@ -1138,15 +1363,15 @@ mod tests {
 
         eq.with_shared(|shared| {
             assert!(
-                !shared.active_run_executions.contains_key(&run_uuid),
-                "open count entry should be cleared"
+                !shared.runs.contains_key(&run_uuid),
+                "run entry should be cleared"
             );
             assert!(
-                !shared.execution_map.contains_key(&ex2),
+                !shared.executions.contains_key(&ex2),
                 "ex1 should be removed"
             );
             assert!(
-                !shared.execution_map.contains_key(&ex1),
+                !shared.executions.contains_key(&ex1),
                 "ex2 should be removed"
             );
         })
@@ -1489,8 +1714,9 @@ mod tests {
         assert!(res.is_ok(), "{res:?}");
         ph.with_shared(|shared| {
             let cached = shared
-                .resolved_execution_cache
+                .executions
                 .get(&ex_uuid)
+                .and_then(|e| e.resolved_config.as_ref())
                 .expect("execution config should be cached");
 
             assert!(!cached.env_yaml.is_empty(), "env YAML should be cached");
@@ -1534,7 +1760,7 @@ mod tests {
             empty_source_map(),
             empty_source_map(),
         );
-        ph.cache_for_test_run(run_uuid, ctx, test_plan).await;
+        ph.cache_for_test_run(run_uuid, None, ctx, test_plan).await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
 
@@ -1543,8 +1769,9 @@ mod tests {
 
         ph.with_shared(|shared| {
             let cached = shared
-                .resolved_execution_cache
+                .executions
                 .get(&ex.uuid())
+                .and_then(|e| e.resolved_config.as_ref())
                 .expect("execution config should be cached");
 
             assert!(
@@ -1572,21 +1799,24 @@ mod tests {
         );
 
         ph.with_shared(|shared| {
-            shared.resolved_execution_cache.insert(
+            shared.executions.insert(
                 ex.uuid(),
-                ResolvedExecutionConfig {
-                    env_yaml: "yaml".to_string(),
-                    scenario_yaml: "yaml".to_string(),
-                    output_collection: OutputCollectionResponse {
-                        execution_variables: String::new(),
-                        prometheus: PrometheusQueries {
-                            environment: Vec::new(),
-                            scenario: Vec::new(),
+                ExecutionState {
+                    run_uuid: Uuid::new_v4(),
+                    resolved_config: Some(ResolvedExecutionConfig {
+                        env_yaml: "yaml".to_string(),
+                        scenario_yaml: "yaml".to_string(),
+                        output_collection: OutputCollectionResponse {
+                            execution_variables: String::new(),
+                            prometheus: PrometheusQueries {
+                                environment: Vec::new(),
+                                scenario: Vec::new(),
+                            },
                         },
-                    },
-                    docker_image: "image".to_string(),
-                    docker_command: "command".to_string(),
-                    environment: OrchestratorEnvironment::Null(NullEnvironment { skip: true }),
+                        docker_image: "image".to_string(),
+                        docker_command: "command".to_string(),
+                        environment: OrchestratorEnvironment::Null(NullEnvironment { skip: true }),
+                    }),
                 },
             );
         })
@@ -1607,9 +1837,8 @@ mod tests {
 
         h.with_shared(|shared| {
             shared.register_execution(ex_id, run_uuid);
-            shared.resolved_execution_cache.insert(
-                ex_id,
-                ResolvedExecutionConfig {
+            shared.executions.get_mut(&ex_id).unwrap().resolved_config =
+                Some(ResolvedExecutionConfig {
                     env_yaml: "yaml".to_string(),
                     scenario_yaml: "yaml".to_string(),
                     output_collection: OutputCollectionResponse {
@@ -1622,8 +1851,7 @@ mod tests {
                     docker_image: "image".to_string(),
                     docker_command: "command".to_string(),
                     environment: OrchestratorEnvironment::Null(NullEnvironment { skip: true }),
-                },
-            );
+                });
         })
         .await;
         eq.with_inner(|inner| inner.insert_running_execution(ex_id, alpha_cluster()))
@@ -1633,8 +1861,8 @@ mod tests {
 
         h.with_shared(|shared| {
             assert!(
-                !shared.resolved_execution_cache.contains_key(&ex_id),
-                "resolved execution cache entry should be evicted"
+                !shared.executions.contains_key(&ex_id),
+                "execution entry should be evicted"
             );
         })
         .await;
@@ -1760,20 +1988,23 @@ mod tests {
         eq.with_shared(|shared| {
             if registered {
                 assert_eq!(
-                    shared.execution_map.get(&ex_uuid),
-                    Some(&run_uuid),
-                    "ex should be in execution_map"
+                    shared.executions.get(&ex_uuid).map(|e| e.run_uuid),
+                    Some(run_uuid),
+                    "ex should be in executions"
                 );
 
                 assert_eq!(
-                    shared.active_run_executions.get(&run_uuid),
-                    Some(&HashSet::from([ex_uuid])),
-                    "ex should be in active_run_executions"
+                    shared.runs.get(&run_uuid).map(|run| run.executions.clone()),
+                    Some(HashSet::from([ex_uuid])),
+                    "ex should be in run's executions"
                 );
             }
 
             assert_eq!(
-                shared.resolved_execution_cache.contains_key(&ex_uuid),
+                shared
+                    .executions
+                    .get(&ex_uuid)
+                    .is_some_and(|e| e.resolved_config.is_some()),
                 cached,
                 "incorrect cached execution config state"
             );
@@ -1822,7 +2053,7 @@ mod tests {
 
         eq.with_shared(|shared| {
             assert_eq!(
-                shared.payload_cache.contains_key(&tr.uuid()),
+                shared.runs.contains_key(&tr.uuid()),
                 still_cached,
                 "incorrect in-memory cache state"
             );
