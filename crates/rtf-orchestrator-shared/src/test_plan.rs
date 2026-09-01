@@ -65,9 +65,7 @@ impl OrchestratorEnvironment {
     ) -> inlining::Result<()> {
         match self {
             OrchestratorEnvironment::Null(_) => Ok(()),
-            OrchestratorEnvironment::DockerCompose(dce) => {
-                dce.inline_compose_files(ctx, cache).await
-            }
+            OrchestratorEnvironment::DockerCompose(dce) => dce.inline_manifests(ctx, cache).await,
         }
     }
 
@@ -85,9 +83,9 @@ impl OrchestratorEnvironment {
     pub fn services(&self) -> providers::Result<Vec<EnvironmentService>> {
         match self {
             OrchestratorEnvironment::Null(_) => Ok(Vec::new()),
-            OrchestratorEnvironment::DockerCompose(dce) => Ok(services_from_compose_contents(
-                dce.inline_compose_contents()?,
-            )),
+            OrchestratorEnvironment::DockerCompose(dce) => {
+                Ok(services_from_compose_contents(dce.manifest_contents()?))
+            }
         }
     }
 
@@ -96,6 +94,7 @@ impl OrchestratorEnvironment {
         match self {
             OrchestratorEnvironment::Null(_) => Vec::new(),
             OrchestratorEnvironment::DockerCompose(dce) => dce
+                .resources
                 .compose_files
                 .iter()
                 .flat_map(|ncfp| ncfp.required_variables())
@@ -266,7 +265,7 @@ fn replicas_from(service: &Value) -> Option<ServiceReplicas> {
 mod tests {
     use super::*;
     use indoc::indoc;
-    use rtf_config::context::Context;
+    use rtf_config::{context::Context, formats::ComposeResources};
     use std::assert_matches;
 
     fn null_env() -> OrchestratorEnvironment {
@@ -275,8 +274,10 @@ mod tests {
 
     fn docker_compose_env() -> DockerComposeEnvironment {
         DockerComposeEnvironment {
-            project_name: None,
-            compose_files: vec![],
+            resources: ComposeResources {
+                project_name: None,
+                compose_files: vec![],
+            },
             file_providers: vec![],
             env_vars: Default::default(),
             output_collection: Default::default(),
@@ -375,10 +376,10 @@ teardown:
             })
             .collect();
 
-        OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
-            compose_files,
-            ..docker_compose_env()
-        })
+        let mut env = docker_compose_env();
+        env.resources.compose_files = compose_files;
+
+        OrchestratorEnvironment::DockerCompose(env)
     }
 
     fn services_of(providers: &[&str]) -> Vec<EnvironmentService> {

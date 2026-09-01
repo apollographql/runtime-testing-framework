@@ -142,7 +142,7 @@ async fn resolve_docker_compose_environment(
     // Write compose file paths to a file (one path per line)
     info!("writing compose-files.txt");
     let compose_paths: Vec<String> = env
-        .compose_file_paths(ctx)?
+        .manifest_file_paths(ctx)?
         .iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect();
@@ -170,7 +170,7 @@ async fn resolve_docker_compose_environment(
     // Create empty providers dir for consistency
     ctx.create_dir_all(teardown_dir.join(PROVIDER_DIR))?;
 
-    let project_name = env.project_name.as_deref().unwrap_or(name);
+    let project_name = env.resources.project_name.as_deref().unwrap_or(name);
     let teardown_vars =
         HashMap::from([("COMPOSE_PROJECT_NAME".to_string(), project_name.to_string())]);
     let teardown_env_content = generate_env_file(teardown_vars);

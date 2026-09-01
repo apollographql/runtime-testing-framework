@@ -126,6 +126,7 @@ impl AsWorkflowTasks for NullEnvironment {
 mod tests {
     use super::*;
     use crate::k8s::workflow::CREATE_SERVICE_ACCOUNT;
+    use rtf_config::formats::ComposeResources;
 
     fn otel() -> OtelConfig {
         OtelConfig {
@@ -136,8 +137,10 @@ mod tests {
 
     fn docker_compose_env() -> DockerComposeEnvironment {
         DockerComposeEnvironment {
-            project_name: None,
-            compose_files: vec![],
+            resources: ComposeResources {
+                project_name: None,
+                compose_files: vec![],
+            },
             file_providers: vec![],
             env_vars: Default::default(),
             output_collection: Default::default(),

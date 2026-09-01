@@ -21,10 +21,14 @@ use std::{
 };
 
 mod docker_compose;
+mod manifest;
 mod null;
 mod script;
 
-pub use docker_compose::{DockerComposeEnvironment, FileProviderServices, PullPolicyServices};
+pub use docker_compose::{
+    ComposeResources, DockerComposeEnvironment, FileProviderServices, PullPolicyServices,
+};
+pub use manifest::{ManifestEnvironment, NamedManifestFiles};
 pub use null::NullEnvironment;
 pub use script::ScriptEnvironment;
 
@@ -376,11 +380,13 @@ pub(crate) mod test_helpers {
         compose_file_names: &[&str],
     ) -> DockerComposeEnvironment {
         DockerComposeEnvironment {
-            project_name: project_name.map(String::from),
-            compose_files: compose_file_names
-                .iter()
-                .map(|name| named_compose_file(name))
-                .collect(),
+            resources: docker_compose::ComposeResources {
+                project_name: project_name.map(String::from),
+                compose_files: compose_file_names
+                    .iter()
+                    .map(|name| named_compose_file(name))
+                    .collect(),
+            },
             file_providers: Vec::new(),
             env_vars: HashMap::new(),
             output_collection: OutputCollection {
@@ -397,6 +403,7 @@ pub(crate) mod test_helpers {
     ) -> (TempDir, Vec<String>) {
         let temp_dir = TempDir::new().unwrap();
         let paths = env
+            .resources
             .compose_files
             .iter()
             .map(|ncfp| {

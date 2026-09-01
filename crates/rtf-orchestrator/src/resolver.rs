@@ -312,8 +312,8 @@ mod tests {
     use indoc::indoc;
     use rtf_config::{
         formats::{
-            DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
-            OutputCollection, ScenarioConfig,
+            ComposeResources, DockerCommand, DockerComposeEnvironment, DockerScenario,
+            EnvironmentConfig, Matrix, OutputCollection, ScenarioConfig,
         },
         providers::file::compose::NamedComposeFileProvider,
         templating::{Field, Scalar},
@@ -359,8 +359,10 @@ mod tests {
                 variable_definitions: vec![],
                 custom_providers: vec![],
                 execution: OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
-                    project_name: None,
-                    compose_files,
+                    resources: ComposeResources {
+                        project_name: None,
+                        compose_files,
+                    },
                     file_providers: vec![],
                     env_vars: HashMap::new(),
                     output_collection: OutputCollection { prometheus: vec![] },
