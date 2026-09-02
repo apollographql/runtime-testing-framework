@@ -3,7 +3,8 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_check,
+    enum_impl_check, enum_impl_check_array_duplicates, enum_impl_run_environment,
+    enum_impl_run_providers,
     formats::{CustomProviderDeclaration, OutputCollection, Result},
     inlining::{self, InlineMode, InlinedProvider},
     providers::{self, file::StableSource},
@@ -223,76 +224,12 @@ pub enum EnvironmentExecution {
     Script(ScriptEnvironment),
 }
 
-enum_impl_check!(EnvironmentExecution => Null, DockerCompose, Script);
-
 impl ValidateEnvironment for EnvironmentExecution {}
 
-impl RunEnvironment for EnvironmentExecution {
-    async fn execute_setup(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.execute_setup(name, out_dir, ctx).await,
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.execute_setup(name, out_dir, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
-        }
-    }
-
-    async fn execute_teardown(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.execute_teardown(name, out_dir, ctx).await,
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.execute_teardown(name, out_dir, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
-        }
-    }
-}
-
-impl RunProviders for EnvironmentExecution {
-    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.named_providers(),
-            EnvironmentExecution::DockerCompose(inner) => inner.named_providers(),
-            EnvironmentExecution::Script(inner) => inner.named_providers(),
-        }
-    }
-
-    fn inline<'a>(
-        &'a mut self,
-        mode: &'a InlineMode,
-        ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.inline(mode, ctx, cache),
-            EnvironmentExecution::DockerCompose(inner) => inner.inline(mode, ctx, cache),
-            EnvironmentExecution::Script(inner) => inner.inline(mode, ctx, cache),
-        }
-    }
-}
-
-impl CheckArrayDuplicates for EnvironmentExecution {
-    const BASE_PATH: &str = "environment_execution";
-
-    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.deduplicated_arrays(),
-            EnvironmentExecution::DockerCompose(inner) => inner.deduplicated_arrays(),
-            EnvironmentExecution::Script(inner) => inner.deduplicated_arrays(),
-        }
-    }
-}
+enum_impl_check!(EnvironmentExecution => Null, DockerCompose, Script);
+enum_impl_run_providers!(EnvironmentExecution => Null, DockerCompose, Script);
+enum_impl_run_environment!(EnvironmentExecution => Null, DockerCompose, Script);
+enum_impl_check_array_duplicates!(EnvironmentExecution, "environment_execution" => Null, DockerCompose, Script);
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(
@@ -309,47 +246,11 @@ pub enum EnvironmentPrepare {
     K8s(K8sEnvironment),
 }
 
-enum_impl_check!(EnvironmentPrepare => Null, DockerCompose, Script, K8s);
-
 impl ValidateEnvironment for EnvironmentPrepare {}
 
-impl RunProviders for EnvironmentPrepare {
-    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
-        match self {
-            EnvironmentPrepare::Null(inner) => inner.named_providers(),
-            EnvironmentPrepare::DockerCompose(inner) => inner.named_providers(),
-            EnvironmentPrepare::Script(inner) => inner.named_providers(),
-            EnvironmentPrepare::K8s(inner) => inner.named_providers(),
-        }
-    }
-
-    fn inline<'a>(
-        &'a mut self,
-        mode: &'a InlineMode,
-        ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
-        match self {
-            EnvironmentPrepare::Null(inner) => inner.inline(mode, ctx, cache),
-            EnvironmentPrepare::DockerCompose(inner) => inner.inline(mode, ctx, cache),
-            EnvironmentPrepare::Script(inner) => inner.inline(mode, ctx, cache),
-            EnvironmentPrepare::K8s(inner) => inner.inline(mode, ctx, cache),
-        }
-    }
-}
-
-impl CheckArrayDuplicates for EnvironmentPrepare {
-    const BASE_PATH: &str = "environment_prepare";
-
-    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        match self {
-            EnvironmentPrepare::Null(inner) => inner.deduplicated_arrays(),
-            EnvironmentPrepare::DockerCompose(inner) => inner.deduplicated_arrays(),
-            EnvironmentPrepare::Script(inner) => inner.deduplicated_arrays(),
-            EnvironmentPrepare::K8s(inner) => inner.deduplicated_arrays(),
-        }
-    }
-}
+enum_impl_check!(EnvironmentPrepare => Null, DockerCompose, Script, K8s);
+enum_impl_run_providers!(EnvironmentPrepare => Null, DockerCompose, Script, K8s);
+enum_impl_check_array_duplicates!(EnvironmentPrepare, "environment_prepare" => Null, DockerCompose, Script, K8s);
 
 #[cfg(test)]
 pub(crate) mod test_helpers {

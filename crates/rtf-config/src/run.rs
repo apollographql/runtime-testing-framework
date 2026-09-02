@@ -126,6 +126,34 @@ pub trait RunEnvironment: ValidateEnvironment {
     ) -> impl Future<Output = providers::Result<String>> + Send;
 }
 
+#[macro_export]
+macro_rules! enum_impl_run_environment {
+    ($enum:ident => $($variant:ident),+) => {
+        impl RunEnvironment for $enum {
+            async fn execute_setup(
+                &self,
+                name: &str,
+                out_dir: &Path,
+                ctx: &mut impl ResolutionContext,
+            ) -> $crate::providers::Result<String> {
+                match self {
+                    $(Self::$variant(inner) => inner.execute_setup(name, out_dir, ctx).await,)+
+                }
+            }
+            async fn execute_teardown(
+                &self,
+                name: &str,
+                out_dir: &Path,
+                ctx: &mut impl ResolutionContext,
+            ) -> $crate::providers::Result<String> {
+                match self {
+                    $(Self::$variant(inner) => inner.execute_teardown(name, out_dir, ctx).await,)+
+                }
+            }
+        }
+    }
+}
+
 pub trait ValidateScenario: RunProviders + Check + Template + CheckArrayDuplicates + Clone {}
 pub trait RunScenario: ValidateScenario + Execute {}
 
@@ -222,6 +250,29 @@ pub trait RunProviders: Send + Sync {
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>>;
+}
+
+#[macro_export]
+macro_rules! enum_impl_run_providers {
+    ($enum:ident => $($variant:ident),+) => {
+        impl RunProviders for $enum {
+            fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+                match self {
+                    $(Self::$variant(inner) => inner.named_providers(),)+
+                }
+            }
+            fn inline<'a>(
+                &'a mut self,
+                mode: &'a InlineMode,
+                ctx: &'a impl ResolutionContext,
+                cache: &'a mut HashMap<u64, InlinedProvider>,
+            ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+                match self {
+                    $(Self::$variant(inner) => inner.inline(mode, ctx, cache),)+
+                }
+            }
+        }
+    }
 }
 
 impl RunProviders for Vec<NamedFileProvider> {

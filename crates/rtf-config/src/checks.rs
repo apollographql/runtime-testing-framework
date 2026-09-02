@@ -168,6 +168,21 @@ pub trait CheckArrayDuplicates {
     }
 }
 
+#[macro_export]
+macro_rules! enum_impl_check_array_duplicates {
+    ($enum:ident, $base_path:expr => $($variant:ident),+) => {
+        impl CheckArrayDuplicates for $enum {
+            const BASE_PATH: &str = $base_path;
+
+            fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+                match self {
+                    $(Self::$variant(inner) => inner.deduplicated_arrays(),)+
+                }
+            }
+        }
+    }
+}
+
 /// Wrapper around the array types we need to be able to check and dedup as part of merging
 /// overrides in test plans.
 #[derive(Debug, PartialEq)]
