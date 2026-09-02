@@ -1,0 +1,15 @@
+name: scenario-k8s-environment
+description: Execute a scenario against a kubernetes environment
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+command:
+  name: curl-echo-server.sh
+  kind: relative_path
+  path: scripts/curl-echo-server.sh
+
+env_vars:
+  EXPECTED_MESSAGE: "{{ message }}"
+  STAGE: "scenario"

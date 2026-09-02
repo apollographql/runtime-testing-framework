@@ -1,0 +1,20 @@
+name: k8s-environment
+description: Setup and teardown a kubernetes environment
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+env_vars:
+  ECHO_MESSAGE: "{{ message }}"
+
+resources:
+  - name: manifest.yaml
+    kind: relative_path
+    path: providers/manifest.yaml
+
+file_providers:
+  - name: echo-server.py
+    env_var: ECHO_SERVER_SCRIPT
+    kind: relative_path
+    path: providers/echo-server.py

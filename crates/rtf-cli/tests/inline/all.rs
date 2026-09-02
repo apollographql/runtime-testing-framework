@@ -111,6 +111,19 @@ fn command_from_spec_succeeds() {
 }
 
 #[test]
+fn k8s_environment_succeeds() {
+    let mut cmd = prepare_rtf_inline_all("resources/test-plans/valid/k8s-environment");
+    cmd.assert().success();
+
+    cmd.list_files();
+
+    let inlined_output_path = "output/inlined-test-plan.yaml";
+
+    cmd.assert_path_exists(inlined_output_path);
+    cmd.assert_file_does_not_contain(inlined_output_path, RELATIVE_PATH);
+}
+
+#[test]
 fn custom_provider_default_value_succeeds() {
     let mut cmd =
         prepare_rtf_inline_all("resources/test-plans/valid/custom-provider-default-value");

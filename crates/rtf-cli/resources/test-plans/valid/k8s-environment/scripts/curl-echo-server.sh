@@ -1,0 +1,1 @@
+../../docker-compose-environment/scripts/curl-echo-server.sh

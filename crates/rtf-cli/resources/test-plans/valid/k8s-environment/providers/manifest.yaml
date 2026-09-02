@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-server
+  template:
+    metadata:
+      labels:
+        app: echo-server
+    spec:
+      containers:
+        - name: echo-server
+          image: python:3.14-alpine
+          command: ["python", "/app/echo-server.py"]
+          env:
+            - name: ECHO_MESSAGE
+              value: "${ECHO_MESSAGE}"
+          ports:
+            - containerPort: 8080
