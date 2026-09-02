@@ -8,7 +8,7 @@ use crate::{
         self,
         file::{
             InlineDir, InlineFile,
-            compose::{ComposeFileProvider, NamedComposeFileProvider},
+            manifest::{ManifestFileProvider, NamedManifestFileProvider},
         },
     },
     run::{
@@ -43,7 +43,7 @@ pub struct ComposeResources {
     #[template(skip)]
     pub project_name: Option<String>,
     /// A list of all the docker compose files to start for this environment
-    pub compose_files: Vec<NamedComposeFileProvider>,
+    pub compose_files: Vec<NamedManifestFileProvider>,
 }
 
 impl ComposeResources {
@@ -56,11 +56,11 @@ impl ComposeResources {
 impl ValidateEnvironment for ComposeResources {}
 
 impl NamedManifestFiles for ComposeResources {
-    fn manifest_files(&self) -> &Vec<NamedComposeFileProvider> {
+    fn manifest_files(&self) -> &Vec<NamedManifestFileProvider> {
         &self.compose_files
     }
 
-    fn manifest_files_mut(&mut self) -> &mut Vec<NamedComposeFileProvider> {
+    fn manifest_files_mut(&mut self) -> &mut Vec<NamedManifestFileProvider> {
         &mut self.compose_files
     }
 }
@@ -276,11 +276,11 @@ impl FileProviderServices {
 
         for fp in dce.resources.compose_files.iter() {
             match &fp.provider {
-                ComposeFileProvider::Inline(InlineFile { content }) => {
+                ManifestFileProvider::Inline(InlineFile { content }) => {
                     fps.add_services_from(content);
                 }
 
-                ComposeFileProvider::InlineDir(InlineDir { files }) => {
+                ManifestFileProvider::InlineDir(InlineDir { files }) => {
                     for file in files.iter() {
                         fps.add_services_from(&file.content);
                     }
@@ -528,7 +528,7 @@ pub(crate) mod tests {
             self,
             file::{
                 DirFile, FileProvider, InlineDir, InlineFile, NamedFileProvider, RelativeFile,
-                RequiredFile, SourceDir, StableSource, compose::NamedComposeFileProvider,
+                RequiredFile, SourceDir, StableSource, manifest::NamedManifestFileProvider,
             },
             test_helpers::create_temp_dir_with_file,
         },
@@ -592,9 +592,9 @@ pub(crate) mod tests {
             execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
                 resources: ComposeResources {
                     project_name: None,
-                    compose_files: vec![NamedComposeFileProvider {
+                    compose_files: vec![NamedManifestFileProvider {
                         name: "compose.yaml".to_string(),
-                        provider: ComposeFileProvider::RelativePath(RelativeFile {
+                        provider: ManifestFileProvider::RelativePath(RelativeFile {
                             path: Field::Pending("compose".to_string()),
                             src: None,
                         }),
@@ -631,7 +631,7 @@ pub(crate) mod tests {
             Default::default(),
         ));
 
-        let relative_compose_file = ComposeFileProvider::RelativePath(RelativeFile {
+        let relative_compose_file = ManifestFileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("file.txt".to_string()),
             src: Some(StableSource::Environment),
         });
@@ -645,7 +645,7 @@ pub(crate) mod tests {
             execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
                 resources: ComposeResources {
                     project_name: None,
-                    compose_files: vec![NamedComposeFileProvider {
+                    compose_files: vec![NamedManifestFileProvider {
                         name: "compose.yaml".to_string(),
                         provider: relative_compose_file,
                     }],
@@ -669,9 +669,9 @@ pub(crate) mod tests {
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 
-        let expected_inline_compose_file = NamedComposeFileProvider {
+        let expected_inline_compose_file = NamedManifestFileProvider {
             name: "compose.yaml".to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: "example file content".to_string(),
             }),
         };
@@ -704,9 +704,9 @@ pub(crate) mod tests {
             execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
                 resources: ComposeResources {
                     project_name: None,
-                    compose_files: vec![NamedComposeFileProvider {
+                    compose_files: vec![NamedManifestFileProvider {
                         name: "compose.yaml".to_string(),
-                        provider: ComposeFileProvider::Inline(InlineFile {
+                        provider: ManifestFileProvider::Inline(InlineFile {
                             content: "content".to_string(),
                         }),
                     }],
@@ -740,9 +740,9 @@ pub(crate) mod tests {
             execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
                 resources: ComposeResources {
                     project_name: None,
-                    compose_files: vec![NamedComposeFileProvider {
+                    compose_files: vec![NamedManifestFileProvider {
                         name: "compose.yaml".to_string(),
-                        provider: ComposeFileProvider::Required(RequiredFile {
+                        provider: ManifestFileProvider::Required(RequiredFile {
                             message: "this is a required file".to_string(),
                         }),
                     }],
@@ -980,9 +980,9 @@ pub(crate) mod tests {
         let docker_compose = DockerComposeEnvironment {
             resources: ComposeResources {
                 project_name: Some("inline-dir-test".to_string()),
-                compose_files: vec![NamedComposeFileProvider {
+                compose_files: vec![NamedManifestFileProvider {
                     name: "compose-dir".to_string(),
-                    provider: ComposeFileProvider::InlineDir(inline_dir),
+                    provider: ManifestFileProvider::InlineDir(inline_dir),
                 }],
             },
             file_providers: Vec::new(),

@@ -366,7 +366,7 @@ pub(crate) mod test_helpers {
             command::CommandSection,
             file::{
                 InlineFile,
-                compose::{ComposeFileProvider, NamedComposeFileProvider},
+                manifest::{ManifestFileProvider, NamedManifestFileProvider},
             },
         },
         run::Provider,
@@ -424,10 +424,10 @@ pub(crate) mod test_helpers {
     /// Create a named compose file with inline content unique to the name.
     /// Using the name in the content ensures each compose file has a unique provider
     /// identity (since providers are keyed by their serialized content).
-    pub(crate) fn named_compose_file(name: &str) -> NamedComposeFileProvider {
-        NamedComposeFileProvider {
+    pub(crate) fn named_compose_file(name: &str) -> NamedManifestFileProvider {
+        NamedManifestFileProvider {
             name: name.to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: format!("# {name}\nservices: {{}}"),
             }),
         }

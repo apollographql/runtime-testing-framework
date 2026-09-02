@@ -3,7 +3,7 @@ use crate::{
     context::ResolutionContext,
     formats::environment::manifest::{ManifestEnvironment, NamedManifestFiles},
     inlining::{self, InlineMode, InlinedProvider},
-    providers::file::compose::NamedComposeFileProvider,
+    providers::file::manifest::NamedManifestFileProvider,
     run::{Provider, RunProviders, ValidateEnvironment},
 };
 use rtf_derive::Template;
@@ -18,17 +18,17 @@ impl ValidateEnvironment for K8sEnvironment {}
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct K8sResources {
     /// A list of all the kubernetes resource files to apply for this environment
-    pub resources: Vec<NamedComposeFileProvider>,
+    pub resources: Vec<NamedManifestFileProvider>,
 }
 
 impl ValidateEnvironment for K8sResources {}
 
 impl NamedManifestFiles for K8sResources {
-    fn manifest_files(&self) -> &Vec<NamedComposeFileProvider> {
+    fn manifest_files(&self) -> &Vec<NamedManifestFileProvider> {
         &self.resources
     }
 
-    fn manifest_files_mut(&mut self) -> &mut Vec<NamedComposeFileProvider> {
+    fn manifest_files_mut(&mut self) -> &mut Vec<NamedManifestFileProvider> {
         &mut self.resources
     }
 }
@@ -89,7 +89,7 @@ mod tests {
         providers::{
             file::{
                 FileProvider, InlineFile, NamedFileProvider, RelativeFile, RequiredFile, SourceDir,
-                StableSource, compose::ComposeFileProvider,
+                StableSource, manifest::ManifestFileProvider,
             },
             test_helpers::create_temp_dir_with_file,
         },
@@ -100,7 +100,7 @@ mod tests {
 
     /// Create an empty [EnvironmentConfig] wrapping a [K8sEnvironment] for tests.
     fn empty_k8s_environment_config(
-        resources: Vec<NamedComposeFileProvider>,
+        resources: Vec<NamedManifestFileProvider>,
     ) -> EnvironmentConfig<K8sEnvironment> {
         EnvironmentConfig {
             name: String::new(),
@@ -118,10 +118,10 @@ mod tests {
         }
     }
 
-    fn named_k8s_resource(name: &str) -> NamedComposeFileProvider {
-        NamedComposeFileProvider {
+    fn named_k8s_resource(name: &str) -> NamedManifestFileProvider {
+        NamedManifestFileProvider {
             name: name.to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: format!("# {name}\nkind: Deployment"),
             }),
         }
@@ -132,9 +132,9 @@ mod tests {
         let field_names = &["resource", "file"];
         let ctx = template_context(field_names);
 
-        let mut environment = empty_k8s_environment_config(vec![NamedComposeFileProvider {
+        let mut environment = empty_k8s_environment_config(vec![NamedManifestFileProvider {
             name: "resource.yaml".to_string(),
-            provider: ComposeFileProvider::RelativePath(RelativeFile {
+            provider: ManifestFileProvider::RelativePath(RelativeFile {
                 path: Field::Pending("resource".to_string()),
                 src: None,
             }),
@@ -164,12 +164,12 @@ mod tests {
             Default::default(),
         ));
 
-        let relative_resource = ComposeFileProvider::RelativePath(RelativeFile {
+        let relative_resource = ManifestFileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("file.txt".to_string()),
             src: Some(StableSource::Environment),
         });
 
-        let mut environment = empty_k8s_environment_config(vec![NamedComposeFileProvider {
+        let mut environment = empty_k8s_environment_config(vec![NamedManifestFileProvider {
             name: "resource.yaml".to_string(),
             provider: relative_resource,
         }]);
@@ -188,9 +188,9 @@ mod tests {
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 
-        let expected_inline_resource = NamedComposeFileProvider {
+        let expected_inline_resource = NamedManifestFileProvider {
             name: "resource.yaml".to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: "example file content".to_string(),
             }),
         };
@@ -203,9 +203,9 @@ mod tests {
 
     #[test]
     fn check_k8s_success() {
-        let environment = empty_k8s_environment_config(vec![NamedComposeFileProvider {
+        let environment = empty_k8s_environment_config(vec![NamedManifestFileProvider {
             name: "resource.yaml".to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: "content".to_string(),
             }),
         }]);
@@ -218,9 +218,9 @@ mod tests {
 
     #[test]
     fn try_check_k8s_resource_errors() {
-        let environment = empty_k8s_environment_config(vec![NamedComposeFileProvider {
+        let environment = empty_k8s_environment_config(vec![NamedManifestFileProvider {
             name: "resource.yaml".to_string(),
-            provider: ComposeFileProvider::Required(RequiredFile {
+            provider: ManifestFileProvider::Required(RequiredFile {
                 message: "this is a required file".to_string(),
             }),
         }]);

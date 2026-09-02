@@ -3,7 +3,7 @@ use crate::{
     VariableDefinition,
     context::ResolutionContext,
     formats::PrometheusQuery,
-    providers::file::{NamedFileProvider, compose::NamedComposeFileProvider},
+    providers::file::{NamedFileProvider, manifest::NamedManifestFileProvider},
 };
 use std::{collections::HashMap, hash::Hash, mem};
 
@@ -174,7 +174,7 @@ pub trait CheckArrayDuplicates {
 pub enum DedupArray<'a> {
     VariableDef(&'a mut Vec<VariableDefinition>),
     Nfp(&'a mut Vec<NamedFileProvider>),
-    Ncfp(&'a mut Vec<NamedComposeFileProvider>),
+    Ncfp(&'a mut Vec<NamedManifestFileProvider>),
     Prometheus(&'a mut Vec<PrometheusQuery>),
 }
 
@@ -323,7 +323,7 @@ pub(crate) fn duplicate_keys<'a, T: 'a>(
 mod tests {
     use super::*;
     use crate::{
-        providers::file::{FileProvider, InlineFile, compose::ComposeFileProvider},
+        providers::file::{FileProvider, InlineFile, manifest::ManifestFileProvider},
         templating::Scalar,
     };
     use simple_test_case::test_case;
@@ -398,10 +398,10 @@ mod tests {
         }
     }
 
-    fn ncfp(name: &str) -> NamedComposeFileProvider {
-        NamedComposeFileProvider {
+    fn ncfp(name: &str) -> NamedManifestFileProvider {
+        NamedManifestFileProvider {
             name: name.to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: format!("# {name}\nservices: {{}}"),
             }),
         }
@@ -595,7 +595,7 @@ mod tests {
     )]
     #[test_case(
         DedupArray::Ncfp(&mut vec![
-            NamedComposeFileProvider { name: "a".to_string(), provider: ComposeFileProvider::Inline(InlineFile { content: "original".to_string() }) },
+            NamedManifestFileProvider { name: "a".to_string(), provider: ManifestFileProvider::Inline(InlineFile { content: "original".to_string() }) },
             ncfp("b"),
             ncfp("a"),
         ]),

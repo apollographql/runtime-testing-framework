@@ -21,9 +21,9 @@ use std::{
 };
 
 pub mod apollo;
-pub mod compose;
 pub mod custom;
 pub mod github;
+pub mod manifest;
 mod source;
 pub mod utility;
 

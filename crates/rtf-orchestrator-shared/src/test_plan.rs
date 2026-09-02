@@ -563,7 +563,7 @@ teardown:
 
         assert_matches!(
             res,
-            Err(providers::Error::ComposeFileNotInlined { ref name }) if name == "required-compose",
+            Err(providers::Error::ManifestFileNotInlined { ref name }) if name == "required-compose",
             "expected ComposeFileNotInlined, got {res:?}"
         );
     }

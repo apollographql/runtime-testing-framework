@@ -13,7 +13,7 @@ use crate::{
         file::{
             AsUtf8FileContent, FileProvider, NamedFileProvider, RelativeDir, RelativeFile,
             ResolveAndWrite,
-            compose::{ComposeFileProvider, NamedComposeFileProvider},
+            manifest::{ManifestFileProvider, NamedManifestFileProvider},
         },
     },
     templating::Template,
@@ -50,7 +50,7 @@ pub enum Provider<'a> {
         cmd: &'a CommandProvider,
     },
     ComposeFile {
-        fp: &'a ComposeFileProvider,
+        fp: &'a ManifestFileProvider,
     },
 }
 
@@ -249,7 +249,7 @@ impl RunProviders for Vec<NamedFileProvider> {
     }
 }
 
-impl RunProviders for Vec<NamedComposeFileProvider> {
+impl RunProviders for Vec<NamedManifestFileProvider> {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         self.iter()
             .map(|nfp| {

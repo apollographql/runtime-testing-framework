@@ -7,7 +7,7 @@ use crate::{
         self,
         file::{
             InlineDir, InlineFile, NamedFileProvider, StableSource,
-            compose::{ComposeFileProvider, NamedComposeFileProvider},
+            manifest::{ManifestFileProvider, NamedManifestFileProvider},
         },
     },
     run::{OUTDIR, OUTPUT_PATH, Provider, RunProviders, ValidateEnvironment},
@@ -25,8 +25,8 @@ use std::{
 const PROVIDERS_CONTAINER_PATH: &str = "/providers";
 
 pub trait NamedManifestFiles {
-    fn manifest_files(&self) -> &Vec<NamedComposeFileProvider>;
-    fn manifest_files_mut(&mut self) -> &mut Vec<NamedComposeFileProvider>;
+    fn manifest_files(&self) -> &Vec<NamedManifestFileProvider>;
+    fn manifest_files_mut(&mut self) -> &mut Vec<NamedManifestFileProvider>;
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
@@ -159,29 +159,21 @@ impl<M: ValidateEnvironment + NamedManifestFiles> ManifestEnvironment<M> {
 
     /// The content of every manifest file, in the order the providers would be read: provider
     /// order, and within a directory provider the order its files were resolved in.
-    ///
-    /// Exists so that callers outside this crate can inspect manifest file content without
-    /// needing access to the inlined providers' private fields.
-    ///
-    /// Requires that every provider has already been resolved by
-    /// [inline_manifests](ManifestEnvironment::inline_manifests), and errors with
-    /// [providers::Error::ComposeFileNotInlined] if one has not: returning a partial list instead
-    /// would mean reporting an environment that silently omits some of its resources.
     pub fn manifest_contents(&self) -> providers::Result<Vec<&str>> {
         let mut contents = Vec::new();
 
         for ncfp in self.resources.manifest_files().iter() {
             match &ncfp.provider {
-                ComposeFileProvider::Inline(InlineFile { content }) => {
+                ManifestFileProvider::Inline(InlineFile { content }) => {
                     contents.push(content.as_str())
                 }
 
-                ComposeFileProvider::InlineDir(InlineDir { files }) => {
+                ManifestFileProvider::InlineDir(InlineDir { files }) => {
                     contents.extend(files.iter().map(|f| f.content.as_str()));
                 }
 
                 _ => {
-                    return Err(providers::Error::ComposeFileNotInlined {
+                    return Err(providers::Error::ManifestFileNotInlined {
                         name: ncfp.name.clone(),
                     });
                 }
