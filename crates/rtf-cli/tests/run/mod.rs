@@ -284,6 +284,17 @@ fn execution_fails(test_plan_dir: &str, expected_err: &str) {
         .stderr(contains(expected_err));
 }
 
+// Tests that the same Test Plan works correctly for non-execution based commands are found in the
+// other integration test modules -- the parse error here is because we use a more restrictive
+// environment enum when running.
+#[test]
+fn k8s_environments_dont_execute_locally() {
+    prepare_rtf_run("resources/test-plans/valid/k8s-environment")
+        .assert()
+        .failure()
+        .stderr(contains("Unable to parse test plan yaml:"));
+}
+
 #[test]
 fn load_and_resolve_from_invalid_github_uri_fails() {
     let mut cmd = cargo_bin_cmd!("rtf");
