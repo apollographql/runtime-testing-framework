@@ -18,16 +18,17 @@ use uuid::Uuid;
 pub use crate::templates::*;
 pub use crate::view::*;
 
-fn run_id(n: u128) -> Uuid {
+fn id(n: u128) -> Uuid {
     Uuid::from_u128(n)
 }
 
 pub fn index() -> IndexTemplate {
     let response = TestRunListResponse {
         runs: vec![
-            mocks::sample_summary(run_id(1), run_id(2), Status::Running),
-            mocks::sample_summary(run_id(3), run_id(4), Status::Successful),
-            mocks::sample_summary(run_id(5), run_id(6), Status::Failed),
+            mocks::sample_summary(id(1), id(2), Status::Running),
+            mocks::sample_summary(id(3), id(4), Status::Successful),
+            mocks::sample_summary(id(5), id(6), Status::Failed),
+            mocks::sample_summary(id(9), id(3), Status::Cancelled),
         ],
         total: 3,
     };
@@ -48,11 +49,11 @@ pub fn index() -> IndexTemplate {
 
 pub fn run_running() -> RunTemplate {
     let run = TestRunSummary {
-        test_plan_id: Some(run_id(10)),
+        test_plan_id: Some(id(10)),
         trigger_variables: Some(
             json!({"environment": "staging", "regions": ["us-east-1", "eu-west-1"]}),
         ),
-        ..mocks::sample_summary(run_id(1), run_id(2), Status::Running)
+        ..mocks::sample_summary(id(1), id(2), Status::Running)
     };
 
     RunTemplate {
@@ -63,9 +64,9 @@ pub fn run_running() -> RunTemplate {
 pub fn run_terminal() -> RunTemplate {
     let now = Utc::now();
     let run = TestRunSummary {
-        test_plan_id: Some(run_id(10)),
+        test_plan_id: Some(id(10)),
         completed_at: Some(now),
-        ..mocks::sample_summary(run_id(3), run_id(4), Status::Successful)
+        ..mocks::sample_summary(id(3), id(4), Status::Successful)
     };
 
     RunTemplate {
@@ -75,21 +76,21 @@ pub fn run_terminal() -> RunTemplate {
 
 pub fn run_not_found() -> RunNotFoundTemplate {
     RunNotFoundTemplate {
-        id: run_id(999).to_string(),
+        id: id(999).to_string(),
     }
 }
 
 pub fn execution_with_parent() -> ExecutionTemplate {
     ExecutionTemplate {
         execution: ExecutionDetailView::new(
-            mocks::sample_execution(run_id(1), run_id(2)),
+            mocks::sample_execution(id(1), id(2)),
             &sample_config(),
         ),
     }
 }
 
 pub fn execution_without_parent() -> ExecutionTemplate {
-    let mut execution = mocks::sample_execution(run_id(1), run_id(2));
+    let mut execution = mocks::sample_execution(id(1), id(2));
     execution.test_run_id = None;
 
     ExecutionTemplate {
@@ -99,15 +100,15 @@ pub fn execution_without_parent() -> ExecutionTemplate {
 
 pub fn execution_not_found() -> ExecutionNotFoundTemplate {
     ExecutionNotFoundTemplate {
-        execution_id: run_id(404).to_string(),
+        execution_id: id(404).to_string(),
     }
 }
 
 pub fn test_plans() -> TestPlansTemplate {
     let response = KnownTestPlanListResponse {
         test_plans: vec![
-            mocks::sample_known_test_plan(run_id(10)),
-            mocks::sample_known_test_plan(run_id(11)),
+            mocks::sample_known_test_plan(id(10)),
+            mocks::sample_known_test_plan(id(11)),
         ],
         total: 2,
     };
@@ -119,13 +120,9 @@ pub fn test_plans() -> TestPlansTemplate {
 }
 
 pub fn test_plan_detail() -> TestPlanDetailTemplate {
-    let uuid = run_id(10);
+    let uuid = id(10);
     let runs = TestRunListResponse {
-        runs: vec![mocks::sample_summary(
-            run_id(1),
-            run_id(2),
-            Status::Successful,
-        )],
+        runs: vec![mocks::sample_summary(id(1), id(2), Status::Successful)],
         total: 1,
     };
 
@@ -149,7 +146,7 @@ pub fn test_plan_detail() -> TestPlanDetailTemplate {
 
 pub fn test_plan_not_found() -> TestPlanNotFoundTemplate {
     TestPlanNotFoundTemplate {
-        uuid: run_id(404).to_string(),
+        uuid: id(404).to_string(),
     }
 }
 

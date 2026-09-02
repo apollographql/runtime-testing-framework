@@ -327,7 +327,7 @@ impl EventQueue {
         }
 
         let data = match current {
-            Status::Successful | Status::Failed | Status::Unrunnable => {
+            Status::Successful | Status::Failed | Status::Unrunnable | Status::Cancelled => {
                 unreachable!("is_terminal() checked above")
             }
 

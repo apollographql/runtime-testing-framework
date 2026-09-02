@@ -27,11 +27,15 @@ pub enum Status {
     Successful,
     Failed,
     Unrunnable,
+    Cancelled,
 }
 
 impl Status {
     pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Successful | Self::Failed | Self::Unrunnable)
+        matches!(
+            self,
+            Self::Successful | Self::Failed | Self::Unrunnable | Self::Cancelled
+        )
     }
 
     /// The coarse lifecycle bucket this status falls into, e.g. for presenting a handful of visual
@@ -45,6 +49,7 @@ impl Status {
             Successful => StatusCategory::Success,
             Failed => StatusCategory::Failed,
             Unrunnable => StatusCategory::Unrunnable,
+            Cancelled => StatusCategory::Cancelled,
         }
     }
 }
@@ -62,6 +67,7 @@ impl fmt::Display for Status {
             Successful => write!(f, "SUCCESSFUL"),
             Failed => write!(f, "FAILED"),
             Unrunnable => write!(f, "UNRUNNABLE"),
+            Cancelled => write!(f, "CANCELLED"),
         }
     }
 }
@@ -75,4 +81,5 @@ pub enum StatusCategory {
     Success,
     Failed,
     Unrunnable,
+    Cancelled,
 }

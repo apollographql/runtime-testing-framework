@@ -184,6 +184,21 @@ pub trait UpdateHandle: Send + Sync {
         }
     }
 
+    fn mark_run_as_cancelled(
+        &mut self,
+        tr: &TestRun,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_run_status(tr, Status::Cancelled, Some(message))
+                .await
+            {
+                error!(id=%tr.uuid(), %err, "Unable to mark Test Run as cancelled");
+            }
+        }
+    }
+
     fn mark_execution_as_resolving(
         &mut self,
         ex: &TestExecution,
@@ -240,6 +255,21 @@ pub trait UpdateHandle: Send + Sync {
                 .await
             {
                 error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as unrunnable");
+            }
+        }
+    }
+
+    fn mark_execution_as_cancelled(
+        &mut self,
+        ex: &TestExecution,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_execution_status(ex, Status::Cancelled, Some(message))
+                .await
+            {
+                error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as cancelled");
             }
         }
     }
