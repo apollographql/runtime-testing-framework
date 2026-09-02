@@ -17,13 +17,7 @@ pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSumma
 
     match TestExecution::get_by_uuid(&id, conn).await? {
         Some(ex) => {
-            let tr = ex.test_run(conn).await?;
-            let test_run_id = tr.uuid();
-            let test_plan_id = tr.test_plan_uuid(conn).await?;
-            let mut summary = ex.try_into_summary_with_status_history(conn).await?;
-            summary.test_run_id = Some(test_run_id);
-            summary.test_plan_id = test_plan_id;
-
+            let summary = ex.try_into_summary_with_status_history(conn).await?;
             Ok(Json(summary))
         }
         None => Err(Error::UnknownTestExecution { id }),

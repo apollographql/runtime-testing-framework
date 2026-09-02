@@ -77,6 +77,14 @@ fn build_routes(
             post(admin::register_known_test_plan::handler),
         )
         .route(
+            "/admin/purge-execution/{uuid}",
+            get(admin::purge_queue::ex_handler),
+        )
+        .route(
+            "/admin/purge-run/{uuid}",
+            get(admin::purge_queue::run_handler),
+        )
+        .route(
             "/admin/test-plan/{uuid}/pinned-cluster",
             post(admin::known_test_plan_cluster_pin::set_handler)
                 .delete(admin::known_test_plan_cluster_pin::clear_handler),

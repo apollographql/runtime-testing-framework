@@ -147,6 +147,7 @@ pub enum EventData {
     CleanupNamespace,
     CleanupNamespaceAfter(u64),
     MarkUnrunnable(String),
+    PurgeNamespace,
 }
 
 impl EventData {
@@ -161,6 +162,7 @@ impl EventData {
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespaceAfter(_) => "CleanupNamespaceAfter",
             Self::CleanupNamespace => "CleanupNamespace",
+            Self::PurgeNamespace => "PurgeNamespace",
         }
     }
 
@@ -368,6 +370,20 @@ impl Event {
                 }
 
                 res
+            }
+
+            EventData::PurgeNamespace => {
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let mut clients = ClusterClients::try_new_workload(
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build workload k8s client for PurgeNamespace"),
+                )?;
+
+                cleanup_namespace::try_run(self.test_execution.clone(), &mut clients).await
             }
 
             EventData::MarkUnrunnable(message) => {

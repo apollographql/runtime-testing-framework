@@ -1,4 +1,5 @@
 use crate::{
+    Error,
     config::Config,
     conn,
     context::OrchestratorContext,
@@ -226,31 +227,49 @@ where
         .await;
 
     let mut n_submitted = 0;
+    let mut cancelled = false;
+
     for (i, (name, _)) in expanded_matrix.iter().enumerate() {
-        let ex = match update_handle.init_execution(test_run, name, i).await {
-            Ok(ex) => ex,
+        let res = prov_handle
+            .request_provisioning(
+                test_run,
+                name,
+                i,
+                test_run.workload_cluster(),
+                update_handle,
+            )
+            .await;
+
+        match res {
+            Ok(true) => n_submitted += 1,
+            Ok(false) => {
+                warn!(run_uuid=%test_run.uuid(), "test run cancelled mid-submission, stopping further execution creation");
+                cancelled = true;
+                break;
+            }
+            Err(Error::Resolve(ResolverError::EventChannelClosed)) => {
+                return Err(ResolverError::EventChannelClosed);
+            }
             Err(e) => {
                 error!(%e, %name, "unable to initialise execution in DB");
                 continue;
             }
-        };
-
-        n_submitted += 1;
-        prov_handle
-            .request_provisioning(ex, test_run.uuid(), test_run.workload_cluster())
-            .await?;
+        }
     }
 
     // If we failed to init any executions then there's nothing to clear the cache later, so we
-    // clear it now and mark the run as unrunnable.
+    // clear it now and mark as unrunnable if the run wasn't cancelled.
     if n_submitted == 0 {
         prov_handle.evict_cached_run_state(test_run.uuid()).await;
         update_handle
             .clear_cached_payload_for_run(test_run.uuid())
             .await;
-        update_handle
-            .mark_run_as_unrunnable(test_run, "unable to initialise executions".into())
-            .await;
+
+        if !cancelled {
+            update_handle
+                .mark_run_as_unrunnable(test_run, "unable to initialise executions".into())
+                .await;
+        }
     }
 
     Ok(())
@@ -449,8 +468,8 @@ mod tests {
     async fn resolve_config_success_sends_create_env_argo_workflow() {
         let cfg = Config::for_test();
         let (mut eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);
-        let run_uuid = Uuid::new_v4();
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
+        let tr = TestRun::create_stub(1, "test");
+        let mut mock = mock_handle_with_run(&tr);
 
         let ctx = crate::context::OrchestratorContext::new_from_inlined_files(
             &cfg,
@@ -465,13 +484,14 @@ mod tests {
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(run_uuid, None, ctx, tp).await;
-        ph.request_provisioning(ex.clone(), run_uuid, alpha_cluster())
+        ph.cache_for_test_run(tr.uuid(), None, ctx, tp).await;
+        ph.request_provisioning(&tr, "test", 0, alpha_cluster(), &mut mock)
             .await
             .unwrap();
         // drain the ResolveEnvConfig sent by request_provisioning
         let _ = eq.next_event().await;
 
+        let ex = mock.test_executions[0].clone();
         resolve_config(ex, alpha_cluster(), &ph).await;
 
         let evt = eq

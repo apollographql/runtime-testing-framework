@@ -7,6 +7,7 @@ use std::str::FromStr;
 use tracing_subscriber::{EnvFilter, Registry, reload::Handle};
 
 pub mod known_test_plan_cluster_pin;
+pub mod purge_queue;
 pub mod register_known_test_plan;
 
 const RESET: &str = "reset";

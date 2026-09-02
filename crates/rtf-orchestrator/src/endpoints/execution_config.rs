@@ -130,12 +130,8 @@ mod tests {
         tss.prov_handle
             .cache_for_test_run(run_uuid, None, ctx, test_plan)
             .await;
-
-        // Channel is closed at this point because we're not running the event loop, but we just
-        // need the side effects of the push
-        _ = tss
-            .prov_handle
-            .request_provisioning(ex, run_uuid, alpha_cluster())
+        tss.prov_handle
+            .register_existing_execution(ex.uuid(), run_uuid)
             .await;
     }
 
