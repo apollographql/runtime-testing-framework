@@ -6,7 +6,7 @@
 <a href=#6 id=6 data-nosnippet>6</a>//! [0]: https://git-scm.com/docs
 <a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">use </span>anyhow::{Context <span class="kw">as _</span>, anyhow, bail};
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>rtf_config::{
-<a href=#9 id=9 data-nosnippet>9</a>    Execution, SourceDir,
+<a href=#9 id=9 data-nosnippet>9</a>    Prepare, SourceDir,
 <a href=#10 id=10 data-nosnippet>10</a>    context::{Context, PathKind, ResolutionContext},
 <a href=#11 id=11 data-nosnippet>11</a>    formats::{<span class="self">self</span>, Sources, TestPlan},
 <a href=#12 id=12 data-nosnippet>12</a>};
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>}
 <a href=#79 id=79 data-nosnippet>79</a>
 <a href=#80 id=80 data-nosnippet>80</a><span class="doccomment">/// Handles loading a local test plan and displaying user facing errors
-<a href=#81 id=81 data-nosnippet>81</a></span><span class="kw">pub async fn </span>load_and_resolve_test_plan_from_local&lt;E: Execution&gt;(
+<a href=#81 id=81 data-nosnippet>81</a></span><span class="kw">pub async fn </span>load_and_resolve_test_plan_from_local&lt;E: Prepare&gt;(
 <a href=#82 id=82 data-nosnippet>82</a>    path: <span class="kw-2">&amp;</span>str,
 <a href=#83 id=83 data-nosnippet>83</a>    ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
 <a href=#84 id=84 data-nosnippet>84</a>) -&gt; anyhow::Result&lt;(TestPlan&lt;E&gt;, Sources)&gt; {
@@ -93,7 +93,7 @@
 <a href=#93 id=93 data-nosnippet>93</a>}
 <a href=#94 id=94 data-nosnippet>94</a>
 <a href=#95 id=95 data-nosnippet>95</a><span class="doccomment">/// Handles loading a test plan from github and displaying user facing errors
-<a href=#96 id=96 data-nosnippet>96</a></span><span class="kw">pub async fn </span>load_and_resolve_test_plan_from_github&lt;E: Execution&gt;(
+<a href=#96 id=96 data-nosnippet>96</a></span><span class="kw">pub async fn </span>load_and_resolve_test_plan_from_github&lt;E: Prepare&gt;(
 <a href=#97 id=97 data-nosnippet>97</a>    test_plan_path: <span class="kw-2">&amp;</span>str,
 <a href=#98 id=98 data-nosnippet>98</a>    git_ref: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#99 id=99 data-nosnippet>99</a>    ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,

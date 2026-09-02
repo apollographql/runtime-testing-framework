@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DOCKER_COMPOSE_NETWORK","OUTDIR","OUTPUT_PATH","PROVIDER_DIR"],"enum":["Provider"],"struct":["ExecuteArgs"],"trait":["Execute","RunEnvironment","RunProviders","RunScenario"]};
+window.SIDEBAR_ITEMS = {"constant":["DOCKER_COMPOSE_NETWORK","OUTDIR","OUTPUT_PATH","PROVIDER_DIR"],"enum":["Provider"],"struct":["ExecuteArgs"],"trait":["Execute","RunEnvironment","RunProviders","RunScenario","ValidateEnvironment","ValidateScenario"]};

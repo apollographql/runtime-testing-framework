@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a>    StableSource,
 <a href=#6 id=6 data-nosnippet>6</a>    checks::Check,
 <a href=#7 id=7 data-nosnippet>7</a>    context::ResolutionContext,
-<a href=#8 id=8 data-nosnippet>8</a>    formats::{Sources, TestPlanConfig},
+<a href=#8 id=8 data-nosnippet>8</a>    formats::{PrepareOnlyTestPlanConfig, Sources},
 <a href=#9 id=9 data-nosnippet>9</a>    templating::{Template, TemplateContext},
 <a href=#10 id=10 data-nosnippet>10</a>};
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>rtf_core::variables::Variables;
@@ -30,7 +30,7 @@
 <a href=#30 id=30 data-nosnippet>30</a></span>}
 <a href=#31 id=31 data-nosnippet>31</a>
 <a href=#32 id=32 data-nosnippet>32</a><span class="kw">async fn </span>template_test_plan_with_context(
-<a href=#33 id=33 data-nosnippet>33</a>    <span class="kw-2">mut </span>test_plan: TestPlanConfig,
+<a href=#33 id=33 data-nosnippet>33</a>    <span class="kw-2">mut </span>test_plan: PrepareOnlyTestPlanConfig,
 <a href=#34 id=34 data-nosnippet>34</a>    sources: Sources,
 <a href=#35 id=35 data-nosnippet>35</a>    variables: Variables,
 <a href=#36 id=36 data-nosnippet>36</a>    check: bool,
