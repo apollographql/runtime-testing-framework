@@ -3,7 +3,7 @@ use crate::{
     context::ResolutionContext,
     inlining::{self, InlineMode, InlinedProvider},
     providers,
-    run::{Provider, RunEnvironment, RunProviders},
+    run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
@@ -20,6 +20,8 @@ pub struct NullEnvironment {
     #[template(skip)]
     pub skip: bool,
 }
+
+impl ValidateEnvironment for NullEnvironment {}
 
 impl RunEnvironment for NullEnvironment {
     async fn execute_setup(

@@ -173,7 +173,7 @@ mod tests {
             mock_client::{MockClient, Resp},
         },
     };
-    use rtf_config::formats::DockerComposeEnvironment;
+    use rtf_config::formats::{ComposeResources, DockerComposeEnvironment};
     use rtf_orchestrator_shared::OtelConfig;
     use simple_test_case::test_case;
     use std::{assert_matches, collections::HashMap};
@@ -185,8 +185,10 @@ mod tests {
 
     fn stub_docker_compose_environment() -> OrchestratorEnvironment {
         OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
-            project_name: None,
-            compose_files: vec![],
+            resources: ComposeResources {
+                project_name: None,
+                compose_files: vec![],
+            },
             file_providers: vec![],
             env_vars: Default::default(),
             output_collection: Default::default(),

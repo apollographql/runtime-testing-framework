@@ -20,6 +20,7 @@ fn is_executable() {
 #[test_case("custom-provider-default-value"; "custom provider default value")]
 #[test_case("custom-provider-static-argument"; "custom provider static argument")]
 #[test_case("custom-provider-templated-variable"; "custom provider templated variable")]
+#[test_case("k8s-environment"; "k8s environment")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
 #[test_case("output-collection"; "output collection")]

@@ -30,9 +30,6 @@ pub enum Error {
     #[error("Unable to execute the {name} command: {err}")]
     CommandFailed { name: String, err: String },
 
-    #[error("Compose file provider {name} was not inlined before reading its content")]
-    ComposeFileNotInlined { name: String },
-
     #[error(
         "Mixed file provider usage detected:\nwith Orchestrator-compatible label: {labeled:?}\nwith explicit volume mounts: {explicit_mount:?}"
     )]
@@ -40,6 +37,9 @@ pub enum Error {
         labeled: Vec<String>,
         explicit_mount: Vec<String>,
     },
+
+    #[error("Manifest file provider {name} was not inlined before reading its content")]
+    ManifestFileNotInlined { name: String },
 
     #[error("Missing provider output for {name}")]
     MissingProviderOutput { name: String },

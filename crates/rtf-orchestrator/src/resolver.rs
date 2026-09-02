@@ -312,10 +312,10 @@ mod tests {
     use indoc::indoc;
     use rtf_config::{
         formats::{
-            DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
-            OutputCollection, ScenarioConfig,
+            ComposeResources, DockerCommand, DockerComposeEnvironment, DockerScenario,
+            EnvironmentConfig, Matrix, OutputCollection, ScenarioConfig,
         },
-        providers::file::compose::NamedComposeFileProvider,
+        providers::file::manifest::NamedManifestFileProvider,
         templating::{Field, Scalar},
     };
     use rtf_orchestrator_shared::{
@@ -329,7 +329,7 @@ mod tests {
     }
 
     fn minimal_orchestrator_test_plan(
-        compose_files: Vec<NamedComposeFileProvider>,
+        compose_files: Vec<NamedManifestFileProvider>,
     ) -> OrchestratorTestPlan {
         OrchestratorTestPlan {
             name: "test".to_string(),
@@ -359,8 +359,10 @@ mod tests {
                 variable_definitions: vec![],
                 custom_providers: vec![],
                 execution: OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
-                    project_name: None,
-                    compose_files,
+                    resources: ComposeResources {
+                        project_name: None,
+                        compose_files,
+                    },
                     file_providers: vec![],
                     env_vars: HashMap::new(),
                     output_collection: OutputCollection { prometheus: vec![] },
@@ -575,7 +577,7 @@ mod tests {
         let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
         // compose_files with a required provider — try_check always fails for RequiredFile
-        let required_compose: NamedComposeFileProvider = serde_yaml::from_str(indoc!(
+        let required_compose: NamedManifestFileProvider = serde_yaml::from_str(indoc!(
             r#"
                 name: required-compose
                 kind: required

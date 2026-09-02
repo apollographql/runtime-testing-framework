@@ -2,11 +2,11 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::{
-        CustomProviderDeclaration, EnvironmentConfig, Execution, Generic, Matrix, Result,
-        ScenarioConfig,
+        CustomProviderDeclaration, EnvironmentConfig, Generic, Matrix, Prepare, PrepareOnly,
+        Result, Run, ScenarioConfig,
     },
     providers::file::{SourceDir, StableSource},
-    run::Execute,
+    run::{Execute, RunEnvironment, RunScenario},
     templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_integrations::github::{self, Client};
@@ -31,7 +31,7 @@ pub const TEARDOWN_PROVIDER_DIR: &str = "teardown";
 
 /// The format for parsing a test plan config
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct TestPlan<E: Execution> {
+pub struct TestPlan<P: Prepare> {
     pub name: String,
     pub description: String,
     #[serde(default, alias = "values")]
@@ -41,14 +41,17 @@ pub struct TestPlan<E: Execution> {
     pub matrix: Matrix,
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
-    pub scenario: ScenarioConfig<E::Scenario>,
-    pub environment: EnvironmentConfig<E::Environment>,
+    pub scenario: ScenarioConfig<P::Scenario>,
+    pub environment: EnvironmentConfig<P::Environment>,
 }
 
 /// Test plan that accepts any scenario/environment execution type.
 pub type TestPlanConfig = TestPlan<Generic>;
 
-impl<E: Execution> TestPlan<E> {
+/// Test plans that can be prepared but not executed.
+pub type PrepareOnlyTestPlanConfig = TestPlan<PrepareOnly>;
+
+impl<P: Prepare> TestPlan<P> {
     /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::try_expand)
     /// any matrix variables that it contains.
     ///
@@ -83,43 +86,6 @@ impl<E: Execution> TestPlan<E> {
         new.matrix.clear();
 
         Ok(Some((name, new)))
-    }
-
-    pub async fn run_environment_setup(
-        &self,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> Result<()> {
-        self.environment
-            .execute_setup(SETUP_PROVIDER_DIR, out_dir, ctx)
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn run_environment_teardown(
-        &self,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> Result<()> {
-        self.environment
-            .execute_teardown(TEARDOWN_PROVIDER_DIR, out_dir, ctx)
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn run_scenario(
-        &self,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> Result<()> {
-        self.scenario
-            .execution
-            .run_providers_and_execute_for_output(SCENARIO_PROVIDER_DIR, out_dir, ctx)
-            .await?;
-
-        Ok(())
     }
 
     pub async fn try_load_and_resolve_from_path(
@@ -172,7 +138,50 @@ impl<E: Execution> TestPlan<E> {
     }
 }
 
-impl<E: Execution> Template for TestPlan<E> {
+impl<R: Run> TestPlan<R>
+where
+    R::Scenario: RunScenario,
+    R::Environment: RunEnvironment,
+{
+    pub async fn run_environment_setup(
+        &self,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> Result<()> {
+        self.environment
+            .execute_setup(SETUP_PROVIDER_DIR, out_dir, ctx)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn run_environment_teardown(
+        &self,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> Result<()> {
+        self.environment
+            .execute_teardown(TEARDOWN_PROVIDER_DIR, out_dir, ctx)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn run_scenario(
+        &self,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> Result<()> {
+        self.scenario
+            .execution
+            .run_providers_and_execute_for_output(SCENARIO_PROVIDER_DIR, out_dir, ctx)
+            .await?;
+
+        Ok(())
+    }
+}
+
+impl<P: Prepare> Template for TestPlan<P> {
     fn required_variables(&self) -> Vec<String> {
         let mut vals = self.environment.required_variables();
         vals.extend(self.scenario.required_variables());
@@ -229,7 +238,7 @@ impl<E: Execution> Template for TestPlan<E> {
     }
 }
 
-impl<E: Execution> Check for TestPlan<E> {
+impl<P: Prepare> Check for TestPlan<P> {
     fn try_check(
         &self,
         path: &mut Vec<String>,

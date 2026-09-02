@@ -264,13 +264,15 @@ fn create_service_account(
 mod tests {
     use super::*;
     use crate::k8s::workflow::as_workflow::DEPLOY_ENVIRONMENT;
-    use rtf_config::formats::{DockerComposeEnvironment, NullEnvironment};
+    use rtf_config::formats::{ComposeResources, DockerComposeEnvironment, NullEnvironment};
 
     #[test]
     fn main_template_includes_deploy_environment_for_docker_compose() {
         let env = OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
-            project_name: None,
-            compose_files: vec![],
+            resources: ComposeResources {
+                project_name: None,
+                compose_files: vec![],
+            },
             file_providers: vec![],
             env_vars: Default::default(),
             output_collection: Default::default(),

@@ -3,11 +3,12 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_check,
+    enum_impl_check, enum_impl_check_array_duplicates, enum_impl_run_environment,
+    enum_impl_run_providers,
     formats::{CustomProviderDeclaration, OutputCollection, Result},
     inlining::{self, InlineMode, InlinedProvider},
     providers::{self, file::StableSource},
-    run::{Provider, RunEnvironment, RunProviders},
+    run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
     templating::{self, FileType, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -21,10 +22,16 @@ use std::{
 };
 
 mod docker_compose;
+mod k8s;
+mod manifest;
 mod null;
 mod script;
 
-pub use docker_compose::{DockerComposeEnvironment, FileProviderServices, PullPolicyServices};
+pub use docker_compose::{
+    ComposeResources, DockerComposeEnvironment, FileProviderServices, PullPolicyServices,
+};
+pub use k8s::{K8sEnvironment, K8sResources};
+pub use manifest::{ManifestEnvironment, NamedManifestFiles};
 pub use null::NullEnvironment;
 pub use script::ScriptEnvironment;
 
@@ -32,7 +39,7 @@ pub use script::ScriptEnvironment;
 ///
 /// Configuration for preparing and cleaning up the test environment as part of a test plan.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct EnvironmentConfig<R: RunEnvironment> {
+pub struct EnvironmentConfig<T: ValidateEnvironment> {
     /// The name of this environment configuration
     pub name: String,
     /// A brief description of how this environment setup works
@@ -45,7 +52,7 @@ pub struct EnvironmentConfig<R: RunEnvironment> {
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
     #[serde(flatten)]
-    pub execution: R,
+    pub execution: T,
 }
 
 impl EnvironmentConfig<EnvironmentExecution> {
@@ -87,7 +94,7 @@ impl EnvironmentConfig<EnvironmentExecution> {
     }
 }
 
-impl<R: RunEnvironment> EnvironmentConfig<R> {
+impl<T: RunEnvironment> EnvironmentConfig<T> {
     pub async fn execute_setup(
         &self,
         name: &str,
@@ -107,7 +114,7 @@ impl<R: RunEnvironment> EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> EnvironmentConfig<T> {
     pub async fn inline(
         &mut self,
         mode: &InlineMode,
@@ -118,7 +125,7 @@ impl<R: RunEnvironment> EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> Template for EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> Template for EnvironmentConfig<T> {
     fn required_variables(&self) -> Vec<String> {
         self.execution.required_variables()
     }
@@ -161,7 +168,7 @@ impl<R: RunEnvironment> Template for EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> Check for EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> Check for EnvironmentConfig<T> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -189,7 +196,7 @@ impl<R: RunEnvironment> Check for EnvironmentConfig<R> {
     }
 }
 
-impl<R: RunEnvironment> CheckArrayDuplicates for EnvironmentConfig<R> {
+impl<T: ValidateEnvironment> CheckArrayDuplicates for EnvironmentConfig<T> {
     const BASE_PATH: &str = "environment";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
@@ -217,74 +224,33 @@ pub enum EnvironmentExecution {
     Script(ScriptEnvironment),
 }
 
+impl ValidateEnvironment for EnvironmentExecution {}
+
 enum_impl_check!(EnvironmentExecution => Null, DockerCompose, Script);
+enum_impl_run_providers!(EnvironmentExecution => Null, DockerCompose, Script);
+enum_impl_run_environment!(EnvironmentExecution => Null, DockerCompose, Script);
+enum_impl_check_array_duplicates!(EnvironmentExecution, "environment_execution" => Null, DockerCompose, Script);
 
-impl RunEnvironment for EnvironmentExecution {
-    async fn execute_setup(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.execute_setup(name, out_dir, ctx).await,
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.execute_setup(name, out_dir, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
-        }
-    }
-
-    async fn execute_teardown(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.execute_teardown(name, out_dir, ctx).await,
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.execute_teardown(name, out_dir, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
-        }
-    }
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[serde(
+    untagged,
+    expecting = "expected null environment (skip: true), docker-compose environment (with compose_files), script environment (with setup/teardown), or kubernetes environment (with resources)"
+)]
+#[allow(clippy::large_enum_variant)] // We only ever allocate one of these, not multiples, so the difference in variant size should not be an issue
+pub enum EnvironmentPrepare {
+    // Null needs to be the first variant in this enum to ensure that any time `skip: true` is set,
+    // we resolve to a NullEnvironment.
+    Null(NullEnvironment),
+    DockerCompose(DockerComposeEnvironment),
+    Script(ScriptEnvironment),
+    K8s(K8sEnvironment),
 }
 
-impl RunProviders for EnvironmentExecution {
-    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.named_providers(),
-            EnvironmentExecution::DockerCompose(inner) => inner.named_providers(),
-            EnvironmentExecution::Script(inner) => inner.named_providers(),
-        }
-    }
+impl ValidateEnvironment for EnvironmentPrepare {}
 
-    fn inline<'a>(
-        &'a mut self,
-        mode: &'a InlineMode,
-        ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.inline(mode, ctx, cache),
-            EnvironmentExecution::DockerCompose(inner) => inner.inline(mode, ctx, cache),
-            EnvironmentExecution::Script(inner) => inner.inline(mode, ctx, cache),
-        }
-    }
-}
-
-impl CheckArrayDuplicates for EnvironmentExecution {
-    const BASE_PATH: &str = "environment_execution";
-
-    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        match self {
-            EnvironmentExecution::Null(inner) => inner.deduplicated_arrays(),
-            EnvironmentExecution::DockerCompose(inner) => inner.deduplicated_arrays(),
-            EnvironmentExecution::Script(inner) => inner.deduplicated_arrays(),
-        }
-    }
-}
+enum_impl_check!(EnvironmentPrepare => Null, DockerCompose, Script, K8s);
+enum_impl_run_providers!(EnvironmentPrepare => Null, DockerCompose, Script, K8s);
+enum_impl_check_array_duplicates!(EnvironmentPrepare, "environment_prepare" => Null, DockerCompose, Script, K8s);
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
@@ -301,7 +267,7 @@ pub(crate) mod test_helpers {
             command::CommandSection,
             file::{
                 InlineFile,
-                compose::{ComposeFileProvider, NamedComposeFileProvider},
+                manifest::{ManifestFileProvider, NamedManifestFileProvider},
             },
         },
         run::Provider,
@@ -359,10 +325,10 @@ pub(crate) mod test_helpers {
     /// Create a named compose file with inline content unique to the name.
     /// Using the name in the content ensures each compose file has a unique provider
     /// identity (since providers are keyed by their serialized content).
-    pub(crate) fn named_compose_file(name: &str) -> NamedComposeFileProvider {
-        NamedComposeFileProvider {
+    pub(crate) fn named_compose_file(name: &str) -> NamedManifestFileProvider {
+        NamedManifestFileProvider {
             name: name.to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: format!("# {name}\nservices: {{}}"),
             }),
         }
@@ -374,11 +340,13 @@ pub(crate) mod test_helpers {
         compose_file_names: &[&str],
     ) -> DockerComposeEnvironment {
         DockerComposeEnvironment {
-            project_name: project_name.map(String::from),
-            compose_files: compose_file_names
-                .iter()
-                .map(|name| named_compose_file(name))
-                .collect(),
+            resources: docker_compose::ComposeResources {
+                project_name: project_name.map(String::from),
+                compose_files: compose_file_names
+                    .iter()
+                    .map(|name| named_compose_file(name))
+                    .collect(),
+            },
             file_providers: Vec::new(),
             env_vars: HashMap::new(),
             output_collection: OutputCollection {
@@ -395,6 +363,7 @@ pub(crate) mod test_helpers {
     ) -> (TempDir, Vec<String>) {
         let temp_dir = TempDir::new().unwrap();
         let paths = env
+            .resources
             .compose_files
             .iter()
             .map(|ncfp| {

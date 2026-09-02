@@ -6,7 +6,7 @@
 //! [0]: https://git-scm.com/docs
 use anyhow::{Context as _, anyhow, bail};
 use rtf_config::{
-    Execution, SourceDir,
+    Prepare, SourceDir,
     context::{Context, PathKind, ResolutionContext},
     formats::{self, Sources, TestPlan},
 };
@@ -78,7 +78,7 @@ where
 }
 
 /// Handles loading a local test plan and displaying user facing errors
-pub async fn load_and_resolve_test_plan_from_local<E: Execution>(
+pub async fn load_and_resolve_test_plan_from_local<E: Prepare>(
     path: &str,
     ctx: &impl ResolutionContext,
 ) -> anyhow::Result<(TestPlan<E>, Sources)> {
@@ -93,7 +93,7 @@ pub async fn load_and_resolve_test_plan_from_local<E: Execution>(
 }
 
 /// Handles loading a test plan from github and displaying user facing errors
-pub async fn load_and_resolve_test_plan_from_github<E: Execution>(
+pub async fn load_and_resolve_test_plan_from_github<E: Prepare>(
     test_plan_path: &str,
     git_ref: Option<String>,
     ctx: &impl ResolutionContext,

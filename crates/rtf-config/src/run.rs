@@ -13,7 +13,7 @@ use crate::{
         file::{
             AsUtf8FileContent, FileProvider, NamedFileProvider, RelativeDir, RelativeFile,
             ResolveAndWrite,
-            compose::{ComposeFileProvider, NamedComposeFileProvider},
+            manifest::{ManifestFileProvider, NamedManifestFileProvider},
         },
     },
     templating::Template,
@@ -50,7 +50,7 @@ pub enum Provider<'a> {
         cmd: &'a CommandProvider,
     },
     ComposeFile {
-        fp: &'a ComposeFileProvider,
+        fp: &'a ManifestFileProvider,
     },
 }
 
@@ -105,7 +105,12 @@ pub(crate) trait ExtractRelativeFiles: Send + Sync {
     ) -> impl Future<Output = providers::Result<()>> + Send;
 }
 
-pub trait RunEnvironment: RunProviders + Check + Template + CheckArrayDuplicates + Clone {
+pub trait ValidateEnvironment:
+    RunProviders + Check + Template + CheckArrayDuplicates + Clone
+{
+}
+
+pub trait RunEnvironment: ValidateEnvironment {
     fn execute_setup(
         &self,
         name: &str,
@@ -121,7 +126,36 @@ pub trait RunEnvironment: RunProviders + Check + Template + CheckArrayDuplicates
     ) -> impl Future<Output = providers::Result<String>> + Send;
 }
 
-pub trait RunScenario: Execute + Check + Template + CheckArrayDuplicates + Clone {}
+#[macro_export]
+macro_rules! enum_impl_run_environment {
+    ($enum:ident => $($variant:ident),+) => {
+        impl RunEnvironment for $enum {
+            async fn execute_setup(
+                &self,
+                name: &str,
+                out_dir: &Path,
+                ctx: &mut impl ResolutionContext,
+            ) -> $crate::providers::Result<String> {
+                match self {
+                    $(Self::$variant(inner) => inner.execute_setup(name, out_dir, ctx).await,)+
+                }
+            }
+            async fn execute_teardown(
+                &self,
+                name: &str,
+                out_dir: &Path,
+                ctx: &mut impl ResolutionContext,
+            ) -> $crate::providers::Result<String> {
+                match self {
+                    $(Self::$variant(inner) => inner.execute_teardown(name, out_dir, ctx).await,)+
+                }
+            }
+        }
+    }
+}
+
+pub trait ValidateScenario: RunProviders + Check + Template + CheckArrayDuplicates + Clone {}
+pub trait RunScenario: ValidateScenario + Execute {}
 
 pub trait RunProviders: Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
@@ -218,6 +252,29 @@ pub trait RunProviders: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>>;
 }
 
+#[macro_export]
+macro_rules! enum_impl_run_providers {
+    ($enum:ident => $($variant:ident),+) => {
+        impl RunProviders for $enum {
+            fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+                match self {
+                    $(Self::$variant(inner) => inner.named_providers(),)+
+                }
+            }
+            fn inline<'a>(
+                &'a mut self,
+                mode: &'a InlineMode,
+                ctx: &'a impl ResolutionContext,
+                cache: &'a mut HashMap<u64, InlinedProvider>,
+            ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+                match self {
+                    $(Self::$variant(inner) => inner.inline(mode, ctx, cache),)+
+                }
+            }
+        }
+    }
+}
+
 impl RunProviders for Vec<NamedFileProvider> {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         self.iter()
@@ -243,7 +300,7 @@ impl RunProviders for Vec<NamedFileProvider> {
     }
 }
 
-impl RunProviders for Vec<NamedComposeFileProvider> {
+impl RunProviders for Vec<NamedManifestFileProvider> {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         self.iter()
             .map(|nfp| {

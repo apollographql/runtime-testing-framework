@@ -417,8 +417,8 @@ mod tests {
     };
     use rtf_config::{
         formats::{
-            DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
-            OutputCollection, ScenarioConfig,
+            ComposeResources, DockerCommand, DockerComposeEnvironment, DockerScenario,
+            EnvironmentConfig, OutputCollection, ScenarioConfig,
         },
         templating::Field,
     };
@@ -426,8 +426,10 @@ mod tests {
 
     pub fn stub_environment() -> DockerComposeEnvironment {
         DockerComposeEnvironment {
-            project_name: None,
-            compose_files: vec![],
+            resources: ComposeResources {
+                project_name: None,
+                compose_files: vec![],
+            },
             file_providers: vec![],
             env_vars: Default::default(),
             output_collection: OutputCollection { prometheus: vec![] },

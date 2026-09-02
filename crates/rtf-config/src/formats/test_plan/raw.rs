@@ -1,5 +1,5 @@
 use crate::{
-    Execution,
+    Prepare,
     checks::CheckArrayDuplicates,
     context::ResolutionContext,
     formats::{
@@ -42,14 +42,14 @@ pub struct RawTestPlanConfig {
 }
 
 impl RawTestPlanConfig {
-    pub(super) async fn try_into_test_plan<E: Execution>(
+    pub(super) async fn try_into_test_plan<P: Prepare>(
         self,
         tp_source: SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> Result<(TestPlan<E>, Sources)> {
+    ) -> Result<(TestPlan<P>, Sources)> {
         let res = self
             .environment
-            .try_into_config_with_source::<EnvironmentConfig<E::Environment>>(&tp_source, ctx)
+            .try_into_config_with_source::<EnvironmentConfig<P::Environment>>(&tp_source, ctx)
             .await;
         let (environment, environment_source) = match res {
             Ok(data) => data,
@@ -61,7 +61,7 @@ impl RawTestPlanConfig {
 
         let res = self
             .scenario
-            .try_into_config_with_source::<ScenarioConfig<E::Scenario>>(&tp_source, ctx)
+            .try_into_config_with_source::<ScenarioConfig<P::Scenario>>(&tp_source, ctx)
             .await;
         let (scenario, scenario_source) = match res {
             Ok(data) => data,

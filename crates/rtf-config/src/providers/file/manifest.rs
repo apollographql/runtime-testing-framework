@@ -23,37 +23,37 @@ use std::{
     str::FromStr,
 };
 
-/// # Named Compose File Provider
+/// # Named Manifest File Provider
 ///
-/// Shared metadata that wraps every docker compose file provider. This is specifically
-/// for the DockerComposeEnvironment and is implemented to restrict how users can specify
-/// docker compose files in that config.
+/// Shared metadata that wraps every manifest file provider. This is specifically for the
+/// ManifestEnvironment and is implemented to restrict how users can specify manifest files in that
+/// config.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct NamedComposeFileProvider {
+pub struct NamedManifestFileProvider {
     /// The name to use for the output produced by this provider
     ///
     /// For single-file providers, this is the output filename.
     /// For directory providers, this is the directory name.
     pub name: String,
     #[serde(flatten)]
-    pub provider: ComposeFileProvider,
+    pub provider: ManifestFileProvider,
 }
 
-impl Deref for NamedComposeFileProvider {
-    type Target = ComposeFileProvider;
+impl Deref for NamedManifestFileProvider {
+    type Target = ManifestFileProvider;
 
     fn deref(&self) -> &Self::Target {
         &self.provider
     }
 }
 
-impl DerefMut for NamedComposeFileProvider {
+impl DerefMut for NamedManifestFileProvider {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.provider
     }
 }
 
-impl Template for NamedComposeFileProvider {
+impl Template for NamedManifestFileProvider {
     fn required_variables(&self) -> Vec<String> {
         self.provider.required_variables()
     }
@@ -84,7 +84,7 @@ impl Template for NamedComposeFileProvider {
     }
 }
 
-impl Check for NamedComposeFileProvider {
+impl Check for NamedManifestFileProvider {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -122,7 +122,7 @@ impl Check for NamedComposeFileProvider {
 /// Compose file provider
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ComposeFileProvider {
+pub enum ManifestFileProvider {
     GithubFile(GithubFile),
     Inline(InlineFile),
     InlineDir(InlineDir),
@@ -132,7 +132,7 @@ pub enum ComposeFileProvider {
     Templated(TemplatedFile),
 }
 
-impl ComposeFileProvider {
+impl ManifestFileProvider {
     pub async fn inline(
         &mut self,
         mode: &InlineMode,
@@ -154,24 +154,24 @@ impl ComposeFileProvider {
         }
 
         match (&mut *self, mode) {
-            (ComposeFileProvider::RelativeDir(inner), _) => {
-                *self = ComposeFileProvider::InlineDir(inner.try_into_inline_files(ctx).await?);
+            (ManifestFileProvider::RelativeDir(inner), _) => {
+                *self = ManifestFileProvider::InlineDir(inner.try_into_inline_files(ctx).await?);
             }
-            (ComposeFileProvider::RelativePath(inner), _) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+            (ManifestFileProvider::RelativePath(inner), _) => {
+                *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
             }
             (_, InlineMode::RelativeFiles) => return Ok(()),
-            (ComposeFileProvider::GithubFile(inner), InlineMode::All) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+            (ManifestFileProvider::GithubFile(inner), InlineMode::All) => {
+                *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
             }
             (
-                ComposeFileProvider::Inline(_)
-                | ComposeFileProvider::InlineDir(_)
-                | ComposeFileProvider::Templated(_),
+                ManifestFileProvider::Inline(_)
+                | ManifestFileProvider::InlineDir(_)
+                | ManifestFileProvider::Templated(_),
                 InlineMode::All,
             ) => return Ok(()),
-            (ComposeFileProvider::Required(inner), InlineMode::All) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+            (ManifestFileProvider::Required(inner), InlineMode::All) => {
+                *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
             }
         }
 
@@ -189,14 +189,14 @@ impl ComposeFileProvider {
     }
 }
 
-macro_rules! enum_impl_compose_file_provider {
+macro_rules! enum_impl_manifest_file_provider {
     ($($variant:ident,)+) => {
-        enum_impl_check!(ComposeFileProvider => $($variant),+);
-        enum_impl_resolve_and_write!(ComposeFileProvider => $($variant),+);
+        enum_impl_check!(ManifestFileProvider => $($variant),+);
+        enum_impl_resolve_and_write!(ManifestFileProvider => $($variant),+);
     };
 }
 
-enum_impl_compose_file_provider!(
+enum_impl_manifest_file_provider!(
     GithubFile,
     Inline,
     InlineDir,
@@ -206,7 +206,7 @@ enum_impl_compose_file_provider!(
     Templated,
 );
 
-impl ExtractRelativeFiles for ComposeFileProvider {
+impl ExtractRelativeFiles for ManifestFileProvider {
     async fn try_extract_relative_files(
         &self,
         files: &mut HashMap<(StableSource, String), String>,
@@ -251,9 +251,9 @@ mod tests {
     #[test_case(Field::Resolved("foo".to_string()), &[]; "no fields required")]
     #[test]
     fn named_compose_file_provider_required_variables(f: Field<String>, expected: &[&str]) {
-        let nfp = NamedComposeFileProvider {
+        let nfp = NamedManifestFileProvider {
             name: "inline.yaml".to_string(),
-            provider: ComposeFileProvider::RelativePath(RelativeFile { path: f, src: None }),
+            provider: ManifestFileProvider::RelativePath(RelativeFile { path: f, src: None }),
         };
 
         let res = nfp.required_variables();
@@ -265,9 +265,9 @@ mod tests {
 
     #[test]
     fn named_compose_file_provider_try_template_succeeds() {
-        let mut nfp = NamedComposeFileProvider {
+        let mut nfp = NamedManifestFileProvider {
             name: "inline.yaml".to_string(),
-            provider: ComposeFileProvider::RelativePath(RelativeFile {
+            provider: ManifestFileProvider::RelativePath(RelativeFile {
                 path: Field::Pending("path".to_string()),
                 src: None,
             }),
@@ -283,9 +283,9 @@ mod tests {
 
     #[test]
     fn named_compose_file_provider_try_template_unknown_variable_error() {
-        let mut nfp = NamedComposeFileProvider {
+        let mut nfp = NamedManifestFileProvider {
             name: "relative.yaml".to_string(),
-            provider: ComposeFileProvider::RelativePath(RelativeFile {
+            provider: ManifestFileProvider::RelativePath(RelativeFile {
                 path: Field::Pending("path".to_string()),
                 src: None,
             }),
@@ -312,9 +312,9 @@ mod tests {
 
     #[test]
     fn named_compose_file_provider_check_error_path_correct() {
-        let nfp = NamedComposeFileProvider {
+        let nfp = NamedManifestFileProvider {
             name: "relative.yaml".to_string(),
-            provider: ComposeFileProvider::RelativePath(RelativeFile {
+            provider: ManifestFileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved("does/not/exist/relative.yaml".to_string()),
                 src: Some(StableSource::TestPlan),
             }),
@@ -329,9 +329,9 @@ mod tests {
 
     #[test]
     fn named_compose_file_provider_check_error_name_path_invalid() {
-        let nfp = NamedComposeFileProvider {
+        let nfp = NamedManifestFileProvider {
             name: "../inline.yaml".to_string(),
-            provider: ComposeFileProvider::Inline(InlineFile {
+            provider: ManifestFileProvider::Inline(InlineFile {
                 content: "content".to_string(),
             }),
         };
@@ -345,9 +345,9 @@ mod tests {
 
     #[test]
     fn inline_dir_compose_file_provider_check_succeeds() {
-        let nfp = NamedComposeFileProvider {
+        let nfp = NamedManifestFileProvider {
             name: "compose-dir".to_string(),
-            provider: ComposeFileProvider::InlineDir(InlineDir {
+            provider: ManifestFileProvider::InlineDir(InlineDir {
                 files: vec![
                     DirFile {
                         path: PathBuf::from("base.yaml"),
@@ -374,7 +374,7 @@ mod tests {
         let ctx = MockContext::with_http_client(&[])
             .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
 
-        let provider = ComposeFileProvider::RelativePath(RelativeFile {
+        let provider = ManifestFileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("compose.yaml".to_string()),
             src: Some(StableSource::TestPlan),
         });
@@ -397,7 +397,7 @@ mod tests {
         let ctx = MockContext::with_http_client(&[])
             .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
 
-        let provider = ComposeFileProvider::RelativeDir(RelativeDir {
+        let provider = ManifestFileProvider::RelativeDir(RelativeDir {
             path: Field::Resolved("dir".to_string()),
             files: vec!["compose.yaml".to_string()],
             src: Some(StableSource::TestPlan),
@@ -415,7 +415,7 @@ mod tests {
 
     #[tokio::test]
     async fn compose_file_provider_extract_inline_unchanged() {
-        let provider = ComposeFileProvider::Inline(InlineFile {
+        let provider = ManifestFileProvider::Inline(InlineFile {
             content: "services: {}".to_string(),
         });
         let ctx = MockContext::with_http_client(&[]);
