@@ -120,11 +120,7 @@ fn build_routes(
         .route("/test-run", get(list_runs::handler))
         .route("/test-run/{id}/status", get(run_status::handler))
         .route("/test-run/trigger", post(trigger::handler))
-        .route("/whoami", get(whoami::handler))
-        .with_state(state)
-        .layer(DefaultBodyLimit::max(
-            cfg.server.body_limit_mb * 1024 * 1024,
-        ));
+        .route("/whoami", get(whoami::handler));
 
     if let Some(reload_handle) = reload_handle {
         router = router.route(
@@ -135,7 +131,9 @@ fn build_routes(
         );
     }
 
-    router
+    router.with_state(state).layer(DefaultBodyLimit::max(
+        cfg.server.body_limit_mb * 1024 * 1024,
+    ))
 }
 
 #[cfg(test)]

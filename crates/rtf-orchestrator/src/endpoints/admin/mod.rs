@@ -1,8 +1,7 @@
-//! Admin routes are _not_ externally accessible. They can only be hit from inside of the
-//! clusters themselves.
+//! Admin routes are only accessible to users in the Orchestrator's "admins" configmap.
 //!
-//!   See: <https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/kanaveral/external_lb.tf#L71-L87>
-use crate::{Result, event_loop::Snapshot, state::ServerState};
+//! See: <https://github.com/mdg-private/kanaveral/blob/main/management-cluster/orchestrator/admins.yaml>
+use crate::{Result, endpoints::AdminUser, event_loop::Snapshot, state::ServerState};
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use std::str::FromStr;
 use tracing_subscriber::{EnvFilter, Registry, reload::Handle};
@@ -18,6 +17,7 @@ pub async fn get_logging_filter_handler() -> String {
 }
 
 pub async fn set_logging_filter_handler(
+    _admin: AdminUser,
     Extension(reload_handle): Extension<Handle<EnvFilter, Registry>>,
     body: String,
 ) -> (StatusCode, String) {
@@ -57,6 +57,7 @@ pub async fn set_logging_filter_handler(
 }
 
 pub async fn event_queue_snapshot_handler(
+    _admin: AdminUser,
     State(ServerState { eq_state, .. }): State<ServerState>,
 ) -> Result<Json<Snapshot>> {
     let snapshot = eq_state.event_queue_snapshot().await;
