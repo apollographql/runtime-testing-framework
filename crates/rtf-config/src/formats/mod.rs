@@ -14,14 +14,16 @@ mod test_plan;
 pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::{
     ComposeResources, DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution,
-    FileProviderServices, K8sEnvironment, K8sResources, ManifestEnvironment, NamedManifestFiles,
-    NullEnvironment, PullPolicyServices, ScriptEnvironment,
+    EnvironmentPrepare, FileProviderServices, K8sEnvironment, K8sResources, ManifestEnvironment,
+    NamedManifestFiles, NullEnvironment, PullPolicyServices, ScriptEnvironment,
 };
-pub use execution::{Generic, Prepare, Run};
+pub use execution::{Generic, Prepare, PrepareOnly, Run};
 pub use matrix::Matrix;
 pub use output_collection::{OutputCollection, PrometheusQuery};
 pub use scenario::{DockerCommand, DockerScenario, ScenarioConfig, ScenarioExecution};
-pub use test_plan::{RawTestPlanConfig, Sources, TestPlan, TestPlanConfig};
+pub use test_plan::{
+    PrepareOnlyTestPlanConfig, RawTestPlanConfig, Sources, TestPlan, TestPlanConfig,
+};
 
 /// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]

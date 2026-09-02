@@ -294,6 +294,63 @@ impl CheckArrayDuplicates for EnvironmentExecution {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[serde(
+    untagged,
+    expecting = "expected null environment (skip: true), docker-compose environment (with compose_files), script environment (with setup/teardown), or kubernetes environment (with resources)"
+)]
+#[allow(clippy::large_enum_variant)] // We only ever allocate one of these, not multiples, so the difference in variant size should not be an issue
+pub enum EnvironmentPrepare {
+    // Null needs to be the first variant in this enum to ensure that any time `skip: true` is set,
+    // we resolve to a NullEnvironment.
+    Null(NullEnvironment),
+    DockerCompose(DockerComposeEnvironment),
+    Script(ScriptEnvironment),
+    K8s(K8sEnvironment),
+}
+
+enum_impl_check!(EnvironmentPrepare => Null, DockerCompose, Script, K8s);
+
+impl ValidateEnvironment for EnvironmentPrepare {}
+
+impl RunProviders for EnvironmentPrepare {
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+        match self {
+            EnvironmentPrepare::Null(inner) => inner.named_providers(),
+            EnvironmentPrepare::DockerCompose(inner) => inner.named_providers(),
+            EnvironmentPrepare::Script(inner) => inner.named_providers(),
+            EnvironmentPrepare::K8s(inner) => inner.named_providers(),
+        }
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        mode: &'a InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        match self {
+            EnvironmentPrepare::Null(inner) => inner.inline(mode, ctx, cache),
+            EnvironmentPrepare::DockerCompose(inner) => inner.inline(mode, ctx, cache),
+            EnvironmentPrepare::Script(inner) => inner.inline(mode, ctx, cache),
+            EnvironmentPrepare::K8s(inner) => inner.inline(mode, ctx, cache),
+        }
+    }
+}
+
+impl CheckArrayDuplicates for EnvironmentPrepare {
+    const BASE_PATH: &str = "environment_prepare";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        match self {
+            EnvironmentPrepare::Null(inner) => inner.deduplicated_arrays(),
+            EnvironmentPrepare::DockerCompose(inner) => inner.deduplicated_arrays(),
+            EnvironmentPrepare::Script(inner) => inner.deduplicated_arrays(),
+            EnvironmentPrepare::K8s(inner) => inner.deduplicated_arrays(),
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod test_helpers {
     use super::*;

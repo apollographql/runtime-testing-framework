@@ -5,7 +5,7 @@ use crate::commands::{
 use rtf_config::{
     StableSource,
     context::ResolutionContext,
-    formats::{Sources, TestPlanConfig},
+    formats::{PrepareOnlyTestPlanConfig, Sources},
     inlining::{self, InlineMode, InlinedProvider},
     templating::{Template, TemplateContext},
 };
@@ -36,7 +36,7 @@ pub async fn inline_test_plan(
 }
 
 async fn inline_file_providers_with_context(
-    mut test_plan: TestPlanConfig,
+    mut test_plan: PrepareOnlyTestPlanConfig,
     sources: Sources,
     mode: &InlineMode,
     variables: Variables,
@@ -89,7 +89,7 @@ async fn inline_file_providers_with_context(
 }
 
 async fn inline_file_providers(
-    test_plan: &mut TestPlanConfig,
+    test_plan: &mut PrepareOnlyTestPlanConfig,
     mode: &InlineMode,
     ctx: &mut impl ResolutionContext,
     template_variables: &HashMap<String, StableSource>,
@@ -119,7 +119,7 @@ async fn inline_file_providers(
 }
 
 async fn inline_one(
-    test_plan: &mut TestPlanConfig,
+    test_plan: &mut PrepareOnlyTestPlanConfig,
     mode: &InlineMode,
     template_variables: &HashMap<String, StableSource>,
     outdir: &Path,

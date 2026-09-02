@@ -1,5 +1,5 @@
 use crate::{
-    formats::{EnvironmentExecution, ScenarioExecution},
+    formats::{EnvironmentExecution, EnvironmentPrepare, ScenarioExecution},
     run::{RunEnvironment, RunScenario, ValidateEnvironment, ValidateScenario},
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -26,3 +26,12 @@ impl Prepare for Generic {
 }
 
 impl Run for Generic {}
+
+/// Test plans that can be prepared and validated, but not executed.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PrepareOnly;
+
+impl Prepare for PrepareOnly {
+    type Scenario = ScenarioExecution;
+    type Environment = EnvironmentPrepare;
+}

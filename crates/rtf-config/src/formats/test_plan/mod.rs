@@ -2,8 +2,8 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::{
-        CustomProviderDeclaration, EnvironmentConfig, Generic, Matrix, Prepare, Result, Run,
-        ScenarioConfig,
+        CustomProviderDeclaration, EnvironmentConfig, Generic, Matrix, Prepare, PrepareOnly,
+        Result, Run, ScenarioConfig,
     },
     providers::file::{SourceDir, StableSource},
     run::{Execute, RunEnvironment, RunScenario},
@@ -47,6 +47,9 @@ pub struct TestPlan<P: Prepare> {
 
 /// Test plan that accepts any scenario/environment execution type.
 pub type TestPlanConfig = TestPlan<Generic>;
+
+/// Test plans that can be prepared but not executed.
+pub type PrepareOnlyTestPlanConfig = TestPlan<PrepareOnly>;
 
 impl<P: Prepare> TestPlan<P> {
     /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::try_expand)

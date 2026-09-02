@@ -5,7 +5,7 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::{Sources, TestPlanConfig},
+    formats::{PrepareOnlyTestPlanConfig, Sources},
     templating::{Template, TemplateContext},
 };
 use rtf_core::variables::Variables;
@@ -30,7 +30,7 @@ pub async fn template_test_plan(
 }
 
 async fn template_test_plan_with_context(
-    mut test_plan: TestPlanConfig,
+    mut test_plan: PrepareOnlyTestPlanConfig,
     sources: Sources,
     variables: Variables,
     check: bool,
