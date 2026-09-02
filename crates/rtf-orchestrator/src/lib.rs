@@ -64,14 +64,22 @@ fn build_routes(
 ) -> Router {
     use endpoints::{
         admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
-        health, known_test_plan_cluster_pin, known_test_plans, list_runs, register_known_test_plan,
-        run_status, test_plan_details, trigger, whoami,
+        health, known_test_plans, list_runs, run_status, test_plan_details, trigger, whoami,
     };
 
     let mut router = Router::new()
         .route(
             "/admin/event-queue-snapshot",
             get(admin::event_queue_snapshot_handler),
+        )
+        .route(
+            "/admin/test-plan/register",
+            post(admin::register_known_test_plan::handler),
+        )
+        .route(
+            "/admin/test-plan/{uuid}/pinned-cluster",
+            post(admin::known_test_plan_cluster_pin::set_handler)
+                .delete(admin::known_test_plan_cluster_pin::clear_handler),
         )
         .route("/health", get(health::handler))
         .route(
@@ -108,15 +116,6 @@ fn build_routes(
         .route(
             "/test-plan/{uuid}/runs",
             get(list_runs::known_test_plan_handler),
-        )
-        .route(
-            "/test-plan/register",
-            post(register_known_test_plan::handler),
-        )
-        .route(
-            "/test-plan/{uuid}/pinned-cluster",
-            post(known_test_plan_cluster_pin::set_handler)
-                .delete(known_test_plan_cluster_pin::clear_handler),
         )
         .route("/test-run", get(list_runs::handler))
         .route("/test-run/{id}/status", get(run_status::handler))
