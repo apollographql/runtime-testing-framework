@@ -191,12 +191,18 @@ pub enum Status {
     /// RTF environment or scenario (such as docker images not being available or containers not
     /// reaching a ready status in the cluster).
     Unrunnable = 8,
+
+    /// Cancelled denotes the run being prematurely cancelled before it ran to completion.
+    Cancelled = 9,
 }
 
 impl Status {
     /// Whether or not this status represents a terminal state.
     pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Successful | Self::Failed | Self::Unrunnable)
+        matches!(
+            self,
+            Self::Successful | Self::Failed | Self::Unrunnable | Self::Cancelled
+        )
     }
 
     /// Combine two statuses together to determine the overall status of a parent.
@@ -207,6 +213,7 @@ impl Status {
             (Successful, Successful) => Successful,
             (Failed, _) | (_, Failed) => Failed,
             (Unrunnable, _) | (_, Unrunnable) => Unrunnable,
+            (Cancelled, _) | (_, Cancelled) => Cancelled,
             (Running, _) | (_, Running) => Running,
             (EnvironmentReady, _) | (_, EnvironmentReady) => EnvironmentReady,
             (Provisioning, _) | (_, Provisioning) => Provisioning,
@@ -256,6 +263,7 @@ impl fmt::Display for Status {
             Successful => write!(f, "SUCCESSFUL"),
             Failed => write!(f, "FAILED"),
             Unrunnable => write!(f, "UNRUNNABLE"),
+            Cancelled => write!(f, "CANCELLED"),
         }
     }
 }
@@ -270,7 +278,7 @@ impl PartialOrd for Status {
             Provisioning => 2,
             EnvironmentReady => 3,
             Running => 4,
-            Successful | Failed | Unrunnable => 5, // all count as "complete"
+            Successful | Failed | Unrunnable | Cancelled => 5, // all count as "complete"
         };
 
         sort_val(self).partial_cmp(&sort_val(other))
@@ -290,6 +298,7 @@ impl From<Status> for SharedStatus {
             Successful => Self::Successful,
             Failed => Self::Failed,
             Unrunnable => Self::Unrunnable,
+            Cancelled => Self::Cancelled,
         }
     }
 }
@@ -307,6 +316,7 @@ impl From<SharedStatus> for Status {
             Successful => Self::Successful,
             Failed => Self::Failed,
             Unrunnable => Self::Unrunnable,
+            Cancelled => Self::Cancelled,
         }
     }
 }
@@ -316,45 +326,51 @@ mod tests {
     use super::*;
     use Status::*;
     use simple_test_case::test_case;
+    use std::assert_matches;
 
     #[test_case(
         Initialising,
-        &[Resolving, Provisioning, EnvironmentReady, Running, Unrunnable, Failed, Successful], &[Initialising], &[];
+        &[Resolving, Provisioning, EnvironmentReady, Running, Cancelled, Unrunnable, Failed, Successful], &[Initialising], &[];
         "initialising"
     )]
     #[test_case(
         Resolving,
-        &[Provisioning, EnvironmentReady, Running, Unrunnable, Failed, Successful], &[Resolving], &[Initialising];
+        &[Provisioning, EnvironmentReady, Running, Cancelled, Unrunnable, Failed, Successful], &[Resolving], &[Initialising];
         "resolving"
     )]
     #[test_case(
         Provisioning,
-        &[EnvironmentReady, Running, Unrunnable, Failed, Successful], &[Provisioning], &[Initialising, Resolving];
+        &[EnvironmentReady, Running, Cancelled, Unrunnable, Failed, Successful], &[Provisioning], &[Initialising, Resolving];
         "provisioning"
     )]
     #[test_case(
         EnvironmentReady,
-        &[Running, Unrunnable, Failed, Successful], &[EnvironmentReady], &[Initialising, Resolving, Provisioning];
+        &[Running, Cancelled, Unrunnable, Failed, Successful], &[EnvironmentReady], &[Initialising, Resolving, Provisioning];
         "environment_ready"
     )]
     #[test_case(
         Running,
-        &[Unrunnable, Failed, Successful], &[Running], &[Initialising, Resolving, Provisioning, EnvironmentReady];
+        &[Cancelled, Unrunnable, Failed, Successful], &[Running], &[Initialising, Resolving, Provisioning, EnvironmentReady];
         "running"
     )]
     #[test_case(
+        Cancelled,
+        &[], &[Cancelled, Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
+        "cancelled"
+    )]
+    #[test_case(
         Unrunnable,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
+        &[], &[Cancelled, Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
         "unrunnable"
     )]
     #[test_case(
         Failed,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
+        &[], &[Cancelled, Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
         "failed"
     )]
     #[test_case(
         Successful,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
+        &[], &[Cancelled, Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
         "successful"
     )]
     #[test]
@@ -378,6 +394,7 @@ mod tests {
     #[test_case(Successful; "successful")]
     #[test_case(Failed; "failed")]
     #[test_case(Unrunnable; "unrunnable")]
+    #[test_case(Cancelled; "cancelled")]
     #[test_case(Running; "running")]
     #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
@@ -390,6 +407,7 @@ mod tests {
 
     #[test_case(Failed; "failed")]
     #[test_case(Unrunnable; "unrunnable")]
+    #[test_case(Cancelled; "cancelled")]
     #[test_case(Running; "running")]
     #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
@@ -402,6 +420,7 @@ mod tests {
     }
 
     #[test_case(Unrunnable; "unrunnable")]
+    #[test_case(Cancelled; "cancelled")]
     #[test_case(Running; "running")]
     #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
@@ -413,6 +432,7 @@ mod tests {
         assert_eq!(other.combine(Failed), Failed, "other + failed");
     }
 
+    #[test_case(Cancelled; "cancelled")]
     #[test_case(Running; "running")]
     #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
@@ -422,6 +442,17 @@ mod tests {
     fn combine_unrunnable_is_unrunnable(other: Status) {
         assert_eq!(Unrunnable.combine(other), Unrunnable, "unrunnable + other");
         assert_eq!(other.combine(Unrunnable), Unrunnable, "other + unrunnable");
+    }
+
+    #[test_case(Running; "running")]
+    #[test_case(EnvironmentReady; "environment_ready")]
+    #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
+    #[test_case(Initialising; "initialising")]
+    #[test]
+    fn combine_cancelled_is_cancelled(other: Status) {
+        assert_eq!(Cancelled.combine(other), Cancelled, "cancelled + other");
+        assert_eq!(other.combine(Cancelled), Cancelled, "other + cancelled");
     }
 
     #[test_case(EnvironmentReady; "environment_ready")]
@@ -495,18 +526,17 @@ mod tests {
     #[test_case(Successful; "successful")]
     #[test_case(Failed; "failed")]
     #[test_case(Unrunnable; "unrunnable")]
+    #[test_case(Cancelled; "cancelled")]
     #[test]
     fn validate_second_terminal_status_is_invalid(current: Status) {
         let res = current.validate_update(Successful, None);
 
-        assert!(
-            matches!(
-                res,
-                Err(Error::InvalidExecutionStatus {
-                    current: _,
-                    requested: Successful
-                })
-            ),
+        assert_matches!(
+            res,
+            Err(Error::InvalidExecutionStatus {
+                current: _,
+                requested: Successful
+            }),
             "{res:?}"
         );
     }

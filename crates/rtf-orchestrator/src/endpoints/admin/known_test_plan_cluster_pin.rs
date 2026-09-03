@@ -101,7 +101,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post(&format!("/test-plan/{}/pinned-cluster", plan.uuid()))
+            .post(&format!("/admin/test-plan/{}/pinned-cluster", plan.uuid()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&SetPinnedWorkloadClusterRequest {
                 cluster: "beta".to_owned(),
@@ -114,7 +114,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .delete(&format!("/test-plan/{}/pinned-cluster", plan.uuid()))
+            .delete(&format!("/admin/test-plan/{}/pinned-cluster", plan.uuid()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .await;
         assert_eq!(resp.status_code(), StatusCode::OK);
@@ -133,7 +133,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post(&format!("/test-plan/{}/pinned-cluster", plan.uuid()))
+            .post(&format!("/admin/test-plan/{}/pinned-cluster", plan.uuid()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&SetPinnedWorkloadClusterRequest {
                 cluster: "unknown".to_owned(),
@@ -162,7 +162,10 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post(&format!("/test-plan/{}/pinned-cluster", Uuid::new_v4()))
+            .post(&format!(
+                "/admin/test-plan/{}/pinned-cluster",
+                Uuid::new_v4()
+            ))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&SetPinnedWorkloadClusterRequest {
                 cluster: "alpha".to_owned(),
@@ -182,7 +185,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post(&format!("/test-plan/{}/pinned-cluster", plan.uuid()))
+            .post(&format!("/admin/test-plan/{}/pinned-cluster", plan.uuid()))
             .add_header(
                 IAP_USER_EMAIL_HEADER,
                 "accounts.google.com:someone@my-project.iam.gserviceaccount.com",
@@ -205,7 +208,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post(&format!("/test-plan/{}/pinned-cluster", plan.uuid()))
+            .post(&format!("/admin/test-plan/{}/pinned-cluster", plan.uuid()))
             .add_header(
                 IAP_USER_EMAIL_HEADER,
                 "accounts.google.com:someone@my-project.iam.gserviceaccount.com",

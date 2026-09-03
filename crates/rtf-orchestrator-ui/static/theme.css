@@ -32,6 +32,8 @@
     --status-failed-bg: #ffd6d6;
     --status-unrunnable-text: #7a5c00;
     --status-unrunnable-bg: #fff3cd;
+    --status-cancelled-text: #fd864d;
+    --status-cancelled-bg: #ffdabb;
 
     --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.15);
     color-scheme: light;
@@ -229,6 +231,7 @@ main {
 .status--success { background: var(--status-success-bg); color: var(--status-success-text); }
 .status--failed { background: var(--status-failed-bg); color: var(--status-failed-text); }
 .status--unrunnable { background: var(--status-unrunnable-bg); color: var(--status-unrunnable-text); }
+.status--cancelled { background: var(--status-cancelled-bg); color: var(--status-cancelled-text); }
 
 .banner {
     background: var(--color-bg-secondary);

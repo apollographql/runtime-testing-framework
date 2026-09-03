@@ -8,6 +8,7 @@ pub fn css_class(status: Status) -> &'static str {
         StatusCategory::Success => "status--success",
         StatusCategory::Failed => "status--failed",
         StatusCategory::Unrunnable => "status--unrunnable",
+        StatusCategory::Cancelled => "status--cancelled",
     }
 }
 

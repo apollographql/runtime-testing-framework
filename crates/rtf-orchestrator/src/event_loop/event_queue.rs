@@ -327,7 +327,7 @@ impl EventQueue {
         }
 
         let data = match current {
-            Status::Successful | Status::Failed | Status::Unrunnable => {
+            Status::Successful | Status::Failed | Status::Unrunnable | Status::Cancelled => {
                 unreachable!("is_terminal() checked above")
             }
 
@@ -456,6 +456,16 @@ impl EventQueueInner {
         false
     }
 
+    fn cluster_for_execution(&mut self, ex_uuid: Uuid) -> Option<ClusterId> {
+        for (cid, running) in self.running_executions.iter() {
+            if running.contains(&ex_uuid) {
+                return Some(cid.clone());
+            }
+        }
+
+        None
+    }
+
     /// Find the next cluster in round-robin order with both a queued provisioning event and
     /// free namespace capacity, and pop its front event.
     fn runnable_provisioning_event(&mut self) -> Option<Event> {
@@ -553,26 +563,38 @@ impl ProvisioningHandle {
         .await;
     }
 
-    /// Decrement `n_queued` and submit a provisioning event to the event loop.
+    /// Create the DB row for a new execution and submit a provisioning event to the event loop,
+    /// decrementing `n_queued` in the process.
     ///
     /// The event waits in `EventQueue::pending_provisions` until namespace capacity is
     /// available — the gating happens inside `EventQueue::next_event`, not here.
-    pub(crate) async fn request_provisioning(
+    pub(crate) async fn request_provisioning<H>(
         &self,
-        ex: TestExecution,
-        run_uuid: Uuid,
+        tr: &TestRun,
+        name: &str,
+        index: usize,
         cluster: ClusterId,
-    ) -> resolver::Result<()> {
-        self.with_shared(|shared| {
-            assert!(
-                shared.n_queued > 0,
-                "request_provisioning called with n_queued == 0"
-            );
+        update_handle: &mut H,
+    ) -> crate::Result<bool>
+    where
+        H: UpdateHandle,
+    {
+        let mut shared = self.shared.lock().await;
+        let run_uuid = tr.uuid();
+        if !shared.runs.contains_key(&run_uuid) {
+            // run was cancelled while we were resolving executions
+            return Ok(false);
+        }
 
-            shared.n_queued -= 1;
-            shared.register_execution(ex.uuid(), run_uuid);
-        })
-        .await;
+        let ex = update_handle.init_execution(tr, name, index).await?;
+
+        assert!(
+            shared.n_queued > 0,
+            "request_provisioning called with n_queued == 0"
+        );
+        shared.n_queued -= 1;
+        shared.register_execution(ex.uuid(), run_uuid);
+        drop(shared);
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
@@ -580,10 +602,18 @@ impl ProvisioningHandle {
             data: EventData::ResolveConfig,
         }) {
             error!(%e, "event loop channel closed");
-            return Err(ResolverError::EventChannelClosed);
+            return Err(ResolverError::EventChannelClosed.into());
         }
 
-        Ok(())
+        Ok(true)
+    }
+
+    /// Register an already-created execution against its parent run's in-memory state, without
+    /// creating a DB row or submitting a provisioning event.
+    #[cfg(test)]
+    pub(crate) async fn register_existing_execution(&self, ex_uuid: Uuid, run_uuid: Uuid) {
+        self.with_shared(|shared| shared.register_execution(ex_uuid, run_uuid))
+            .await;
     }
 
     async fn templated_and_checked_version(
@@ -1000,6 +1030,86 @@ impl EventQueueState {
         })
         .await
     }
+
+    pub async fn purge_run(
+        &self,
+        tr: TestRun,
+        admin_email: String,
+        conn: &mut PgConnection,
+    ) -> Option<()> {
+        // Lock everything to prevent further work being done while we purge state
+        let mut shared = self.shared.lock().await;
+        let mut inner = self.eq_inner.lock().await;
+        let run_id = tr.uuid();
+
+        let run = shared.runs.remove(&run_id)?;
+        conn.mark_run_as_cancelled(&tr, format!("cancelled by {admin_email}"))
+            .await;
+        conn.clear_cached_payload_for_run(run_id).await;
+
+        for ex_id in run.executions.into_iter() {
+            if let Ok(Some(ex)) = TestExecution::get_by_uuid(&ex_id, conn).await {
+                purge_execution_inner(ex, &mut shared, &mut inner, conn).await;
+            }
+        }
+
+        None
+    }
+
+    pub async fn purge_execution(
+        &self,
+        ex: TestExecution,
+        admin_email: String,
+        conn: &mut PgConnection,
+    ) -> Option<()> {
+        // Lock everything to prevent further work being done while we purge state
+        let mut shared = self.shared.lock().await;
+        let mut inner = self.eq_inner.lock().await;
+
+        conn.mark_execution_as_cancelled(&ex, format!("cancelled by {admin_email}"))
+            .await;
+
+        purge_execution_inner(ex, &mut shared, &mut inner, conn).await
+    }
+}
+
+async fn purge_execution_inner(
+    ex: TestExecution,
+    shared: &mut Shared,
+    inner: &mut EventQueueInner,
+    conn: &mut PgConnection,
+) -> Option<()> {
+    let ex_id = ex.uuid();
+
+    // drop provision events first to ensure that we don't create any _new_ namespaces
+    for events in inner.pending_provisions.values_mut() {
+        events.retain(|evt| evt.test_execution.uuid() != ex_id)
+    }
+
+    if let Some(cluster) = inner.cluster_for_execution(ex_id) {
+        // The execution made it as far as being provisioned so we need to nuke the namespace
+        inner.running_executions.get_mut(&cluster)?.remove(&ex_id);
+        inner
+            .pending_non_provisions
+            .retain(|evt| evt.test_execution.uuid() != ex_id);
+        inner.pending_non_provisions.push_front(Event {
+            test_execution: ex,
+            cluster,
+            data: EventData::PurgeNamespace,
+        });
+    };
+
+    // Once the queue itself is tidied up, purge any remaining cached data we have
+    let run_id = shared.executions.remove(&ex_id)?.run_uuid;
+    let run = shared.runs.get_mut(&run_id)?;
+    run.executions.remove(&ex_id);
+
+    if run.executions.is_empty() {
+        shared.runs.remove(&run_id);
+        conn.clear_cached_payload_for_run(run_id).await;
+    }
+
+    None
 }
 
 #[derive(Debug)]
@@ -1010,7 +1120,7 @@ struct RunState {
     initiated_by: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct ExecutionState {
     run_uuid: Uuid,
     resolved_config: Option<ResolvedExecutionConfig>,
@@ -1018,7 +1128,7 @@ struct ExecutionState {
 
 /// All config resolved for a single execution ahead of time, kept together since it's always
 /// inserted and evicted as a unit.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct ResolvedExecutionConfig {
     env_yaml: String,
     scenario_yaml: String,
@@ -1123,6 +1233,7 @@ mod tests {
     use super::*;
     use crate::{
         config::Config,
+        conn,
         context::OrchestratorContext,
         db::{MockUpdateHandle, Queryable},
         event_loop::tests::stub_test_plan,
@@ -1130,7 +1241,7 @@ mod tests {
     use rtf_config::{formats::NullEnvironment, templating::Scalar};
     use rtf_orchestrator_shared::payload::SourceKeyedArrayMap;
     use simple_test_case::test_case;
-    use std::{collections::HashMap, time::Duration};
+    use std::{assert_matches, collections::HashMap, time::Duration};
 
     fn empty_source_map<T>() -> SourceKeyedArrayMap<T> {
         SourceKeyedArrayMap {
@@ -1378,52 +1489,69 @@ mod tests {
         .await;
     }
 
+    async fn cache_stub_run(h: &ProvisioningHandle, run_uuid: Uuid) {
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &Config::for_test(),
+            empty_source_map(),
+            empty_source_map(),
+        );
+        h.cache_for_test_run(run_uuid, None, ctx, stub_test_plan())
+            .await;
+    }
+
     #[tokio::test]
     async fn request_provisioning_happy_path() {
         let (mut q, h, _, _) = EventQueue::new(&WorkloadClusters::for_test());
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
-        let ex_uuid = ex.uuid();
+        let tr = TestRun::create_stub(1, "test");
+        let mut mock = MockUpdateHandle::with_run(tr.clone());
+        cache_stub_run(&h, tr.uuid()).await;
         q.shared.lock().await.n_queued = 1;
 
         let res = h
-            .request_provisioning(ex, Uuid::new_v4(), alpha_cluster())
+            .request_provisioning(&tr, "test", 0, alpha_cluster(), &mut mock)
             .await;
 
-        assert!(res.is_ok(), "should have been able to send event: {res:?}");
+        assert_matches!(
+            res,
+            Ok(true),
+            "should have submitted the execution: {res:?}"
+        );
 
         let shared = q.shared.lock().await;
         assert_eq!(shared.n_queued, 0, "n_queued should have been decremented");
         drop(shared);
 
         let event = q.rx.try_recv().expect("event should have been sent");
+        let ex_uuid = mock.test_executions[0].uuid();
 
         assert_eq!(event.test_execution.uuid(), ex_uuid);
-        assert!(matches!(event.data, EventData::ResolveConfig));
+        assert_matches!(event.data, EventData::ResolveConfig);
     }
 
     #[tokio::test]
     #[should_panic(expected = "request_provisioning called with n_queued == 0")]
     async fn request_provisioning_panics_when_n_queued_is_zero() {
         let (_, h, _, _) = EventQueue::new(&WorkloadClusters::for_test());
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
+        let tr = TestRun::create_stub(1, "test");
+        let mut mock = MockUpdateHandle::with_run(tr.clone());
+        cache_stub_run(&h, tr.uuid()).await;
 
         _ = h
-            .request_provisioning(ex, Uuid::new_v4(), alpha_cluster())
+            .request_provisioning(&tr, "test", 0, alpha_cluster(), &mut mock)
             .await;
     }
 
     #[tokio::test]
     async fn request_provisioning_returns_false_when_channel_is_closed() {
         let (q, h, _, _) = EventQueue::new(&WorkloadClusters::for_test());
+        let tr = TestRun::create_stub(1, "test");
+        let mut mock = MockUpdateHandle::with_run(tr.clone());
+        cache_stub_run(&h, tr.uuid()).await;
         q.shared.lock().await.n_queued = 1;
         drop(q);
 
         let res = h
-            .request_provisioning(
-                TestExecution::create_stub(1, 1, 0, "test"),
-                Uuid::new_v4(),
-                alpha_cluster(),
-            )
+            .request_provisioning(&tr, "test", 0, alpha_cluster(), &mut mock)
             .await;
 
         assert!(res.is_err(), "should have failed to send event");
@@ -1458,7 +1586,7 @@ mod tests {
             .expect("should have returned Some(event)");
 
         assert_eq!(evt.test_execution.uuid(), ex_uuid);
-        assert!(matches!(evt.data, EventData::ResolveConfig));
+        assert_matches!(evt.data, EventData::ResolveConfig);
 
         q.with_inner(|inner| {
             assert!(
@@ -1732,11 +1860,9 @@ mod tests {
                 !cached.docker_command.is_empty(),
                 "scenario docker command should be cached"
             );
-            assert!(
-                matches!(
-                    cached.environment,
-                    OrchestratorEnvironment::DockerCompose(_)
-                ),
+            assert_matches!(
+                cached.environment,
+                OrchestratorEnvironment::DockerCompose(_),
                 "expected the typed environment to be cached, got {:?}",
                 cached.environment
             );
@@ -1774,8 +1900,9 @@ mod tests {
                 .and_then(|e| e.resolved_config.as_ref())
                 .expect("execution config should be cached");
 
-            assert!(
-                matches!(cached.environment, OrchestratorEnvironment::Null(_)),
+            assert_matches!(
+                cached.environment,
+                OrchestratorEnvironment::Null(_),
                 "expected a null environment to be cached, got {:?}",
                 cached.environment
             );
@@ -1823,8 +1950,9 @@ mod tests {
         .await;
 
         let res = eq.resolved_environment_for_execution(ex.uuid()).await;
-        assert!(
-            matches!(res, Some(OrchestratorEnvironment::Null(_))),
+        assert_matches!(
+            res,
+            Some(OrchestratorEnvironment::Null(_)),
             "expected the cached null environment to be returned, got {res:?}"
         );
     }
@@ -1875,8 +2003,9 @@ mod tests {
 
         let res = eqs.resolve_environment_for_execution(&ex).await;
 
-        assert!(
-            matches!(res, Err(ResolverError::UnknownExecution(_))),
+        assert_matches!(
+            res,
+            Err(ResolverError::UnknownExecution(_)),
             "expected UnknownExecution, got: {res:?}"
         );
     }
@@ -1888,8 +2017,9 @@ mod tests {
 
         let res = eqs.resolve_scenario_for_execution(&ex).await;
 
-        assert!(
-            matches!(res, Err(ResolverError::UnknownExecution(_))),
+        assert_matches!(
+            res,
+            Err(ResolverError::UnknownExecution(_)),
             "expected UnknownExecution, got: {res:?}"
         );
     }
@@ -1901,8 +2031,9 @@ mod tests {
 
         let res = eqs.resolve_output_collection_for_execution(&ex).await;
 
-        assert!(
-            matches!(res, Err(ResolverError::UnknownExecution(_))),
+        assert_matches!(
+            res,
+            Err(ResolverError::UnknownExecution(_)),
             "expected UnknownExecution, got: {res:?}"
         );
     }
@@ -1916,8 +2047,9 @@ mod tests {
             .unwrap();
 
         let input = rx.try_recv().expect("ResolverInput should be forwarded");
-        assert!(
-            matches!(input, ResolverInput::ResolveConfig(ref e, _) if e.uuid() == ex.uuid()),
+        assert_matches!(
+            input,
+            ResolverInput::ResolveConfig(ref e, _) if e.uuid() == ex.uuid(),
             "wrong input forwarded: {input:?}"
         );
     }
@@ -2065,5 +2197,173 @@ mod tests {
             !still_cached,
             "incorrect DB cache state"
         );
+    }
+
+    #[test_case(EventData::ResolveConfig, false; "unprovisioned execution")]
+    #[test_case(EventData::WaitForScenarioJob, true; "running execution")]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn purge_execution_clears_queue_state(
+        data: EventData,
+        is_running: bool,
+    ) -> db::Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let ex = tr.init_execution("test", 0, c).await?;
+        let ex_id = ex.uuid();
+        let tr_id = tr.uuid();
+
+        let cfg = Config::for_test();
+        let (mut eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);
+        cache_stub_run(&ph, tr.uuid()).await;
+        ph.with_shared(|s| s.register_execution(ex_id, tr_id)).await;
+        if is_running {
+            eq.with_inner(|i| i.insert_running_execution(ex_id, alpha_cluster()))
+                .await;
+        }
+        eq.push_event(Event {
+            test_execution: ex.clone(),
+            cluster: alpha_cluster(),
+            data,
+        })
+        .await;
+
+        eqs.purge_execution(ex.clone(), "X".into(), c).await;
+
+        eq.with_inner(|inner| {
+            // We need to match like this as the different cases result in these fields being
+            // either Some(empty_collection) or None depending on the parameters
+            match inner.pending_provisions.get(&alpha_cluster()) {
+                Some(v) if !v.is_empty() => panic!("expected empty queue, got {v:?}"),
+                _ => (),
+            }
+            match inner.running_executions.get(&alpha_cluster()) {
+                Some(s) if !s.is_empty() => panic!("expected nothing running, got {s:?}"),
+                _ => (),
+            }
+
+            if is_running {
+                // should have queued the namespace purge
+                assert_eq!(inner.pending_non_provisions.len(), 1);
+                let front = inner.pending_non_provisions.front().unwrap();
+                assert_matches!(
+                    front,
+                    Event {
+                        test_execution: ex,
+                        data: EventData::PurgeNamespace,
+                        ..
+                    } if ex.uuid() == ex_id,
+                );
+            } else {
+                assert!(inner.pending_non_provisions.is_empty());
+            }
+        })
+        .await;
+
+        // should have nothing cached
+        eqs.with_shared(|shared| {
+            assert!(shared.runs.is_empty(), "run should be evicted");
+            assert!(shared.executions.is_empty(), "executions should be empty");
+        })
+        .await;
+
+        // status should be correct
+        let status = ex.try_current_status(c).await?.unwrap();
+        assert_eq!(status.status, Status::Cancelled);
+        assert_eq!(status.message.as_deref(), Some("cancelled by X"));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn purge_run_cancels_and_purges_non_terminal_executions() -> db::Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let ex_1 = tr.init_execution("queued", 0, c).await?;
+        let ex_2 = tr.init_execution("running", 1, c).await?;
+        let ex_3 = tr.init_execution("done", 2, c).await?;
+        ex_3.set_status(Status::Successful, None, c).await?;
+
+        let cfg = Config::for_test();
+        let (mut eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);
+        cache_stub_run(&ph, tr.uuid()).await;
+
+        // 1 & 2 are ongoing
+        ph.with_shared(|shared| {
+            shared.register_execution(ex_1.uuid(), tr.uuid());
+            shared.register_execution(ex_2.uuid(), tr.uuid());
+        })
+        .await;
+
+        // 1 is provisioning
+        eq.push_event(Event {
+            test_execution: ex_1.clone(),
+            cluster: alpha_cluster(),
+            data: EventData::ResolveConfig,
+        })
+        .await;
+
+        // 2 is running
+        eq.with_inner(|i| i.insert_running_execution(ex_2.uuid(), alpha_cluster()))
+            .await;
+
+        eqs.purge_run(tr.clone(), "X".into(), c).await;
+
+        // should have nothing cached
+        eqs.with_shared(|shared| {
+            assert!(shared.runs.is_empty(), "run should be evicted");
+            assert!(shared.executions.is_empty(), "executions should be empty");
+        })
+        .await;
+
+        // queue should be empty
+        eq.with_inner(|inner| {
+            let running = inner.running_executions.get(&alpha_cluster()).unwrap();
+            assert!(running.is_empty(), "running_executions should be empty");
+            let pending = inner.pending_provisions.get(&alpha_cluster()).unwrap();
+            assert!(pending.is_empty(), "pending_provisions should be empty");
+        })
+        .await;
+
+        // statuses should be correct
+        let run_status = tr.try_current_status(c).await?.unwrap();
+        assert_eq!(run_status.status, Status::Cancelled);
+
+        for (ex, status) in [
+            (ex_1, Status::Cancelled),
+            (ex_2, Status::Cancelled),
+            (ex_3, Status::Successful),
+        ] {
+            assert_eq!(ex.try_current_status(c).await?.unwrap().status, status);
+        }
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn request_provisioning_sees_purged_runs() -> db::Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+
+        let cfg = Config::for_test();
+        let (_eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);
+        cache_stub_run(&ph, tr.uuid()).await;
+
+        eqs.purge_run(tr.clone(), "X".into(), c).await;
+
+        let mut mock = MockUpdateHandle::with_run(tr.clone());
+        let res = ph
+            .request_provisioning(&tr, "test", 0, alpha_cluster(), &mut mock)
+            .await;
+
+        assert_matches!(res, Ok(false), "should have reported cancellation");
+        assert!(
+            mock.test_executions.is_empty(),
+            "should have nothing queued"
+        );
+
+        Ok(())
     }
 }

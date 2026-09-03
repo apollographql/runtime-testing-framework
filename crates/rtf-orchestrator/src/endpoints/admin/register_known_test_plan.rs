@@ -48,7 +48,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post("/test-plan/register")
+            .post("/admin/test-plan/register")
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&RegisterTestPlanRequest {
                 name: name.clone(),
@@ -86,7 +86,7 @@ mod tests {
 
         let first = tss
             .test_server
-            .post("/test-plan/register")
+            .post("/admin/test-plan/register")
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&req)
             .await;
@@ -94,7 +94,7 @@ mod tests {
 
         let second = tss
             .test_server
-            .post("/test-plan/register")
+            .post("/admin/test-plan/register")
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&req)
             .await;
@@ -112,7 +112,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post("/test-plan/register")
+            .post("/admin/test-plan/register")
             .add_header(
                 IAP_USER_EMAIL_HEADER,
                 "accounts.google.com:someone@my-project.iam.gserviceaccount.com",
@@ -138,7 +138,7 @@ mod tests {
 
         let resp = tss
             .test_server
-            .post("/test-plan/register")
+            .post("/admin/test-plan/register")
             .json(&RegisterTestPlanRequest {
                 name: unique("should-not-register"),
                 description: None,

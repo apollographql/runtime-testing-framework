@@ -133,7 +133,7 @@ pub trait UpdateHandle: Send + Sync {
     fn executions_for_run(
         &mut self,
         tr: &TestRun,
-    ) -> impl Future<Output = crate::Result<Vec<TestExecution>>>;
+    ) -> impl Future<Output = crate::Result<Vec<TestExecution>>> + Send;
 
     fn try_current_test_execution_status(
         &mut self,
@@ -180,6 +180,43 @@ pub trait UpdateHandle: Send + Sync {
                 .await
             {
                 error!(id=%tr.uuid(), %err, "Unable to mark Test Run as unrunnable");
+            }
+        }
+    }
+
+    fn mark_run_as_cancelled(
+        &mut self,
+        tr: &TestRun,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async move {
+            if let Err(err) = self
+                .update_test_run_status(tr, Status::Cancelled, Some(message.clone()))
+                .await
+            {
+                error!(id=%tr.uuid(), %err, "Unable to mark Test Run as cancelled");
+            }
+
+            let executions = match self.executions_for_run(tr).await {
+                Ok(executions) => executions,
+                Err(err) => {
+                    error!(id=%tr.uuid(), %err, "Unable to load executions for cancelled Test Run");
+                    return;
+                }
+            };
+
+            for ex in executions.iter() {
+                let is_terminal = match self.try_current_test_execution_status(ex).await {
+                    Ok(current) => current.is_some_and(|s| s.status.is_terminal()),
+                    Err(err) => {
+                        error!(id=%ex.uuid(), %err, "Unable to load status for Test Execution while cancelling parent run");
+                        continue;
+                    }
+                };
+
+                if !is_terminal {
+                    self.mark_execution_as_cancelled(ex, message.clone()).await;
+                }
             }
         }
     }
@@ -240,6 +277,21 @@ pub trait UpdateHandle: Send + Sync {
                 .await
             {
                 error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as unrunnable");
+            }
+        }
+    }
+
+    fn mark_execution_as_cancelled(
+        &mut self,
+        ex: &TestExecution,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_execution_status(ex, Status::Cancelled, Some(message))
+                .await
+            {
+                error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as cancelled");
             }
         }
     }

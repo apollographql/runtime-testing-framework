@@ -56,7 +56,7 @@ impl CheckArrayDuplicates for OutputCollection {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct PrometheusQuery {
     /// The name of the .json file this prometheus query is saved to
     pub name: String,

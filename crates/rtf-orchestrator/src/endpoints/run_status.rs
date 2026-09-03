@@ -25,8 +25,8 @@ pub async fn handler(
     let conn = conn!();
 
     match TestRun::get_by_uuid(&id, conn).await? {
-        Some(ex) if with_executions => Ok(Json(ex.try_into_summary_with_executions(conn).await?)),
-        Some(ex) => Ok(Json(ex.try_into_summary(conn).await?)),
+        Some(tr) if with_executions => Ok(Json(tr.try_into_summary_with_executions(conn).await?)),
+        Some(tr) => Ok(Json(tr.try_into_summary(conn).await?)),
         None => Err(Error::UnknownTestRun { id }),
     }
 }
