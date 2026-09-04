@@ -12,7 +12,6 @@ config:
 # `required` checks.
 gcpLinks:
   project: "local-dummy-project"
-  clusterName: "local-dummy-cluster"
 
 grafana:
   baseUrl: "http://local-dummy-grafana.invalid"

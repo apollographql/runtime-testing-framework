@@ -225,6 +225,7 @@ impl TestRun {
             id: self.uuid,
             test_plan_id,
             name: self.name,
+            cluster: self.workload_cluster,
             trigger_variables,
             current_status: current.status.into(),
             initiated_by: self

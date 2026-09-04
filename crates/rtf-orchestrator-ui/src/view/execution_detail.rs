@@ -26,7 +26,11 @@ impl ExecutionDetailView {
     pub fn new(ex: TestExecutionSummary, links_cfg: &LinksConfig) -> Self {
         let namespace = ex.id.to_string();
         let end = ex.completed_at.unwrap_or_else(Utc::now);
-        let logs_url = gcp_logs(links_cfg, &namespace, ex.started_at, end);
+        let cluster = ex
+            .cluster
+            .as_deref()
+            .expect("an execution fetched standalone always carries its cluster");
+        let logs_url = gcp_logs(links_cfg, cluster, &namespace, ex.started_at, end);
         let grafana_url = grafana(links_cfg, &namespace, ex.started_at, end);
 
         Self {
@@ -90,6 +94,7 @@ mod tests {
             id,
             test_run_id: Some(test_run_id),
             test_plan_id,
+            cluster: Some("alpha".to_owned()),
             name: "exec-alpha".to_owned(),
             current_status: Status::Successful,
             exit_code: Some(0),

@@ -8,7 +8,6 @@ use url::form_urlencoded::byte_serialize;
 #[derive(Debug, Clone)]
 pub struct LinksConfig {
     pub gcp_project: String,
-    pub gcp_cluster_name: String,
     pub grafana_base_url: String,
     pub grafana_dashboard_uid: String,
     pub grafana_dashboard_slug: String,
@@ -19,7 +18,6 @@ impl From<&Config> for LinksConfig {
     fn from(cfg: &Config) -> Self {
         Self {
             gcp_project: cfg.gcp_project.clone(),
-            gcp_cluster_name: cfg.gcp_cluster_name.clone(),
             grafana_base_url: cfg.grafana_base_url.clone(),
             grafana_dashboard_uid: cfg.grafana_dashboard_uid.clone(),
             grafana_dashboard_slug: cfg.grafana_dashboard_slug.clone(),
@@ -29,16 +27,16 @@ impl From<&Config> for LinksConfig {
 }
 
 /// Build a Cloud Logging deep link scoped to one execution's workload namespace (namespace name
-/// == execution id), with the time range narrowed to the execution's own window.
+/// == execution id) within `cluster`, with the time range narrowed to the execution's own window.
 pub fn gcp_logs(
     cfg: &LinksConfig,
+    cluster: &str,
     namespace: &str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> String {
     let query = format!(
-        "resource.labels.cluster_name=\"{}\"\nresource.labels.namespace_name=\"{namespace}\"",
-        cfg.gcp_cluster_name,
+        "resource.labels.cluster_name=\"{cluster}\"\nresource.labels.namespace_name=\"{namespace}\"",
     );
     let start = start.to_rfc3339_opts(SecondsFormat::Millis, true);
     let end = end.to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -80,7 +78,6 @@ fn percent_encode(input: &str) -> String {
 pub(crate) fn sample_config() -> LinksConfig {
     LinksConfig {
         gcp_project: "gcp-project".to_owned(),
-        gcp_cluster_name: "cluster_name".to_owned(),
         grafana_base_url: "http://grafana.com".to_owned(),
         grafana_dashboard_uid: "dash-uuid".to_owned(),
         grafana_dashboard_slug: "dash-slug".to_owned(),
@@ -100,7 +97,7 @@ mod tests {
         let end = Utc.with_ymd_and_hms(2026, 7, 16, 8, 45, 56).unwrap();
         let namespace = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 
-        let link = gcp_logs(&cfg, namespace, start, end);
+        let link = gcp_logs(&cfg, "cluster_name", namespace, start, end);
 
         assert_eq!(
             link,
