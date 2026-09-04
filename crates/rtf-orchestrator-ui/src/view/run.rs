@@ -52,6 +52,7 @@ impl RunView {
         let end = completed_at.unwrap_or(now);
         let total_executions = run.executions.len();
         let status_breakdown = status_breakdown(&run.executions);
+        let cluster = run.cluster.clone();
 
         Self {
             id: run.id,
@@ -81,7 +82,7 @@ impl RunView {
                     execution_status_filter.is_empty()
                         || execution.current_status.to_string() == execution_status_filter
                 })
-                .map(|execution| ExecutionView::new(execution, links_cfg))
+                .map(|execution| ExecutionView::new(execution, links_cfg, &cluster))
                 .collect(),
             execution_status_filter,
         }
@@ -193,10 +194,16 @@ pub struct ExecutionView {
 }
 
 impl ExecutionView {
-    fn new(execution: TestExecutionSummary, links_cfg: &LinksConfig) -> Self {
+    fn new(execution: TestExecutionSummary, links_cfg: &LinksConfig, cluster: &str) -> Self {
         let namespace = execution.id.to_string();
         let window_end = execution.completed_at.unwrap_or_else(Utc::now);
-        let logs_url = gcp_logs(links_cfg, &namespace, execution.started_at, window_end);
+        let logs_url = gcp_logs(
+            links_cfg,
+            cluster,
+            &namespace,
+            execution.started_at,
+            window_end,
+        );
         let grafana_url = grafana(links_cfg, &namespace, execution.started_at, window_end);
 
         Self {
@@ -577,6 +584,7 @@ mod tests {
             id: Uuid::from_u128(1),
             test_plan_id: Some(Uuid::from_u128(2)),
             name: "nightly-smoke".to_owned(),
+            cluster: "alpha".to_owned(),
             trigger_variables: Some(json!({"foo": "bar", "baz": [1, 2, 3]})),
             current_status: Status::Running,
             initiated_by: "someone@apollographql.com".to_owned(),
@@ -623,6 +631,7 @@ mod tests {
             id: Uuid::from_u128(1),
             test_plan_id: Some(Uuid::from_u128(2)),
             name: "release-check".to_owned(),
+            cluster: "alpha".to_owned(),
             current_status: Status::Successful,
             initiated_by: "someone@apollographql.com".to_owned(),
             started_at: started,

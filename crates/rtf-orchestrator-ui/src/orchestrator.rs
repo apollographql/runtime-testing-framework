@@ -429,6 +429,7 @@ pub(crate) mod mocks {
         TestExecutionSummary {
             id: ex_id,
             test_run_id: Some(run_id),
+            cluster: Some("alpha".to_owned()),
             name: "exec-alpha".to_owned(),
             current_status: Status::Successful,
             exit_code: Some(0),
@@ -456,11 +457,13 @@ pub(crate) mod mocks {
         TestRunSummary {
             id: run_id,
             name: "my-test-run".to_owned(),
+            cluster: "alpha".to_owned(),
             current_status: status,
             initiated_by: "someone@apollographql.com".to_owned(),
             started_at: Utc::now(),
             executions: vec![TestExecutionSummary {
                 test_run_id: None,
+                cluster: None,
                 ..sample_execution(run_id, ex_id)
             }],
             ..Default::default()
@@ -485,6 +488,7 @@ pub(crate) mod mocks {
             uuid,
             name: "my-known-test-plan".to_owned(),
             description: Some("a sample known test plan".to_owned()),
+            cluster: "alpha".to_owned(),
             source: TestPlanSource {
                 org: "apollographql".to_owned(),
                 repo: "runtime-testing-framework".to_owned(),

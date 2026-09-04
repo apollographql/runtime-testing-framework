@@ -16,8 +16,6 @@ pub struct Config {
     pub orchestrator_url: String,
     /// GCP project the workload cluster runs in, for Cloud Logging deep links.
     pub gcp_project: String,
-    /// GKE cluster name the workload runs in, for Cloud Logging deep links.
-    pub gcp_cluster_name: String,
     /// Base URL of the Grafana instance, for dashboard deep links.
     pub grafana_base_url: String,
     /// UID of the Grafana dashboard deep links point to.

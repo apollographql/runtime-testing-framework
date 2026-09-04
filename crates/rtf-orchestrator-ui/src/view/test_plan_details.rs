@@ -113,6 +113,7 @@ pub struct TestPlanDetailsView {
     pub uuid: Uuid,
     pub github_url: String,
     pub source_sha: String,
+    pub cluster: String,
     pub variables: Vec<TriggerVariableView>,
     pub n_executions: usize,
     pub n_services: usize,
@@ -168,6 +169,7 @@ impl TestPlanDetailsView {
             uuid: details.uuid,
             github_url,
             source_sha: source.sha,
+            cluster: details.cluster,
             n_executions: matrix.n_executions,
             n_services: environment.services.len(),
             matrix_formula: matrix_formula_parts.join(" × "),
@@ -416,6 +418,7 @@ mod tests {
             uuid,
             name: "plan".to_owned(),
             description: None,
+            cluster: "alpha".to_owned(),
             source: TestPlanSource {
                 org: "org".to_owned(),
                 repo: "repo".to_owned(),

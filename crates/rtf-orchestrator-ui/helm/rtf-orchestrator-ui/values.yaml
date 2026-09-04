@@ -15,8 +15,6 @@ config:
 gcpLinks:
   # -- GCP project the workload cluster runs in. Required
   project: ""
-  # -- GKE cluster name the workload runs in. Required
-  clusterName: ""
 
 # -- Grafana deep-link configuration, for the "View dashboard in Grafana" links on each
 # execution. No default: every environment must supply real values.

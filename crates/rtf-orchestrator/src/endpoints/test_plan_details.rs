@@ -3,10 +3,16 @@
 //!
 //! See the comment on `build_details_without_history` for more information around caching
 //! behaviour.
-use crate::{Error, Result, config::Config, conn, db::KnownTestPlan};
+use crate::{
+    Error, Result,
+    config::Config,
+    conn,
+    db::{ClusterId, KnownTestPlan},
+    state::ServerState,
+};
 use axum::{
     Json,
-    extract::{Path, Query},
+    extract::{Path, Query, State},
 };
 use cached::cached;
 use chrono::Utc;
@@ -22,6 +28,7 @@ use rtf_orchestrator_shared::{
 use uuid::Uuid;
 
 pub async fn handler(
+    State(ServerState { eq_state, .. }): State<ServerState>,
     Path(uuid): Path<Uuid>,
     Query(params): Query<TestPlanDetailsParams>,
 ) -> Result<Json<TestPlanDetails>> {
@@ -35,10 +42,14 @@ pub async fn handler(
     let history = known
         .test_plan_history(params.history_window(Utc::now()), conn)
         .await?;
+    let cluster = known
+        .pinned_workload_cluster()
+        .unwrap_or_else(|| eq_state.default_cluster().clone());
 
     build_details(
         &known,
         params.git_ref,
+        cluster,
         history,
         Config::get().server_context(),
     )
@@ -49,6 +60,7 @@ pub async fn handler(
 async fn build_details(
     known: &KnownTestPlan,
     git_ref: Option<String>,
+    cluster: ClusterId,
     history: TestPlanHistory,
     ctx: impl ResolutionContext,
 ) -> Result<TestPlanDetails> {
@@ -61,6 +73,7 @@ async fn build_details(
         .await?;
 
     let mut details = build_details_without_history(known, git_ref, sha, ctx).await?;
+    details.cluster = cluster.to_string();
     details.history = history;
 
     Ok(details)
@@ -107,6 +120,8 @@ async fn build_details_without_history(
         variables: TestPlanVariable::from_test_plan(&test_plan),
         matrix: MatrixSummary::new(&test_plan.matrix),
         environment: EnvironmentSummary::try_from_test_plan(&test_plan, &ctx).await?,
+        // set from DB state in build_details
+        cluster: Default::default(),
         history: Default::default(),
     })
 }
