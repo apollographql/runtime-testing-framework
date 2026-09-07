@@ -9,10 +9,10 @@ use rtf_config::{
     checks::Check,
     context::ResolutionContext,
     formats::{
-        DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
-        Sources,
+        DockerComposeEnvironment, EnvironmentConfig, EnvironmentPrepare, ManifestEnvironment,
+        NamedManifestFiles, ScriptEnvironment, Sources,
     },
-    run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
+    run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders, ValidateEnvironment},
     templating::{Template, TemplateContext},
 };
 use rtf_core::variables::{ParsedVariables, Variables};
@@ -22,6 +22,7 @@ use tracing::info;
 const SETUP_ENV_FILE: &str = "setup.env";
 const TEARDOWN_ENV_FILE: &str = "teardown.env";
 const COMPOSE_FILES_LIST: &str = "compose-files.txt";
+const MANIFEST_FILES_LIST: &str = "manifest-files.txt";
 
 pub async fn resolve_environment(
     environment_path: &str,
@@ -32,12 +33,9 @@ pub async fn resolve_environment(
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
 
     info!("loading environment");
-    let (source, mut environment) = load_config::<EnvironmentConfig<EnvironmentExecution>>(
-        environment_path,
-        "environment",
-        &ctx,
-    )
-    .await?;
+    let (source, mut environment) =
+        load_config::<EnvironmentConfig<EnvironmentPrepare>>(environment_path, "environment", &ctx)
+            .await?;
 
     // Custom providers are not supported by resolve environment
     if environment.execution.contains_custom_providers() {
@@ -74,13 +72,23 @@ pub async fn resolve_environment(
     ctx.set_output_path(&out_dir);
 
     match &environment.execution {
-        EnvironmentExecution::Null(_) => (),
-        EnvironmentExecution::Script(script) => {
+        EnvironmentPrepare::Null(_) => (),
+        EnvironmentPrepare::Script(script) => {
             resolve_script_environment(script, &out_dir, &mut ctx).await?;
         }
-        EnvironmentExecution::DockerCompose(compose) => {
+        EnvironmentPrepare::DockerCompose(compose) => {
             resolve_docker_compose_environment(&environment.name, compose, &out_dir, &mut ctx)
                 .await?;
+        }
+        EnvironmentPrepare::K8s(k8s) => {
+            resolve_manifest_environment_setup(
+                k8s,
+                &out_dir,
+                MANIFEST_FILES_LIST,
+                "MANIFEST_FILES",
+                &mut ctx,
+            )
+            .await?;
         }
     }
 
@@ -127,10 +135,11 @@ async fn resolve_script_environment(
     Ok(())
 }
 
-async fn resolve_docker_compose_environment(
-    name: &str,
-    env: &DockerComposeEnvironment,
+async fn resolve_manifest_environment_setup<M: ValidateEnvironment + NamedManifestFiles>(
+    env: &ManifestEnvironment<M>,
     out_dir: &Path,
+    flist_name: &str,
+    flist_env_var: &str,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("resolving setup providers");
@@ -139,16 +148,14 @@ async fn resolve_docker_compose_environment(
     let setup_providers_dir = setup_dir.join(PROVIDER_DIR);
     env.run_providers(&setup_providers_dir, ctx).await?;
 
-    // Write compose file paths to a file (one path per line)
-    info!("writing compose-files.txt");
-    let compose_paths: Vec<String> = env
+    info!("writing {flist_name}");
+    let manifest_paths: Vec<String> = env
         .manifest_file_paths(ctx)?
         .iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect();
-    let compose_files_path = setup_dir.join(COMPOSE_FILES_LIST);
-    let compose_files_content = compose_paths.join("\n");
-    ctx.write(&compose_files_path, compose_files_content)?;
+    let file_list_path = setup_dir.join(flist_name);
+    ctx.write(&file_list_path, manifest_paths.join("\n"))?;
 
     info!("writing setup.env");
     let setup_output_path = setup_dir.join(OUTPUT_PATH);
@@ -157,12 +164,24 @@ async fn resolve_docker_compose_environment(
     // environment variables being used for file provider paths.
     let mut setup_vars = env.build_env_vars(&setup_dir, &setup_output_path, false, ctx)?;
     setup_vars.insert(
-        "COMPOSE_FILES".to_string(),
-        compose_files_path.to_string_lossy().to_string(),
+        flist_env_var.to_string(),
+        file_list_path.to_string_lossy().to_string(),
     );
 
     let setup_env_content = generate_env_file(setup_vars);
     ctx.write(setup_dir.join(SETUP_ENV_FILE), setup_env_content)?;
+
+    Ok(())
+}
+
+async fn resolve_docker_compose_environment(
+    name: &str,
+    env: &DockerComposeEnvironment,
+    out_dir: &Path,
+    ctx: &mut impl ResolutionContext,
+) -> anyhow::Result<()> {
+    resolve_manifest_environment_setup(env, out_dir, COMPOSE_FILES_LIST, "COMPOSE_FILES", ctx)
+        .await?;
 
     info!("writing teardown.env");
     let teardown_dir = out_dir.join("teardown");

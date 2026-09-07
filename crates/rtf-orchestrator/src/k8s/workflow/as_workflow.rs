@@ -4,7 +4,7 @@ use crate::k8s::{
     workflow::{KUBECONFIG_PATH, kubeconfig_volume_mount},
 };
 use k8s_openapi::api::core::v1::EnvVar;
-use rtf_config::formats::{DockerComposeEnvironment, NullEnvironment};
+use rtf_config::formats::{DockerComposeEnvironment, K8sEnvironment, NullEnvironment};
 use rtf_orchestrator_shared::{OtelConfig, test_plan::OrchestratorEnvironment};
 
 pub const DEPLOY_ENVIRONMENT: &str = "deploy-environment";
@@ -42,6 +42,7 @@ impl AsWorkflowTasks for OrchestratorEnvironment {
         match self {
             Self::DockerCompose(inner) => inner.specs(parent),
             Self::Null(inner) => inner.specs(parent),
+            Self::K8s(inner) => inner.specs(parent),
         }
     }
 
@@ -54,14 +55,58 @@ impl AsWorkflowTasks for OrchestratorEnvironment {
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
         match self {
+            Self::Null(inner) => {
+                inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
+            }
             Self::DockerCompose(inner) => {
                 inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
             }
-            Self::Null(inner) => {
+            Self::K8s(inner) => {
                 inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
             }
         }
     }
+}
+
+fn deploy_env_template(
+    namespace: &str,
+    toolbox_pull_policy: &str,
+    toolbox_image: &str,
+    otel: &OtelConfig,
+    native_k8s: bool,
+    env: Vec<EnvVar>,
+) -> TaskTemplate {
+    let mut args = vec![
+        "deploy-environment".into(),
+        "--namespace".into(),
+        namespace.into(),
+        "--kubeconfig".into(),
+        KUBECONFIG_PATH.into(),
+        "--toolbox-pull-policy".into(),
+        toolbox_pull_policy.into(),
+        "--toolbox-image".into(),
+        toolbox_image.into(),
+        "--provider-dir".into(),
+        "/providers".into(),
+        "--otel-collector-grpc".into(),
+        otel.grpc.clone(),
+        "--otel-collector-http".into(),
+        otel.http.clone(),
+    ];
+
+    if native_k8s {
+        args.push("--native-k8s".into());
+    }
+
+    TaskTemplate::new(
+        DEPLOY_ENVIRONMENT,
+        toolbox_pull_policy,
+        toolbox_image,
+        args,
+        vec![kubeconfig_volume_mount()],
+        None,
+        env,
+    )
 }
 
 impl AsWorkflowTasks for DockerComposeEnvironment {
@@ -77,29 +122,36 @@ impl AsWorkflowTasks for DockerComposeEnvironment {
         otel: &OtelConfig,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
-        vec![TaskTemplate::new(
-            DEPLOY_ENVIRONMENT,
+        vec![deploy_env_template(
+            namespace,
             toolbox_pull_policy,
             toolbox_image,
-            vec![
-                "deploy-environment".into(),
-                "--namespace".into(),
-                namespace.into(),
-                "--kubeconfig".into(),
-                KUBECONFIG_PATH.into(),
-                "--toolbox-pull-policy".into(),
-                toolbox_pull_policy.into(),
-                "--toolbox-image".into(),
-                toolbox_image.into(),
-                "--provider-dir".into(),
-                "/providers".into(),
-                "--otel-collector-grpc".into(),
-                otel.grpc.clone(),
-                "--otel-collector-http".into(),
-                otel.http.clone(),
-            ],
-            vec![kubeconfig_volume_mount()],
-            None,
+            otel,
+            false,
+            env,
+        )]
+    }
+}
+
+impl AsWorkflowTasks for K8sEnvironment {
+    fn specs(&self, parent: &str) -> Vec<TaskSpec> {
+        vec![TaskSpec::new(DEPLOY_ENVIRONMENT, &[parent])]
+    }
+
+    fn templates(
+        &self,
+        namespace: &str,
+        toolbox_pull_policy: &str,
+        toolbox_image: &str,
+        otel: &OtelConfig,
+        env: Vec<EnvVar>,
+    ) -> Vec<TaskTemplate> {
+        vec![deploy_env_template(
+            namespace,
+            toolbox_pull_policy,
+            toolbox_image,
+            otel,
+            true,
             env,
         )]
     }

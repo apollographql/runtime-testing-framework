@@ -1,16 +1,16 @@
 //! An Orchestrator specific test plan implementation
 use rtf_config::{
-    Prepare, Run,
+    Prepare,
     checks::{Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     enum_impl_check,
     formats::{
-        DockerComposeEnvironment, DockerScenario, FileProviderServices, NullEnvironment,
-        PrometheusQuery, TestPlan,
+        DockerComposeEnvironment, DockerScenario, FileProviderServices, K8sEnvironment,
+        NullEnvironment, PrometheusQuery, TestPlan,
     },
     inlining::{self, InlineMode, InlinedProvider},
     providers,
-    run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
+    run::{Provider, RunProviders, ValidateEnvironment},
     templating::Template as _,
 };
 use rtf_derive::Template;
@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::{
     collections::{BTreeMap, HashMap},
-    path::Path,
     pin::Pin,
 };
 
@@ -35,8 +34,6 @@ impl Prepare for Orchestrator {
     type Environment = OrchestratorEnvironment;
 }
 
-impl Run for Orchestrator {}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(
     untagged,
@@ -48,54 +45,64 @@ pub enum OrchestratorEnvironment {
     // set, we resolve to a NullEnvironment.
     Null(NullEnvironment),
     DockerCompose(DockerComposeEnvironment),
+    K8s(K8sEnvironment),
 }
 
 impl OrchestratorEnvironment {
     pub fn prometheus_queries(&self) -> &[PrometheusQuery] {
         match self {
-            OrchestratorEnvironment::Null(_) => &[],
-            OrchestratorEnvironment::DockerCompose(dce) => &dce.output_collection.prometheus,
+            Self::Null(_) => &[],
+            Self::DockerCompose(inner) => &inner.output_collection.prometheus,
+            Self::K8s(inner) => &inner.output_collection.prometheus,
         }
     }
 
-    pub async fn inline_compose_files(
+    pub async fn inline_manifest_files(
         &mut self,
         ctx: &impl ResolutionContext,
         cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
         match self {
-            OrchestratorEnvironment::Null(_) => Ok(()),
-            OrchestratorEnvironment::DockerCompose(dce) => dce.inline_manifests(ctx, cache).await,
+            Self::Null(_) => Ok(()),
+            Self::DockerCompose(inner) => inner.inline_manifests(ctx, cache).await,
+            Self::K8s(inner) => inner.inline_manifests(ctx, cache).await,
         }
     }
 
     pub fn file_provider_services_from_inline(&self) -> FileProviderServices {
         match self {
-            OrchestratorEnvironment::Null(_) => FileProviderServices::default(),
-            OrchestratorEnvironment::DockerCompose(dce) => FileProviderServices::from_inline(dce),
+            Self::Null(_) | Self::K8s(_) => FileProviderServices::default(),
+            Self::DockerCompose(inner) => FileProviderServices::from_inline(inner),
         }
     }
 
     /// Requires that only inline providers are present, erroring if any non-inline providers are
     /// encountered.
-    /// [inline_compose_files](OrchestratorEnvironment::inline_compose_files) can be used to
+    /// [inline_manifest_files](OrchestratorEnvironment::inline_manifest_files) can be used to
     /// enforce this invariant.
     pub fn services(&self) -> providers::Result<Vec<EnvironmentService>> {
         match self {
-            OrchestratorEnvironment::Null(_) => Ok(Vec::new()),
-            OrchestratorEnvironment::DockerCompose(dce) => {
+            Self::Null(_) => Ok(Vec::new()),
+            Self::DockerCompose(dce) => {
                 Ok(services_from_compose_contents(dce.manifest_contents()?))
             }
+            Self::K8s(_) => Ok(Vec::new()), // TODO: can we reliably parse these out of k8s resources?
         }
     }
 
     /// The template variables that this environment's compose file providers depend on (if any).
-    pub fn compose_template_variables(&self) -> Vec<String> {
+    pub fn manifest_template_variables(&self) -> Vec<String> {
         match self {
-            OrchestratorEnvironment::Null(_) => Vec::new(),
-            OrchestratorEnvironment::DockerCompose(dce) => dce
+            Self::Null(_) => Vec::new(),
+            Self::DockerCompose(inner) => inner
                 .resources
                 .compose_files
+                .iter()
+                .flat_map(|ncfp| ncfp.required_variables())
+                .collect(),
+            Self::K8s(inner) => inner
+                .resources
+                .resources
                 .iter()
                 .flat_map(|ncfp| ncfp.required_variables())
                 .collect(),
@@ -103,47 +110,16 @@ impl OrchestratorEnvironment {
     }
 }
 
-enum_impl_check!(OrchestratorEnvironment => Null, DockerCompose);
+enum_impl_check!(OrchestratorEnvironment => Null, DockerCompose, K8s);
 
 impl ValidateEnvironment for OrchestratorEnvironment {}
-
-impl RunEnvironment for OrchestratorEnvironment {
-    async fn execute_setup(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match self {
-            OrchestratorEnvironment::Null(inner) => inner.execute_setup(name, out_dir, ctx).await,
-            OrchestratorEnvironment::DockerCompose(inner) => {
-                inner.execute_setup(name, out_dir, ctx).await
-            }
-        }
-    }
-
-    async fn execute_teardown(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match self {
-            OrchestratorEnvironment::Null(inner) => {
-                inner.execute_teardown(name, out_dir, ctx).await
-            }
-            OrchestratorEnvironment::DockerCompose(inner) => {
-                inner.execute_teardown(name, out_dir, ctx).await
-            }
-        }
-    }
-}
 
 impl RunProviders for OrchestratorEnvironment {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         match self {
-            OrchestratorEnvironment::Null(inner) => inner.named_providers(),
-            OrchestratorEnvironment::DockerCompose(inner) => inner.named_providers(),
+            Self::Null(inner) => inner.named_providers(),
+            Self::DockerCompose(inner) => inner.named_providers(),
+            Self::K8s(inner) => inner.named_providers(),
         }
     }
 
@@ -154,8 +130,9 @@ impl RunProviders for OrchestratorEnvironment {
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
-            OrchestratorEnvironment::Null(inner) => inner.inline(mode, ctx, cache),
-            OrchestratorEnvironment::DockerCompose(inner) => inner.inline(mode, ctx, cache),
+            Self::Null(inner) => inner.inline(mode, ctx, cache),
+            Self::DockerCompose(inner) => inner.inline(mode, ctx, cache),
+            Self::K8s(inner) => inner.inline(mode, ctx, cache),
         }
     }
 }
@@ -165,8 +142,9 @@ impl CheckArrayDuplicates for OrchestratorEnvironment {
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
         match self {
-            OrchestratorEnvironment::Null(inner) => inner.deduplicated_arrays(),
-            OrchestratorEnvironment::DockerCompose(inner) => inner.deduplicated_arrays(),
+            Self::Null(inner) => inner.deduplicated_arrays(),
+            Self::DockerCompose(inner) => inner.deduplicated_arrays(),
+            Self::K8s(inner) => inner.deduplicated_arrays(),
         }
     }
 }
@@ -579,7 +557,7 @@ teardown:
         );
 
         assert_eq!(
-            compose_env_with(&[TEMPLATED_COMPOSE_PATH]).compose_template_variables(),
+            compose_env_with(&[TEMPLATED_COMPOSE_PATH]).manifest_template_variables(),
             vec!["compose_dir".to_string()]
         );
     }
