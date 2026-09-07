@@ -184,8 +184,19 @@ fn stage_native_manifests(
         .collect();
 
     for (src, name) in manifest_paths.into_iter().zip(&resource_names) {
-        let contents = ctx.read_file(Path::new(src))?;
-        ctx.write_file(&k8s_dir_path.join(name), &contents)?;
+        let mut contents = ctx.read_file_to_string(Path::new(src))?;
+        // the docker-compose path gets env-var expansion "for free" from us running "kompose
+        // convert". In order to maintain that same functionality we need to manually resolve
+        // environment variable references ourselves.
+        for (k, v) in env_vars.iter() {
+            for pat in [format!("${{{k}}}"), format!("${k}")] {
+                if contents.contains(&pat) {
+                    contents = contents.replace(&pat, v);
+                }
+            }
+        }
+
+        ctx.write_file(&k8s_dir_path.join(name), contents.as_bytes())?;
     }
 
     Ok(resource_names)
@@ -433,9 +444,9 @@ mod tests {
         let provider_dir = PathBuf::from("/p");
         let k8s_dir = PathBuf::from("/k8s");
 
-        ctx.write_file(Path::new("/a/one.yaml"), b"kind: A")
+        ctx.write_file(Path::new("/a/one.yaml"), b"kind: ${EXPAND}")
             .unwrap();
-        ctx.write_file(Path::new("/b/two.yaml"), b"kind: B")
+        ctx.write_file(Path::new("/b/two.yaml"), b"kind: $EXPAND")
             .unwrap();
 
         let manifest_files_txt = provider_dir.join("setup/manifest-files.txt");
@@ -445,7 +456,7 @@ mod tests {
         ctx.write_file(
             &provider_dir.join("setup/setup.env"),
             format!(
-                "export MANIFEST_FILES=\"{}\"\n",
+                "export MANIFEST_FILES=\"{}\"\nexport EXPAND=\"me\"",
                 manifest_files_txt.display()
             )
             .as_bytes(),
@@ -459,11 +470,11 @@ mod tests {
         let written = ctx.fs.files.read().unwrap();
         assert_eq!(
             written.get(&k8s_dir.join("a_one.yaml")),
-            Some(&b"kind: A".to_vec())
+            Some(&b"kind: me".to_vec())
         );
         assert_eq!(
             written.get(&k8s_dir.join("b_two.yaml")),
-            Some(&b"kind: B".to_vec())
+            Some(&b"kind: me".to_vec())
         );
     }
 
