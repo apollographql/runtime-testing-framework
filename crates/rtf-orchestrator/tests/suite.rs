@@ -7,16 +7,20 @@ use serial_test::serial;
 use simple_test_case::test_case;
 use std::time::Duration;
 
+#[test_case("resources/test-plans/valid/minimal", true; "with docker-compose environment")]
+#[test_case("resources/test-plans/valid/minimal-k8s", true; "with k8s environment")]
+#[test_case("resources/test-plans/valid/null-environment", false; "with null environment")]
 #[tokio::test]
 #[serial]
-async fn full_test_run_happy_path_completes_successfully() {
+async fn full_test_run_happy_path_completes_successfully(
+    test_plan_dir: &str,
+    has_environment_prometheus: bool,
+) {
     let t = TestHelper::new();
     let run: TestRunSummary = t
         .json_post(
             "test-run/trigger",
-            t.prepare_orchestrator_payload("resources/test-plans/valid/minimal")
-                .await
-                .unwrap(),
+            t.prepare_orchestrator_payload(test_plan_dir).await.unwrap(),
         )
         .await
         .unwrap();
@@ -46,60 +50,19 @@ async fn full_test_run_happy_path_completes_successfully() {
     zip.read_json("output/variables.json").unwrap();
     zip.read_json("output/resource-metrics.json").unwrap();
 
-    assert_eq!(
-        zip.read_prometheus_query("environment", "environment_up")
-            .unwrap(),
-        t.prometheus_query_with_namespace_filter(ex_id, "environment_up", "up"),
-    );
-    assert_eq!(
-        zip.read_prometheus_query("scenario", "scenario_up")
-            .unwrap(),
-        t.prometheus_query_with_namespace_filter(ex_id, "scenario_up", "up"),
-    );
-}
-
-#[tokio::test]
-#[serial]
-async fn full_test_run_happy_path_completes_successfully_with_null_environment() {
-    let t = TestHelper::new();
-    let run: TestRunSummary = t
-        .json_post(
-            "test-run/trigger",
-            t.prepare_orchestrator_payload("resources/test-plans/valid/null-environment")
-                .await
+    if has_environment_prometheus {
+        assert_eq!(
+            zip.read_prometheus_query("environment", "environment_up")
                 .unwrap(),
-        )
-        .await
-        .unwrap();
+            t.prometheus_query_with_namespace_filter(ex_id, "environment_up", "up"),
+        );
+    } else {
+        assert!(
+            !zip.contains_path_prefix("output/prometheus/environment/"),
+            "shouldn't have any prometheus output from the environment"
+        );
+    }
 
-    // Wait for the run to enter a successful status
-    let ex_id = t
-        .poll_for_execution_id(run.id, Duration::from_secs(5))
-        .await;
-    t.poll_for_status(ex_id, Successful, Duration::from_secs(180))
-        .await;
-
-    // Fetch and validate the log output
-    let log_txt = t
-        .get_text(format!("test-execution/{ex_id}/log.txt"))
-        .await
-        .unwrap();
-
-    assert!(log_txt.ends_with("hello, world!\n"), "{log_txt:?}");
-
-    // Fetch and validate the output.zip
-    let mut zip = t.get_output_zip(ex_id).await.unwrap();
-
-    assert_eq!(zip.rtf_output_content(), "hello, world!\n");
-    assert!(zip.contains_path_prefix("output/logs/"));
-
-    zip.read_json("output/events.json").unwrap();
-    zip.read_json("output/resource-metrics.json").unwrap();
-
-    assert!(
-        !zip.contains_path_prefix("output/prometheus/environment/"),
-        "shouldn't have any prometheus output from the environment"
-    );
     assert_eq!(
         zip.read_prometheus_query("scenario", "scenario_up")
             .unwrap(),

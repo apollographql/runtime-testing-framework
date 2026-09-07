@@ -1,0 +1,12 @@
+name: minimal-nginx-k8s
+description: Minimal k8s fixture for ProvisionEnvironment integration tests
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml

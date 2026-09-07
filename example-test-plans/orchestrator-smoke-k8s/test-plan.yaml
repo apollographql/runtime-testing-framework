@@ -1,0 +1,85 @@
+name: orchestrator-smoke-k8s
+description: |
+  A minimal smoke test of the functionality in the orchestrator, using a native k8s resource
+  environment rather than docker-compose:
+  - a matrix to generate multiple executions
+  - GitHub file provider to check auth
+  - Studio file provider to check auth
+  - custom provider in both scenario and env
+  - scenario writes to both stdout and a file
+
+custom_providers:
+  - kind: local
+    relative_path: providers
+    using:
+      test_custom_provider: custom-provider.yaml
+
+matrix:
+  variant_names: "hello_${subject}"
+  dimensions:
+    subject: ["world", "sailor"]
+
+scenario:
+  inline:
+    name: smoke-scenario
+    description: Smoke test scenario definition
+
+    variable_definitions:
+      - name: subject
+        description: "The subject to echo out"
+
+    docker:
+      image: nginx
+      tag: alpine
+      command: "sh $SCRIPT"
+
+    env_vars:
+      SUBJECT: "{{ subject }}"
+
+    file_providers:
+      - name: script.sh
+        env_var: SCRIPT
+        kind: relative_path
+        path: data/scenario.sh
+
+      # A custom provider to test that it gets resolved and stripped out
+      # correctly before being sent down to the toolbox image
+      - name: custom-provider.txt
+        env_var: CUSTOM
+        kind: custom_provider
+        type: test_custom_provider
+        argument: "smoke test"
+
+      # A github file to check our github creds
+      - name: "README.md"
+        env_var: README
+        kind: github_file
+        org: "apollographql"
+        repo: "runtime-testing-framework"
+        path: "README.md"
+        git_ref: "main"
+
+environment:
+  inline:
+    name: smoke-env
+    description: Smoke test environment definition
+
+    resources:
+      - name: manifest.yaml
+        kind: relative_path
+        path: data/manifest.yaml
+
+    file_providers:
+      # A custom provider to test that it gets resolved and stripped out
+      # correctly before being sent down to the toolbox image
+      - name: custom-provider.txt
+        env_var: CUSTOM
+        kind: custom_provider
+        type: test_custom_provider
+        argument: "smoke test"
+
+      # A supergraph to check our Studio creds
+      - name: "supergraph.graphql"
+        env_var: SUPERGRAPH
+        kind: graphos_supergraph
+        graph_ref: imgood-observability-test@current
