@@ -77,6 +77,10 @@ pub enum Command {
         /// HTTP endpoint for the OTEL collector
         #[arg(long)]
         otel_collector_http: String,
+
+        /// Whether or not the environment being deployed has native k8s resources
+        #[arg(long, default_value = "false")]
+        native_k8s: bool,
     },
 
     /// Resolve an RTF environment

@@ -1,0 +1,17 @@
+name: k8s-environment
+description: A k8s environment for testing resolve
+env_vars:
+  K8S_VAR: "k8s_value"
+resources:
+  - name: manifest.yaml
+    kind: inline
+    content: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: test
+file_providers:
+  - name: config.txt
+    env_var: CONFIG_FILE
+    kind: inline
+    content: "k8s config content"

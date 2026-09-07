@@ -292,13 +292,20 @@ fn resolve_docker_compose_environment_creates_expected_output() {
 
     res.success().stderr(contains("done"));
 
-    assert!(output_dir.child("setup").exists());
-    assert!(output_dir.child("setup/providers").exists());
-    assert!(output_dir.child("setup/setup.env").exists());
-
-    assert!(output_dir.child("teardown").exists());
-    assert!(output_dir.child("teardown/providers").exists());
-    assert!(output_dir.child("teardown/teardown.env").exists());
+    for child in [
+        "setup",
+        "setup/providers",
+        "setup/setup.env",
+        "teardown",
+        "teardown/providers",
+        "teardown/teardown.env",
+        "setup/compose-files.txt",
+    ] {
+        assert!(
+            output_dir.child(child).exists(),
+            "{child} should exist in output"
+        );
+    }
 
     assert!(output_dir.child("setup/compose-files.txt").exists());
     let compose_files =
@@ -323,6 +330,52 @@ fn resolve_docker_compose_environment_creates_expected_output() {
             .child("setup/providers/docker-compose.yaml")
             .exists()
     );
+}
+
+#[test]
+fn resolve_k8s_environment_creates_expected_output() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from("resources/environments/valid/k8s-based", &["**"])
+        .unwrap();
+
+    let output_dir = tmp.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("environment")
+        .arg(tmp.child("environment.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("-v")
+        .assert();
+
+    res.success().stderr(contains("done"));
+
+    for child in [
+        "setup",
+        "setup/providers",
+        "setup/setup.env",
+        "setup/manifest-files.txt",
+    ] {
+        assert!(
+            output_dir.child(child).exists(),
+            "{child} should exist in output"
+        );
+    }
+
+    let manifest_files =
+        fs::read_to_string(output_dir.child("setup/manifest-files.txt").path()).unwrap();
+    assert!(manifest_files.contains("manifest.yaml"));
+
+    let setup_env = fs::read_to_string(output_dir.child("setup/setup.env").path()).unwrap();
+    assert!(setup_env.contains("MANIFEST_FILES="));
+    assert!(setup_env.contains("manifest-files.txt"));
+    assert!(setup_env.contains("K8S_VAR=\"k8s_value\""));
+    assert!(setup_env.contains("CONFIG_FILE="));
+
+    assert!(output_dir.child("setup/providers/manifest.yaml").exists());
 }
 
 #[test]

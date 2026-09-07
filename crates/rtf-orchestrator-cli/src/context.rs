@@ -119,6 +119,9 @@ pub trait CliContext {
 
     /// Recursively list all regular files under `dir`, returning absolute paths.
     fn list_files_under(&self, dir: &Path) -> Result<Vec<PathBuf>, FsError>;
+
+    /// Recursively create a directory and all of its parent components if they are missing.
+    fn create_dir_all(&self, path: &Path) -> Result<(), FsError>;
 }
 
 pub struct EnvironmentContext {
@@ -225,6 +228,14 @@ impl CliContext for EnvironmentContext {
         })?;
 
         Ok(out)
+    }
+
+    fn create_dir_all(&self, path: &Path) -> Result<(), FsError> {
+        fs::create_dir_all(path).map_err(|source| FsError {
+            kind: FsErrorKind::CreateDir,
+            path: path.to_path_buf(),
+            source,
+        })
     }
 }
 
@@ -388,6 +399,10 @@ pub(crate) mod mocks {
             paths.sort();
 
             Ok(paths)
+        }
+
+        fn create_dir_all(&self, _path: &Path) -> Result<(), FsError> {
+            Ok(())
         }
     }
 }

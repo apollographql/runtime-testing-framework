@@ -119,7 +119,7 @@ impl OrchestratorContext {
         variant
             .environment
             .execution
-            .inline_compose_files(self, inline_cache)
+            .inline_manifest_files(self, inline_cache)
             .await?;
 
         Ok(variant

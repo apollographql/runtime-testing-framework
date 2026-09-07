@@ -304,7 +304,7 @@ impl EnvironmentSummary {
             .map_err(EnvironmentSummaryError::Templating)?;
 
         let mut env = variant.environment.execution;
-        env.inline_compose_files(ctx, &mut HashMap::new())
+        env.inline_manifest_files(ctx, &mut HashMap::new())
             .await
             .map_err(EnvironmentSummaryError::Inlining)?;
 
@@ -343,7 +343,7 @@ fn services_vary_by_matrix(test_plan: &OrchestratorTestPlan) -> bool {
     test_plan
         .environment
         .execution
-        .compose_template_variables()
+        .manifest_template_variables()
         .iter()
         .any(|name| matrix_keys.contains(name))
 }

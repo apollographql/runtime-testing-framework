@@ -39,6 +39,7 @@ pub trait Client: Send + Sync {
         toolbox_image_pull_policy: &str,
         toolbox_image: &str,
         otel: &OtelConfig,
+        resources: &[String],
     ) -> String;
 
     /// Update the [Status] of the current test execution, with an optional `message` to write to the database.
@@ -147,8 +148,16 @@ impl Client for HttpClient {
         toolbox_image_pull_policy: &str,
         toolbox_image: &str,
         otel: &OtelConfig,
+        resources: &[String],
     ) -> String {
+        let resources = resources
+            .iter()
+            .map(|r| format!("  - {r}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
         KUSTOMIZE_PATCH
+            .replace("__RESOURCES__", &resources)
             .replace("__ORCHESTRATOR_URL__", self.orchestrator_url.as_str())
             .replace("__EXECUTION_ID__", &self.execution_id.to_string())
             .replace("__EXECUTION_TOKEN__", &self.execution_token.to_string())
@@ -421,6 +430,7 @@ pub(crate) mod mocks {
             _pull_policy: &str,
             _toolbox_image: &str,
             _otel: &OtelConfig,
+            _resources: &[String],
         ) -> String {
             KUSTOMIZE_PATCH.to_string()
         }

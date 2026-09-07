@@ -8,9 +8,7 @@ use crate::{
 use anyhow::anyhow;
 use rtf_config::formats::PullPolicyServices;
 use rtf_orchestrator_shared::{OtelConfig, status::Status};
-use std::{
-    collections::HashMap, env::temp_dir, fs, io, path::Path, process::Command, time::Duration,
-};
+use std::{collections::HashMap, env::temp_dir, io, path::Path, process::Command, time::Duration};
 use tokio::time::{Instant, sleep};
 use tracing::{info, warn};
 
@@ -18,6 +16,7 @@ const DUPLICATE_ERROR: &str =
     "Encountered a duplicate environment entry in the resolved RTF environment";
 const MALFORMED_ERROR: &str = "Encountered a malformed line in the resolved RTF environment";
 const MISSING_EXPORT_ERROR: &str = "Expected leading 'export ' prefix to env file line";
+const KOMPOSE_OUTPUT: &str = "kompose-output.yaml";
 
 /// Toolbox-related settings needed to deploy an RTF environment's file-provider init container.
 pub struct ToolboxSettings<'a> {
@@ -32,27 +31,18 @@ pub async fn deploy_environment(
     provider_dir_path: &Path,
     toolbox: &ToolboxSettings<'_>,
     timeout: u64,
+    native_k8s: bool,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
     let workdir_path = temp_dir().join("rtf-work");
     let k8s_dir_path = workdir_path.join("k8s");
 
-    fs::create_dir_all(&k8s_dir_path).map_err(|source| FsError {
-        kind: FsErrorKind::CreateDir,
-        path: k8s_dir_path.clone(),
-        source,
-    })?;
-
-    fs::create_dir_all(provider_dir_path).map_err(|source| FsError {
-        kind: FsErrorKind::CreateDir,
-        path: provider_dir_path.to_owned(),
-        source,
-    })?;
+    ctx.create_dir_all(&k8s_dir_path)?;
+    ctx.create_dir_all(provider_dir_path)?;
 
     info_status!(ctx, Status::Provisioning, "deploying environment")?;
 
     let cfg_bytes = ctx.orchestrator_client().fetch_environment_config().await?;
-
     let cfg_path = temp_dir().join("environment.yaml");
     ctx.write_file(&cfg_path, &cfg_bytes)?;
 
@@ -67,7 +57,14 @@ pub async fn deploy_environment(
     ]))
     .await?;
 
-    setup_env(&k8s_dir_path, provider_dir_path, toolbox, ctx).await?;
+    let resources = if native_k8s {
+        stage_native_manifests(&k8s_dir_path, provider_dir_path, ctx)?
+    } else {
+        run_kompose(&k8s_dir_path, provider_dir_path, ctx).await?;
+        vec![KOMPOSE_OUTPUT.to_string()]
+    };
+
+    apply_kustomize_patches(&k8s_dir_path, provider_dir_path, toolbox, &resources, ctx).await?;
 
     info!("applying manifests to namespace '{namespace}'");
     ctx.run_shell(Command::new("kubectl").args([
@@ -91,45 +88,55 @@ pub async fn deploy_environment(
     Ok(())
 }
 
+fn load_setup_env_vars(
+    path: &Path,
+    ctx: &impl CliContext,
+) -> crate::Result<HashMap<String, String>> {
+    let env_contents = ctx.read_file_to_string(path)?;
+
+    parse_env_file(&env_contents)
+        .map_err(|e| FsError {
+            kind: FsErrorKind::Read,
+            path: path.to_owned(),
+            source: io::Error::new(io::ErrorKind::InvalidData, e.to_string()),
+        })
+        .map_err(Into::into)
+}
+
+fn require_env_var(
+    env_vars: &HashMap<String, String>,
+    path: &Path,
+    var: &str,
+) -> crate::Result<String> {
+    env_vars.get(var).cloned().ok_or_else(|| {
+        FsError {
+            kind: FsErrorKind::Read,
+            path: path.to_owned(),
+            source: io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "{var} was not set by setup.env -- make sure environment.yaml is well-formed"
+                ),
+            ),
+        }
+        .into()
+    })
+}
+
 /// Sources COMPOSE_FILES from the resolved RTF environment and converts them to k8s manifests
-async fn setup_env(
+async fn run_kompose(
     k8s_dir_path: &Path,
     provider_dir_path: &Path,
-    toolbox: &ToolboxSettings<'_>,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
     let setup_env = provider_dir_path.join("setup/setup.env");
-    let env_contents = fs::read_to_string(&setup_env).map_err(|source| FsError {
-        kind: FsErrorKind::Read,
-        path: setup_env.clone(),
-        source,
-    })?;
-
-    let env_vars = parse_env_file(&env_contents).map_err(|e| FsError {
-        kind: FsErrorKind::Read,
-        path: setup_env.clone(),
-        source: io::Error::new(io::ErrorKind::InvalidData, e.to_string()),
-    })?;
-
-    let compose_files_path = env_vars.get("COMPOSE_FILES").ok_or_else(|| FsError {
-        kind: FsErrorKind::Read,
-        path: setup_env.clone(),
-        source: io::Error::new(
-            io::ErrorKind::InvalidData,
-            "COMPOSE_FILES was not set by setup.env -- make sure environment.yaml is well-formed",
-        ),
-    })?;
-
-    let compose_files_content =
-        fs::read_to_string(compose_files_path).map_err(|source| FsError {
-            kind: FsErrorKind::Read,
-            path: compose_files_path.into(),
-            source,
-        })?;
+    let env_vars = load_setup_env_vars(&setup_env, ctx)?;
+    let compose_files_path = require_env_var(&env_vars, &setup_env, "COMPOSE_FILES")?;
+    let compose_files_content = ctx.read_file_to_string(Path::new(&compose_files_path))?;
 
     let compose_contents: Vec<String> = compose_files_content
         .lines()
-        .filter_map(|path| fs::read_to_string(path).ok())
+        .filter_map(|path| ctx.read_file_to_string(Path::new(path)).ok())
         .collect();
 
     let mut kompose_input = compose_files_content.clone();
@@ -150,12 +157,66 @@ async fn setup_env(
     info!("converting to kubernetes manifests");
     let mut kompose = build_kompose_command(
         &kompose_input,
-        &k8s_dir_path.join("kompose-output.yaml"),
+        &k8s_dir_path.join(KOMPOSE_OUTPUT),
         &env_vars,
     );
 
-    ctx.run_shell(&mut kompose).await?;
+    ctx.run_shell(&mut kompose).await
+}
 
+/// Sources MANIFEST_FILES from the resolved RTF environment and copies each native k8s resource
+/// manifest into `k8s_dir_path`, returning their filenames for use as kustomize `resources:`.
+fn stage_native_manifests(
+    k8s_dir_path: &Path,
+    provider_dir_path: &Path,
+    ctx: &impl CliContext,
+) -> crate::Result<Vec<String>> {
+    let setup_env = provider_dir_path.join("setup/setup.env");
+    let env_vars = load_setup_env_vars(&setup_env, ctx)?;
+
+    let path = require_env_var(&env_vars, &setup_env, "MANIFEST_FILES")?;
+    let s = ctx.read_file_to_string(Path::new(&path))?;
+
+    let manifest_paths: Vec<&str> = s.lines().collect();
+    let resource_names: Vec<String> = manifest_paths
+        .iter()
+        .map(|p| manifest_resource_name(p))
+        .collect();
+
+    for (src, name) in manifest_paths.into_iter().zip(&resource_names) {
+        let mut contents = ctx.read_file_to_string(Path::new(src))?;
+        // the docker-compose path gets env-var expansion "for free" from us running "kompose
+        // convert". In order to maintain that same functionality we need to manually resolve
+        // environment variable references ourselves.
+        for (k, v) in env_vars.iter() {
+            for pat in [format!("${{{k}}}"), format!("${k}")] {
+                if contents.contains(&pat) {
+                    contents = contents.replace(&pat, v);
+                }
+            }
+        }
+
+        ctx.write_file(&k8s_dir_path.join(name), contents.as_bytes())?;
+    }
+
+    Ok(resource_names)
+}
+
+fn manifest_resource_name(path: &str) -> String {
+    path.trim_start_matches('/')
+        .split('/')
+        .map(|part| part.replace('_', "__"))
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
+async fn apply_kustomize_patches(
+    k8s_dir_path: &Path,
+    provider_dir_path: &Path,
+    toolbox: &ToolboxSettings<'_>,
+    resources: &[String],
+    ctx: &impl CliContext,
+) -> crate::Result<()> {
     ctx.write_file(
         &k8s_dir_path.join("kustomization.yaml"),
         ctx.orchestrator_client()
@@ -164,6 +225,7 @@ async fn setup_env(
                 toolbox.pull_policy,
                 toolbox.image,
                 toolbox.otel,
+                resources,
             )
             .as_bytes(),
     )?;
@@ -286,7 +348,7 @@ mod tests {
     use serde::Deserialize;
     use serde_yaml::{Deserializer, Value};
     use simple_test_case::test_case;
-    use std::{iter::once, path::PathBuf};
+    use std::{fs, iter::once, path::PathBuf};
 
     #[test]
     fn parse_env_preserves_values_containing_equals() -> anyhow::Result<()> {
@@ -373,6 +435,55 @@ mod tests {
         let args = extract_kompose_args(&cmd);
         let f_count = args.iter().filter(|a| a.as_str() == "-f").count();
         assert_eq!(f_count, 3);
+    }
+
+    #[test]
+    fn stage_native_manifests_copies_files_and_returns_resource_names() {
+        let ctx = MockContext::default();
+
+        let provider_dir = PathBuf::from("/p");
+        let k8s_dir = PathBuf::from("/k8s");
+
+        ctx.write_file(Path::new("/a/one.yaml"), b"kind: ${EXPAND}")
+            .unwrap();
+        ctx.write_file(Path::new("/b/two.yaml"), b"kind: $EXPAND")
+            .unwrap();
+
+        let manifest_files_txt = provider_dir.join("setup/manifest-files.txt");
+        ctx.write_file(&manifest_files_txt, b"/a/one.yaml\n/b/two.yaml")
+            .unwrap();
+
+        ctx.write_file(
+            &provider_dir.join("setup/setup.env"),
+            format!(
+                "export MANIFEST_FILES=\"{}\"\nexport EXPAND=\"me\"",
+                manifest_files_txt.display()
+            )
+            .as_bytes(),
+        )
+        .unwrap();
+
+        let resource_names = stage_native_manifests(&k8s_dir, &provider_dir, &ctx).unwrap();
+
+        assert_eq!(resource_names, vec!["a_one.yaml", "b_two.yaml"]);
+
+        let written = ctx.fs.files.read().unwrap();
+        assert_eq!(
+            written.get(&k8s_dir.join("a_one.yaml")),
+            Some(&b"kind: me".to_vec())
+        );
+        assert_eq!(
+            written.get(&k8s_dir.join("b_two.yaml")),
+            Some(&b"kind: me".to_vec())
+        );
+    }
+
+    #[test]
+    fn manifest_resource_name_does_not_collide_on_relocated_underscores() {
+        let a = manifest_resource_name("/k8s/core_manifests/deploy.yaml");
+        let b = manifest_resource_name("/k8s/core/manifests_deploy.yaml");
+
+        assert_ne!(a, b);
     }
 
     #[test]
