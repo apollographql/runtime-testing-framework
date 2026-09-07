@@ -34,6 +34,7 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
             toolbox_image,
             otel_collector_grpc,
             otel_collector_http,
+            native_k8s,
         } => {
             commands::deploy_environment(
                 &namespace,
@@ -48,6 +49,7 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
                     },
                 },
                 timeout,
+                native_k8s,
                 ctx,
             )
             .await

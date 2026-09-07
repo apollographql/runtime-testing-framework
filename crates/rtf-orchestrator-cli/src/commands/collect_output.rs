@@ -15,7 +15,7 @@ use std::{
     process::ExitStatus,
     time::Duration,
 };
-use tokio::{fs, time::sleep};
+use tokio::time::sleep;
 use tracing::{info, warn};
 use zip::{ZipWriter, write::SimpleFileOptions};
 
@@ -112,7 +112,7 @@ async fn collect_output_inner(
             );
             warn!("{err_str}");
 
-            if let Err(e) = fs::write(&path, &err_str).await {
+            if let Err(e) = ctx.write_file(&path, err_str.as_bytes()) {
                 warn!("failed to write {}: {e}", path.display());
             }
 
@@ -121,7 +121,7 @@ async fn collect_output_inner(
     };
 
     let path = output_dir.join("variables.json");
-    if let Err(e) = fs::write(&path, &execution_variables).await {
+    if let Err(e) = ctx.write_file(&path, execution_variables.as_bytes()) {
         warn!("failed to write {}: {e}", path.display());
     }
 
@@ -200,7 +200,7 @@ async fn collect_prometheus_metrics(
             );
             warn!("{err_str}");
 
-            if let Err(e) = fs::write(&path, &err_str).await {
+            if let Err(e) = ctx.write_file(&path, err_str.as_bytes()) {
                 warn!("failed to write {}: {e}", path.display());
             }
 
@@ -215,6 +215,7 @@ async fn collect_prometheus_metrics(
         end,
         output_dir,
         prometheus_client,
+        ctx,
     )
     .await;
     execute_prometheus_queries(
@@ -224,6 +225,7 @@ async fn collect_prometheus_metrics(
         end,
         output_dir,
         prometheus_client,
+        ctx,
     )
     .await;
 }
@@ -256,6 +258,7 @@ async fn execute_prometheus_queries(
     end: DateTime<Utc>,
     output_dir: &Path,
     client: &impl PrometheusClientTrait,
+    ctx: &impl CliContext,
 ) {
     if !queries.is_empty() {
         info!("executing {source} prometheus queries");
@@ -272,7 +275,7 @@ async fn execute_prometheus_queries(
                 }
             };
 
-            write_prometheus_result(output_dir, source, &query.name, &envelope).await;
+            write_prometheus_result(output_dir, source, &query.name, &envelope, ctx);
         }
     }
 }
@@ -296,11 +299,12 @@ fn prometheus_result_envelope(
 /// `<output_dir>/prometheus/{environment|scenario}/{name}.json`, creating any missing parent
 /// directories first. Failures are logged and swallowed — one query's write failure shouldn't
 /// prevent the rest of output collection from proceeding.
-async fn write_prometheus_result(
+fn write_prometheus_result(
     output_dir: &Path,
     source: &str,
     name: &str,
     result: &serde_json::Value,
+    ctx: &impl CliContext,
 ) {
     let path = output_dir
         .join("prometheus")
@@ -308,14 +312,14 @@ async fn write_prometheus_result(
         .join(format!("{name}.json"));
 
     if let Some(parent) = path.parent()
-        && let Err(e) = fs::create_dir_all(parent).await
+        && let Err(e) = ctx.create_dir_all(parent)
     {
         warn!("failed to create directory {}: {e}", parent.display());
         return;
     }
 
     let json = serde_json::to_string_pretty(result).expect("Value always serializes");
-    if let Err(e) = fs::write(&path, json.as_bytes()).await {
+    if let Err(e) = ctx.write_file(&path, json.as_bytes()) {
         warn!("failed to write {}: {e}", path.display());
     }
 }
@@ -381,11 +385,10 @@ fn build_output_zip(
 mod tests {
     use super::*;
     use crate::{
-        context::mocks::MockContext, kubernetes::mocks::KubeCall,
+        context::mocks::MockContext,
+        kubernetes::mocks::{KubeCall, MockClient},
         orchestrator::mocks::MockClient as MockOrchestrator,
     };
-    use assert_fs::{TempDir, prelude::*};
-    use predicates::path::{exists, missing};
     use reqwest::StatusCode;
     use rtf_integrations::prometheus;
     use serde_json::Value;
@@ -616,18 +619,13 @@ mod tests {
 
     #[tokio::test]
     async fn collect_output_inner_writes_error_file_when_output_collection_fetch_fails() {
-        let shared_dir = TempDir::new().unwrap();
-        fs::create_dir_all(shared_dir.child("output").path())
-            .await
-            .unwrap();
-
         let ctx = MockContext {
             orchestrator_client: MockOrchestrator::with_failing_output_collection(),
             ..Default::default()
         };
-        write_sentinel_and_log(&ctx, shared_dir.path());
+        write_sentinel_and_log(&ctx, Path::new(SHARED_DIR));
 
-        let paths = SharedPaths::new(shared_dir.path());
+        let paths = SharedPaths::new(Path::new(SHARED_DIR));
 
         // Fetching the output collection config is a soft failure: it must not fail the
         // scenario, only skip metric collection and leave a record of why.
@@ -637,10 +635,9 @@ mod tests {
             "expected collect_output_inner to succeed, got {res:?}"
         );
 
-        let error_file = shared_dir.child("output/prometheus.txt");
-        error_file.assert(exists());
-
-        let contents = fs::read_to_string(error_file.path()).await.unwrap();
+        let contents = ctx
+            .read_file_to_string(Path::new("/shared/output/prometheus.txt"))
+            .unwrap();
         assert!(
             contents
                 .contains("failed to fetch output collection config, skipping metric collection"),
@@ -725,13 +722,13 @@ mod tests {
             orchestrator_client: MockOrchestrator::with_prometheus_queries(prom_queries.clone()),
             ..Default::default()
         };
-        let output_dir = TempDir::new().unwrap();
+        let output_dir = Path::new("/output");
         let prometheus_client = MockPrometheus::default();
 
         collect_prometheus_metrics(
             &prom_queries,
             "test-namespace",
-            output_dir.path(),
+            output_dir,
             &prometheus_client,
             &ctx,
         )
@@ -756,23 +753,25 @@ mod tests {
         });
 
         for path in expected_paths {
-            output_dir.child(path).assert(exists());
+            assert!(
+                ctx.path_exists(&output_dir.join(path)),
+                "{path} should exist"
+            );
         }
 
-        if expected_paths.is_empty() {
-            output_dir.child("prometheus").assert(missing());
-        }
-        if !expected_paths
-            .iter()
-            .any(|p| p.starts_with("prometheus/environment"))
-        {
-            output_dir.child("prometheus/environment").assert(missing());
-        }
-        if !expected_paths
-            .iter()
-            .any(|p| p.starts_with("prometheus/scenario"))
-        {
-            output_dir.child("prometheus/scenario").assert(missing());
+        for prefix in [
+            "prometheus",
+            "prometheus/environment",
+            "prometheus/scenario",
+        ] {
+            if !expected_paths.iter().any(|p| p.starts_with(prefix)) {
+                assert!(
+                    ctx.list_files_under(&output_dir.join(prefix))
+                        .unwrap()
+                        .is_empty(),
+                    "{prefix} should have no files written"
+                );
+            }
         }
     }
 
@@ -783,22 +782,20 @@ mod tests {
             orchestrator_client: MockOrchestrator::with_prometheus_queries(queries.clone()),
             ..Default::default()
         };
-        let output_dir = TempDir::new().unwrap();
+        let output_dir = Path::new("/output");
 
         // A failing prometheus client is captured as a per-query error, not something
         // collect_prometheus_metrics needs to handle specially — the file is still written.
         collect_prometheus_metrics(
             &queries,
             "test-namespace",
-            output_dir.path(),
+            output_dir,
             &MockPrometheus::failing(),
             &ctx,
         )
         .await;
 
-        output_dir
-            .child("prometheus/environment/up.json")
-            .assert(exists());
+        assert!(ctx.path_exists(&output_dir.join("prometheus/environment/up.json")));
     }
 
     #[tokio::test]
@@ -806,26 +803,29 @@ mod tests {
         let queries = prometheus_queries(&["up"], &[]);
         let ctx = MockContext {
             orchestrator_client: MockOrchestrator::with_prometheus_queries(queries.clone()),
-            kube_client: crate::kubernetes::mocks::MockClient::failing(),
+            kube_client: MockClient::failing(),
             ..Default::default()
         };
-        let output_dir = TempDir::new().unwrap();
+        let output_dir = Path::new("/output");
 
         collect_prometheus_metrics(
             &queries,
             "test-namespace",
-            output_dir.path(),
+            output_dir,
             &MockPrometheus::default(),
             &ctx,
         )
         .await;
 
-        output_dir.child("prometheus").assert(missing());
+        assert!(
+            ctx.list_files_under(&output_dir.join("prometheus"))
+                .unwrap()
+                .is_empty()
+        );
 
-        let error_file = output_dir.child("prometheus.txt");
-        error_file.assert(exists());
-
-        let contents = fs::read_to_string(error_file.path()).await.unwrap();
+        let contents = ctx
+            .read_file_to_string(&output_dir.join("prometheus.txt"))
+            .unwrap();
         assert!(
             contents.contains(
                 "failed to get scenario job window, skipping prometheus metric collection"
