@@ -304,7 +304,7 @@
 <a href=#304 id=304 data-nosnippet>304</a>            .map_err(EnvironmentSummaryError::Templating)<span class="question-mark">?</span>;
 <a href=#305 id=305 data-nosnippet>305</a>
 <a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">let </span><span class="kw-2">mut </span>env = variant.environment.execution;
-<a href=#307 id=307 data-nosnippet>307</a>        env.inline_compose_files(ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
+<a href=#307 id=307 data-nosnippet>307</a>        env.inline_manifest_files(ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
 <a href=#308 id=308 data-nosnippet>308</a>            .<span class="kw">await
 <a href=#309 id=309 data-nosnippet>309</a>            </span>.map_err(EnvironmentSummaryError::Inlining)<span class="question-mark">?</span>;
 <a href=#310 id=310 data-nosnippet>310</a>
@@ -343,7 +343,7 @@
 <a href=#343 id=343 data-nosnippet>343</a>    test_plan
 <a href=#344 id=344 data-nosnippet>344</a>        .environment
 <a href=#345 id=345 data-nosnippet>345</a>        .execution
-<a href=#346 id=346 data-nosnippet>346</a>        .compose_template_variables()
+<a href=#346 id=346 data-nosnippet>346</a>        .manifest_template_variables()
 <a href=#347 id=347 data-nosnippet>347</a>        .iter()
 <a href=#348 id=348 data-nosnippet>348</a>        .any(|name| matrix_keys.contains(name))
 <a href=#349 id=349 data-nosnippet>349</a>}
