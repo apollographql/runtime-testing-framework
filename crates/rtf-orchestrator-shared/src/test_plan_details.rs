@@ -339,34 +339,29 @@ impl EnvironmentSummary {
         let resolved_for_variant = (!test_plan.matrix.is_empty()).then_some(variant_name);
 
         match variant.environment.execution {
-            OrchestratorEnvironment::K8s(k8s_env) => {
-                return Ok(Some(Self::K8s(K8sEnvironmentSummary {
-                    manifests: k8s_env.manifest_urls(ctx),
+            OrchestratorEnvironment::K8s(k8s_env) => Ok(Some(Self::K8s(K8sEnvironmentSummary {
+                manifests: k8s_env.manifest_urls(ctx),
+                resolved_for_variant,
+            }))),
+
+            OrchestratorEnvironment::Null(_) => Ok(None),
+
+            OrchestratorEnvironment::DockerCompose(mut dce) => {
+                dce.inline_manifests(ctx, &mut HashMap::new())
+                    .await
+                    .map_err(EnvironmentSummaryError::Inlining)?;
+
+                let services = dce
+                    .services()
+                    .map_err(|e| EnvironmentSummaryError::Formats(e.into()))?;
+
+                Ok(Some(Self::DockerCompose(ComposeEnvironmentSummary::new(
+                    services,
+                    services_vary_by_matrix(test_plan),
                     resolved_for_variant,
-                })));
+                ))))
             }
-
-            OrchestratorEnvironment::Null(_) => {
-                return Ok(None);
-            }
-
-            OrchestratorEnvironment::DockerCompose(_) => (),
         }
-
-        let mut env = variant.environment.execution;
-        env.inline_manifest_files(ctx, &mut HashMap::new())
-            .await
-            .map_err(EnvironmentSummaryError::Inlining)?;
-
-        let services = env
-            .services()
-            .map_err(|e| EnvironmentSummaryError::Formats(e.into()))?;
-
-        Ok(Some(Self::DockerCompose(ComposeEnvironmentSummary::new(
-            services,
-            services_vary_by_matrix(test_plan),
-            resolved_for_variant,
-        ))))
     }
 }
 

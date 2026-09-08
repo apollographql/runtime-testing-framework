@@ -169,6 +169,102 @@ impl DockerComposeEnvironment {
 
         Ok(fps)
     }
+
+    /// The services this environment will deploy, read out of its compose file contents.
+    ///
+    /// Requires that only inline providers are present, erroring if any non-inline providers are
+    /// encountered. [inline_manifests](ManifestEnvironment::inline_manifests) can be used to
+    /// enforce this invariant.
+    pub fn services(&self) -> providers::Result<Vec<EnvironmentService>> {
+        let mut merged: BTreeMap<String, PartialService> = BTreeMap::new();
+
+        for content in self.manifest_contents()? {
+            merge_services_from(&mut merged, content);
+        }
+
+        Ok(merged
+            .into_iter()
+            .map(|(name, partial)| EnvironmentService {
+                name,
+                image: partial.image,
+                replicas: partial.replicas.unwrap_or(ServiceReplicas::Fixed(1)),
+            })
+            .collect())
+    }
+}
+
+/// A named service a docker-compose environment will deploy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnvironmentService {
+    pub name: String,
+    pub image: Option<String>,
+    pub replicas: ServiceReplicas,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ServiceReplicas {
+    Fixed(u32),
+    Variable(String),
+}
+
+impl ServiceReplicas {
+    pub fn is_fixed(&self) -> bool {
+        matches!(self, Self::Fixed(_))
+    }
+}
+
+#[derive(Debug, Default)]
+struct PartialService {
+    image: Option<String>,
+    replicas: Option<ServiceReplicas>,
+}
+
+fn merge_services_from(
+    merged: &mut BTreeMap<String, PartialService>,
+    yaml_content: &str,
+) -> Option<()> {
+    let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
+    let services = value.get("services").and_then(|s| s.as_mapping())?;
+
+    for (name, service) in services.into_iter() {
+        let name = match name.as_str() {
+            Some(name) => name,
+            None => continue,
+        };
+
+        let entry = merged.entry(name.to_string()).or_default();
+
+        if let Some(image) = service.get("image").and_then(|v| v.as_str()) {
+            entry.image = Some(image.to_string());
+        }
+        if let Some(replicas) = replicas_from(service) {
+            entry.replicas = Some(replicas);
+        }
+    }
+
+    Some(())
+}
+
+fn replicas_from(service: &Value) -> Option<ServiceReplicas> {
+    let raw = service
+        .get("deploy")
+        .and_then(|d| d.get("replicas"))
+        .or_else(|| service.get("scale"))?;
+
+    match raw {
+        Value::Number(n) => n
+            .as_u64()
+            .and_then(|n| u32::try_from(n).ok())
+            .map(ServiceReplicas::Fixed),
+
+        Value::String(s) => Some(match s.parse::<u32>() {
+            Ok(n) => ServiceReplicas::Fixed(n),
+            Err(_) => ServiceReplicas::Variable(s.clone()),
+        }),
+
+        _ => None,
+    }
 }
 
 impl ValidateEnvironment for DockerComposeEnvironment {}

@@ -1,10 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
-use rtf_orchestrator_shared::{
-    test_plan::{EnvironmentService, ServiceReplicas},
-    test_plan_details::{
-        ConfigSection, EnvironmentSummary, TestPlanDetails, TestPlanHistory, TestPlanVariable,
-        VariableValue,
-    },
+use rtf_config::formats::{EnvironmentService, ServiceReplicas};
+use rtf_orchestrator_shared::test_plan_details::{
+    ConfigSection, EnvironmentSummary, TestPlanDetails, TestPlanHistory, TestPlanVariable,
+    VariableValue,
 };
 use serde::Serialize;
 use url::form_urlencoded;
@@ -474,12 +472,14 @@ mod tests {
                 dimensions: BTreeMap::new(),
                 compound_groups: BTreeMap::new(),
             },
-            environment: Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
-                services: Vec::new(),
-                has_variable_replicas: false,
-                services_vary_by_matrix: false,
-                resolved_for_variant: None,
-            })),
+            environment: Some(EnvironmentSummary::DockerCompose(
+                ComposeEnvironmentSummary {
+                    services: Vec::new(),
+                    has_variable_replicas: false,
+                    services_vary_by_matrix: false,
+                    resolved_for_variant: None,
+                },
+            )),
             history: TestPlanHistory::default(),
         }
     }
@@ -545,23 +545,25 @@ mod tests {
     fn test_plan_details_view_sums_containers_only_when_replicas_are_all_fixed() {
         let uuid = Uuid::from_u128(1);
         let mut details = sample_details(uuid);
-        details.environment = Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
-            services: vec![
-                EnvironmentService {
-                    name: "a".to_owned(),
-                    image: None,
-                    replicas: ServiceReplicas::Fixed(1),
-                },
-                EnvironmentService {
-                    name: "b".to_owned(),
-                    image: None,
-                    replicas: ServiceReplicas::Fixed(2),
-                },
-            ],
-            has_variable_replicas: false,
-            services_vary_by_matrix: false,
-            resolved_for_variant: None,
-        }));
+        details.environment = Some(EnvironmentSummary::DockerCompose(
+            ComposeEnvironmentSummary {
+                services: vec![
+                    EnvironmentService {
+                        name: "a".to_owned(),
+                        image: None,
+                        replicas: ServiceReplicas::Fixed(1),
+                    },
+                    EnvironmentService {
+                        name: "b".to_owned(),
+                        image: None,
+                        replicas: ServiceReplicas::Fixed(2),
+                    },
+                ],
+                has_variable_replicas: false,
+                services_vary_by_matrix: false,
+                resolved_for_variant: None,
+            },
+        ));
 
         let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
 
@@ -572,23 +574,25 @@ mod tests {
     fn test_plan_details_view_omits_the_container_total_when_any_replica_count_is_unresolved() {
         let uuid = Uuid::from_u128(1);
         let mut details = sample_details(uuid);
-        details.environment = Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
-            services: vec![
-                EnvironmentService {
-                    name: "a".to_owned(),
-                    image: None,
-                    replicas: ServiceReplicas::Fixed(1),
-                },
-                EnvironmentService {
-                    name: "b".to_owned(),
-                    image: None,
-                    replicas: ServiceReplicas::Variable("${N}".to_owned()),
-                },
-            ],
-            has_variable_replicas: true,
-            services_vary_by_matrix: false,
-            resolved_for_variant: None,
-        }));
+        details.environment = Some(EnvironmentSummary::DockerCompose(
+            ComposeEnvironmentSummary {
+                services: vec![
+                    EnvironmentService {
+                        name: "a".to_owned(),
+                        image: None,
+                        replicas: ServiceReplicas::Fixed(1),
+                    },
+                    EnvironmentService {
+                        name: "b".to_owned(),
+                        image: None,
+                        replicas: ServiceReplicas::Variable("${N}".to_owned()),
+                    },
+                ],
+                has_variable_replicas: true,
+                services_vary_by_matrix: false,
+                resolved_for_variant: None,
+            },
+        ));
 
         let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
 
