@@ -418,8 +418,8 @@ pub(crate) mod mocks {
         summary::TestExecutionSummary,
         test_plan::{EnvironmentService, ServiceReplicas},
         test_plan_details::{
-            ConfigSection, EnvironmentSummary, MatrixSummary, TestPlanHistory, TestPlanSource,
-            TestPlanVariable, VariableDeclaration, VariableValue,
+            ComposeEnvironmentSummary, ConfigSection, EnvironmentSummary, MatrixSummary,
+            TestPlanHistory, TestPlanSource, TestPlanVariable, VariableDeclaration, VariableValue,
         },
     };
     use std::collections::BTreeMap;
@@ -573,7 +573,7 @@ pub(crate) mod mocks {
                     ),
                 ]),
             },
-            environment: EnvironmentSummary {
+            environment: Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
                 services: vec![
                     EnvironmentService {
                         name: "web".to_owned(),
@@ -589,7 +589,7 @@ pub(crate) mod mocks {
                 has_variable_replicas: true,
                 services_vary_by_matrix: false,
                 resolved_for_variant: Some("region_us-east-1".to_owned()),
-            },
+            })),
             history: TestPlanHistory::default(),
         }
     }

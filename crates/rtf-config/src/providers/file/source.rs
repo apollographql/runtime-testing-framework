@@ -2,7 +2,7 @@
 //! This is used to support the behaviour of the RelativeFile file provider.
 use crate::{
     context::ResolutionContext,
-    providers::{self, Result},
+    providers::{self, Result, file::github::github_permalink},
 };
 use rtf_integrations::github::Client;
 use schemars::JsonSchema;
@@ -56,6 +56,28 @@ impl SourceDir {
             repo: repo.into(),
             path: path.into(),
             git_ref: git_ref.map(Into::into),
+        }
+    }
+
+    pub(crate) fn github_permalink_for(
+        &self,
+        child_path: impl AsRef<Path>,
+        is_file: bool,
+    ) -> Option<String> {
+        match self {
+            SourceDir::Local { .. } => None,
+            SourceDir::Github {
+                org,
+                repo,
+                path,
+                git_ref,
+            } => Some(github_permalink(
+                org,
+                repo,
+                git_ref.as_deref(),
+                path.join(child_path).display(),
+                is_file,
+            )),
         }
     }
 

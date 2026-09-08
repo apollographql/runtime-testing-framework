@@ -2,7 +2,8 @@ use chrono::{DateTime, Duration, Utc};
 use rtf_orchestrator_shared::{
     test_plan::{EnvironmentService, ServiceReplicas},
     test_plan_details::{
-        ConfigSection, TestPlanDetails, TestPlanHistory, TestPlanVariable, VariableValue,
+        ConfigSection, EnvironmentSummary, TestPlanDetails, TestPlanHistory, TestPlanVariable,
+        VariableValue,
     },
 };
 use serde::Serialize;
@@ -96,6 +97,68 @@ impl ServiceRowView {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum EnvironmentDetailView {
+    DockerCompose(ComposeDetailView),
+    K8s(K8sDetailView),
+}
+
+#[derive(Debug, Clone)]
+pub struct ComposeDetailView {
+    pub n_services: usize,
+    pub services: Vec<ServiceRowView>,
+    pub services_vary_by_matrix: bool,
+    pub n_containers_per_execution: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub struct K8sDetailView {
+    pub manifests: Vec<ManifestLinkView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ManifestLinkView {
+    pub name: String,
+    pub github_url: Option<String>,
+}
+
+impl EnvironmentDetailView {
+    fn new(environment: EnvironmentSummary) -> Self {
+        match environment {
+            EnvironmentSummary::DockerCompose(compose) => {
+                let n_containers_per_execution = (!compose.has_variable_replicas).then(|| {
+                    compose
+                        .services
+                        .iter()
+                        .map(|s| match s.replicas {
+                            ServiceReplicas::Fixed(n) => n as usize,
+                            ServiceReplicas::Variable(_) => 0,
+                        })
+                        .sum()
+                });
+
+                Self::DockerCompose(ComposeDetailView {
+                    n_services: compose.services.len(),
+                    services: compose.services.iter().map(ServiceRowView::new).collect(),
+                    services_vary_by_matrix: compose.services_vary_by_matrix,
+                    n_containers_per_execution,
+                })
+            }
+
+            EnvironmentSummary::K8s(k8s) => {
+                let mut manifests: Vec<_> = k8s
+                    .manifests
+                    .into_iter()
+                    .map(|(name, github_url)| ManifestLinkView { name, github_url })
+                    .collect();
+                manifests.sort_unstable();
+
+                Self::K8s(K8sDetailView { manifests })
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CompoundGroupView {
     pub name: String,
@@ -116,12 +179,9 @@ pub struct TestPlanDetailsView {
     pub cluster: String,
     pub variables: Vec<TriggerVariableView>,
     pub n_executions: usize,
-    pub n_services: usize,
     pub matrix_formula: String,
     pub compound_groups: Vec<CompoundGroupView>,
-    pub services: Vec<ServiceRowView>,
-    pub services_vary_by_matrix: bool,
-    pub n_containers_per_execution: Option<usize>,
+    pub environment: Option<EnvironmentDetailView>,
     pub history_from_label: String,
     pub history_to_label: String,
     pub sampled_runs: u64,
@@ -142,17 +202,6 @@ impl TestPlanDetailsView {
             source.org, source.repo, source.sha, source.path
         );
 
-        let n_containers_per_execution = (!environment.has_variable_replicas).then(|| {
-            environment
-                .services
-                .iter()
-                .map(|s| match s.replicas {
-                    ServiceReplicas::Fixed(n) => n as usize,
-                    ServiceReplicas::Variable(_) => 0,
-                })
-                .sum()
-        });
-
         let mut matrix_formula_parts: Vec<String> = matrix
             .dimensions
             .iter()
@@ -171,7 +220,6 @@ impl TestPlanDetailsView {
             source_sha: source.sha,
             cluster: details.cluster,
             n_executions: matrix.n_executions,
-            n_services: environment.services.len(),
             matrix_formula: matrix_formula_parts.join(" × "),
             compound_groups: matrix
                 .compound_groups
@@ -189,13 +237,7 @@ impl TestPlanDetailsView {
                         .collect(),
                 })
                 .collect(),
-            services: environment
-                .services
-                .iter()
-                .map(ServiceRowView::new)
-                .collect(),
-            services_vary_by_matrix: environment.services_vary_by_matrix,
-            n_containers_per_execution,
+            environment: environment.map(EnvironmentDetailView::new),
             history_from_label: format_day(history.window.from),
             history_to_label: format_day(history.window.to - Duration::days(1)),
             sampled_runs: history.execution_durations.total,
@@ -250,11 +292,11 @@ mod tests {
     use chrono::TimeZone;
     use rtf_config::templating::Scalar;
     use rtf_orchestrator_shared::test_plan_details::{
-        DEFAULT_DAYS, DEFAULT_DAYS_BACK, EnvironmentSummary, HistoryWindow, MatrixSummary,
-        TestPlanSource, VariableDeclaration,
+        ComposeEnvironmentSummary, DEFAULT_DAYS, DEFAULT_DAYS_BACK, EnvironmentSummary,
+        HistoryWindow, K8sEnvironmentSummary, MatrixSummary, TestPlanSource, VariableDeclaration,
     };
     use simple_test_case::test_case;
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashMap};
 
     fn day(y: i32, m: u32, d: u32) -> DateTime<Utc> {
         Utc.with_ymd_and_hms(y, m, d, 0, 0, 0).unwrap()
@@ -432,13 +474,20 @@ mod tests {
                 dimensions: BTreeMap::new(),
                 compound_groups: BTreeMap::new(),
             },
-            environment: EnvironmentSummary {
+            environment: Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
                 services: Vec::new(),
                 has_variable_replicas: false,
                 services_vary_by_matrix: false,
                 resolved_for_variant: None,
-            },
+            })),
             history: TestPlanHistory::default(),
+        }
+    }
+
+    fn compose_view(view: &TestPlanDetailsView) -> &ComposeDetailView {
+        match view.environment.as_ref() {
+            Some(EnvironmentDetailView::DockerCompose(compose)) => compose,
+            other => panic!("expected a docker-compose environment view, got {other:?}"),
         }
     }
 
@@ -496,46 +545,95 @@ mod tests {
     fn test_plan_details_view_sums_containers_only_when_replicas_are_all_fixed() {
         let uuid = Uuid::from_u128(1);
         let mut details = sample_details(uuid);
-        details.environment.services = vec![
-            EnvironmentService {
-                name: "a".to_owned(),
-                image: None,
-                replicas: ServiceReplicas::Fixed(1),
-            },
-            EnvironmentService {
-                name: "b".to_owned(),
-                image: None,
-                replicas: ServiceReplicas::Fixed(2),
-            },
-        ];
-        details.environment.has_variable_replicas = false;
+        details.environment = Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
+            services: vec![
+                EnvironmentService {
+                    name: "a".to_owned(),
+                    image: None,
+                    replicas: ServiceReplicas::Fixed(1),
+                },
+                EnvironmentService {
+                    name: "b".to_owned(),
+                    image: None,
+                    replicas: ServiceReplicas::Fixed(2),
+                },
+            ],
+            has_variable_replicas: false,
+            services_vary_by_matrix: false,
+            resolved_for_variant: None,
+        }));
 
         let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
 
-        assert_eq!(view.n_containers_per_execution, Some(3));
+        assert_eq!(compose_view(&view).n_containers_per_execution, Some(3));
     }
 
     #[test]
     fn test_plan_details_view_omits_the_container_total_when_any_replica_count_is_unresolved() {
         let uuid = Uuid::from_u128(1);
         let mut details = sample_details(uuid);
-        details.environment.services = vec![
-            EnvironmentService {
-                name: "a".to_owned(),
-                image: None,
-                replicas: ServiceReplicas::Fixed(1),
-            },
-            EnvironmentService {
-                name: "b".to_owned(),
-                image: None,
-                replicas: ServiceReplicas::Variable("${N}".to_owned()),
-            },
-        ];
-        details.environment.has_variable_replicas = true;
+        details.environment = Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
+            services: vec![
+                EnvironmentService {
+                    name: "a".to_owned(),
+                    image: None,
+                    replicas: ServiceReplicas::Fixed(1),
+                },
+                EnvironmentService {
+                    name: "b".to_owned(),
+                    image: None,
+                    replicas: ServiceReplicas::Variable("${N}".to_owned()),
+                },
+            ],
+            has_variable_replicas: true,
+            services_vary_by_matrix: false,
+            resolved_for_variant: None,
+        }));
 
         let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
 
-        assert_eq!(view.n_containers_per_execution, None);
+        assert_eq!(compose_view(&view).n_containers_per_execution, None);
+    }
+
+    #[test]
+    fn test_plan_details_view_renders_k8s_manifest_links_with_no_service_count() {
+        let uuid = Uuid::from_u128(1);
+        let mut details = sample_details(uuid);
+        details.environment = Some(EnvironmentSummary::K8s(K8sEnvironmentSummary {
+            manifests: HashMap::from([
+                (
+                    "deployment.yaml".to_owned(),
+                    Some("https://github.com/org/repo/blob/main/deployment.yaml".to_owned()),
+                ),
+                ("generated.yaml".to_owned(), None),
+            ]),
+            resolved_for_variant: None,
+        }));
+
+        let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
+
+        match view.environment {
+            Some(EnvironmentDetailView::K8s(k8s)) => {
+                assert_eq!(k8s.manifests.len(), 2);
+                assert_eq!(
+                    k8s.manifests[0].github_url.as_deref(),
+                    Some("https://github.com/org/repo/blob/main/deployment.yaml")
+                );
+                assert_eq!(k8s.manifests[1].github_url, None);
+            }
+            other => panic!("expected a k8s environment view, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_plan_details_view_has_no_environment_view_for_a_skipped_environment() {
+        let uuid = Uuid::from_u128(1);
+        let mut details = sample_details(uuid);
+        details.environment = None;
+
+        let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
+
+        assert!(view.environment.is_none());
     }
 
     #[test_case(0, 30, "days_back=30"; "first page pages back by the window size")]

@@ -8,6 +8,7 @@ use rtf_derive::Template;
 use rtf_integrations::github::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// # GitHub file
 ///
@@ -71,6 +72,34 @@ impl Check for GithubFile {
 
         Ok(())
     }
+}
+
+impl GithubFile {
+    pub fn permalink(&self) -> String {
+        github_permalink(
+            self.org.as_resolved(),
+            self.repo.as_resolved(),
+            self.git_ref.as_ref().map(|f| f.as_resolved().as_str()),
+            self.path.as_resolved(),
+            true,
+        )
+    }
+}
+
+#[inline(always)]
+pub(crate) fn github_permalink(
+    org: &str,
+    repo: &str,
+    git_ref: Option<&str>,
+    path: impl fmt::Display,
+    is_file: bool,
+) -> String {
+    let kind = if is_file { "blob" } else { "tree" };
+
+    format!(
+        "https://github.com/{org}/{repo}/{kind}/{}/{path}",
+        git_ref.unwrap_or("HEAD")
+    )
 }
 
 #[cfg(test)]
