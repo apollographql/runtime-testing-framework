@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-24eec283.js";
+            window.path_to_searchindex_js = "searchindex-077d506b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-9b5efe91.js"></script>
@@ -4489,12 +4489,53 @@ environment:
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<p>An Environment defines how RTF sets up and tears down the infrastructure required for a test. There
-are two execution models: <strong>docker compose</strong> and <strong>script</strong>. Docker compose is the recommended
-approach; script-based environments are available as a fallback for cases that docker compose cannot
-handle.</p>
+<p>An Environment defines how RTF sets up and tears down the infrastructure required for a test. RTF
+currently supports three environment kinds: <strong>docker compose</strong>, <strong>kubernetes</strong>, and <strong>script</strong>.
+Depending on your use case you may find that you prefer (or need) to use one kind over another.</p>
+<p>If you are unsure of where to start, we recommend the docker compose based environment as the
+reasonable default choice that is suitable for most use cases; providing a flexible setup that can
+be run both locally via the <code>rtf</code> CLI and remotely via the Orchestrator. The kubernetes environment
+is intended for cases where you need to author native Kubernetes resources directly, while the
+script-based environment is provided as a local-only fallback for situations where you need to
+interact with the host machine executing the test plan.</p>
+<p>For reference, the following table summarises the compatibility of each environment kind with
+different RTF operations:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Environment</th><th>Template &amp; check via CLI</th><th>Resolve via CLI</th><th>Run via CLI</th><th>Run via Orchestrator</th></tr>
+</thead>
+<tbody>
+<tr><td>Docker compose</td><td>✅</td><td>✅</td><td>✅</td><td>✅ (via <a href="https://kompose.io/">kompose</a>)</td></tr>
+<tr><td>Kubernetes</td><td>✅</td><td>✅</td><td>❌</td><td>✅</td></tr>
+<tr><td>Script</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+</tbody>
+</table>
+</div>
+<p>In terms of the trade offs being made between the different environment kinds: docker compose is the
+only kind that is fully supported <em>everywhere</em>. It allows for a faster local development loop and
+provides sensible defaults for deploying resources to a k8s cluster when needed, at the expense of
+offering more limited control over how those deployments look. A kubernetes Environment can only be
+executed under the <a href="#running-test-plans-with-the-rtf-orchestrator-service">RTF Orchestrator</a> but allows for full control over what resources get applied
+to the cluster. The script Environment is a “last resort” escape hatch for running tests on a local
+machine when the environment itself can only be configured via locally executed commands outside of
+RTF’s control.</p>
+<p>Regardless of which environment kind you use, the RTF configuration file you write will broadly have
+the same structure. Below we cover both the shared config details utilised by all environments as
+well as the configuration details unique to each kind.</p>
+<blockquote>
+<p><strong>Skipping the environment step entirely</strong></p>
+<p>If your Test Plan <em>doesn’t</em> require any environment to execute (e.g. you are using RTF’s matrix
+and file provider features to parameterise a stand alone test suite) then you can instruct RTF to
+skip the environment stages of its execution flow by adding <code>skip: true</code> to your environment
+config file. This will take priority over any other configuration within the file:</p>
+<pre><code class="language-yaml">name: skipped
+description: No environment needed
+skip: true
+</code></pre>
+</blockquote>
 <h2 id="shared-keys"><a class="header" href="#shared-keys">Shared keys</a></h2>
-<p>The following keys apply to both execution models.</p>
+<p>The following keys apply to all three execution models.</p>
 <ul>
 <li><code>name</code>: The name for this Environment configuration.
 <ul>
@@ -4525,19 +4566,85 @@ Plan but with different defaults, each config file will fall back to its own def
 </ul>
 </li>
 </ul>
+<h2 id="manifest-file-providers"><a class="header" href="#manifest-file-providers">Manifest file providers</a></h2>
+<p>The docker compose and kubernetes environments each accept a list of files that make up their
+underlying infrastructure manifests (<code>compose_files</code> and <code>resources</code> respectively). These are
+<strong>not</strong> arbitrary <a href="#file-providers">File Providers</a>, rather, a restricted subset of file provider kinds meant for
+describing manifest content:</p>
+<ul>
+<li><a href="#file-providers">GitHub file</a> (<code>github_file</code>)</li>
+<li><a href="#file-providers">Inline file</a> (<code>inline</code>)</li>
+<li><a href="#file-providers">Inline directory</a> (<code>inline_dir</code>)</li>
+<li><a href="#file-providers">Relative dir</a> (<code>relative_dir</code>)</li>
+<li><a href="#file-providers">Relative path</a> (<code>relative_path</code>)</li>
+<li><a href="#file-providers">Required file</a> (<code>required</code>)</li>
+<li><a href="#file-providers">Templated file</a> (<code>templated</code>)</li>
+</ul>
+<p>Note that there is no <code>env_var</code> field needed for manifest provider definitions: these resources are
+used by RTF itself to bring up your test environment so it already has all of the information it
+needs.</p>
+<p>Declaring manifest providers is done at the top level of the config file like so:</p>
+<pre><code class="language-yaml"># docker compose
+compose_files:
+  - name: my-docker-compose.yaml
+    kind: relative_path
+    path: data/docker-compose.yaml
+
+# kubernetes
+resources:
+  - name: my-manifest.yaml
+    kind: relative_path
+    path: data/my-manifest.yaml
+</code></pre>
+<h3 id="referencing-file-providers-within-manifests"><a class="header" href="#referencing-file-providers-within-manifests">Referencing file providers within manifests</a></h3>
+<p>It is possible to reference the output of your file providers within your manifest files. The syntax
+for this is the same as used by docker-compose for <a href="https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/">variable interpolation</a>, namely
+<code>${MY_ENV_VAR}</code> and <code>$MY_ENV_VAR</code>. You must use the same environment variable strings as in your
+file provider and environment variable declarations elsewhere within your Test Plan. Provided the
+environment variable you reference is known to RTF, it will substitute the appropriate value before
+deploying your environment.</p>
+<h4 id="example"><a class="header" href="#example">Example</a></h4>
+<pre><code class="language-yaml"># docker compose
+services:
+  nginx:
+    image: nginx:alpine
+    labels:
+      rtf.io/file-providers: true
+    command: sh -c "nginx -c ${NGINX_CONF_FILE};'"
+    pull_policy: always
+
+# kubernetes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  annotations:
+    rtf.io/file-providers: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          args: ["sh", "-c", "nginx -c ${NGINX_CONF_FILE};'"]
+          imagePullPolicy: Always
+</code></pre>
 <h2 id="docker-compose-environment"><a class="header" href="#docker-compose-environment">Docker compose environment</a></h2>
 <p>A docker compose Environment brings the test infrastructure up and down using <code>docker compose</code>. RTF
 writes the declared compose files and any additional file providers to a temporary directory before
 invoking <code>docker compose up</code>, and runs <code>docker compose down</code> during teardown.</p>
+<p>A docker compose environment is identified by the presence of the <code>compose_files</code> key.</p>
 <h3 id="docker-compose-keys"><a class="header" href="#docker-compose-keys">Docker compose keys</a></h3>
 <ul>
-<li><code>compose_files</code>: A list of named compose file providers describing the compose files to start.
-This field is required.
-<ul>
-<li>Each entry is a <a href="#file-providers">File Provider</a> with a required <code>name</code> field. For single-file providers,
-<code>name</code> is used as the output filename; for directory providers it is used as the directory name.</li>
-</ul>
-</li>
+<li><code>compose_files</code>: A list of named <a href="#manifest-file-providers">manifest file providers</a> describing
+the compose files to start. This field is required.</li>
 <li><code>project_name</code>: The docker compose project name. Optional; defaults to the environment <code>name</code> if
 not set.</li>
 <li><code>env_vars</code>: Environment variables to pass to <code>docker compose up</code>.</li>
@@ -4571,7 +4678,7 @@ runs under the <a href="#running-test-plans-with-the-rtf-orchestrator-service">R
 </code></pre>
 <h3 id="full-example-1"><a class="header" href="#full-example-1">Full example</a></h3>
 <pre><code class="language-yaml">name: docker-compose-environment
-description: Setup and teardown a docker compose environment
+description: An example docker compose environment
 
 variable_definitions:
   - name: message
@@ -4593,10 +4700,97 @@ file_providers:
     kind: relative_path
     path: providers/echo-server.py
 </code></pre>
+<h2 id="kubernetes-environment"><a class="header" href="#kubernetes-environment">Kubernetes environment</a></h2>
+<p>A kubernetes Environment applies a set of native Kubernetes manifests directly, rather than relying
+on RTF’s docker compose to Kubernetes conversion (via <a href="https://kompose.io/">kompose</a>).</p>
+<blockquote>
+<p>This is intended as a more advanced operating model for users who are already familiar with
+authoring and debugging Kubernetes manifests. If you do not have experience with working directly
+with Kubernetes manifests then we advise that you do <em>not</em> make use of this environment kind.</p>
+</blockquote>
+<p>A kubernetes Environment can be templated, checked, and resolved locally like any other Environment,
+but it can only be <em>executed</em> under the <a href="#running-test-plans-with-the-rtf-orchestrator-service">RTF Orchestrator</a> as shows in the
+<a href="#environments">capability table</a> above. While it is certainly possible to run Kubernetes workloads
+locally under a tool like <code>kind</code> – or apply the resulting manifests to a remote cluster that you
+have access to – this is not an execution model supported by RTF directly.</p>
+<p>A kubernetes environment is identified by the presence of the <code>resources</code> key.</p>
+<h3 id="kubernetes-keys"><a class="header" href="#kubernetes-keys">Kubernetes keys</a></h3>
+<ul>
+<li><code>resources</code>: A list of named <a href="#manifest-file-providers">manifest file providers</a> describing the
+Kubernetes resource manifests to apply. This field is required.</li>
+<li><code>env_vars</code>: Environment variables made available to the environment’s file providers.</li>
+<li><code>file_providers</code>: Additional files the environment depends on, exposed to the environment’s file
+providers as environment variables. Each entry is a <a href="#file-providers">File Provider</a> with a required <code>name</code> and
+<code>env_var</code> field.</li>
+</ul>
+<h3 id="resource-annotations"><a class="header" href="#resource-annotations">Resource annotations</a></h3>
+<p>The same RTF-specific <a href="#service-labels">docker compose service labels</a> can be applied to kubernetes
+manifests, but they are set as <strong>annotations</strong> rather than labels:</p>
+<blockquote>
+<p>At present, only <strong><code>Deployment</code> resources</strong> are supported for these annotation. If you think that
+you need this behaviour on other resource types, please reach out to the Runtime Readiness team in
+Slack to discuss your use case.</p>
+</blockquote>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Annotation</th><th>Value</th><th>Effect</th></tr>
+</thead>
+<tbody>
+<tr><td><code>rtf.io/file-providers</code></td><td><code>true</code></td><td>Mounts file provider output into the container. Required for containers that read provider files at runtime.</td></tr>
+<tr><td><code>rtf.io/log-collection</code></td><td><code>true</code></td><td>Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.</td></tr>
+<tr><td><code>rtf.io/otel</code></td><td><code>true</code></td><td>Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: <code>RTF_OTEL_COLLECTOR_GRPC</code> (gRPC endpoint, port 4317) and <code>RTF_OTEL_COLLECTOR_HTTP</code> (HTTP/protobuf endpoint, port 4318). Use these in your service’s config instead of the standard <code>OTEL_*</code> variables.</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: router
+  annotations:
+    rtf.io/file-providers: "true"
+    rtf.io/log-collection: "true"
+    rtf.io/otel: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: router
+  template:
+    metadata:
+      labels:
+        app: router
+    spec:
+      containers:
+        - name: router
+          image: my-router:latest
+</code></pre>
+<h3 id="full-example-1-1"><a class="header" href="#full-example-1-1">Full example</a></h3>
+<pre><code class="language-yaml">name: kubernetes-environment
+description: An example Kubernetes environment
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+env_vars:
+  ECHO_MESSAGE: "{{ message }}"
+
+resources:
+  - name: manifest.yaml
+    kind: relative_path
+    path: providers/manifest.yaml
+
+file_providers:
+  - name: echo-server.py
+    env_var: ECHO_SERVER_SCRIPT
+    kind: relative_path
+    path: providers/echo-server.py
+</code></pre>
 <h2 id="script-environment"><a class="header" href="#script-environment">Script environment</a></h2>
-<p>A script Environment defines setup and teardown commands that bracket a Scenario’s execution. Each
+<p>A script Environment defines setup and teardown commands that bracket the Scenario’s execution. Each
 phase is a <a href="#command-providers">Command Provider</a>. This model is intended as a fallback for cases that cannot be
-achieved using a docker compose Environment.</p>
+achieved using a docker compose or kubernetes Environment, and only runs locally via the <code>rtf</code> CLI.</p>
 <h3 id="script-keys"><a class="header" href="#script-keys">Script keys</a></h3>
 <ul>
 <li><code>setup</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be set up before the
@@ -4604,7 +4798,7 @@ scenario is run.</li>
 <li><code>teardown</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
-<h3 id="full-example-1-1"><a class="header" href="#full-example-1-1">Full example</a></h3>
+<h3 id="full-example-2"><a class="header" href="#full-example-2">Full example</a></h3>
 <pre><code class="language-yaml">name: example
 description: An example description
 
@@ -4690,10 +4884,10 @@ templating.</li>
 </li>
 <li><code>env_vars</code>: Environment variables passed into the container. Values support templating.</li>
 <li><code>file_providers</code>: See <a href="#file-providers">File Providers</a>. It is possible to run a script from a file provider as
-your command (see the <a href="#full-example-2">full example</a> below). File providers won’t be executable
+your command (see the <a href="#full-example-3">full example</a> below). File providers won’t be executable
 directly so you need to make sure to run using <code>sh $MY_SCRIPT</code>, not <code>./$MY_SCRIPT</code>.</li>
 </ul>
-<h3 id="full-example-2"><a class="header" href="#full-example-2">Full Example</a></h3>
+<h3 id="full-example-3"><a class="header" href="#full-example-3">Full Example</a></h3>
 <pre><code class="language-yaml">name: example
 description: An example description
 
@@ -4773,7 +4967,7 @@ with defined execution semantics.</p>
 </ol>
 <p>The details of each section are outlined below.</p>
 <blockquote>
-<p>Full examples appear in the <a href="#full-example-1">Environment</a> and <a href="#full-example-2">Scenario</a> pages.</p>
+<p>Full examples appear in the <a href="#full-example-1">Environment</a> and <a href="#full-example-3">Scenario</a> pages.</p>
 </blockquote>
 <h2 id="the-command-section"><a class="header" href="#the-command-section">The command section</a></h2>
 <p>Commands can be defined in two ways:</p>
@@ -5413,7 +5607,7 @@ template variables defined for the current run.</p>
 <p>Custom Providers are reusable file providers that execute commands to produce files. They
 encapsulate file generation logic for sharing across test plans, environments, and scenarios.</p>
 <blockquote>
-<p>An example of a valid Custom Provider Definition is provided in the <a href="#full-example-3">Full example</a>
+<p>An example of a valid Custom Provider Definition is provided in the <a href="#full-example-4">Full example</a>
 section below.</p>
 </blockquote>
 <h2 id="custom-provider-definitions"><a class="header" href="#custom-provider-definitions">Custom provider definitions</a></h2>
@@ -5448,7 +5642,7 @@ scalar value to use if none is provided when the Custom Provider is invoked.</li
 <li><code>env_vars</code>: See <a href="#command-providers">Command Provider</a>.</li>
 <li><code>file_providers</code>: See <a href="#command-providers">Command Provider</a>.</li>
 </ul>
-<h3 id="full-example-3"><a class="header" href="#full-example-3">Full example</a></h3>
+<h3 id="full-example-4"><a class="header" href="#full-example-4">Full example</a></h3>
 <p>The following is a minimal “kitchen sink” example of the structure of a valid Custom Provider
 Definition file.</p>
 <pre><code class="language-yaml">name: example
@@ -5547,7 +5741,7 @@ Custom Provider Declaration.</li>
 <code>variable_definitions</code> in the Custom Provider Definition. Arguments can be literal values or
 template strings referencing variables from the config file.</li>
 </ul>
-<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
 <p>The following example uses a custom provider named <code>my_provider</code> (which must be declared in the
 config file’s <code>custom_providers</code> section) to generate a configuration file:</p>
 <pre><code class="language-yaml">file_providers:
