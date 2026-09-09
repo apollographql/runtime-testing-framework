@@ -5,8 +5,8 @@ use rtf_config::{
     context::ResolutionContext,
     enum_impl_check,
     formats::{
-        DockerComposeEnvironment, DockerScenario, EnvironmentService, FileProviderServices,
-        K8sEnvironment, NullEnvironment, PrometheusQuery, ServiceReplicas, TestPlan,
+        DockerComposeEnvironment, DockerScenario, FileProviderServices, K8sEnvironment,
+        NullEnvironment, PrometheusQuery, TestPlan,
     },
     inlining::{self, InlineMode, InlinedProvider},
     run::{Provider, RunProviders, ValidateEnvironment},
@@ -134,7 +134,11 @@ impl CheckArrayDuplicates for OrchestratorEnvironment {
 mod tests {
     use super::*;
     use indoc::indoc;
-    use rtf_config::{context::Context, formats::ComposeResources, providers};
+    use rtf_config::{
+        context::Context,
+        formats::{ComposeResources, EnvironmentService, ServiceReplicas},
+        providers,
+    };
     use std::assert_matches;
 
     fn null_env() -> OrchestratorEnvironment {
@@ -311,7 +315,7 @@ teardown:
 
     #[test]
     fn services_extracts_every_service_declaration() {
-        use super::ServiceReplicas::{Fixed, Variable};
+        use ServiceReplicas::{Fixed, Variable};
 
         assert_eq!(
             services_of(&[ALL_SERVICE_SHAPES]),

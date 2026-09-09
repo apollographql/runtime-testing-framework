@@ -1,8 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
 use rtf_config::formats::{EnvironmentService, ServiceReplicas};
 use rtf_orchestrator_shared::test_plan_details::{
-    ConfigSection, EnvironmentSummary, TestPlanDetails, TestPlanHistory, TestPlanVariable,
-    VariableValue,
+    ConfigSection, EnvironmentSummary, ManifestLocation, TestPlanDetails, TestPlanHistory,
+    TestPlanVariable, VariableValue,
 };
 use serde::Serialize;
 use url::form_urlencoded;
@@ -111,13 +111,7 @@ pub struct ComposeDetailView {
 
 #[derive(Debug, Clone)]
 pub struct K8sDetailView {
-    pub manifests: Vec<ManifestLinkView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ManifestLinkView {
-    pub name: String,
-    pub github_url: Option<String>,
+    pub manifests: Vec<ManifestLocation>,
 }
 
 impl EnvironmentDetailView {
@@ -143,16 +137,9 @@ impl EnvironmentDetailView {
                 })
             }
 
-            EnvironmentSummary::K8s(k8s) => {
-                let mut manifests: Vec<_> = k8s
-                    .manifests
-                    .into_iter()
-                    .map(|(name, github_url)| ManifestLinkView { name, github_url })
-                    .collect();
-                manifests.sort_unstable();
-
-                Self::K8s(K8sDetailView { manifests })
-            }
+            EnvironmentSummary::K8s(k8s) => Self::K8s(K8sDetailView {
+                manifests: k8s.manifests,
+            }),
         }
     }
 }
@@ -291,10 +278,11 @@ mod tests {
     use rtf_config::templating::Scalar;
     use rtf_orchestrator_shared::test_plan_details::{
         ComposeEnvironmentSummary, DEFAULT_DAYS, DEFAULT_DAYS_BACK, EnvironmentSummary,
-        HistoryWindow, K8sEnvironmentSummary, MatrixSummary, TestPlanSource, VariableDeclaration,
+        HistoryWindow, K8sEnvironmentSummary, ManifestLocation, MatrixSummary, TestPlanSource,
+        VariableDeclaration,
     };
     use simple_test_case::test_case;
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::BTreeMap;
 
     fn day(y: i32, m: u32, d: u32) -> DateTime<Utc> {
         Utc.with_ymd_and_hms(y, m, d, 0, 0, 0).unwrap()
@@ -600,17 +588,22 @@ mod tests {
     }
 
     #[test]
-    fn test_plan_details_view_renders_k8s_manifest_links_with_no_service_count() {
+    fn test_plan_details_view_shows_k8s_manifest_links_alphabetically() {
         let uuid = Uuid::from_u128(1);
+        let manifests = vec![
+            ManifestLocation::gh(
+                "deployment.yaml",
+                "https://github.com/org/repo/blob/main/deployment.yaml",
+            ),
+            ManifestLocation::inline(
+                "generated.yaml",
+                "https://github.com/org/repo/blob/main/env.yaml",
+            ),
+        ];
+
         let mut details = sample_details(uuid);
         details.environment = Some(EnvironmentSummary::K8s(K8sEnvironmentSummary {
-            manifests: HashMap::from([
-                (
-                    "deployment.yaml".to_owned(),
-                    Some("https://github.com/org/repo/blob/main/deployment.yaml".to_owned()),
-                ),
-                ("generated.yaml".to_owned(), None),
-            ]),
+            manifests: manifests.clone(),
             resolved_for_variant: None,
         }));
 
@@ -618,12 +611,7 @@ mod tests {
 
         match view.environment {
             Some(EnvironmentDetailView::K8s(k8s)) => {
-                assert_eq!(k8s.manifests.len(), 2);
-                assert_eq!(
-                    k8s.manifests[0].github_url.as_deref(),
-                    Some("https://github.com/org/repo/blob/main/deployment.yaml")
-                );
-                assert_eq!(k8s.manifests[1].github_url, None);
+                assert_eq!(k8s.manifests, manifests);
             }
             other => panic!("expected a k8s environment view, got {other:?}"),
         }

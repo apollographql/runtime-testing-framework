@@ -106,6 +106,11 @@ async fn build_details_without_history(
 
     ctx.set_sources(sources);
 
+    let config_file_url = format!(
+        "https://github.com/{org}/{repo}/blob/{}/{path}",
+        git_ref.as_deref().unwrap_or("HEAD")
+    );
+
     Ok(TestPlanDetails {
         uuid: known.uuid(),
         name: known.name().to_string(),
@@ -119,7 +124,8 @@ async fn build_details_without_history(
         },
         variables: TestPlanVariable::from_test_plan(&test_plan),
         matrix: MatrixSummary::new(&test_plan.matrix),
-        environment: EnvironmentSummary::try_from_test_plan(&test_plan, &ctx).await?,
+        environment: EnvironmentSummary::try_from_test_plan(&test_plan, &config_file_url, &ctx)
+            .await?,
         // set from DB state in build_details
         cluster: Default::default(),
         history: Default::default(),

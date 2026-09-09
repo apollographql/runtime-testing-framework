@@ -105,12 +105,10 @@
         <ul>
             {% for m in k.manifests %}
             <li>
-                {% match m.github_url %}
-                {% when Some with (url) %}
-                <a href="{{ url }}" target="_blank" rel="noopener noreferrer"><code>{{ m.name }}</code> &#8599;</a>
-                {% when None %}
-                <code>{{ m.name }}</code>
-                {% endmatch %}
+                <a href="{{ m.url }}" target="_blank" rel="noopener noreferrer"><code>{{ m.name }}</code> &#8599;</a>
+                {% if m.inline %}
+                <span class="muted">(inline in the environment config)</span>
+                {% endif %}
             </li>
             {% endfor %}
         </ul>

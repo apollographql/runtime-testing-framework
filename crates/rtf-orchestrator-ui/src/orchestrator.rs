@@ -412,14 +412,17 @@ fn test_plan_details_url(base_url: &Url, uuid: Uuid) -> Url {
 pub(crate) mod mocks {
     use super::*;
     use chrono::Utc;
-    use rtf_config::templating::Scalar;
+    use rtf_config::{
+        formats::{EnvironmentService, ServiceReplicas},
+        templating::Scalar,
+    };
     use rtf_orchestrator_shared::{
         status::{Status, StatusUpdate},
         summary::TestExecutionSummary,
-        test_plan::{EnvironmentService, ServiceReplicas},
         test_plan_details::{
-            ComposeEnvironmentSummary, ConfigSection, EnvironmentSummary, MatrixSummary,
-            TestPlanHistory, TestPlanSource, TestPlanVariable, VariableDeclaration, VariableValue,
+            ComposeEnvironmentSummary, ConfigSection, EnvironmentSummary, K8sEnvironmentSummary,
+            ManifestLocation, MatrixSummary, TestPlanHistory, TestPlanSource, TestPlanVariable,
+            VariableDeclaration, VariableValue,
         },
     };
     use std::collections::BTreeMap;
@@ -573,24 +576,53 @@ pub(crate) mod mocks {
                     ),
                 ]),
             },
-            environment: Some(EnvironmentSummary::DockerCompose(ComposeEnvironmentSummary {
-                services: vec![
-                    EnvironmentService {
-                        name: "web".to_owned(),
-                        image: Some("nginx:1.25".to_owned()),
-                        replicas: ServiceReplicas::Fixed(1),
-                    },
-                    EnvironmentService {
-                        name: "worker".to_owned(),
-                        image: Some("my-worker:latest".to_owned()),
-                        replicas: ServiceReplicas::Variable("${WORKER_REPLICAS}".to_owned()),
-                    },
+            environment: Some(EnvironmentSummary::DockerCompose(
+                ComposeEnvironmentSummary {
+                    services: vec![
+                        EnvironmentService {
+                            name: "web".to_owned(),
+                            image: Some("nginx:1.25".to_owned()),
+                            replicas: ServiceReplicas::Fixed(1),
+                        },
+                        EnvironmentService {
+                            name: "worker".to_owned(),
+                            image: Some("my-worker:latest".to_owned()),
+                            replicas: ServiceReplicas::Variable("${WORKER_REPLICAS}".to_owned()),
+                        },
+                    ],
+                    has_variable_replicas: true,
+                    services_vary_by_matrix: false,
+                    resolved_for_variant: Some("region_us-east-1".to_owned()),
+                },
+            )),
+            history: TestPlanHistory::default(),
+        }
+    }
+
+    /// The same test plan as [`sample_test_plan_details`], but with a k8s-based environment
+    /// instead of docker-compose: a mix of manifests with a resolvable GitHub location of their
+    /// own, and one inlined directly in the environment config, falling back to a link at that
+    /// config file.
+    pub(crate) fn sample_k8s_test_plan_details(uuid: Uuid) -> TestPlanDetails {
+        TestPlanDetails {
+            environment: Some(EnvironmentSummary::K8s(K8sEnvironmentSummary {
+                manifests: vec![
+                    ManifestLocation::gh(
+                        "deployment.yaml",
+                        "https://github.com/apollographql/runtime-testing-framework/blob/main/k8s/deployment.yaml",
+                    ),
+                    ManifestLocation::gh(
+                        "service.yaml",
+                        "https://github.com/apollographql/runtime-testing-framework/blob/main/k8s/service.yaml",
+                    ),
+                    ManifestLocation::inline(
+                        "kustomization.yaml",
+                        "https://github.com/apollographql/runtime-testing-framework/blob/main/test-plans/example.yaml",
+                    ),
                 ],
-                has_variable_replicas: true,
-                services_vary_by_matrix: false,
                 resolved_for_variant: Some("region_us-east-1".to_owned()),
             })),
-            history: TestPlanHistory::default(),
+            ..sample_test_plan_details(uuid)
         }
     }
 

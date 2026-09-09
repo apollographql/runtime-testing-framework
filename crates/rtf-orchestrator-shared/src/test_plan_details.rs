@@ -1,12 +1,10 @@
 //! Request and response types for `GET /test-plan/{uuid}/details`.
-use crate::test_plan::{
-    EnvironmentService, OrchestratorEnvironment, OrchestratorTestPlan, ServiceReplicas,
-};
+use crate::test_plan::{OrchestratorEnvironment, OrchestratorTestPlan};
 use chrono::{DateTime, Days, NaiveDate, NaiveTime, Utc};
 use rtf_config::{
     StableSource, VariableDefinition,
     context::ResolutionContext,
-    formats::{self, Matrix},
+    formats::{self, EnvironmentService, Matrix, ServiceReplicas},
     inlining,
     templating::{self, Scalar, Template, TemplateContext},
 };
@@ -312,9 +310,34 @@ impl ComposeEnvironmentSummary {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct K8sEnvironmentSummary {
-    pub manifests: HashMap<String, Option<String>>,
+    pub manifests: Vec<ManifestLocation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_for_variant: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ManifestLocation {
+    pub name: String,
+    pub url: String,
+    pub inline: bool,
+}
+
+impl ManifestLocation {
+    pub fn gh(name: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            url: url.into(),
+            inline: false,
+        }
+    }
+
+    pub fn inline(name: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            url: url.into(),
+            inline: true,
+        }
+    }
 }
 
 impl EnvironmentSummary {
@@ -322,6 +345,7 @@ impl EnvironmentSummary {
     /// `None` if the environment is skipped entirely (there's nothing to summarise).
     pub async fn try_from_test_plan(
         test_plan: &OrchestratorTestPlan,
+        config_file_url: &str,
         ctx: &impl ResolutionContext,
     ) -> Result<Option<Self>, EnvironmentSummaryError> {
         let (variant_name, mut variant) = test_plan
@@ -339,10 +363,23 @@ impl EnvironmentSummary {
         let resolved_for_variant = (!test_plan.matrix.is_empty()).then_some(variant_name);
 
         match variant.environment.execution {
-            OrchestratorEnvironment::K8s(k8s_env) => Ok(Some(Self::K8s(K8sEnvironmentSummary {
-                manifests: k8s_env.manifest_urls(ctx),
-                resolved_for_variant,
-            }))),
+            OrchestratorEnvironment::K8s(k8s_env) => {
+                let mut manifests: Vec<_> = k8s_env
+                    .manifest_urls(ctx)
+                    .into_iter()
+                    .map(|(name, url)| match url {
+                        Some(url) => ManifestLocation::gh(name, url),
+                        None => ManifestLocation::inline(name, config_file_url),
+                    })
+                    .collect();
+
+                manifests.sort_unstable();
+
+                Ok(Some(Self::K8s(K8sEnvironmentSummary {
+                    manifests,
+                    resolved_for_variant,
+                })))
+            }
 
             OrchestratorEnvironment::Null(_) => Ok(None),
 
@@ -713,15 +750,16 @@ mod tests {
 
     #[tokio::test]
     async fn environment_summary_reports_the_deployed_services() {
-        let summary =
-            EnvironmentSummary::try_from_test_plan(&test_plan(TEST_PLAN), &Context::new())
-                .await
-                .expect("inline compose files need no resolution")
-                .expect("a docker-compose environment should produce a summary");
+        let res = EnvironmentSummary::try_from_test_plan(
+            &test_plan(TEST_PLAN),
+            "https://github.com/org/repo/blob/main/plan.yaml",
+            &Context::new(),
+        )
+        .await;
 
-        let summary = match summary {
-            EnvironmentSummary::DockerCompose(inner) => inner,
-            _ => panic!("expected a docker-compose summary, got {summary:?}"),
+        let summary = match res {
+            Ok(Some(EnvironmentSummary::DockerCompose(inner))) => inner,
+            _ => panic!("expected a docker-compose summary, got {res:?}"),
         };
 
         assert_eq!(
@@ -773,39 +811,45 @@ mod tests {
               org: some-org
               repo: some-other-repo
               path: k8s/service.yaml
+            - name: kustomization.yaml
+              kind: inline
+              content: |
+                resources:
+                  - deployment.yaml
+                  - service.yaml
         "#
     );
 
     #[tokio::test]
     async fn environment_summary_reports_k8s_manifest_locations_unpinned() {
-        let summary =
-            EnvironmentSummary::try_from_test_plan(&test_plan(K8S_TEST_PLAN), &Context::new())
-                .await
-                .expect("github_file manifests need no local resolution")
-                .expect("a k8s environment should produce a summary");
+        let res = EnvironmentSummary::try_from_test_plan(
+            &test_plan(K8S_TEST_PLAN),
+            "https://github.com/some-org/some-repo/blob/main/test-plans/my-k8s-plan.yaml",
+            &Context::new(),
+        )
+        .await;
 
-        let EnvironmentSummary::K8s(summary) = summary else {
-            panic!("expected a k8s summary, got {summary:?}");
+        let summary = match res {
+            Ok(Some(EnvironmentSummary::K8s(summary))) => summary,
+            _ => panic!("expected a k8s summary, got {res:?}"),
         };
 
         assert_eq!(
             summary.manifests,
-            HashMap::from([
-                (
-                    "deployment.yaml".to_string(),
-                    Some(
-                        "https://github.com/some-org/some-other-repo/blob/a-branch/k8s/deployment.yaml"
-                            .to_string()
-                    ),
+            vec![
+                ManifestLocation::gh(
+                    "deployment.yaml",
+                    "https://github.com/some-org/some-other-repo/blob/a-branch/k8s/deployment.yaml"
                 ),
-                (
-                    "service.yaml".to_string(),
-                    Some(
-                        "https://github.com/some-org/some-other-repo/blob/HEAD/k8s/service.yaml"
-                            .to_string()
-                    ),
+                ManifestLocation::inline(
+                    "kustomization.yaml",
+                    "https://github.com/some-org/some-repo/blob/main/test-plans/my-k8s-plan.yaml"
                 ),
-            ]),
+                ManifestLocation::gh(
+                    "service.yaml",
+                    "https://github.com/some-org/some-other-repo/blob/HEAD/k8s/service.yaml"
+                )
+            ]
         );
         assert_eq!(summary.resolved_for_variant, None);
     }
