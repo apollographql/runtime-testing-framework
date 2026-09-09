@@ -1,5 +1,5 @@
 (function() {
-    const implementors = Object.fromEntries([["rtf_orchestrator",[["impl&lt;'r, DB: Database&gt; Decode&lt;'r, DB&gt; for <a class=\"enum\" href=\"rtf_orchestrator/db/enum.Status.html\" title=\"enum rtf_orchestrator::db::Status\">Status</a><div class=\"where\">where\n    <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.98.0/std/primitive.i32.html\">i32</a>: Decode&lt;'r, DB&gt;,</div>",0]]]]);
+    const implementors = Object.fromEntries([["rtf_orchestrator",[["impl&lt;'r, DB: Database&gt; Decode&lt;'r, DB&gt; for <a class=\"enum\" href=\"rtf_orchestrator/db/enum.Status.html\" title=\"enum rtf_orchestrator::db::Status\">Status</a><div class=\"where\">where\n    <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.98.1/std/primitive.i32.html\">i32</a>: Decode&lt;'r, DB&gt;,</div>",0]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {

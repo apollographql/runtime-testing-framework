@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["OrchestratorEnvironment","ServiceReplicas"],"struct":["EnvironmentService","Orchestrator"],"type":["OrchestratorTestPlan"]};
+window.SIDEBAR_ITEMS = {"enum":["OrchestratorEnvironment"],"struct":["Orchestrator"],"type":["OrchestratorTestPlan"]};
