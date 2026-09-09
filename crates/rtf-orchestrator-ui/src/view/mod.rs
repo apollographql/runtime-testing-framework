@@ -14,7 +14,7 @@ pub use execution_detail::ExecutionDetailView;
 pub use known_test_plan_list::{KnownTestPlanListView, KnownTestPlanRowView};
 pub use run::RunView;
 pub use run_list::RunListView;
-pub use test_plan_details::TestPlanDetailsView;
+pub use test_plan_details::{EnvironmentDetailView, TestPlanDetailsView};
 
 fn format_rfc3339(dt: DateTime<Utc>) -> String {
     let seconds_since_epoch = dt.timestamp().max(0) as u64;

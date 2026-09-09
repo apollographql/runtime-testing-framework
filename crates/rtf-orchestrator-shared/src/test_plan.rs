@@ -9,18 +9,13 @@ use rtf_config::{
         NullEnvironment, PrometheusQuery, TestPlan,
     },
     inlining::{self, InlineMode, InlinedProvider},
-    providers,
     run::{Provider, RunProviders, ValidateEnvironment},
     templating::Template as _,
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
-use std::{
-    collections::{BTreeMap, HashMap},
-    pin::Pin,
-};
+use std::{collections::HashMap, pin::Pin};
 
 /// Test plan restricted to Orchestrator compatible scenarios and environments
 pub type OrchestratorTestPlan = TestPlan<Orchestrator>;
@@ -73,20 +68,6 @@ impl OrchestratorEnvironment {
         match self {
             Self::Null(_) | Self::K8s(_) => FileProviderServices::default(),
             Self::DockerCompose(inner) => FileProviderServices::from_inline(inner),
-        }
-    }
-
-    /// Requires that only inline providers are present, erroring if any non-inline providers are
-    /// encountered.
-    /// [inline_manifest_files](OrchestratorEnvironment::inline_manifest_files) can be used to
-    /// enforce this invariant.
-    pub fn services(&self) -> providers::Result<Vec<EnvironmentService>> {
-        match self {
-            Self::Null(_) => Ok(Vec::new()),
-            Self::DockerCompose(dce) => {
-                Ok(services_from_compose_contents(dce.manifest_contents()?))
-            }
-            Self::K8s(_) => Ok(Vec::new()), // TODO: can we reliably parse these out of k8s resources?
         }
     }
 
@@ -149,101 +130,15 @@ impl CheckArrayDuplicates for OrchestratorEnvironment {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EnvironmentService {
-    pub name: String,
-    pub image: Option<String>,
-    pub replicas: ServiceReplicas,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ServiceReplicas {
-    Fixed(u32),
-    Variable(String),
-}
-
-impl ServiceReplicas {
-    pub fn is_fixed(&self) -> bool {
-        matches!(self, Self::Fixed(_))
-    }
-}
-
-#[derive(Debug, Default)]
-struct PartialService {
-    image: Option<String>,
-    replicas: Option<ServiceReplicas>,
-}
-
-fn services_from_compose_contents(contents: Vec<&str>) -> Vec<EnvironmentService> {
-    let mut merged: BTreeMap<String, PartialService> = BTreeMap::new();
-
-    for content in contents.into_iter() {
-        merge_services_from(&mut merged, content);
-    }
-
-    merged
-        .into_iter()
-        .map(|(name, partial)| EnvironmentService {
-            name,
-            image: partial.image,
-            replicas: partial.replicas.unwrap_or(ServiceReplicas::Fixed(1)),
-        })
-        .collect()
-}
-
-fn merge_services_from(
-    merged: &mut BTreeMap<String, PartialService>,
-    yaml_content: &str,
-) -> Option<()> {
-    let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
-    let services = value.get("services").and_then(|s| s.as_mapping())?;
-
-    for (name, service) in services.into_iter() {
-        let name = match name.as_str() {
-            Some(name) => name,
-            None => continue,
-        };
-
-        let entry = merged.entry(name.to_string()).or_default();
-
-        if let Some(image) = service.get("image").and_then(|v| v.as_str()) {
-            entry.image = Some(image.to_string());
-        }
-        if let Some(replicas) = replicas_from(service) {
-            entry.replicas = Some(replicas);
-        }
-    }
-
-    Some(())
-}
-
-fn replicas_from(service: &Value) -> Option<ServiceReplicas> {
-    let raw = service
-        .get("deploy")
-        .and_then(|d| d.get("replicas"))
-        .or_else(|| service.get("scale"))?;
-
-    match raw {
-        Value::Number(n) => n
-            .as_u64()
-            .and_then(|n| u32::try_from(n).ok())
-            .map(ServiceReplicas::Fixed),
-
-        Value::String(s) => Some(match s.parse::<u32>() {
-            Ok(n) => ServiceReplicas::Fixed(n),
-            Err(_) => ServiceReplicas::Variable(s.clone()),
-        }),
-
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use indoc::indoc;
-    use rtf_config::{context::Context, formats::ComposeResources};
+    use rtf_config::{
+        context::Context,
+        formats::{ComposeResources, EnvironmentService, ServiceReplicas},
+        providers,
+    };
     use std::assert_matches;
 
     fn null_env() -> OrchestratorEnvironment {
@@ -346,7 +241,7 @@ teardown:
         assert!(res.is_ok(), "expected Check to succeed, got {res:?}");
     }
 
-    fn compose_env_with(providers: &[&str]) -> OrchestratorEnvironment {
+    fn docker_compose_env_with(providers: &[&str]) -> DockerComposeEnvironment {
         let compose_files = providers
             .iter()
             .map(|yaml| {
@@ -357,11 +252,15 @@ teardown:
         let mut env = docker_compose_env();
         env.resources.compose_files = compose_files;
 
-        OrchestratorEnvironment::DockerCompose(env)
+        env
+    }
+
+    fn compose_env_with(providers: &[&str]) -> OrchestratorEnvironment {
+        OrchestratorEnvironment::DockerCompose(docker_compose_env_with(providers))
     }
 
     fn services_of(providers: &[&str]) -> Vec<EnvironmentService> {
-        compose_env_with(providers)
+        docker_compose_env_with(providers)
             .services()
             .expect("compose files in these tests are already inline")
     }
@@ -416,7 +315,7 @@ teardown:
 
     #[test]
     fn services_extracts_every_service_declaration() {
-        use super::ServiceReplicas::{Fixed, Variable};
+        use ServiceReplicas::{Fixed, Variable};
 
         assert_eq!(
             services_of(&[ALL_SERVICE_SHAPES]),
@@ -519,15 +418,6 @@ teardown:
     }
 
     #[test]
-    fn services_is_empty_for_null_environment() {
-        let services = null_env()
-            .services()
-            .expect("a null environment has no compose files to inline");
-
-        assert!(services.is_empty());
-    }
-
-    #[test]
     fn services_errors_on_a_provider_that_was_not_inlined() {
         const REQUIRED_COMPOSE: &str = indoc!(
             r#"
@@ -537,7 +427,7 @@ teardown:
             "#
         );
 
-        let res = compose_env_with(&[REQUIRED_COMPOSE]).services();
+        let res = docker_compose_env_with(&[REQUIRED_COMPOSE]).services();
 
         assert_matches!(
             res,

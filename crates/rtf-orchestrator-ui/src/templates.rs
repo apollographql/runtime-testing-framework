@@ -1,6 +1,6 @@
 use crate::view::{
-    ExecutionDetailView, KnownTestPlanListView, KnownTestPlanRowView, RunListView, RunView,
-    TestPlanDetailsView,
+    EnvironmentDetailView, ExecutionDetailView, KnownTestPlanListView, KnownTestPlanRowView,
+    RunListView, RunView, TestPlanDetailsView,
 };
 use askama::Template;
 

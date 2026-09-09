@@ -187,6 +187,24 @@ impl ManifestFileProvider {
 
         Ok(())
     }
+
+    pub fn github_permalink(&self, ctx: &impl ResolutionContext) -> Option<String> {
+        match self {
+            Self::GithubFile(gh) => Some(gh.permalink()),
+
+            Self::RelativePath(rf) => rf.src.as_ref().and_then(|src| {
+                ctx.source_dir_for(src)
+                    .github_permalink_for(rf.path.as_resolved(), true)
+            }),
+
+            Self::RelativeDir(rd) => rd.src.as_ref().and_then(|src| {
+                ctx.source_dir_for(src)
+                    .github_permalink_for(rd.path.as_resolved(), false)
+            }),
+
+            Self::Inline(_) | Self::InlineDir(_) | Self::Required(_) | Self::Templated(_) => None,
+        }
+    }
 }
 
 macro_rules! enum_impl_manifest_file_provider {

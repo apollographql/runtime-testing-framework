@@ -140,6 +140,14 @@ impl<M: ValidateEnvironment + NamedManifestFiles> ManifestEnvironment<M> {
         Ok(paths)
     }
 
+    pub fn manifest_urls(&self, ctx: &impl ResolutionContext) -> HashMap<String, Option<String>> {
+        self.resources
+            .manifest_files()
+            .iter()
+            .map(|ncfp| (ncfp.name.clone(), ncfp.provider.github_permalink(ctx)))
+            .collect()
+    }
+
     pub async fn inline_manifests<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,

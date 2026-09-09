@@ -36,7 +36,11 @@ const PAGES: &[(&str, &str)] = &[
     ("/ui/test-plans", "Known test plans — list"),
     (
         "/ui/test-plan/detail",
-        "Known test plan — detail + trigger form",
+        "Known test plan — detail + trigger form (docker-compose environment)",
+    ),
+    (
+        "/ui/test-plan/detail-k8s",
+        "Known test plan — detail + trigger form (k8s environment)",
     ),
     ("/ui/test-plan/not-found", "Known test plan — not found"),
     ("/ui/trigger", "Trigger a run from GitHub — empty form"),
@@ -83,6 +87,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/ui/test-plan/detail",
             get(|| async { render(preview::test_plan_detail()) }),
+        )
+        .route(
+            "/ui/test-plan/detail-k8s",
+            get(|| async { render(preview::test_plan_detail_k8s()) }),
         )
         .route(
             "/ui/test-plan/not-found",

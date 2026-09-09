@@ -1,10 +1,10 @@
 //! Request and response types for `GET /test-plan/{uuid}/details`.
-use crate::test_plan::{EnvironmentService, OrchestratorTestPlan, ServiceReplicas};
+use crate::test_plan::{OrchestratorEnvironment, OrchestratorTestPlan};
 use chrono::{DateTime, Days, NaiveDate, NaiveTime, Utc};
 use rtf_config::{
     StableSource, VariableDefinition,
     context::ResolutionContext,
-    formats::{self, Matrix},
+    formats::{self, EnvironmentService, Matrix, ServiceReplicas},
     inlining,
     templating::{self, Scalar, Template, TemplateContext},
 };
@@ -16,7 +16,6 @@ use std::{
 use uuid::Uuid;
 
 pub const DAY_FORMAT: &str = "%Y-%m-%d";
-
 pub const DEFAULT_DAYS_BACK: u32 = 30;
 pub const DEFAULT_DAYS: u32 = 30;
 pub const MAX_DAYS_BACK: u32 = 365;
@@ -115,7 +114,7 @@ pub struct TestPlanDetails {
     pub cluster: String,
     pub variables: Vec<TestPlanVariable>,
     pub matrix: MatrixSummary,
-    pub environment: EnvironmentSummary,
+    pub environment: Option<EnvironmentSummary>,
     pub history: TestPlanHistory,
 }
 
@@ -276,8 +275,15 @@ pub enum EnvironmentSummaryError {
     Templating(templating::Errors),
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EnvironmentSummary {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EnvironmentSummary {
+    DockerCompose(ComposeEnvironmentSummary),
+    K8s(K8sEnvironmentSummary),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ComposeEnvironmentSummary {
     pub services: Vec<EnvironmentService>,
     pub has_variable_replicas: bool,
     pub services_vary_by_matrix: bool,
@@ -285,40 +291,7 @@ pub struct EnvironmentSummary {
     pub resolved_for_variant: Option<String>,
 }
 
-impl EnvironmentSummary {
-    /// The services deployed for each execution, resolved for the first matrix variant.
-    pub async fn try_from_test_plan(
-        test_plan: &OrchestratorTestPlan,
-        ctx: &impl ResolutionContext,
-    ) -> Result<Self, EnvironmentSummaryError> {
-        let (variant_name, mut variant) = test_plan
-            .try_expand_variant(0)
-            .map_err(EnvironmentSummaryError::Formats)?
-            .expect("a test plan always expands to at least one variant");
-
-        let variables = take(&mut variant.variables);
-        let template_ctx =
-            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
-        variant
-            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
-            .map_err(EnvironmentSummaryError::Templating)?;
-
-        let mut env = variant.environment.execution;
-        env.inline_manifest_files(ctx, &mut HashMap::new())
-            .await
-            .map_err(EnvironmentSummaryError::Inlining)?;
-
-        let services = env
-            .services()
-            .map_err(|e| EnvironmentSummaryError::Formats(e.into()))?;
-
-        Ok(Self::new(
-            services,
-            services_vary_by_matrix(test_plan),
-            (!test_plan.matrix.is_empty()).then_some(variant_name),
-        ))
-    }
-
+impl ComposeEnvironmentSummary {
     fn new(
         services: Vec<EnvironmentService>,
         services_vary_by_matrix: bool,
@@ -331,6 +304,100 @@ impl EnvironmentSummary {
             services,
             services_vary_by_matrix,
             resolved_for_variant,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct K8sEnvironmentSummary {
+    pub manifests: Vec<ManifestLocation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolved_for_variant: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ManifestLocation {
+    pub name: String,
+    pub url: String,
+    pub inline: bool,
+}
+
+impl ManifestLocation {
+    pub fn gh(name: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            url: url.into(),
+            inline: false,
+        }
+    }
+
+    pub fn inline(name: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            url: url.into(),
+            inline: true,
+        }
+    }
+}
+
+impl EnvironmentSummary {
+    /// A summary of what the environment will deploy, resolved for the first matrix variant.
+    /// `None` if the environment is skipped entirely (there's nothing to summarise).
+    pub async fn try_from_test_plan(
+        test_plan: &OrchestratorTestPlan,
+        config_file_url: &str,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Option<Self>, EnvironmentSummaryError> {
+        let (variant_name, mut variant) = test_plan
+            .try_expand_variant(0)
+            .map_err(EnvironmentSummaryError::Formats)?
+            .expect("a test plan always expands to at least one variant");
+
+        let variables = take(&mut variant.variables);
+        let template_ctx =
+            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
+        variant
+            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+            .map_err(EnvironmentSummaryError::Templating)?;
+
+        let resolved_for_variant = (!test_plan.matrix.is_empty()).then_some(variant_name);
+
+        match variant.environment.execution {
+            OrchestratorEnvironment::K8s(k8s_env) => {
+                let mut manifests: Vec<_> = k8s_env
+                    .manifest_urls(ctx)
+                    .into_iter()
+                    .map(|(name, url)| match url {
+                        Some(url) => ManifestLocation::gh(name, url),
+                        None => ManifestLocation::inline(name, config_file_url),
+                    })
+                    .collect();
+
+                manifests.sort_unstable();
+
+                Ok(Some(Self::K8s(K8sEnvironmentSummary {
+                    manifests,
+                    resolved_for_variant,
+                })))
+            }
+
+            OrchestratorEnvironment::Null(_) => Ok(None),
+
+            OrchestratorEnvironment::DockerCompose(mut dce) => {
+                dce.inline_manifests(ctx, &mut HashMap::new())
+                    .await
+                    .map_err(EnvironmentSummaryError::Inlining)?;
+
+                let services = dce
+                    .services()
+                    .map_err(|e| EnvironmentSummaryError::Formats(e.into()))?;
+
+                Ok(Some(Self::DockerCompose(ComposeEnvironmentSummary::new(
+                    services,
+                    services_vary_by_matrix(test_plan),
+                    resolved_for_variant,
+                ))))
+            }
         }
     }
 }
@@ -558,7 +625,7 @@ mod tests {
         }];
 
         assert_eq!(
-            EnvironmentSummary::new(services, false, None).has_variable_replicas,
+            ComposeEnvironmentSummary::new(services, false, None).has_variable_replicas,
             expected
         );
     }
@@ -683,10 +750,17 @@ mod tests {
 
     #[tokio::test]
     async fn environment_summary_reports_the_deployed_services() {
-        let summary =
-            EnvironmentSummary::try_from_test_plan(&test_plan(TEST_PLAN), &Context::new())
-                .await
-                .expect("inline compose files need no resolution");
+        let res = EnvironmentSummary::try_from_test_plan(
+            &test_plan(TEST_PLAN),
+            "https://github.com/org/repo/blob/main/plan.yaml",
+            &Context::new(),
+        )
+        .await;
+
+        let summary = match res {
+            Ok(Some(EnvironmentSummary::DockerCompose(inner))) => inner,
+            _ => panic!("expected a docker-compose summary, got {res:?}"),
+        };
 
         assert_eq!(
             summary.services,
@@ -710,5 +784,73 @@ mod tests {
             MATRIX_TEMPLATED_COMPOSE
         )));
         assert!(!services_vary_by_matrix(&test_plan(TEST_PLAN)));
+    }
+
+    const K8S_TEST_PLAN: &str = indoc!(
+        r#"
+        name: my-k8s-plan
+        description: a k8s test plan
+        scenario:
+          name: my-scenario
+          description: a scenario
+          docker:
+            image: my-image
+            command: run
+        environment:
+          name: my-environment
+          description: an environment
+          resources:
+            - name: deployment.yaml
+              kind: github_file
+              org: some-org
+              repo: some-other-repo
+              path: k8s/deployment.yaml
+              git_ref: a-branch
+            - name: service.yaml
+              kind: github_file
+              org: some-org
+              repo: some-other-repo
+              path: k8s/service.yaml
+            - name: kustomization.yaml
+              kind: inline
+              content: |
+                resources:
+                  - deployment.yaml
+                  - service.yaml
+        "#
+    );
+
+    #[tokio::test]
+    async fn environment_summary_reports_k8s_manifest_locations_unpinned() {
+        let res = EnvironmentSummary::try_from_test_plan(
+            &test_plan(K8S_TEST_PLAN),
+            "https://github.com/some-org/some-repo/blob/main/test-plans/my-k8s-plan.yaml",
+            &Context::new(),
+        )
+        .await;
+
+        let summary = match res {
+            Ok(Some(EnvironmentSummary::K8s(summary))) => summary,
+            _ => panic!("expected a k8s summary, got {res:?}"),
+        };
+
+        assert_eq!(
+            summary.manifests,
+            vec![
+                ManifestLocation::gh(
+                    "deployment.yaml",
+                    "https://github.com/some-org/some-other-repo/blob/a-branch/k8s/deployment.yaml"
+                ),
+                ManifestLocation::inline(
+                    "kustomization.yaml",
+                    "https://github.com/some-org/some-repo/blob/main/test-plans/my-k8s-plan.yaml"
+                ),
+                ManifestLocation::gh(
+                    "service.yaml",
+                    "https://github.com/some-org/some-other-repo/blob/HEAD/k8s/service.yaml"
+                )
+            ]
+        );
+        assert_eq!(summary.resolved_for_variant, None);
     }
 }

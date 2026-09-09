@@ -1,4 +1,4 @@
-//! Parsing of the environment provisioner config file format
+//! Parsing of the environment config file format
 use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
@@ -28,7 +28,8 @@ mod null;
 mod script;
 
 pub use docker_compose::{
-    ComposeResources, DockerComposeEnvironment, FileProviderServices, PullPolicyServices,
+    ComposeResources, DockerComposeEnvironment, EnvironmentService, FileProviderServices,
+    PullPolicyServices, ServiceReplicas,
 };
 pub use k8s::{K8sEnvironment, K8sResources};
 pub use manifest::{ManifestEnvironment, NamedManifestFiles};

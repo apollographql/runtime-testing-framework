@@ -44,8 +44,16 @@
                 <dd id="stat-executions">{{ d.n_executions }}</dd>
                 <dd class="muted" id="stat-formula">{{ d.matrix_formula }}</dd>
 
+                {% match d.environment %}
+                {% when Some with (env) %}
+                {% match env %}
+                {% when EnvironmentDetailView::DockerCompose with (c) %}
                 <dt>Services / execution</dt>
-                <dd>{{ d.n_services }}</dd>
+                <dd>{{ c.n_services }}</dd>
+                {% when EnvironmentDetailView::K8s with (_k) %}
+                {% endmatch %}
+                {% when None %}
+                {% endmatch %}
 
                 {% for group in d.compound_groups %}
                 <dt>{{ group.name }} (fixed &mdash; not alterable per trigger)
@@ -58,8 +66,12 @@
             </dl>
         </section>
 
+        {% match d.environment %}
+        {% when Some with (env) %}
+        {% match env %}
+        {% when EnvironmentDetailView::DockerCompose with (c) %}
         <h2>Services deployed per execution</h2>
-        {% if d.services_vary_by_matrix %}
+        {% if c.services_vary_by_matrix %}
         <p class="muted">Different matrix combinations may deploy different services or replica counts.</p>
         {% else %}
         <p class="muted">Every matrix combination stands up this same environment.</p>
@@ -73,7 +85,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for s in d.services %}
+                {% for s in c.services %}
                 <tr>
                     <td><code>{{ s.name }}</code></td>
                     <td><code>{{ s.image }}</code></td>
@@ -82,9 +94,25 @@
                 {% endfor %}
             </tbody>
         </table>
-        {% match d.n_containers_per_execution %}
+        {% match c.n_containers_per_execution %}
         {% when Some with (n) %}
         <p class="muted"><strong>{{ n }}</strong> containers per execution</p>
+        {% when None %}
+        {% endmatch %}
+        {% when EnvironmentDetailView::K8s with (k) %}
+        <h2>Kubernetes manifests</h2>
+        <p class="muted">This environment applies whatever is in these manifests to the cluster namespace &mdash; open them on GitHub to see exactly what will be deployed.</p>
+        <ul>
+            {% for m in k.manifests %}
+            <li>
+                <a href="{{ m.url }}" target="_blank" rel="noopener noreferrer"><code>{{ m.name }}</code> &#8599;</a>
+                {% if m.inline %}
+                <span class="muted">(inline in the environment config)</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endmatch %}
         {% when None %}
         {% endmatch %}
 
