@@ -1,0 +1,45 @@
+# These should match the roles found in the management-cluster/workload-rbac directory in kanaveral.
+#
+# Tilt is only allowed to interact with the management cluster, so setup actions that need to
+# take place in the workload cluster (such as creating these roles) are handled in setup.sh.
+#
+# This means that these will NOT auto-update when changes are made to this file!
+# You will need to re-run setup.sh or manually apply yourself.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scenario-cluster-read
+rules:
+  - apiGroups: [""]
+    resources: ["nodes/proxy"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scenario-namespace-read
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods/logs"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: scenario-namespace-write
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployment"]
+    verbs: ["create", "patch", "update"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "patch", "update"]

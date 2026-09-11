@@ -1,4 +1,5 @@
 use crate::{
+    config::ClusterRoles,
     db::{TestExecution, UpdateHandle},
     event_loop::{ClusterId, Error, Event, EventData, Result},
     k8s::{WatchOutcome, WorkloadClient, scenario_job},
@@ -16,6 +17,8 @@ pub(crate) struct CreateJobConfig<'a> {
     pub(crate) prometheus_endpoint: &'a str,
     pub(crate) toolbox_pull_policy: &'a str,
     pub(crate) toolbox_image: &'a str,
+    pub(crate) cluster_roles: &'a ClusterRoles,
+    pub(crate) allow_namespace_write: bool,
 }
 
 pub(super) async fn create_job<K, H>(
@@ -42,6 +45,8 @@ where
             &namespace,
             SCENARIO_JOB_NAME,
             &execution_id,
+            config.allow_namespace_write,
+            config.cluster_roles,
             scenario_job(
                 &test_execution,
                 scenario_image,
@@ -209,6 +214,12 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
                 toolbox_image: "rtf-toolbox:edge",
+                cluster_roles: &ClusterRoles {
+                    cluster_read: "scenario-cluster-read".into(),
+                    namespace_read: "scenario-namespace-read".into(),
+                    namespace_write: "scenario-namespace-write".into(),
+                },
+                allow_namespace_write: false,
             },
             &mut clients,
             &mut handle,
@@ -250,6 +261,12 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
                 toolbox_image: "rtf-toolbox:edge",
+                cluster_roles: &ClusterRoles {
+                    cluster_read: "scenario-cluster-read".into(),
+                    namespace_read: "scenario-namespace-read".into(),
+                    namespace_write: "scenario-namespace-write".into(),
+                },
+                allow_namespace_write: false,
             },
             &mut clients,
             &mut handle,

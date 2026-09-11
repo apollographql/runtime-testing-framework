@@ -4,6 +4,12 @@ load("ext://secret", "secret_from_dict")
 # can be worked on
 update_settings(max_parallel_updates=6)
 
+# Tilt is only allowed to interact with the management cluster, so setup actions that need to
+# take place in the workload cluster (such as creating the Cluster Roles needed for the scenario
+# job) are handled in setup.sh.
+#
+# This means that these will NOT auto-update when changes are made to those files!
+# You will need to re-run setup.sh or manually apply the modified files yourself.
 allow_k8s_contexts("kind-rtf-mgmt")
 
 config.define_bool(
