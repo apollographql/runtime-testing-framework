@@ -48,6 +48,7 @@ async fn full_test_run_happy_path_completes_successfully(
 
     zip.read_json("output/events.json").unwrap();
     zip.read_json("output/variables.json").unwrap();
+    zip.read_json("output/node-info.json").unwrap();
     zip.read_json("output/resource-metrics.json").unwrap();
 
     if has_environment_prometheus {
