@@ -336,25 +336,21 @@ impl Client for HttpClient {
         let mut errors = Vec::new();
 
         let pods = match pod_api.list(&Default::default()).await {
-            Ok(p) => p,
+            Ok(p) => p.items,
             Err(e) => {
                 let msg = format!("failed to list pods for metric collection: {e}");
                 warn!("{msg}");
                 errors.push(msg);
 
-                let output = serde_json::json!({ "pods": [], "errors": &errors });
-                let path = output_dir.join("resource-metrics.json");
-                let json = serde_json::to_string_pretty(&output).expect("Value always serializes");
-                if let Err(e) = fs::write(&path, json.as_bytes()).await {
-                    warn!("failed to write resource-metrics.json: {e}");
-                }
-
-                return;
+                Vec::new()
             }
         };
 
+        // Node placement doesn't depend on kubelet health, so it's captured and written
+        // up front rather than folded into the kubelet-stats error handling below.
+        write_node_info(output_dir, &pod_node_info(&pods), &errors).await;
+
         let nodes: BTreeSet<String> = pods
-            .items
             .iter()
             .filter_map(|p| p.spec.as_ref()?.node_name.clone())
             .collect();
@@ -479,6 +475,40 @@ fn pods_to_collect(pods: &[Pod]) -> Vec<(&str, Vec<String>)> {
             Some((name, containers))
         })
         .collect()
+}
+
+/// Returns each pod's name and the node it landed on (`None` if not yet scheduled).
+fn pod_node_info(pods: &[Pod]) -> Vec<PodNodeInfo> {
+    pods.iter()
+        .filter_map(|p| {
+            let name = p.metadata.name.clone()?;
+            let node_name = p.spec.as_ref().and_then(|s| s.node_name.clone());
+            Some(PodNodeInfo { name, node_name })
+        })
+        .collect()
+}
+
+/// Writes `<output_dir>/node-info.json`, capturing per-pod node placement independently of
+/// kubelet stats availability.
+async fn write_node_info(output_dir: &Path, pods: &[PodNodeInfo], errors: &[String]) {
+    let output = if errors.is_empty() {
+        serde_json::json!({ "pods": pods })
+    } else {
+        serde_json::json!({ "pods": pods, "errors": errors })
+    };
+
+    let path = output_dir.join("node-info.json");
+    let json = serde_json::to_string_pretty(&output).expect("Value always serializes");
+    if let Err(e) = fs::write(&path, json.as_bytes()).await {
+        warn!("failed to write node-info.json: {e}");
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct PodNodeInfo {
+    name: String,
+    node_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -697,6 +727,38 @@ mod tests {
             }),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn pod_node_info_captures_name_and_node() {
+        let mut pod = make_pod("scenario", &[]);
+        pod.spec.as_mut().unwrap().node_name = Some("node-a".to_owned());
+
+        assert_eq!(
+            pod_node_info(&[pod]),
+            vec![PodNodeInfo {
+                name: "scenario".to_owned(),
+                node_name: Some("node-a".to_owned()),
+            }]
+        );
+    }
+
+    #[test]
+    fn pod_node_info_reports_none_when_unscheduled() {
+        let pod = make_pod("pending", &[]);
+
+        assert_eq!(
+            pod_node_info(&[pod]),
+            vec![PodNodeInfo {
+                name: "pending".to_owned(),
+                node_name: None,
+            }]
+        );
+    }
+
+    #[test]
+    fn pod_node_info_skips_pods_without_name() {
+        assert!(pod_node_info(&[Pod::default()]).is_empty());
     }
 
     #[test]
