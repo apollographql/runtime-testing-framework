@@ -9,7 +9,7 @@
 //! functions must be written to return a Result that the `Event::handle` method will use to record
 //! an Unrunnable status.
 use crate::{
-    config::{Config, WorkloadClusterConfig},
+    config::{ClusterRoles, Config, WorkloadClusterConfig},
     conn,
     db::{ClusterId, TestExecution, UpdateHandle},
     event_loop::{provision_environment::MSG_ARGO_COMPLETE, run_scenario::CreateJobConfig},
@@ -41,6 +41,7 @@ struct EventLoopConfig<'a> {
     toolbox_image: &'a str,
     otel: &'a OtelConfig,
     workload_clusters: &'a HashMap<ClusterId, WorkloadClusterConfig>,
+    cluster_roles: &'a ClusterRoles,
 }
 
 impl<'a> EventLoopConfig<'a> {
@@ -77,6 +78,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
             http: cfg_ref.otel.collector_http.clone(),
         },
         workload_clusters: &workload_clusters,
+        cluster_roles: &cfg_ref.workload_clusters.cluster_roles,
     };
 
     while let Some(evt) = event_queue.next_event().await {
@@ -296,6 +298,9 @@ impl Event {
                                 prometheus_endpoint: cfg.prometheus_endpoint,
                                 toolbox_pull_policy: cfg.toolbox_pull_policy,
                                 toolbox_image: cfg.toolbox_image,
+                                cluster_roles: cfg.cluster_roles,
+                                // TODO: thread through per- test plan config for setting this
+                                allow_namespace_write: false,
                             },
                             &mut clients,
                             conn,
@@ -483,6 +488,12 @@ mod tests {
                 prometheus_endpoint: "http://prometheus:9090",
                 toolbox_pull_policy: "IfNotPresent",
                 toolbox_image: "rtf-toolbox:edge",
+                cluster_roles: &ClusterRoles {
+                    cluster_read: "scenario-cluster-read".into(),
+                    namespace_read: "scenario-namespace-read".into(),
+                    namespace_write: "scenario-namespace-write".into(),
+                },
+                allow_namespace_write: false,
             },
             &mut clients,
             &mut handle,

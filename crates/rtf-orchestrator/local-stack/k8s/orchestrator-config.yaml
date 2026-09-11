@@ -29,6 +29,10 @@ data:
     workload_clusters:
       default_cluster: alpha
       max_queued_executions: 100
+      cluster_roles:
+        cluster_read: scenario-cluster-read
+        namespace_read: scenario-namespace-read
+        namespace_write: scenario-namespace-write
       available_clusters:
         - name: alpha
           kubeconfig_secret_name: orchestrator-kubeconfig

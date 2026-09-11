@@ -1,23 +1,27 @@
-use crate::k8s::{
-    Error, FullClient, ManagementClient, ORCHESTRATOR_NAMESPACE, OUTPUT_COLLECTOR, Result,
-    SCENARIO_RUNNER_CONTAINER, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient, workflow_name,
+use crate::{
+    config::ClusterRoles,
+    k8s::{
+        Error, FullClient, ManagementClient, ORCHESTRATOR_NAMESPACE, Result,
+        SCENARIO_RUNNER_CONTAINER, SCENARIO_SA_NAME, WatchOutcome, Workflow, WorkflowSpec,
+        WorkloadClient, workflow_name,
+    },
 };
 use chrono::{DateTime, Duration, Utc};
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
     core::v1::{Namespace, Pod, ServiceAccount},
-    rbac::v1::{ClusterRole, ClusterRoleBinding, PolicyRule, Role, RoleBinding, RoleRef, Subject},
+    rbac::v1::{ClusterRoleBinding, RoleBinding, RoleRef, Subject},
 };
 use kube::{
     Client, Config, Resource,
-    api::{Api, ListParams, ObjectMeta, Patch, PatchParams},
+    api::{Api, ListParams, ObjectMeta, PostParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
 use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
 use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
@@ -156,138 +160,84 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         Ok(())
     }
 
-    async fn create_output_collector_rbac(&mut self, ns: &str) -> Result<()> {
-        let pp = PatchParams::apply("rtf-orchestrator");
+    async fn create_scenario_service_account(
+        &mut self,
+        ns: &str,
+        cluster_roles: &ClusterRoles,
+        allow_namespace_write: bool,
+    ) -> Result<()> {
+        let sa_subjects = Some(vec![Subject {
+            kind: "ServiceAccount".to_owned(),
+            name: SCENARIO_SA_NAME.to_owned(),
+            namespace: Some(ns.to_owned()),
+            ..Default::default()
+        }]);
 
-        let sa_api: Api<ServiceAccount> = self.workload_api(ns);
-        sa_api
-            .patch(
-                OUTPUT_COLLECTOR,
-                &pp,
-                &Patch::Apply(&ServiceAccount {
+        let role_ref = |name: &str| RoleRef {
+            api_group: "rbac.authorization.k8s.io".to_string(),
+            kind: "ClusterRole".to_string(),
+            name: name.to_string(),
+        };
+
+        let role_binding = |name: &str| RoleBinding {
+            metadata: ObjectMeta {
+                name: Some(name.to_string()),
+                namespace: Some(ns.to_string()),
+                ..Default::default()
+            },
+            role_ref: role_ref(name),
+            subjects: sa_subjects.clone(),
+        };
+
+        debug!(%ns, "Creating {SCENARIO_SA_NAME} service account");
+        self.workload_api::<ServiceAccount>(ns)
+            .create(
+                &PostParams::default(),
+                &ServiceAccount {
                     metadata: ObjectMeta {
-                        name: Some(OUTPUT_COLLECTOR.to_owned()),
+                        name: Some(SCENARIO_SA_NAME.to_owned()),
                         namespace: Some(ns.to_owned()),
                         ..Default::default()
                     },
                     ..Default::default()
-                }),
+                },
             )
             .await?;
 
-        let role_api: Api<Role> = self.workload_api(ns);
-        role_api
-            .patch(
-                OUTPUT_COLLECTOR,
-                &pp,
-                &Patch::Apply(&Role {
-                    metadata: ObjectMeta {
-                        name: Some(OUTPUT_COLLECTOR.to_owned()),
-                        namespace: Some(ns.to_owned()),
-                        ..Default::default()
-                    },
-                    rules: Some(vec![
-                        PolicyRule {
-                            api_groups: Some(vec!["".to_owned()]),
-                            resources: Some(vec!["pods".to_owned()]),
-                            verbs: vec!["list".to_owned()],
-                            ..Default::default()
-                        },
-                        PolicyRule {
-                            api_groups: Some(vec!["".to_owned()]),
-                            resources: Some(vec!["pods/log".to_owned()]),
-                            verbs: vec!["get".to_owned()],
-                            ..Default::default()
-                        },
-                        PolicyRule {
-                            api_groups: Some(vec!["".to_owned()]),
-                            resources: Some(vec!["events".to_owned()]),
-                            verbs: vec!["list".to_owned()],
-                            ..Default::default()
-                        },
-                        PolicyRule {
-                            api_groups: Some(vec!["batch".to_owned()]),
-                            resources: Some(vec!["jobs".to_owned()]),
-                            verbs: vec!["get".to_owned()],
-                            ..Default::default()
-                        },
-                    ]),
-                }),
+        debug!(%ns, role=%cluster_roles.namespace_read, "Creating role binding for {SCENARIO_SA_NAME}");
+        self.workload_api::<RoleBinding>(ns)
+            .create(
+                &PostParams::default(),
+                &role_binding(&cluster_roles.namespace_read),
             )
             .await?;
 
-        let rb_api: Api<RoleBinding> = self.workload_api(ns);
-        rb_api
-            .patch(
-                OUTPUT_COLLECTOR,
-                &pp,
-                &Patch::Apply(&RoleBinding {
-                    metadata: ObjectMeta {
-                        name: Some(OUTPUT_COLLECTOR.to_owned()),
-                        namespace: Some(ns.to_owned()),
-                        ..Default::default()
-                    },
-                    role_ref: RoleRef {
-                        api_group: "rbac.authorization.k8s.io".to_owned(),
-                        kind: "Role".to_owned(),
-                        name: OUTPUT_COLLECTOR.to_owned(),
-                    },
-                    subjects: Some(vec![Subject {
-                        kind: "ServiceAccount".to_owned(),
-                        name: OUTPUT_COLLECTOR.to_owned(),
-                        namespace: Some(ns.to_owned()),
-                        ..Default::default()
-                    }]),
-                }),
-            )
-            .await?;
-
-        let cr_api: Api<ClusterRole> = Api::all(self.workload_client());
-        cr_api
-            .patch(
-                OUTPUT_COLLECTOR,
-                &pp,
-                &Patch::Apply(&ClusterRole {
-                    metadata: ObjectMeta {
-                        name: Some(OUTPUT_COLLECTOR.to_owned()),
-                        ..Default::default()
-                    },
-                    rules: Some(vec![PolicyRule {
-                        api_groups: Some(vec!["".to_owned()]),
-                        resources: Some(vec!["nodes/proxy".to_owned()]),
-                        verbs: vec!["get".to_owned()],
-                        ..Default::default()
-                    }]),
-                    aggregation_rule: None,
-                }),
-            )
-            .await?;
-
-        let crb_name = format!("{OUTPUT_COLLECTOR}-{ns}");
-        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client());
-        crb_api
-            .patch(
-                &crb_name,
-                &pp,
-                &Patch::Apply(&ClusterRoleBinding {
+        debug!(%ns, role=%cluster_roles.cluster_read, "Creating cluster role binding for {SCENARIO_SA_NAME}");
+        let crb_name = format!("{SCENARIO_SA_NAME}-{ns}");
+        Api::<ClusterRoleBinding>::all(self.workload_client())
+            .create(
+                &PostParams::default(),
+                &ClusterRoleBinding {
                     metadata: ObjectMeta {
                         name: Some(crb_name.clone()),
                         ..Default::default()
                     },
-                    role_ref: RoleRef {
-                        api_group: "rbac.authorization.k8s.io".to_owned(),
-                        kind: "ClusterRole".to_owned(),
-                        name: OUTPUT_COLLECTOR.to_owned(),
-                    },
-                    subjects: Some(vec![Subject {
-                        kind: "ServiceAccount".to_owned(),
-                        name: OUTPUT_COLLECTOR.to_owned(),
-                        namespace: Some(ns.to_owned()),
-                        ..Default::default()
-                    }]),
-                }),
+                    role_ref: role_ref(&cluster_roles.cluster_read),
+                    subjects: sa_subjects.clone(),
+                },
             )
             .await?;
+
+        // bind write role if permitted
+        if allow_namespace_write {
+            debug!(%ns, role=%cluster_roles.namespace_write, "Creating role binding for {SCENARIO_SA_NAME}");
+            self.workload_api::<RoleBinding>(ns)
+                .create(
+                    &PostParams::default(),
+                    &role_binding(&cluster_roles.namespace_write),
+                )
+                .await?;
+        }
 
         Ok(())
     }
@@ -344,9 +294,12 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
         ns: &str,
         name: &str,
         execution_id: &Uuid,
+        allow_namespace_write: bool,
+        cluster_roles: &ClusterRoles,
         spec: JobSpec,
     ) -> Result<Job> {
-        self.create_output_collector_rbac(ns).await?;
+        self.create_scenario_service_account(ns, cluster_roles, allow_namespace_write)
+            .await?;
 
         let job = self
             .workload_api(ns)
@@ -409,10 +362,10 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
     async fn delete_workload_namespace(&mut self, ns: &str) -> Result<()> {
         let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client());
         if let Err(e) = crb_api
-            .delete(&format!("{OUTPUT_COLLECTOR}-{ns}"), &Default::default())
+            .delete(&format!("{SCENARIO_SA_NAME}-{ns}"), &Default::default())
             .await
         {
-            warn!("failed to delete ClusterRoleBinding {OUTPUT_COLLECTOR}-{ns}: {e}");
+            warn!("failed to delete ClusterRoleBinding {SCENARIO_SA_NAME}-{ns}: {e}");
         }
 
         let api: Api<Namespace> = Api::all(self.workload_client());
@@ -835,7 +788,7 @@ mod tests {
     fn check_scenario_runner_oomkilled_ignores_oomkilled_sidecar() {
         // The output-collector sidecar is never the scenario itself; an OOMKill there is not a
         // scenario failure.
-        let pod = pod_with_terminated_container(OUTPUT_COLLECTOR, "OOMKilled", 137);
+        let pod = pod_with_terminated_container(SCENARIO_SA_NAME, "OOMKilled", 137);
         assert!(check_scenario_runner_oomkilled(&pod).is_none());
     }
 

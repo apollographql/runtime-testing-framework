@@ -1,3 +1,4 @@
+use crate::config::ClusterRoles;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use kube::config::{InClusterError, KubeconfigError};
 use std::fmt;
@@ -18,7 +19,7 @@ pub use workflow::{
 
 /// Binary name of the RTF Orchestrator CLI, available on `PATH` inside the rtf-toolbox image.
 const CLI_BINARY: &str = "rtf-orchestrator-cli";
-pub(crate) const OUTPUT_COLLECTOR: &str = "output-collector";
+pub(crate) const SCENARIO_SA_NAME: &str = "scenario-sa";
 pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";
 pub const ORCHESTRATOR_NAMESPACE: &str = "orchestrator";
 
@@ -80,6 +81,8 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
         ns: &str,
         name: &str,
         execution_id: &Uuid,
+        allow_namespace_write: bool,
+        cluster_roles: &ClusterRoles,
         spec: JobSpec,
     ) -> impl Future<Output = Result<Job>> + Send;
 

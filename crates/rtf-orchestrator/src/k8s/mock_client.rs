@@ -1,5 +1,8 @@
-use crate::k8s::{
-    FullClient, ManagementClient, Result, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient,
+use crate::{
+    config::ClusterRoles,
+    k8s::{
+        FullClient, ManagementClient, Result, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient,
+    },
 };
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use std::sync::{Arc, Mutex};
@@ -53,6 +56,8 @@ impl WorkloadClient for MockClient {
         _ns: &str,
         _name: &str,
         _execution_id: &Uuid,
+        _allow_namespace_write: bool,
+        _cluster_roles: &ClusterRoles,
         _spec: JobSpec,
     ) -> Result<Job> {
         self.create_job

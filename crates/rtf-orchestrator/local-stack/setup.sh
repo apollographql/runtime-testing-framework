@@ -42,6 +42,9 @@ echo "Creating kind clusters..."
 create_cluster "rtf-mgmt"
 create_cluster "rtf-workload"
 
+echo "Creating workload Cluster Roles"
+kubectl apply --context kind-rtf-workload -f "$SCRIPT_DIR/k8s/workload-rbac-clusterroles.yaml"
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 echo "Building toolbox image..."
 docker build -t rtf-toolbox:edge -f "$REPO_ROOT/toolbox/Dockerfile" "$REPO_ROOT"

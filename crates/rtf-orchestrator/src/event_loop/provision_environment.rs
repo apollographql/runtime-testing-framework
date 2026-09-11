@@ -165,7 +165,7 @@ async fn wait_and_update<K>(
 mod tests {
     use super::*;
     use crate::{
-        config::ClusterExecutionConfig,
+        config::{ClusterExecutionConfig, ClusterRoles},
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
         event_loop::WorkloadClusterConfig,
         k8s::{
@@ -235,6 +235,11 @@ mod tests {
                     alpha_cluster(),
                     stub_workload_cluster_config(),
                 )]),
+                cluster_roles: &ClusterRoles {
+                    cluster_read: "scenario-cluster-read".into(),
+                    namespace_read: "scenario-namespace-read".into(),
+                    namespace_write: "scenario-namespace-write".into(),
+                },
             },
             clients.clone(),
             &mut handle,
@@ -283,6 +288,11 @@ mod tests {
                     alpha_cluster(),
                     stub_workload_cluster_config(),
                 )]),
+                cluster_roles: &ClusterRoles {
+                    cluster_read: "scenario-cluster-read".into(),
+                    namespace_read: "scenario-namespace-read".into(),
+                    namespace_write: "scenario-namespace-write".into(),
+                },
             },
             clients,
             &mut handle,

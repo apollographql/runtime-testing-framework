@@ -138,6 +138,7 @@ pub struct ServerConfig {
 pub struct WorkloadClusters {
     pub default_cluster: String,
     pub max_queued_executions: usize,
+    pub cluster_roles: ClusterRoles,
     pub available_clusters: Vec<WorkloadClusterConfig>,
 }
 
@@ -166,6 +167,16 @@ impl WorkloadClusters {
             .map(|c| (ClusterId::new(&c.name), c.execution.max_concurrent))
             .collect()
     }
+}
+
+/// Names of the cluster roles that we bind to the scenario service account.
+///
+/// See `management-cluster/workload-rbac/` in kanaveral for the production details of these.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ClusterRoles {
+    pub cluster_read: String,
+    pub namespace_read: String,
+    pub namespace_write: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -319,6 +330,11 @@ mod tests {
             Self {
                 default_cluster: default_cluster.to_string(),
                 max_queued_executions: 100,
+                cluster_roles: ClusterRoles {
+                    cluster_read: "scenario-cluster-read".into(),
+                    namespace_read: "scenario-namespace-read".into(),
+                    namespace_write: "scenario-namespace-write".into(),
+                },
                 available_clusters: names
                     .iter()
                     .map(|name| WorkloadClusterConfig {
