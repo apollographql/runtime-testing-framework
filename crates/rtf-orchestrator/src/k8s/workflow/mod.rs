@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 mod as_workflow;
 
 const CREATE_NAMESPACE: &str = "create-namespace";
-const CREATE_SERVICE_ACCOUNT: &str = "create-service-account";
 const TTL_SECONDS_AFTER_FINISHED: i32 = 60; // cleanup after 1m - well clear of the 10s poll interval
 const TTL_SECONDS_AFTER_FAILED: i32 = 120; // cleanup after 2m when failed for debugging
 
@@ -78,12 +77,6 @@ impl WorkflowSpec {
                 toolbox_image,
                 env_vars.clone(),
             )),
-            TemplateDef::Task(create_service_account(
-                &namespace,
-                toolbox_pull_policy,
-                toolbox_image,
-                env_vars.clone(),
-            )),
         ];
         templates.extend(env.tasks(
             &namespace,
@@ -134,11 +127,8 @@ pub struct MainTemplate {
 
 impl MainTemplate {
     pub fn new(env: &OrchestratorEnvironment) -> Self {
-        let mut tasks = vec![
-            TaskSpec::new(CREATE_NAMESPACE, &[]),
-            TaskSpec::new(CREATE_SERVICE_ACCOUNT, &[CREATE_NAMESPACE]),
-        ];
-        tasks.extend(env.specs(CREATE_SERVICE_ACCOUNT));
+        let mut tasks = vec![TaskSpec::new(CREATE_NAMESPACE, &[])];
+        tasks.extend(env.specs(CREATE_NAMESPACE));
 
         Self {
             name: "main".into(),
@@ -237,29 +227,6 @@ fn create_namespace(
     )
 }
 
-fn create_service_account(
-    namespace: &str,
-    toolbox_pull_policy: &str,
-    toolbox_image: &str,
-    env: Vec<EnvVar>,
-) -> TaskTemplate {
-    TaskTemplate::new(
-        CREATE_SERVICE_ACCOUNT,
-        toolbox_pull_policy,
-        toolbox_image,
-        vec![
-            "create-service-account".into(),
-            "--namespace".into(),
-            namespace.into(),
-            "--kubeconfig".into(),
-            KUBECONFIG_PATH.into(),
-        ],
-        vec![kubeconfig_volume_mount()],
-        None,
-        env,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,16 +248,10 @@ mod tests {
         let main = MainTemplate::new(&env);
 
         let names: Vec<&str> = main.dag.tasks.iter().map(|t| t.name.as_str()).collect();
-        assert_eq!(
-            names,
-            vec![CREATE_NAMESPACE, CREATE_SERVICE_ACCOUNT, DEPLOY_ENVIRONMENT]
-        );
+        assert_eq!(names, vec![CREATE_NAMESPACE, DEPLOY_ENVIRONMENT]);
 
-        let deploy = &main.dag.tasks[2];
-        assert_eq!(
-            deploy.dependencies,
-            vec![CREATE_SERVICE_ACCOUNT.to_string()]
-        );
+        let deploy = &main.dag.tasks[1];
+        assert_eq!(deploy.dependencies, vec![CREATE_NAMESPACE.to_string()]);
     }
 
     #[test]
@@ -299,6 +260,6 @@ mod tests {
         let main = MainTemplate::new(&env);
 
         let names: Vec<&str> = main.dag.tasks.iter().map(|t| t.name.as_str()).collect();
-        assert_eq!(names, vec![CREATE_NAMESPACE, CREATE_SERVICE_ACCOUNT]);
+        assert_eq!(names, vec![CREATE_NAMESPACE]);
     }
 }
