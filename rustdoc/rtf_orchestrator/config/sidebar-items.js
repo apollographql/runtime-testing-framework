@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ClusterExecutionConfig","Config","DbConfig","GcsConfig","GithubConfig","OtelConfig","PerUserExecutionConfig","ServerConfig","ToolboxConfig","WorkloadClusterConfig","WorkloadClusters"]};
+window.SIDEBAR_ITEMS = {"struct":["ClusterExecutionConfig","ClusterRoles","Config","DbConfig","GcsConfig","GithubConfig","OtelConfig","PerUserExecutionConfig","ServerConfig","ToolboxConfig","WorkloadClusterConfig","WorkloadClusters"]};
