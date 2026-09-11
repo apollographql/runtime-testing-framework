@@ -43,7 +43,7 @@ create_cluster "rtf-mgmt"
 create_cluster "rtf-workload"
 
 echo "Creating workload Cluster Roles"
-kubectl apply --context kind-rtf-workload -f k8s/workload-rbac-clusterroles.yaml
+kubectl apply --context kind-rtf-workload -f "$SCRIPT_DIR/k8s/workload-rbac-clusterroles.yaml"
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 echo "Building toolbox image..."
