@@ -21,10 +21,6 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
             commands::create_namespace(&namespace, ctx).await
         }
 
-        Command::CreateServiceAccount { namespace, .. } => {
-            commands::create_service_account(&namespace, ctx).await
-        }
-
         Command::DeployEnvironment {
             namespace,
             kubeconfig: kubeconfig_path,

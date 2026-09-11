@@ -177,8 +177,8 @@ impl AsWorkflowTasks for NullEnvironment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::k8s::workflow::CREATE_SERVICE_ACCOUNT;
-    use rtf_config::formats::ComposeResources;
+    use crate::k8s::workflow::CREATE_NAMESPACE;
+    use rtf_config::formats::{ComposeResources, K8sResources};
 
     fn otel() -> OtelConfig {
         OtelConfig {
@@ -200,15 +200,12 @@ mod tests {
     }
 
     #[test]
-    fn docker_compose_specs_depend_on_parent() {
-        let specs = docker_compose_env().specs(CREATE_SERVICE_ACCOUNT);
+    fn docker_compose_specs_depend_on_correct_parent() {
+        let specs = docker_compose_env().specs(CREATE_NAMESPACE);
 
         assert_eq!(specs.len(), 1, "expected exactly one task spec");
         assert_eq!(specs[0].name, DEPLOY_ENVIRONMENT);
-        assert_eq!(
-            specs[0].dependencies,
-            vec!["create-service-account".to_string()]
-        );
+        assert_eq!(specs[0].dependencies, vec![CREATE_NAMESPACE.to_string()]);
     }
 
     #[test]
@@ -240,13 +237,59 @@ mod tests {
         assert!(args.contains(&"rtf-toolbox:edge".to_string()));
         assert!(args.contains(&"http://otel:4317".to_string()));
         assert!(args.contains(&"http://otel:4318".to_string()));
+        assert!(!args.contains(&"--native-k8s".to_string()));
+    }
+
+    fn k8s_env() -> K8sEnvironment {
+        K8sEnvironment {
+            resources: K8sResources { resources: vec![] },
+            file_providers: vec![],
+            env_vars: Default::default(),
+            output_collection: Default::default(),
+        }
+    }
+
+    #[test]
+    fn k8s_specs_depend_on_correct_parent() {
+        let specs = k8s_env().specs(CREATE_NAMESPACE);
+
+        assert_eq!(specs.len(), 1, "expected exactly one task spec");
+        assert_eq!(specs[0].name, DEPLOY_ENVIRONMENT);
+        assert_eq!(specs[0].dependencies, vec![CREATE_NAMESPACE.to_string()]);
+    }
+
+    #[test]
+    fn k8s_templates_build_deploy_environment_container() {
+        let templates =
+            k8s_env().templates("ns", "IfNotPresent", "rtf-toolbox:edge", &otel(), vec![]);
+
+        assert_eq!(templates.len(), 1, "expected exactly one task template");
+        assert_eq!(templates[0].name, DEPLOY_ENVIRONMENT);
+        assert_eq!(
+            templates[0].container.image.as_deref(),
+            Some("rtf-toolbox:edge")
+        );
+
+        let args = templates[0]
+            .container
+            .args
+            .as_ref()
+            .expect("deploy-environment container should have args");
+
+        assert!(args.contains(&"deploy-environment".to_string()));
+        assert!(args.contains(&"ns".to_string()));
+        assert!(args.contains(&"IfNotPresent".to_string()));
+        assert!(args.contains(&"rtf-toolbox:edge".to_string()));
+        assert!(args.contains(&"http://otel:4317".to_string()));
+        assert!(args.contains(&"http://otel:4318".to_string()));
+        assert!(args.contains(&"--native-k8s".to_string()));
     }
 
     #[test]
     fn null_environment_contributes_no_specs_or_templates() {
         let env = NullEnvironment { skip: true };
 
-        assert!(env.specs(CREATE_SERVICE_ACCOUNT).is_empty());
+        assert!(env.specs(CREATE_NAMESPACE).is_empty());
         assert!(
             env.templates("ns", "IfNotPresent", "rtf-toolbox:edge", &otel(), vec![])
                 .is_empty()

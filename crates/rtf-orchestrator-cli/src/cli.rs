@@ -30,17 +30,6 @@ pub enum Command {
         kubeconfig: PathBuf,
     },
 
-    /// Create the results-writer service account for Workload Identity Federation
-    CreateServiceAccount {
-        /// Target namespace name
-        #[arg(long)]
-        namespace: String,
-
-        /// Path to the kubeconfig file for the workload cluster
-        #[arg(long)]
-        kubeconfig: PathBuf,
-    },
-
     /// Resolve an RTF environment, convert the resolved compose files to Kubernetes manifests, and deploy
     DeployEnvironment {
         /// Target namespace for deployment
@@ -118,7 +107,6 @@ impl Command {
     pub fn kubeconfig(&self) -> Option<&Path> {
         match self {
             Self::CreateNamespace { kubeconfig, .. }
-            | Self::CreateServiceAccount { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
             Self::ResolveEnvironment { .. }
             | Self::PrepareScenario { .. }
