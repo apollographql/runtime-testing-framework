@@ -6,13 +6,13 @@
 <a href=#6 id=6 data-nosnippet>6</a>    path: <span class="kw-2">&amp;</span>str,
 <a href=#7 id=7 data-nosnippet>7</a>    method: Method,
 <a href=#8 id=8 data-nosnippet>8</a>    data: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#9 id=9 data-nosnippet>9</a>) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#10 id=10 data-nosnippet>10</a>    <span class="kw">let </span>client = OrchestratorClient::new_from_env().<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#11 id=11 data-nosnippet>11</a>
+<a href=#9 id=9 data-nosnippet>9</a>    plain_text: bool,
+<a href=#10 id=10 data-nosnippet>10</a>) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#11 id=11 data-nosnippet>11</a>    <span class="kw">let </span>client = OrchestratorClient::new_from_env().<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#12 id=12 data-nosnippet>12</a>    <span class="kw">let </span><span class="kw-2">mut </span>req = client.request(method.clone(), path).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a>    <span class="kw">match </span>(data, method) {
-<a href=#15 id=15 data-nosnippet>15</a>        (<span class="prelude-val">Some</span>(body), Method::POST) =&gt; {
+<a href=#15 id=15 data-nosnippet>15</a>        (<span class="prelude-val">Some</span>(body), Method::POST | Method::PUT) <span class="kw">if </span>!plain_text =&gt; {
 <a href=#16 id=16 data-nosnippet>16</a>            req = req.json(<span class="kw-2">&amp;</span>serde_json::from_str::&lt;serde_json::Value&gt;(body)<span class="question-mark">?</span>)
 <a href=#17 id=17 data-nosnippet>17</a>        }
 <a href=#18 id=18 data-nosnippet>18</a>        (<span class="prelude-val">Some</span>(body), <span class="kw">_</span>) =&gt; req = req.body(body.to_string()),
