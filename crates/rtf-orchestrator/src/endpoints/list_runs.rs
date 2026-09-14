@@ -117,8 +117,24 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let initiated_by = unique("returns-matching-runs");
-        TestRun::init("a", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
-        TestRun::init("b", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
+        TestRun::init(
+            "a",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
+        TestRun::init(
+            "b",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
 
         // Scope the otherwise-unfiltered request with a filter unique to this test, since the
         // table also holds rows from every other test that has run against this database.
@@ -171,8 +187,8 @@ mod tests {
         let conn = conn!();
         let alice = unique("alice");
         let bob = unique("bob");
-        TestRun::init("a", None, Some(&alice), &alpha_cluster(), conn).await?;
-        TestRun::init("b", None, Some(&bob), &alpha_cluster(), conn).await?;
+        TestRun::init("a", None, Some(&alice), &alpha_cluster(), false, conn).await?;
+        TestRun::init("b", None, Some(&bob), &alpha_cluster(), false, conn).await?;
 
         let resp = tss
             .test_server
@@ -197,7 +213,15 @@ mod tests {
         let conn = conn!();
         let initiated_by = unique("respects-limit-and-offset");
         for name in ["a", "b", "c"] {
-            TestRun::init(name, None, Some(&initiated_by), &alpha_cluster(), conn).await?;
+            TestRun::init(
+                name,
+                None,
+                Some(&initiated_by),
+                &alpha_cluster(),
+                false,
+                conn,
+            )
+            .await?;
         }
 
         let resp = tss
@@ -224,9 +248,24 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let initiated_by = unique("orders-newest-first");
-        let first =
-            TestRun::init("first", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
-        TestRun::init("second", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
+        let first = TestRun::init(
+            "first",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
+        TestRun::init(
+            "second",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
 
         // Force a deterministic ordering regardless of how fast the two inserts above ran.
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
@@ -256,8 +295,24 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let initiated_by = unique("started-after");
-        let old = TestRun::init("old", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
-        TestRun::init("recent", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
+        let old = TestRun::init(
+            "old",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
+        TestRun::init(
+            "recent",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 days' WHERE id = $1")
             .bind(old.id())
@@ -288,8 +343,24 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let initiated_by = unique("started-before");
-        let old = TestRun::init("old", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
-        TestRun::init("recent", None, Some(&initiated_by), &alpha_cluster(), conn).await?;
+        let old = TestRun::init(
+            "old",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
+        TestRun::init(
+            "recent",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            conn,
+        )
+        .await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 days' WHERE id = $1")
             .bind(old.id())

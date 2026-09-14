@@ -204,16 +204,17 @@ impl EventQueue {
         .await
     }
 
-    pub(crate) async fn scenario_docker_image_and_command(
-        &self,
-        ex_id: Uuid,
-    ) -> Option<(String, String)> {
+    pub(crate) async fn scenario_job_params(&self, ex_id: Uuid) -> Option<ScenarioJobParams> {
         self.with_shared(|shared| {
-            shared
-                .executions
-                .get(&ex_id)
-                .and_then(|e| e.resolved_config.as_ref())
-                .map(|c| (c.docker_image.clone(), c.docker_command.clone()))
+            let ex_state = shared.executions.get(&ex_id)?;
+            let ex_cfg = ex_state.resolved_config.as_ref()?;
+            let allow_k8s_write = shared.runs.get(&ex_state.run_uuid)?.allow_k8s_write;
+
+            Some(ScenarioJobParams {
+                docker_image: ex_cfg.docker_image.clone(),
+                command: ex_cfg.docker_command.clone(),
+                allow_k8s_write,
+            })
         })
         .await
     }
@@ -273,6 +274,7 @@ impl EventQueue {
             h.cache_for_test_run(
                 run_uuid,
                 tr.initiated_by().map(|s| s.to_owned()),
+                tr.allow_k8s_write(),
                 ctx,
                 test_plan,
             )
@@ -379,6 +381,14 @@ impl EventQueue {
             })
             .collect())
     }
+}
+
+/// Run and Execution specific state for building the Scenario k8s job definition
+#[derive(Debug)]
+pub struct ScenarioJobParams {
+    pub docker_image: String,
+    pub command: String,
+    pub allow_k8s_write: bool,
 }
 
 /// Load our cached trigger payload state from the DB, evicting malformed payloads and marking
@@ -535,6 +545,7 @@ impl ProvisioningHandle {
         &self,
         run_uuid: Uuid,
         initiated_by: Option<String>,
+        allow_k8s_write: bool,
         ctx: OrchestratorContext,
         test_plan: OrchestratorTestPlan,
     ) {
@@ -546,6 +557,7 @@ impl ProvisioningHandle {
                     test_plan,
                     executions: HashSet::new(),
                     initiated_by,
+                    allow_k8s_write,
                 },
             )
         })
@@ -1118,6 +1130,7 @@ struct RunState {
     test_plan: OrchestratorTestPlan,
     executions: HashSet<Uuid>,
     initiated_by: Option<String>,
+    allow_k8s_write: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -1269,7 +1282,7 @@ mod tests {
             empty_source_map(),
             empty_source_map(),
         );
-        ph.cache_for_test_run(run_uuid, None, ctx, stub_test_plan())
+        ph.cache_for_test_run(run_uuid, None, false, ctx, stub_test_plan())
             .await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
@@ -1342,6 +1355,7 @@ mod tests {
         ph.cache_for_test_run(
             run_uuid,
             Some("alice@example.com".to_string()),
+            false,
             ctx,
             stub_test_plan(),
         )
@@ -1399,6 +1413,7 @@ mod tests {
             ph.cache_for_test_run(
                 run_uuid,
                 Some(user.to_string()),
+                false,
                 ctx.clone(),
                 stub_test_plan(),
             )
@@ -1442,7 +1457,7 @@ mod tests {
             empty_source_map(),
             empty_source_map(),
         );
-        h.cache_for_test_run(run_uuid, None, ctx, stub_test_plan())
+        h.cache_for_test_run(run_uuid, None, false, ctx, stub_test_plan())
             .await;
         h.with_shared(|shared| {
             shared.register_execution(ex1, run_uuid);
@@ -1495,7 +1510,7 @@ mod tests {
             empty_source_map(),
             empty_source_map(),
         );
-        h.cache_for_test_run(run_uuid, None, ctx, stub_test_plan())
+        h.cache_for_test_run(run_uuid, None, false, ctx, stub_test_plan())
             .await;
     }
 
@@ -1886,7 +1901,8 @@ mod tests {
             empty_source_map(),
             empty_source_map(),
         );
-        ph.cache_for_test_run(run_uuid, None, ctx, test_plan).await;
+        ph.cache_for_test_run(run_uuid, None, false, ctx, test_plan)
+            .await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
 

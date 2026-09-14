@@ -221,6 +221,7 @@ where
         .cache_for_test_run(
             test_run.uuid(),
             test_run.initiated_by().map(|s| s.to_owned()),
+            test_run.allow_k8s_write(),
             ctx,
             test_plan,
         )
@@ -484,7 +485,7 @@ mod tests {
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(tr.uuid(), None, ctx, tp).await;
+        ph.cache_for_test_run(tr.uuid(), None, false, ctx, tp).await;
         ph.request_provisioning(&tr, "test", 0, alpha_cluster(), &mut mock)
             .await
             .unwrap();

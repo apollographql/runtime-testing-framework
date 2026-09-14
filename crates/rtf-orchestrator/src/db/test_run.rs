@@ -32,6 +32,7 @@ pub struct TestRun {
     completed_at: Option<DateTime<Utc>>,
     variables_id: Option<i32>,
     workload_cluster: String,
+    allow_k8s_write: bool,
 }
 
 impl Queryable for TestRun {
@@ -68,6 +69,10 @@ impl TestRun {
         ClusterId::new(&self.workload_cluster)
     }
 
+    pub fn allow_k8s_write(&self) -> bool {
+        self.allow_k8s_write
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, name: &str) -> Self {
         Self {
@@ -79,6 +84,7 @@ impl TestRun {
             completed_at: None,
             variables_id: None,
             workload_cluster: "alpha".into(),
+            allow_k8s_write: false,
         }
     }
 
@@ -115,25 +121,12 @@ impl TestRun {
         .await?)
     }
 
-    /// Create a new run, capturing any runtime variable overrides supplied with it and the test run
-    /// initiator.
-    ///
-    /// `variables` is the flat overrides blob (`-v` / `--vars`) as JSON, or `None` when none were
-    /// supplied. When present it is upserted into the deduplicated `variables` table and the run is
-    /// linked to it, so `variables_id` is `NULL` exactly when `variables` is `None`.
-    ///
-    /// `initiated_by` is whatever identity the caller managed to extract, or `None` if it couldn't
-    /// (or didn't try to). Stored as-is — `None` is persisted as SQL `NULL`, not some sentinel
-    /// string, so "we don't know" stays a real, queryable absence rather than a magic value.
-    ///
-    /// `workload_cluster` is the identifier of the workload cluster this run's executions will run
-    /// in, resolved by the caller (e.g. a known test plan's pin, or the server's configured
-    /// default cluster).
     pub async fn init(
         name: &str,
         variables: Option<Value>,
         initiated_by: Option<&str>,
         workload_cluster: &ClusterId,
+        allow_k8s_write: bool,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         let variables_id = match variables {
@@ -142,15 +135,16 @@ impl TestRun {
         };
 
         let tr: TestRun = sqlx::query_as(
-            "INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_cluster)
-             VALUES ($1, NOW(), $2, $3, $4)
-             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_cluster;
+            "INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_cluster, allow_k8s_write)
+             VALUES ($1, NOW(), $2, $3, $4, $5)
+             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_cluster, allow_k8s_write;
             ",
         )
         .bind(name)
         .bind(variables_id)
         .bind(initiated_by)
         .bind(workload_cluster.as_str())
+        .bind(allow_k8s_write)
         .fetch_one(&mut *conn)
         .await?;
 
@@ -166,7 +160,7 @@ impl TestRun {
         workload_cluster: &ClusterId,
         conn: &mut PgConnection,
     ) -> Result<Self> {
-        Self::init(name, variables, None, workload_cluster, conn).await
+        Self::init(name, variables, None, workload_cluster, false, conn).await
     }
 
     pub async fn init_execution(
@@ -982,8 +976,8 @@ mod tests {
         let c = conn!();
         let user = unique("user");
 
-        let old = TestRun::init("old", None, Some(&user), &alpha_cluster(), c).await?;
-        TestRun::init("recent", None, Some(&user), &alpha_cluster(), c).await?;
+        let old = TestRun::init("old", None, Some(&user), &alpha_cluster(), false, c).await?;
+        TestRun::init("recent", None, Some(&user), &alpha_cluster(), false, c).await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 hours' WHERE id = $1")
             .bind(old.id())
@@ -1007,16 +1001,25 @@ mod tests {
         let other_user = unique("other-user");
         let since = Utc::now() - Duration::hours(1);
 
-        TestRun::init("mine", None, Some(&user), &alpha_cluster(), c).await?;
+        TestRun::init("mine", None, Some(&user), &alpha_cluster(), false, c).await?;
         TestRun::init(
             "someone-elses",
             None,
             Some(&other_user),
             &alpha_cluster(),
+            false,
             c,
         )
         .await?;
-        TestRun::init("wrong-cluster", None, Some(&user), &perf_cluster(), c).await?;
+        TestRun::init(
+            "wrong-cluster",
+            None,
+            Some(&user),
+            &perf_cluster(),
+            false,
+            c,
+        )
+        .await?;
 
         let count = TestRun::started_since(&user, &alpha_cluster(), since, c).await?;
 

@@ -15,6 +15,7 @@ pub struct KnownTestPlan {
     repo: String,
     path: String,
     pinned_workload_cluster: Option<String>,
+    allow_k8s_write: bool,
 }
 
 impl Queryable for KnownTestPlan {
@@ -54,6 +55,10 @@ impl KnownTestPlan {
         self.pinned_workload_cluster.as_ref().map(ClusterId::new)
     }
 
+    pub fn allow_k8s_write(&self) -> bool {
+        self.allow_k8s_write
+    }
+
     /// Register a new known test plan.
     ///
     /// `name` and `(org, repo, path)` are each `UNIQUE` in the DB: attempting to register a
@@ -74,7 +79,7 @@ impl KnownTestPlan {
             VALUES
               ($1, $2, $3, $4, $5)
             RETURNING
-              id, uuid, name, description, org, repo, path, pinned_workload_cluster;
+              id, uuid, name, description, org, repo, path, pinned_workload_cluster, allow_k8s_write;
             "#,
         )
         .bind(name)
@@ -106,6 +111,22 @@ impl KnownTestPlan {
             .await?;
 
         self.pinned_workload_cluster = pinned_workload_cluster.map(str::to_owned);
+
+        Ok(())
+    }
+
+    pub async fn set_allow_k8s_write(
+        &mut self,
+        allow_k8s_write: bool,
+        conn: &mut PgConnection,
+    ) -> Result<()> {
+        sqlx::query("UPDATE known_test_plan SET allow_k8s_write = $1 WHERE id = $2;")
+            .bind(allow_k8s_write)
+            .bind(self.id)
+            .execute(conn)
+            .await?;
+
+        self.allow_k8s_write = allow_k8s_write;
 
         Ok(())
     }
