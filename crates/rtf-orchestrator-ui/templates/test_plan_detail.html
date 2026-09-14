@@ -19,16 +19,18 @@
         <a href="{{ plan.github_url }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
         {% endmatch %}
     </p>
-    {% match details %}
-    {% when Some with (d) %}
     <dl>
+        {% match details %}
+        {% when Some with (d) %}
         <dt>Commit</dt>
         <dd><code>{{ d.source_sha }}</code></dd>
         <dt>Cluster</dt>
         <dd><code>{{ d.cluster }}</code></dd>
+        {% when None %}
+        {% endmatch %}
+        <dt>Namespace write access</dt>
+        <dd>{% if plan.allow_k8s_write %}Enabled{% else %}Disabled{% endif %}</dd>
     </dl>
-    {% when None %}
-    {% endmatch %}
 </div>
 
 {% match details %}

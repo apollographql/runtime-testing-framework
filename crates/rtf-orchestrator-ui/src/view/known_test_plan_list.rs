@@ -11,6 +11,7 @@ pub struct KnownTestPlanRowView {
     pub repo: String,
     pub path: String,
     pub github_url: String,
+    pub allow_k8s_write: bool,
 }
 
 impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
@@ -23,6 +24,7 @@ impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
             org: plan.org,
             repo: plan.repo,
             path: plan.path,
+            allow_k8s_write: plan.allow_k8s_write,
         }
     }
 }
