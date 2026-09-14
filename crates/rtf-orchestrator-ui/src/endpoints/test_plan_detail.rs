@@ -355,6 +355,32 @@ mod tests {
             body.contains("<form"),
             "expected the trigger form to render"
         );
+        assert!(
+            body.contains("Namespace write access") && body.contains("Disabled"),
+            "expected namespace write access to render as disabled by default, got: {body}"
+        );
+    }
+
+    #[test]
+    fn test_plan_detail_body_shows_namespace_write_access_when_enabled() {
+        let uuid = Uuid::from_u128(1);
+        let (_, body) = test_plan_detail_body(
+            uuid,
+            TestPlanDetailResults {
+                plan: Ok(Some(KnownTestPlanSummary {
+                    allow_k8s_write: true,
+                    ..sample_known_test_plan(uuid)
+                })),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage::default(),
+        );
+
+        assert!(
+            body.contains("Namespace write access") && body.contains("Enabled"),
+            "expected namespace write access to render as enabled, got: {body}"
+        );
     }
 
     #[test]

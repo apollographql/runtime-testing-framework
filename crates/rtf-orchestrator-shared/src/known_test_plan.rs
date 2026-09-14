@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
 
 /// A Test Plan registered with the orchestrator, identifiable by UUID or name for triggering and
@@ -13,6 +13,7 @@ pub struct KnownTestPlanSummary {
     pub repo: String,
     pub path: String,
     pub pinned_workload_cluster: Option<String>,
+    pub allow_k8s_write: bool,
 }
 
 /// A page of [KnownTestPlanSummary]s matching a set of query filters, along with the total number
@@ -34,9 +35,49 @@ pub struct RegisterTestPlanRequest {
     pub path: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SetPinnedWorkloadClusterRequest {
-    pub cluster: String,
+#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct UpdateKnownTestPlanRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "explicit_null"
+    )]
+    pub description: Option<Option<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub org: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "explicit_null"
+    )]
+    pub pinned_cluster: Option<Option<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allow_k8s_write: Option<bool>,
+}
+
+impl UpdateKnownTestPlanRequest {
+    pub fn is_empty(&self) -> bool {
+        self == &Self::default()
+    }
+}
+
+/// Distinguish explicit null values from being omitted from the payload entirely:
+///
+///  field missing -> None
+///  explicit null -> Some(None)
+///  actual value  -> Some(Some(value))
+fn explicit_null<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Deserialize::deserialize(deserializer).map(Some)
 }
 
 /// Query parameters accepted by `GET /test-plan`. Shared between the orchestrator's `axum` `Query`

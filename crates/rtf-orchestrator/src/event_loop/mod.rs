@@ -284,23 +284,22 @@ impl Event {
                 )?;
 
                 let res = event_queue
-                    .scenario_docker_image_and_command(self.test_execution.uuid())
+                    .scenario_job_params(self.test_execution.uuid())
                     .await;
 
                 match res {
-                    Some((image, command)) => {
+                    Some(params) => {
                         run_scenario::create_job(
                             self.test_execution.clone(),
-                            image,
-                            command,
+                            params.docker_image,
+                            params.command,
                             &CreateJobConfig {
                                 orchestrator_url: cfg.orchestrator_url,
                                 prometheus_endpoint: cfg.prometheus_endpoint,
                                 toolbox_pull_policy: cfg.toolbox_pull_policy,
                                 toolbox_image: cfg.toolbox_image,
                                 cluster_roles: cfg.cluster_roles,
-                                // TODO: thread through per- test plan config for setting this
-                                allow_namespace_write: false,
+                                allow_namespace_write: params.allow_k8s_write,
                             },
                             &mut clients,
                             conn,

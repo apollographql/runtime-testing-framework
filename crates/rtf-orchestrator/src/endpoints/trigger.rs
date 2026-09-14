@@ -38,7 +38,7 @@ pub async fn handler(
     )
     .await?;
 
-    let (cluster, known_link, payload) = payload.finish(cfg).await?;
+    let (cluster, allow_k8s_write, known_link, payload) = payload.finish(cfg).await?;
 
     // The max queued executions limit can only be enforced once we have the actual test plan and
     // can check the number of executions it will result in.
@@ -77,16 +77,21 @@ pub async fn handler(
     let initiated_by = user.into_user_email();
 
     debug!("initialising run");
-    let (test_run, summary) =
-        match init_run_and_build_summary(&payload.test_plan.name, variables, initiated_by, cluster)
-            .await
-        {
-            Ok((tr, s)) => (tr, s),
-            Err(e) => {
-                state.eq_state.release_pending_execution_claim(claim).await;
-                return Err(e);
-            }
-        };
+    let (test_run, summary) = match init_run_and_build_summary(
+        &payload.test_plan.name,
+        variables,
+        initiated_by,
+        cluster,
+        allow_k8s_write,
+    )
+    .await
+    {
+        Ok((tr, s)) => (tr, s),
+        Err(e) => {
+            state.eq_state.release_pending_execution_claim(claim).await;
+            return Err(e);
+        }
+    };
 
     if let Some(link) = known_link {
         debug!("linking run to known test plan");
@@ -135,6 +140,7 @@ struct KnownTestPlanLink {
 
 struct PayloadWithMeta {
     cluster: ClusterId,
+    allow_k8s_write: bool,
     payload: PreparedOrGitHub,
     link: Option<KnownTestPlanLink>,
 }
@@ -148,6 +154,7 @@ impl PayloadWithMeta {
         let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
             let pinned = known.pinned_workload_cluster();
             let cluster = pinned.clone().unwrap_or_else(|| default_cluster.clone());
+            let allow_k8s_write = known.allow_k8s_write();
             let known_link = KnownTestPlanLink {
                 known_test_plan_id: known.id(),
                 git_sha: git_ref.clone(),
@@ -162,6 +169,7 @@ impl PayloadWithMeta {
 
             Self {
                 cluster,
+                allow_k8s_write,
                 payload: PreparedOrGitHub::GitHub(payload),
                 link: Some(known_link),
             }
@@ -170,12 +178,14 @@ impl PayloadWithMeta {
         Ok(match trigger_payload {
             TriggerPayload::Prepared(payload) => Self {
                 cluster: default_cluster.clone(),
+                allow_k8s_write: false,
                 link: None,
                 payload: PreparedOrGitHub::Prepared(payload),
             },
 
             TriggerPayload::GitHub(payload) => Self {
                 cluster: default_cluster.clone(),
+                allow_k8s_write: false,
                 link: None,
                 payload: PreparedOrGitHub::GitHub(payload),
             },
@@ -207,14 +217,17 @@ impl PayloadWithMeta {
     async fn finish(
         self,
         cfg: &Config,
-    ) -> Result<(ClusterId, Option<KnownTestPlanLink>, PreparedPayload), Error> {
+    ) -> Result<(ClusterId, bool, Option<KnownTestPlanLink>, PreparedPayload), Error> {
         Ok(match self.payload {
-            PreparedOrGitHub::Prepared(payload) => (self.cluster, self.link, payload),
+            PreparedOrGitHub::Prepared(payload) => {
+                (self.cluster, self.allow_k8s_write, self.link, payload)
+            }
 
             PreparedOrGitHub::GitHub(payload) => {
                 info!("attempting to pull test plan details from GitHub");
                 (
                     self.cluster,
+                    self.allow_k8s_write,
                     self.link,
                     payload.into_prepared(cfg.server_context()).await?,
                 )
@@ -228,6 +241,7 @@ async fn init_run_and_build_summary(
     variables: Option<Value>,
     initiated_by: Option<String>,
     workload_cluster: ClusterId,
+    allow_k8s_write: bool,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
     let test_run = TestRun::init(
@@ -235,6 +249,7 @@ async fn init_run_and_build_summary(
         variables,
         initiated_by.as_deref(),
         &workload_cluster,
+        allow_k8s_write,
         conn,
     )
     .await?;
@@ -392,7 +407,8 @@ mod tests {
     async fn init_run_and_build_summary_persists_the_resolved_workload_cluster() -> Result<(), Error>
     {
         let (test_run, _) =
-            init_run_and_build_summary("test", None, None, ClusterId::new("router_perf")).await?;
+            init_run_and_build_summary("test", None, None, ClusterId::new("router_perf"), false)
+                .await?;
 
         assert_eq!(test_run.workload_cluster().as_str(), "router_perf");
 
@@ -423,6 +439,7 @@ mod tests {
                 None,
                 Some(&bare_email),
                 &ClusterId::new("alpha"),
+                false,
                 conn!(),
             )
             .await?;

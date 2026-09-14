@@ -11,6 +11,7 @@ pub struct KnownTestPlanRowView {
     pub repo: String,
     pub path: String,
     pub github_url: String,
+    pub allow_k8s_write: bool,
 }
 
 impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
@@ -23,6 +24,7 @@ impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
             org: plan.org,
             repo: plan.repo,
             path: plan.path,
+            allow_k8s_write: plan.allow_k8s_write,
         }
     }
 }
@@ -111,6 +113,7 @@ mod tests {
                     repo: "runtime-testing-framework".to_owned(),
                     path: "test-plans/example.yaml".to_owned(),
                     pinned_workload_cluster: None,
+                    allow_k8s_write: false,
                 })
                 .collect(),
             total,
@@ -128,6 +131,7 @@ mod tests {
             repo: "repo".to_owned(),
             path: "path.yaml".to_owned(),
             pinned_workload_cluster: None,
+            allow_k8s_write: false,
         });
 
         assert_eq!(row.description, "");
@@ -143,6 +147,7 @@ mod tests {
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
             pinned_workload_cluster: None,
+            allow_k8s_write: false,
         });
 
         assert_eq!(

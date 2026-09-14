@@ -175,8 +175,8 @@ mod tests {
         let c = conn!();
         let alice = unique("alice");
         let bob = unique("bob");
-        TestRun::init("a", None, Some(&alice), &alpha_cluster(), c).await?;
-        TestRun::init("b", None, Some(&bob), &alpha_cluster(), c).await?;
+        TestRun::init("a", None, Some(&alice), &alpha_cluster(), false, c).await?;
+        TestRun::init("b", None, Some(&bob), &alpha_cluster(), false, c).await?;
 
         let filter = TestRunFilter {
             initiated_by: Some(alice.clone()),
@@ -196,8 +196,8 @@ mod tests {
         let c = conn!();
         let alice = unique("alice");
         let bob = unique("bob");
-        TestRun::init("a", None, Some(&alice), &alpha_cluster(), c).await?;
-        TestRun::init("b", None, Some(&bob), &alpha_cluster(), c).await?;
+        TestRun::init("a", None, Some(&alice), &alpha_cluster(), false, c).await?;
+        TestRun::init("b", None, Some(&bob), &alpha_cluster(), false, c).await?;
 
         // A substring of `alice`'s unique value, not the full value.
         let needle = &alice[..alice.len() - 4];
@@ -218,7 +218,7 @@ mod tests {
     async fn runs_matching_filters_by_initiated_by_case_insensitively() -> Result<()> {
         let c = conn!();
         let alice = unique("alice");
-        TestRun::init("a", None, Some(&alice), &alpha_cluster(), c).await?;
+        TestRun::init("a", None, Some(&alice), &alpha_cluster(), false, c).await?;
 
         let filter = TestRunFilter {
             initiated_by: Some(alice.to_uppercase()),
@@ -243,8 +243,8 @@ mod tests {
             "user1name-{}",
             &user_name[user_name.rfind('-').unwrap() + 1..]
         );
-        TestRun::init("a", None, Some(&user_name), &alpha_cluster(), c).await?;
-        TestRun::init("b", None, Some(&user1name), &alpha_cluster(), c).await?;
+        TestRun::init("a", None, Some(&user_name), &alpha_cluster(), false, c).await?;
+        TestRun::init("b", None, Some(&user1name), &alpha_cluster(), false, c).await?;
 
         let filter = TestRunFilter {
             initiated_by: Some(user_name.clone()),
@@ -324,9 +324,17 @@ mod tests {
     async fn runs_matching_filters_by_time_range() -> Result<()> {
         let c = conn!();
         let initiated_by = unique("time-range");
-        let old = TestRun::init("old", None, Some(&initiated_by), &alpha_cluster(), c).await?;
-        let recent =
-            TestRun::init("recent", None, Some(&initiated_by), &alpha_cluster(), c).await?;
+        let old =
+            TestRun::init("old", None, Some(&initiated_by), &alpha_cluster(), false, c).await?;
+        let recent = TestRun::init(
+            "recent",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            c,
+        )
+        .await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 days' WHERE id = $1")
             .bind(old.id())
@@ -352,7 +360,7 @@ mod tests {
         let c = conn!();
         let initiated_by = unique("pagination");
         for name in ["a", "b", "c"] {
-            TestRun::init(name, None, Some(&initiated_by), &alpha_cluster(), c).await?;
+            TestRun::init(name, None, Some(&initiated_by), &alpha_cluster(), false, c).await?;
         }
 
         let filter = TestRunFilter {
@@ -372,8 +380,24 @@ mod tests {
     async fn runs_matching_orders_newest_first() -> Result<()> {
         let c = conn!();
         let initiated_by = unique("ordering");
-        let first = TestRun::init("first", None, Some(&initiated_by), &alpha_cluster(), c).await?;
-        TestRun::init("second", None, Some(&initiated_by), &alpha_cluster(), c).await?;
+        let first = TestRun::init(
+            "first",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            c,
+        )
+        .await?;
+        TestRun::init(
+            "second",
+            None,
+            Some(&initiated_by),
+            &alpha_cluster(),
+            false,
+            c,
+        )
+        .await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
             .bind(first.id())

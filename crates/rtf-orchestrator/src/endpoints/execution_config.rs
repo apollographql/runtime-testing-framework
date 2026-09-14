@@ -128,7 +128,7 @@ mod tests {
             .await
             .unwrap();
         tss.prov_handle
-            .cache_for_test_run(run_uuid, None, ctx, test_plan)
+            .cache_for_test_run(run_uuid, None, false, ctx, test_plan)
             .await;
         tss.prov_handle
             .register_existing_execution(ex.uuid(), run_uuid)
