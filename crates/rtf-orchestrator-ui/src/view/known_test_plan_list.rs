@@ -111,6 +111,7 @@ mod tests {
                     repo: "runtime-testing-framework".to_owned(),
                     path: "test-plans/example.yaml".to_owned(),
                     pinned_workload_cluster: None,
+                    allow_k8s_write: false,
                 })
                 .collect(),
             total,
@@ -128,6 +129,7 @@ mod tests {
             repo: "repo".to_owned(),
             path: "path.yaml".to_owned(),
             pinned_workload_cluster: None,
+            allow_k8s_write: false,
         });
 
         assert_eq!(row.description, "");
@@ -143,6 +145,7 @@ mod tests {
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
             pinned_workload_cluster: None,
+            allow_k8s_write: false,
         });
 
         assert_eq!(

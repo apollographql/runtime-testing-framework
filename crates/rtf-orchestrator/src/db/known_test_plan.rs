@@ -1,5 +1,5 @@
 use crate::db::{self, ClusterId, Queryable, Result};
-use rtf_orchestrator_shared::known_test_plan::KnownTestPlanSummary;
+use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, UpdateKnownTestPlanRequest};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
 
@@ -99,36 +99,46 @@ impl KnownTestPlan {
         }
     }
 
-    pub async fn set_pinned_workload_cluster(
-        &mut self,
-        pinned_workload_cluster: Option<&str>,
+    pub async fn update(
+        self,
+        update: UpdateKnownTestPlanRequest,
         conn: &mut PgConnection,
-    ) -> Result<()> {
-        sqlx::query("UPDATE known_test_plan SET pinned_workload_cluster = $1 WHERE id = $2;")
-            .bind(pinned_workload_cluster)
-            .bind(self.id)
-            .execute(conn)
-            .await?;
+    ) -> Result<Self> {
+        if update.is_empty() {
+            return Ok(self);
+        }
 
-        self.pinned_workload_cluster = pinned_workload_cluster.map(str::to_owned);
+        macro_rules! push_if_some {
+            ($sep:expr, $opt:expr, $s:expr) => {
+                if let Some(val) = $opt {
+                    $sep.push($s);
+                    $sep.push_bind_unseparated(val);
+                }
+            };
+        }
 
-        Ok(())
-    }
+        let mut qb = QueryBuilder::new("UPDATE known_test_plan SET ");
+        {
+            let mut sep = qb.separated(", ");
+            push_if_some!(sep, update.name, "name = ");
+            push_if_some!(sep, update.description, "description = ");
+            push_if_some!(sep, update.org, "org = ");
+            push_if_some!(sep, update.repo, "repo = ");
+            push_if_some!(sep, update.path, "path = ");
+            push_if_some!(sep, update.pinned_cluster, "pinned_workload_cluster = ");
+            push_if_some!(sep, update.allow_k8s_write, "allow_k8s_write = ");
+        }
+        qb.push(" WHERE id = ").push_bind(self.id);
 
-    pub async fn set_allow_k8s_write(
-        &mut self,
-        allow_k8s_write: bool,
-        conn: &mut PgConnection,
-    ) -> Result<()> {
-        sqlx::query("UPDATE known_test_plan SET allow_k8s_write = $1 WHERE id = $2;")
-            .bind(allow_k8s_write)
-            .bind(self.id)
-            .execute(conn)
-            .await?;
+        match qb.build().execute(&mut *conn).await {
+            Ok(_) => {}
+            Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
+                return Err(db::Error::KnownTestPlanAlreadyExists);
+            }
+            Err(e) => return Err(e.into()),
+        }
 
-        self.allow_k8s_write = allow_k8s_write;
-
-        Ok(())
+        Self::get_by_id_unchecked(self.id, conn).await
     }
 
     pub async fn get_by_uuid(uuid: &Uuid, conn: &mut PgConnection) -> Result<Option<Self>> {
@@ -158,6 +168,7 @@ impl KnownTestPlan {
             repo: self.repo,
             path: self.path,
             pinned_workload_cluster: self.pinned_workload_cluster,
+            allow_k8s_write: self.allow_k8s_write,
         }
     }
 }

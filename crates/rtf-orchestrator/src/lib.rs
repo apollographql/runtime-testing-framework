@@ -3,7 +3,7 @@ use crate::gcs::GCSClient;
 use axum::{
     Extension, Router,
     extract::DefaultBodyLimit,
-    routing::{get, post},
+    routing::{get, post, put},
     serve,
 };
 use tokio::net::TcpListener;
@@ -85,9 +85,8 @@ fn build_routes(
             get(admin::purge_queue::run_handler),
         )
         .route(
-            "/admin/test-plan/{uuid}/pinned-cluster",
-            post(admin::known_test_plan_cluster_pin::set_handler)
-                .delete(admin::known_test_plan_cluster_pin::clear_handler),
+            "/admin/test-plan/{uuid}",
+            put(admin::update_known_test_plan::handler),
         )
         .route("/health", get(health::handler))
         .route(
