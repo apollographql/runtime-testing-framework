@@ -1,0 +1,48 @@
+name: Check k8s write access from jobs
+description: "Checks that a scenario can have namespace write access when permissions are set correctly"
+scenario:
+  inline:
+    name: k8s-write-check
+    description: ""
+    docker:
+      image: us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox
+      tag: edge
+      command: "sh $SCRIPT"
+    file_providers:
+      - name: script.sh
+        env_var: SCRIPT
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          set -eux
+          kubectl apply -f $NGINX_MANIFEST
+          kubectl rollout status deployment/nginx --timeout=60s
+          kubectl get pods
+      - name: nginx.yaml
+        env_var: NGINX_MANIFEST
+        kind: inline
+        content: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nginx
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: nginx
+            template:
+              metadata:
+                labels:
+                  app: nginx
+              spec:
+                containers:
+                  - name: nginx
+                    image: nginx:alpine
+                    args: ["sleep", "infinity"]
+                    imagePullPolicy: Always
+environment:
+  inline:
+    name: skipped
+    description: skipped
+    skip: true
