@@ -392,7 +392,10 @@ The response body is written to stdout on success.
 * `-X`, `--method <METHOD>` — HTTP method
 
   Default value: `GET`
-* `-b`, `--body <BODY>` — Request body as a literal string
+* `-d`, `--body <BODY>` — Request body as a literal string
+* `--plain-text` — Skip setting a content type on POST/PUT requests
+
+  Default value: `false`
 
 
 
