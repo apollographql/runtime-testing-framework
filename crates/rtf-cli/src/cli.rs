@@ -333,8 +333,12 @@ pub enum RemoteSubcommand {
         method: Method,
 
         /// Request body as a literal string
-        #[arg(short, long)]
+        #[arg(short = 'd', long)]
         body: Option<String>,
+
+        /// Skip setting a content type on POST/PUT requests
+        #[arg(long, default_value = "false")]
+        plain_text: bool,
     },
 
     /// Trigger a test run using the Orchestrator.

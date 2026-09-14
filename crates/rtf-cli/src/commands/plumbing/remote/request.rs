@@ -6,13 +6,13 @@ pub async fn execute_remote_request(
     path: &str,
     method: Method,
     data: Option<&str>,
+    plain_text: bool,
 ) -> anyhow::Result<()> {
     let client = OrchestratorClient::new_from_env().await?;
-
     let mut req = client.request(method.clone(), path).await?;
 
     match (data, method) {
-        (Some(body), Method::POST | Method::PUT) => {
+        (Some(body), Method::POST | Method::PUT) if !plain_text => {
             req = req.json(&serde_json::from_str::<serde_json::Value>(body)?)
         }
         (Some(body), _) => req = req.body(body.to_string()),
