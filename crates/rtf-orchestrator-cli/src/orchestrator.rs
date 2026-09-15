@@ -35,39 +35,7 @@ const KUSTOMIZE_PATCH: &str = include_str!("../resources/kustomization.yaml");
 /// Kustomize patch fragment giving every environment pod a node to itself: required affinity
 /// co-locates the pod with its own execution, required anti-affinity bars every other
 /// execution's pods from that node.
-const EXCLUSIVE_NODES_PATCH: &str = r#"  - target:
-      kind: Deployment
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: placeholder  # overridden by target selector
-      spec:
-        template:
-          metadata:
-            labels:
-              rtf.io/execution-id: "__EXECUTION_ID__"
-          spec:
-            affinity:
-              podAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  - labelSelector:
-                      matchExpressions:
-                        - key: rtf.io/execution-id
-                          operator: In
-                          values: ["__EXECUTION_ID__"]
-                    topologyKey: kubernetes.io/hostname
-              podAntiAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  - namespaceSelector: {}
-                    labelSelector:
-                      matchExpressions:
-                        - key: rtf.io/execution-id
-                          operator: Exists
-                        - key: rtf.io/execution-id
-                          operator: NotIn
-                          values: ["__EXECUTION_ID__"]
-                    topologyKey: kubernetes.io/hostname"#;
+const EXCLUSIVE_NODES_PATCH: &str = include_str!("../resources/exclusive-nodes-patch.yaml");
 
 pub trait Client: Send + Sync {
     fn kustomize_patch_for_execution(
