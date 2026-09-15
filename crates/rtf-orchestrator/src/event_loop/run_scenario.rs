@@ -20,6 +20,7 @@ pub(crate) struct CreateJobConfig<'a> {
     pub(crate) toolbox_image: &'a str,
     pub(crate) cluster_roles: &'a ClusterRoles,
     pub(crate) allow_namespace_write: bool,
+    pub(crate) exclusive_nodes: bool,
     pub(crate) scenario_node_selector: &'a BTreeMap<String, String>,
 }
 
@@ -214,6 +215,7 @@ mod tests {
                     namespace_write: "scenario-namespace-write".into(),
                 },
                 allow_namespace_write: false,
+                exclusive_nodes: false,
                 scenario_node_selector: &BTreeMap::new(),
             },
             &mut clients,
@@ -262,6 +264,7 @@ mod tests {
                     namespace_write: "scenario-namespace-write".into(),
                 },
                 allow_namespace_write: false,
+                exclusive_nodes: false,
                 scenario_node_selector: &BTreeMap::new(),
             },
             &mut clients,

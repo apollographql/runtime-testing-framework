@@ -302,6 +302,7 @@ impl Event {
                                 toolbox_image: cfg.toolbox_image,
                                 cluster_roles: cfg.cluster_roles,
                                 allow_namespace_write: params.allow_k8s_write,
+                                exclusive_nodes: cluster_cfg.execution.exclusive_nodes,
                                 scenario_node_selector: &cluster_cfg
                                     .execution
                                     .scenario_node_selector,
@@ -499,6 +500,7 @@ mod tests {
                     namespace_write: "scenario-namespace-write".into(),
                 },
                 allow_namespace_write: false,
+                exclusive_nodes: false,
                 scenario_node_selector: &BTreeMap::new(),
             },
             &mut clients,
