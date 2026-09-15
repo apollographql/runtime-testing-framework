@@ -67,6 +67,7 @@ patches:
         value:
           - configMapRef:
               name: rtf-otel-config
+__EXCLUSIVE_NODES_PATCH__
 configMapGenerator:
   - name: rtf-otel-config
     literals:

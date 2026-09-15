@@ -70,6 +70,10 @@ pub enum Command {
         /// Whether or not the environment being deployed has native k8s resources
         #[arg(long, default_value = "false")]
         native_k8s: bool,
+
+        /// Whether the environment's pods should be scheduled exclusively on a single node
+        #[arg(long, default_value = "false")]
+        exclusive_nodes: bool,
     },
 
     /// Resolve an RTF environment

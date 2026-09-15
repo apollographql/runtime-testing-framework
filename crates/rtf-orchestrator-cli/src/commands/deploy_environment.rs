@@ -25,13 +25,19 @@ pub struct ToolboxSettings<'a> {
     pub otel: &'a OtelConfig,
 }
 
+/// Flags controlling how the environment's manifests are generated and deployed.
+pub struct DeployFlags {
+    pub native_k8s: bool,
+    pub exclusive_nodes: bool,
+}
+
 pub async fn deploy_environment(
     namespace: &str,
     kubeconfig_path: &Path,
     provider_dir_path: &Path,
     toolbox: &ToolboxSettings<'_>,
     timeout: u64,
-    native_k8s: bool,
+    flags: DeployFlags,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
     let workdir_path = temp_dir().join("rtf-work");
@@ -57,14 +63,22 @@ pub async fn deploy_environment(
     ]))
     .await?;
 
-    let resources = if native_k8s {
+    let resources = if flags.native_k8s {
         stage_native_manifests(&k8s_dir_path, provider_dir_path, ctx)?
     } else {
         run_kompose(&k8s_dir_path, provider_dir_path, ctx).await?;
         vec![KOMPOSE_OUTPUT.to_string()]
     };
 
-    apply_kustomize_patches(&k8s_dir_path, provider_dir_path, toolbox, &resources, ctx).await?;
+    apply_kustomize_patches(
+        &k8s_dir_path,
+        provider_dir_path,
+        toolbox,
+        &resources,
+        flags.exclusive_nodes,
+        ctx,
+    )
+    .await?;
 
     info!("applying manifests to namespace '{namespace}'");
     ctx.run_shell(Command::new("kubectl").args([
@@ -215,6 +229,7 @@ async fn apply_kustomize_patches(
     provider_dir_path: &Path,
     toolbox: &ToolboxSettings<'_>,
     resources: &[String],
+    exclusive_nodes: bool,
     ctx: &impl CliContext,
 ) -> crate::Result<()> {
     ctx.write_file(
@@ -226,6 +241,7 @@ async fn apply_kustomize_patches(
                 toolbox.image,
                 toolbox.otel,
                 resources,
+                exclusive_nodes,
             )
             .as_bytes(),
     )?;

@@ -1,4 +1,9 @@
-use crate::{cli::Command, commands::ToolboxSettings, context::CliContext, orchestrator::Client};
+use crate::{
+    cli::Command,
+    commands::{DeployFlags, ToolboxSettings},
+    context::CliContext,
+    orchestrator::Client,
+};
 use anyhow::anyhow;
 use rtf_orchestrator_shared::{OtelConfig, status::Status};
 use tracing::error;
@@ -31,6 +36,7 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
             otel_collector_grpc,
             otel_collector_http,
             native_k8s,
+            exclusive_nodes,
         } => {
             commands::deploy_environment(
                 &namespace,
@@ -45,7 +51,10 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
                     },
                 },
                 timeout,
-                native_k8s,
+                DeployFlags {
+                    native_k8s,
+                    exclusive_nodes,
+                },
                 ctx,
             )
             .await
