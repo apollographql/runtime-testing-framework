@@ -199,6 +199,11 @@ pub struct ClusterExecutionConfig {
     pub failed_execution_ttl_secs: u64,
     pub retry_window_secs: u64,
     pub poll_interval_secs: u64,
+    /// Give each execution a node to itself. Requires `max_concurrent` to be no greater than
+    /// the cluster's schedulable node count - pods that cannot find a free node are not
+    /// queued, they fail on the deploy-environment timeout.
+    #[serde(default)]
+    pub exclusive_nodes: bool,
     #[serde(default)]
     pub per_user: PerUserExecutionConfig,
 }
@@ -347,6 +352,7 @@ mod tests {
                             retry_window_secs: 5 * 60,
                             poll_interval_secs: 10,
                             per_user: Default::default(),
+                            exclusive_nodes: false,
                         },
                     })
                     .collect(),
