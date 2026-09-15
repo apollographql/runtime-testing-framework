@@ -532,6 +532,7 @@ pub(crate) mod mocks {
 mod tests {
     use super::*;
     use crate::orchestrator::mocks::MockClient;
+    use simple_test_case::test_case;
 
     fn otel() -> OtelConfig {
         OtelConfig {
@@ -582,6 +583,27 @@ mod tests {
 
         assert!(!patch.contains("podAntiAffinity"));
         assert!(!patch.contains("__EXCLUSIVE_NODES_PATCH__"));
+    }
+
+    // Substring assertions above don't catch a malformed splice (e.g. the exclusive-nodes
+    // fragment losing the leading indent it needs to land as a valid list item under
+    // `patches:`) - only actually parsing the result does. Covers both flag states since the
+    // indentation bug only manifested when the fragment was substituted in.
+    #[test_case(true; "exclusive nodes enabled")]
+    #[test_case(false; "exclusive nodes disabled")]
+    #[test]
+    fn kustomize_patch_for_execution_produces_valid_yaml(exclusive_nodes: bool) {
+        let patch = client().kustomize_patch_for_execution(
+            Path::new("/providers"),
+            "IfNotPresent",
+            "rtf-toolbox:edge",
+            &otel(),
+            &["router-deployment.yaml".to_string()],
+            exclusive_nodes,
+        );
+
+        serde_yaml::from_str::<serde_yaml::Value>(&patch)
+            .expect("substituted kustomization.yaml should be valid YAML");
     }
 
     #[tokio::test]
