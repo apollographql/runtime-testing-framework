@@ -1,4 +1,7 @@
-use crate::{endpoints::download_response, orchestrator::Client};
+use crate::{
+    endpoints::{Content, download_response},
+    orchestrator::Client,
+};
 use axum::{
     extract::{Path, State},
     response::Response,
@@ -15,8 +18,8 @@ pub async fn handler<C: Client>(
 ) -> Response {
     download_response(
         orchestrator_client.execution_output_zip(execution_id).await,
-        "application/zip",
         format!("{execution_id}-output.zip"),
+        Content::ZipAttachment,
     )
 }
 
