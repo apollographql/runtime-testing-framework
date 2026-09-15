@@ -63,6 +63,12 @@ pub struct WorkflowToolboxSettings<'a> {
     pub otel: &'a OtelConfig,
 }
 
+/// Settings needed to build an environment's `deploy-environment` task.
+pub(crate) struct EnvironmentTaskSettings<'a> {
+    pub(crate) toolbox: &'a WorkflowToolboxSettings<'a>,
+    pub(crate) exclusive_nodes: bool,
+}
+
 impl WorkflowSpec {
     pub fn for_execution(
         ex: &TestExecution,
@@ -86,10 +92,10 @@ impl WorkflowSpec {
         ];
         templates.extend(env.tasks(
             &namespace,
-            toolbox.pull_policy,
-            toolbox.image,
-            toolbox.otel,
-            exclusive_nodes,
+            &EnvironmentTaskSettings {
+                toolbox,
+                exclusive_nodes,
+            },
             env_vars.clone(),
         ));
 
