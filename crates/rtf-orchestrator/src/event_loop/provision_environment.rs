@@ -180,7 +180,10 @@ mod tests {
     use rtf_config::formats::{ComposeResources, DockerComposeEnvironment};
     use rtf_orchestrator_shared::OtelConfig;
     use simple_test_case::test_case;
-    use std::{assert_matches, collections::HashMap};
+    use std::{
+        assert_matches,
+        collections::{BTreeMap, HashMap},
+    };
     use tokio::sync::mpsc;
 
     fn alpha_cluster() -> ClusterId {
@@ -211,6 +214,7 @@ mod tests {
                 poll_interval_secs: 10,
                 per_user: Default::default(),
                 exclusive_nodes: false,
+                scenario_node_selector: BTreeMap::new(),
             },
         }
     }

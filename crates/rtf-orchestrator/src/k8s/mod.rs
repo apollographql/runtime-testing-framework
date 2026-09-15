@@ -12,7 +12,7 @@ mod workflow;
 pub mod mock_client;
 
 pub use client::ClusterClients;
-pub use job::scenario_job;
+pub(crate) use job::scenario_job;
 pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
     WorkflowToolboxSettings,

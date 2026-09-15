@@ -1,5 +1,6 @@
 use crate::{
     db::TestExecution,
+    event_loop::CreateJobConfig,
     k8s::{CLI_BINARY, SCENARIO_RUNNER_CONTAINER, SCENARIO_SA_NAME},
 };
 use k8s_openapi::api::{
@@ -27,16 +28,13 @@ const VOLUME_MOUNT_NAME_SHARED: &str = "shared";
 ///   parallel can detect completion.
 /// - Regular container `output-collector` (toolbox image) polls for the sentinel, uploads
 ///   artifacts, and posts the terminal status via `rtf-orchestrator-cli collect-output`.
-pub fn scenario_job(
+pub(crate) fn scenario_job(
     ex: &TestExecution,
     scenario_image: String,
     scenario_command: String,
-    orchestrator_url: &str,
-    prometheus_endpoint: &str,
-    toolbox_pull_policy: &str,
-    toolbox_image: &str,
+    config: &CreateJobConfig<'_>,
 ) -> JobSpec {
-    let env = ex.toolbox_env_vars(orchestrator_url);
+    let env = ex.toolbox_env_vars(config.orchestrator_url);
 
     JobSpec {
         backoff_limit: Some(0), // don't retry failed scenarios
@@ -53,21 +51,23 @@ pub fn scenario_job(
                 restart_policy: Some("Never".to_owned()),
                 init_containers: Some(vec![rtf_resolve_container_spec(
                     scenario_command,
-                    toolbox_pull_policy,
-                    toolbox_image,
+                    config.toolbox_pull_policy,
+                    config.toolbox_image,
                     &env,
                 )]),
                 containers: vec![
                     scenario_run_container_spec(scenario_image),
                     output_collector_container_spec(
-                        toolbox_pull_policy,
-                        toolbox_image,
-                        prometheus_endpoint,
+                        config.toolbox_pull_policy,
+                        config.toolbox_image,
+                        config.prometheus_endpoint,
                         &env,
                     ),
                 ],
                 volumes: Some(scenario_volumes()),
                 service_account_name: Some(SCENARIO_SA_NAME.to_owned()),
+                node_selector: (!config.scenario_node_selector.is_empty())
+                    .then(|| config.scenario_node_selector.clone()),
                 ..Default::default()
             }),
         },
@@ -173,4 +173,45 @@ fn scenario_volumes() -> Vec<Volume> {
         empty_dir: Some(Default::default()),
         ..Default::default()
     }]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::ClusterRoles;
+
+    fn pod_spec(scenario_node_selector: &BTreeMap<String, String>) -> PodSpec {
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+        let cluster_roles = ClusterRoles {
+            cluster_read: String::new(),
+            namespace_read: String::new(),
+            namespace_write: String::new(),
+        };
+        let config = CreateJobConfig {
+            orchestrator_url: "http://localhost:8035",
+            prometheus_endpoint: "http://prometheus:9090",
+            toolbox_pull_policy: "IfNotPresent",
+            toolbox_image: "rtf-toolbox:edge",
+            cluster_roles: &cluster_roles,
+            allow_namespace_write: false,
+            scenario_node_selector,
+        };
+        let job = scenario_job(&ex, "image".into(), "cmd".into(), &config);
+
+        job.template
+            .spec
+            .expect("scenario job should have a pod spec")
+    }
+
+    #[test]
+    fn omits_node_selector_when_scenario_node_selector_is_empty() {
+        assert!(pod_spec(&BTreeMap::new()).node_selector.is_none());
+    }
+
+    #[test]
+    fn sets_node_selector_when_scenario_node_selector_is_configured() {
+        let selector = BTreeMap::from([("pool".to_string(), "load-generators".to_string())]);
+
+        assert_eq!(pod_spec(&selector).node_selector, Some(selector));
+    }
 }
