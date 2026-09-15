@@ -65,18 +65,28 @@ pub async fn health() -> &'static str {
     "ok"
 }
 
+enum Content {
+    InlineText,
+    ZipAttachment,
+}
+
 fn download_response(
     result: Result<Download, orchestrator::Error>,
-    content_type: &'static str,
     filename: String,
+    content: Content,
 ) -> Response {
+    let (content_ty, disposition) = match content {
+        Content::InlineText => ("text/plain; charset=utf-8", "inline"),
+        Content::ZipAttachment => ("application/zip", "attachment"),
+    };
+
     match result {
         Ok(Download::Ready(bytes)) => (
             [
-                (CONTENT_TYPE, content_type.to_owned()),
+                (CONTENT_TYPE, content_ty.to_owned()),
                 (
                     CONTENT_DISPOSITION,
-                    format!("attachment; filename=\"{filename}\""),
+                    format!("{disposition}; filename=\"{filename}\""),
                 ),
             ],
             bytes,
@@ -151,17 +161,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn download_response_returns_bytes_with_a_download_header_on_success() {
+    async fn download_response_returns_bytes_with_an_inline_header_when_requested() {
         let resp = download_response(
             Ok(Download::Ready(b"hello".to_vec())),
-            "text/plain; charset=utf-8",
             "example.txt".to_owned(),
+            Content::InlineText,
         );
 
         assert_eq!(resp.status(), StatusCode::OK);
         assert_eq!(
             resp.headers().get(CONTENT_DISPOSITION).unwrap(),
-            "attachment; filename=\"example.txt\""
+            "inline; filename=\"example.txt\""
         );
         assert_eq!(body_text(resp).await, "hello");
     }
@@ -173,8 +183,8 @@ mod tests {
                 status: StatusCode::TEMPORARY_REDIRECT,
                 location: "https://storage.googleapis.com/signed-url".to_owned(),
             }),
-            "application/zip",
             "f.zip".to_owned(),
+            Content::ZipAttachment,
         );
 
         assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
@@ -185,26 +195,23 @@ mod tests {
         assert_eq!(body_text(resp).await, "");
     }
 
-    #[test_case(Download::NotFound, StatusCode::NOT_FOUND; "not found")]
-    #[test_case(Download::NotReady, StatusCode::CONFLICT; "not ready")]
+    #[test_case(Ok(Download::NotFound), StatusCode::NOT_FOUND; "not found")]
+    #[test_case(Ok(Download::NotReady), StatusCode::CONFLICT; "not ready")]
+    #[test_case(
+        Err(orchestrator::Error::Download {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            path: "/test-execution/1/log.txt".to_owned(),
+        }),
+        StatusCode::BAD_GATEWAY;
+        "failed fetch from orchestrator"
+    )]
     #[tokio::test]
-    async fn download_response_status_cases(download: Download, expected: StatusCode) {
-        let resp = download_response(Ok(download), "text/plain", "f".to_owned());
+    async fn download_response_returns_expected_error_path_status_codes(
+        res: Result<Download, orchestrator::Error>,
+        expected: StatusCode,
+    ) {
+        let resp = download_response(res, "f".to_owned(), Content::InlineText);
 
         assert_eq!(resp.status(), expected);
-    }
-
-    #[tokio::test]
-    async fn download_response_returns_502_when_the_fetch_fails() {
-        let resp = download_response(
-            Err(orchestrator::Error::Download {
-                status: StatusCode::INTERNAL_SERVER_ERROR,
-                path: "/test-execution/1/log.txt".to_owned(),
-            }),
-            "text/plain",
-            "f".to_owned(),
-        );
-
-        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 }

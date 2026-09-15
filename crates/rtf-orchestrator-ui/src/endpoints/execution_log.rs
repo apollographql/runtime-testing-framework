@@ -1,4 +1,7 @@
-use crate::{endpoints::download_response, orchestrator::Client};
+use crate::{
+    endpoints::{Content, download_response},
+    orchestrator::Client,
+};
 use axum::{
     extract::{Path, State},
     response::Response,
@@ -7,16 +10,15 @@ use uuid::Uuid;
 
 /// `GET /ui/execution/{eid}/log.txt`
 ///
-/// Proxies the execution's log file from the orchestrator, so
-/// the browser only ever talks to the UI's own origin.
+/// View the execution's log in the browser in plaintext.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Path(execution_id): Path<Uuid>,
 ) -> Response {
     download_response(
         orchestrator_client.execution_log(execution_id).await,
-        "text/plain; charset=utf-8",
         format!("{execution_id}-log.txt"),
+        Content::InlineText,
     )
 }
 
