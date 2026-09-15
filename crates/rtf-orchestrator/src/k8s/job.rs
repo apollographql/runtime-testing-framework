@@ -69,7 +69,7 @@ pub(crate) fn scenario_job(
                 ],
                 volumes: Some(scenario_volumes()),
                 service_account_name: Some(SCENARIO_SA_NAME.to_owned()),
-                affinity: scenario_affinity(config, &ex.uuid().to_string()),
+                affinity: config.affinity(&ex.uuid().to_string()),
                 node_selector: (!config.scenario_node_selector.is_empty())
                     .then(|| config.scenario_node_selector.clone()),
                 ..Default::default()
@@ -79,17 +79,19 @@ pub(crate) fn scenario_job(
     }
 }
 
-/// The scenario pod's placement relative to other executions
-fn scenario_affinity(config: &CreateJobConfig<'_>, execution_id: &str) -> Option<Affinity> {
-    if !config.exclusive_nodes {
-        return None;
-    }
+impl CreateJobConfig<'_> {
+    /// The scenario pod's placement relative to other executions
+    fn affinity(&self, execution_id: &str) -> Option<Affinity> {
+        if !self.exclusive_nodes {
+            return None;
+        }
 
-    Some(if config.scenario_node_selector.is_empty() {
-        co_located_with_environment(execution_id)
-    } else {
-        exclusive_from_other_executions(execution_id)
-    })
+        Some(if self.scenario_node_selector.is_empty() {
+            co_located_with_environment(execution_id)
+        } else {
+            exclusive_from_other_executions(execution_id)
+        })
+    }
 }
 
 /// Require the scenario pod to land on the same node as its own execution's environment pods
