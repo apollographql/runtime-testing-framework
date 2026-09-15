@@ -5,6 +5,7 @@ use crate::{
     k8s::{WatchOutcome, WorkloadClient, scenario_job},
 };
 use rtf_orchestrator_shared::SCENARIO_JOB_NAME;
+use std::collections::BTreeMap;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
@@ -19,6 +20,8 @@ pub(crate) struct CreateJobConfig<'a> {
     pub(crate) toolbox_image: &'a str,
     pub(crate) cluster_roles: &'a ClusterRoles,
     pub(crate) allow_namespace_write: bool,
+    pub(crate) exclusive_nodes: bool,
+    pub(crate) scenario_node_selector: &'a BTreeMap<String, String>,
 }
 
 pub(super) async fn create_job<K, H>(
@@ -47,15 +50,7 @@ where
             &execution_id,
             config.allow_namespace_write,
             config.cluster_roles,
-            scenario_job(
-                &test_execution,
-                scenario_image,
-                scenario_command,
-                config.orchestrator_url,
-                config.prometheus_endpoint,
-                config.toolbox_pull_policy,
-                config.toolbox_image,
-            ),
+            scenario_job(&test_execution, scenario_image, scenario_command, config),
         )
         .await
     {
@@ -220,6 +215,8 @@ mod tests {
                     namespace_write: "scenario-namespace-write".into(),
                 },
                 allow_namespace_write: false,
+                exclusive_nodes: false,
+                scenario_node_selector: &BTreeMap::new(),
             },
             &mut clients,
             &mut handle,
@@ -267,6 +264,8 @@ mod tests {
                     namespace_write: "scenario-namespace-write".into(),
                 },
                 allow_namespace_write: false,
+                exclusive_nodes: false,
+                scenario_node_selector: &BTreeMap::new(),
             },
             &mut clients,
             &mut handle,

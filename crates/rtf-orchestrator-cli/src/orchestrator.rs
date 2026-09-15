@@ -32,6 +32,11 @@ pub enum Error {
 
 const KUSTOMIZE_PATCH: &str = include_str!("../resources/kustomization.yaml");
 
+/// Kustomize patch fragment giving every environment pod a node to itself: required affinity
+/// co-locates the pod with its own execution, required anti-affinity bars every other
+/// execution's pods from that node.
+const EXCLUSIVE_NODES_PATCH: &str = include_str!("../resources/exclusive-nodes-patch.yaml");
+
 pub trait Client: Send + Sync {
     fn kustomize_patch_for_execution(
         &self,
@@ -40,6 +45,7 @@ pub trait Client: Send + Sync {
         toolbox_image: &str,
         otel: &OtelConfig,
         resources: &[String],
+        exclusive_nodes: bool,
     ) -> String;
 
     /// Update the [Status] of the current test execution, with an optional `message` to write to the database.
@@ -149,6 +155,7 @@ impl Client for HttpClient {
         toolbox_image: &str,
         otel: &OtelConfig,
         resources: &[String],
+        exclusive_nodes: bool,
     ) -> String {
         let resources = resources
             .iter()
@@ -158,6 +165,14 @@ impl Client for HttpClient {
 
         KUSTOMIZE_PATCH
             .replace("__RESOURCES__", &resources)
+            .replace(
+                "__EXCLUSIVE_NODES_PATCH__",
+                if exclusive_nodes {
+                    EXCLUSIVE_NODES_PATCH
+                } else {
+                    ""
+                },
+            )
             .replace("__ORCHESTRATOR_URL__", self.orchestrator_url.as_str())
             .replace("__EXECUTION_ID__", &self.execution_id.to_string())
             .replace("__EXECUTION_TOKEN__", &self.execution_token.to_string())
@@ -431,6 +446,7 @@ pub(crate) mod mocks {
             _toolbox_image: &str,
             _otel: &OtelConfig,
             _resources: &[String],
+            _exclusive_nodes: bool,
         ) -> String {
             KUSTOMIZE_PATCH.to_string()
         }
@@ -516,6 +532,57 @@ pub(crate) mod mocks {
 mod tests {
     use super::*;
     use crate::orchestrator::mocks::MockClient;
+
+    fn otel() -> OtelConfig {
+        OtelConfig {
+            grpc: "http://otel:4317".to_string(),
+            http: "http://otel:4318".to_string(),
+        }
+    }
+
+    fn client() -> HttpClient {
+        HttpClient::try_new(
+            "http://localhost:8035".to_string(),
+            Uuid::nil(),
+            Uuid::nil(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn kustomize_patch_for_execution_includes_exclusive_nodes_fragment_when_enabled() {
+        let patch = client().kustomize_patch_for_execution(
+            Path::new("/providers"),
+            "IfNotPresent",
+            "rtf-toolbox:edge",
+            &otel(),
+            &[],
+            true,
+        );
+
+        assert!(patch.contains("podAntiAffinity"));
+        assert!(!patch.contains("__EXCLUSIVE_NODES_PATCH__"));
+        assert!(
+            !patch.contains("__EXECUTION_ID__"),
+            "unsubstituted placeholder: {patch}"
+        );
+        assert!(patch.contains(&format!("rtf.io/execution-id: \"{}\"", Uuid::nil())));
+    }
+
+    #[test]
+    fn kustomize_patch_for_execution_omits_exclusive_nodes_fragment_when_disabled() {
+        let patch = client().kustomize_patch_for_execution(
+            Path::new("/providers"),
+            "IfNotPresent",
+            "rtf-toolbox:edge",
+            &otel(),
+            &[],
+            false,
+        );
+
+        assert!(!patch.contains("podAntiAffinity"));
+        assert!(!patch.contains("__EXCLUSIVE_NODES_PATCH__"));
+    }
 
     #[tokio::test]
     async fn mock_generate_upload_urls_returns_canned_urls() {

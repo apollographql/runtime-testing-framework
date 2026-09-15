@@ -1,11 +1,11 @@
 //! Helper trait for building Argo workflows from RTF environment variants
 use crate::k8s::{
     TaskSpec, TaskTemplate, TemplateDef,
-    workflow::{KUBECONFIG_PATH, kubeconfig_volume_mount},
+    workflow::{EnvironmentTaskSettings, KUBECONFIG_PATH, kubeconfig_volume_mount},
 };
 use k8s_openapi::api::core::v1::EnvVar;
 use rtf_config::formats::{DockerComposeEnvironment, K8sEnvironment, NullEnvironment};
-use rtf_orchestrator_shared::{OtelConfig, test_plan::OrchestratorEnvironment};
+use rtf_orchestrator_shared::test_plan::OrchestratorEnvironment;
 
 pub const DEPLOY_ENVIRONMENT: &str = "deploy-environment";
 
@@ -17,21 +17,17 @@ pub trait AsWorkflowTasks {
     fn templates(
         &self,
         namespace: &str,
-        toolbox_pull_policy: &str,
-        toolbox_image: &str,
-        otel: &OtelConfig,
+        settings: &EnvironmentTaskSettings<'_>,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate>;
 
     fn tasks(
         &self,
         namespace: &str,
-        toolbox_pull_policy: &str,
-        toolbox_image: &str,
-        otel: &OtelConfig,
+        settings: &EnvironmentTaskSettings<'_>,
         env: Vec<EnvVar>,
     ) -> impl Iterator<Item = TemplateDef> {
-        self.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
+        self.templates(namespace, settings, env)
             .into_iter()
             .map(TemplateDef::Task)
     }
@@ -49,33 +45,24 @@ impl AsWorkflowTasks for OrchestratorEnvironment {
     fn templates(
         &self,
         namespace: &str,
-        toolbox_pull_policy: &str,
-        toolbox_image: &str,
-        otel: &OtelConfig,
+        settings: &EnvironmentTaskSettings<'_>,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
         match self {
-            Self::Null(inner) => {
-                inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
-            }
-            Self::DockerCompose(inner) => {
-                inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
-            }
-            Self::K8s(inner) => {
-                inner.templates(namespace, toolbox_pull_policy, toolbox_image, otel, env)
-            }
+            Self::Null(inner) => inner.templates(namespace, settings, env),
+            Self::DockerCompose(inner) => inner.templates(namespace, settings, env),
+            Self::K8s(inner) => inner.templates(namespace, settings, env),
         }
     }
 }
 
 fn deploy_env_template(
     namespace: &str,
-    toolbox_pull_policy: &str,
-    toolbox_image: &str,
-    otel: &OtelConfig,
+    settings: &EnvironmentTaskSettings<'_>,
     native_k8s: bool,
     env: Vec<EnvVar>,
 ) -> TaskTemplate {
+    let toolbox = settings.toolbox;
     let mut args = vec![
         "deploy-environment".into(),
         "--namespace".into(),
@@ -83,25 +70,29 @@ fn deploy_env_template(
         "--kubeconfig".into(),
         KUBECONFIG_PATH.into(),
         "--toolbox-pull-policy".into(),
-        toolbox_pull_policy.into(),
+        toolbox.pull_policy.into(),
         "--toolbox-image".into(),
-        toolbox_image.into(),
+        toolbox.image.into(),
         "--provider-dir".into(),
         "/providers".into(),
         "--otel-collector-grpc".into(),
-        otel.grpc.clone(),
+        toolbox.otel.grpc.clone(),
         "--otel-collector-http".into(),
-        otel.http.clone(),
+        toolbox.otel.http.clone(),
     ];
 
     if native_k8s {
         args.push("--native-k8s".into());
     }
 
+    if settings.exclusive_nodes {
+        args.push("--exclusive-nodes".into());
+    }
+
     TaskTemplate::new(
         DEPLOY_ENVIRONMENT,
-        toolbox_pull_policy,
-        toolbox_image,
+        toolbox.pull_policy,
+        toolbox.image,
         args,
         vec![kubeconfig_volume_mount()],
         None,
@@ -117,19 +108,10 @@ impl AsWorkflowTasks for DockerComposeEnvironment {
     fn templates(
         &self,
         namespace: &str,
-        toolbox_pull_policy: &str,
-        toolbox_image: &str,
-        otel: &OtelConfig,
+        settings: &EnvironmentTaskSettings<'_>,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
-        vec![deploy_env_template(
-            namespace,
-            toolbox_pull_policy,
-            toolbox_image,
-            otel,
-            false,
-            env,
-        )]
+        vec![deploy_env_template(namespace, settings, false, env)]
     }
 }
 
@@ -141,19 +123,10 @@ impl AsWorkflowTasks for K8sEnvironment {
     fn templates(
         &self,
         namespace: &str,
-        toolbox_pull_policy: &str,
-        toolbox_image: &str,
-        otel: &OtelConfig,
+        settings: &EnvironmentTaskSettings<'_>,
         env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
-        vec![deploy_env_template(
-            namespace,
-            toolbox_pull_policy,
-            toolbox_image,
-            otel,
-            true,
-            env,
-        )]
+        vec![deploy_env_template(namespace, settings, true, env)]
     }
 }
 
@@ -165,9 +138,7 @@ impl AsWorkflowTasks for NullEnvironment {
     fn templates(
         &self,
         _namespace: &str,
-        _toolbox_pull_policy: &str,
-        _toolbox_image: &str,
-        _otel: &OtelConfig,
+        _settings: &EnvironmentTaskSettings<'_>,
         _env: Vec<EnvVar>,
     ) -> Vec<TaskTemplate> {
         Vec::new()
@@ -177,13 +148,23 @@ impl AsWorkflowTasks for NullEnvironment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::k8s::workflow::CREATE_NAMESPACE;
+    use crate::k8s::workflow::{CREATE_NAMESPACE, WorkflowToolboxSettings};
     use rtf_config::formats::{ComposeResources, K8sResources};
+    use rtf_orchestrator_shared::OtelConfig;
 
     fn otel() -> OtelConfig {
         OtelConfig {
             grpc: "http://otel:4317".to_string(),
             http: "http://otel:4318".to_string(),
+        }
+    }
+
+    fn toolbox(otel: &OtelConfig) -> WorkflowToolboxSettings<'_> {
+        WorkflowToolboxSettings {
+            orchestrator_url: "http://localhost:8035",
+            pull_policy: "IfNotPresent",
+            image: "rtf-toolbox:edge",
+            otel,
         }
     }
 
@@ -210,13 +191,12 @@ mod tests {
 
     #[test]
     fn docker_compose_templates_build_deploy_environment_container() {
-        let templates = docker_compose_env().templates(
-            "ns",
-            "IfNotPresent",
-            "rtf-toolbox:edge",
-            &otel(),
-            vec![],
-        );
+        let otel = otel();
+        let settings = EnvironmentTaskSettings {
+            toolbox: &toolbox(&otel),
+            exclusive_nodes: false,
+        };
+        let templates = docker_compose_env().templates("ns", &settings, vec![]);
 
         assert_eq!(templates.len(), 1, "expected exactly one task template");
         assert_eq!(templates[0].name, DEPLOY_ENVIRONMENT);
@@ -238,6 +218,25 @@ mod tests {
         assert!(args.contains(&"http://otel:4317".to_string()));
         assert!(args.contains(&"http://otel:4318".to_string()));
         assert!(!args.contains(&"--native-k8s".to_string()));
+        assert!(!args.contains(&"--exclusive-nodes".to_string()));
+    }
+
+    #[test]
+    fn docker_compose_templates_push_exclusive_nodes_flag_when_enabled() {
+        let otel = otel();
+        let settings = EnvironmentTaskSettings {
+            toolbox: &toolbox(&otel),
+            exclusive_nodes: true,
+        };
+        let templates = docker_compose_env().templates("ns", &settings, vec![]);
+
+        let args = templates[0]
+            .container
+            .args
+            .as_ref()
+            .expect("deploy-environment container should have args");
+
+        assert!(args.contains(&"--exclusive-nodes".to_string()));
     }
 
     fn k8s_env() -> K8sEnvironment {
@@ -260,8 +259,12 @@ mod tests {
 
     #[test]
     fn k8s_templates_build_deploy_environment_container() {
-        let templates =
-            k8s_env().templates("ns", "IfNotPresent", "rtf-toolbox:edge", &otel(), vec![]);
+        let otel = otel();
+        let settings = EnvironmentTaskSettings {
+            toolbox: &toolbox(&otel),
+            exclusive_nodes: false,
+        };
+        let templates = k8s_env().templates("ns", &settings, vec![]);
 
         assert_eq!(templates.len(), 1, "expected exactly one task template");
         assert_eq!(templates[0].name, DEPLOY_ENVIRONMENT);
@@ -283,16 +286,37 @@ mod tests {
         assert!(args.contains(&"http://otel:4317".to_string()));
         assert!(args.contains(&"http://otel:4318".to_string()));
         assert!(args.contains(&"--native-k8s".to_string()));
+        assert!(!args.contains(&"--exclusive-nodes".to_string()));
+    }
+
+    #[test]
+    fn k8s_templates_push_exclusive_nodes_flag_when_enabled() {
+        let otel = otel();
+        let settings = EnvironmentTaskSettings {
+            toolbox: &toolbox(&otel),
+            exclusive_nodes: true,
+        };
+        let templates = k8s_env().templates("ns", &settings, vec![]);
+
+        let args = templates[0]
+            .container
+            .args
+            .as_ref()
+            .expect("deploy-environment container should have args");
+
+        assert!(args.contains(&"--exclusive-nodes".to_string()));
     }
 
     #[test]
     fn null_environment_contributes_no_specs_or_templates() {
         let env = NullEnvironment { skip: true };
+        let otel = otel();
+        let settings = EnvironmentTaskSettings {
+            toolbox: &toolbox(&otel),
+            exclusive_nodes: false,
+        };
 
         assert!(env.specs(CREATE_NAMESPACE).is_empty());
-        assert!(
-            env.templates("ns", "IfNotPresent", "rtf-toolbox:edge", &otel(), vec![])
-                .is_empty()
-        );
+        assert!(env.templates("ns", &settings, vec![]).is_empty());
     }
 }

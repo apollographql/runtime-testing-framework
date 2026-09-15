@@ -12,7 +12,7 @@ use crate::{
     config::{ClusterRoles, Config, WorkloadClusterConfig},
     conn,
     db::{ClusterId, TestExecution, UpdateHandle},
-    event_loop::{provision_environment::MSG_ARGO_COMPLETE, run_scenario::CreateJobConfig},
+    event_loop::provision_environment::MSG_ARGO_COMPLETE,
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
 };
@@ -31,6 +31,7 @@ pub use event_queue::{
     Claim, EventQueue, EventQueueState, ProvisioningHandle, Snapshot, SubmitError,
 };
 pub use provision_environment::MSG_ARGO_WAIT;
+pub(crate) use run_scenario::CreateJobConfig;
 pub use run_scenario::MSG_JOB_WAIT;
 
 /// Static configuration shared across all event handler arms in the event loop.
@@ -227,6 +228,7 @@ impl Event {
                             self.test_execution.clone(),
                             &environment,
                             &cluster_cfg.kubeconfig_secret_name,
+                            cluster_cfg.execution.exclusive_nodes,
                             cfg,
                             clients,
                             conn,
@@ -300,6 +302,10 @@ impl Event {
                                 toolbox_image: cfg.toolbox_image,
                                 cluster_roles: cfg.cluster_roles,
                                 allow_namespace_write: params.allow_k8s_write,
+                                exclusive_nodes: cluster_cfg.execution.exclusive_nodes,
+                                scenario_node_selector: &cluster_cfg
+                                    .execution
+                                    .scenario_node_selector,
                             },
                             &mut clients,
                             conn,
@@ -443,6 +449,7 @@ mod tests {
         templating::Field,
     };
     use rtf_orchestrator_shared::test_plan::{OrchestratorEnvironment, OrchestratorTestPlan};
+    use std::collections::BTreeMap;
 
     pub fn stub_environment() -> DockerComposeEnvironment {
         DockerComposeEnvironment {
@@ -493,6 +500,8 @@ mod tests {
                     namespace_write: "scenario-namespace-write".into(),
                 },
                 allow_namespace_write: false,
+                exclusive_nodes: false,
+                scenario_node_selector: &BTreeMap::new(),
             },
             &mut clients,
             &mut handle,

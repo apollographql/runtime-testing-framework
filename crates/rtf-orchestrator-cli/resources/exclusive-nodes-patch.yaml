@@ -1,0 +1,33 @@
+- target:
+    kind: Deployment
+  patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: placeholder  # overridden by target selector
+    spec:
+      template:
+        metadata:
+          labels:
+            rtf.io/execution-id: "__EXECUTION_ID__"
+        spec:
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchExpressions:
+                      - key: rtf.io/execution-id
+                        operator: In
+                        values: ["__EXECUTION_ID__"]
+                  topologyKey: kubernetes.io/hostname
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - namespaceSelector: {}
+                  labelSelector:
+                    matchExpressions:
+                      - key: rtf.io/execution-id
+                        operator: Exists
+                      - key: rtf.io/execution-id
+                        operator: NotIn
+                        values: ["__EXECUTION_ID__"]
+                  topologyKey: kubernetes.io/hostname

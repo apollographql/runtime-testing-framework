@@ -1,7 +1,7 @@
 use crate::{
     db::{TestExecution, UpdateHandle},
     event_loop::{ClusterId, Error, Event, EventData, EventLoopConfig, Result},
-    k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec},
+    k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec, WorkflowToolboxSettings},
 };
 use rtf_orchestrator_shared::test_plan::OrchestratorEnvironment;
 use tokio::sync::mpsc::UnboundedSender;
@@ -16,6 +16,7 @@ pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
     environment: &OrchestratorEnvironment,
     kubeconfig_secret_name: &str,
+    exclusive_nodes: bool,
     cfg: &EventLoopConfig<'_>,
     clients: K,
     conn: &mut H,
@@ -36,11 +37,14 @@ where
             WorkflowSpec::for_execution(
                 &test_execution,
                 environment,
-                cfg.orchestrator_url,
-                cfg.toolbox_pull_policy,
-                cfg.toolbox_image,
-                cfg.otel,
+                &WorkflowToolboxSettings {
+                    orchestrator_url: cfg.orchestrator_url,
+                    pull_policy: cfg.toolbox_pull_policy,
+                    image: cfg.toolbox_image,
+                    otel: cfg.otel,
+                },
                 kubeconfig_secret_name,
+                exclusive_nodes,
             ),
         )
         .await
@@ -176,7 +180,10 @@ mod tests {
     use rtf_config::formats::{ComposeResources, DockerComposeEnvironment};
     use rtf_orchestrator_shared::OtelConfig;
     use simple_test_case::test_case;
-    use std::{assert_matches, collections::HashMap};
+    use std::{
+        assert_matches,
+        collections::{BTreeMap, HashMap},
+    };
     use tokio::sync::mpsc;
 
     fn alpha_cluster() -> ClusterId {
@@ -206,6 +213,8 @@ mod tests {
                 retry_window_secs: 10,
                 poll_interval_secs: 10,
                 per_user: Default::default(),
+                exclusive_nodes: false,
+                scenario_node_selector: BTreeMap::new(),
             },
         }
     }
@@ -222,6 +231,7 @@ mod tests {
             ex.clone(),
             &stub_docker_compose_environment(),
             "",
+            false,
             &EventLoopConfig {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "",
@@ -275,6 +285,7 @@ mod tests {
             ex,
             &stub_docker_compose_environment(),
             "",
+            false,
             &EventLoopConfig {
                 orchestrator_url: "http://localhost:8035",
                 prometheus_endpoint: "",
