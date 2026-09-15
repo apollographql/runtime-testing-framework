@@ -227,6 +227,7 @@ impl Event {
                             self.test_execution.clone(),
                             &environment,
                             &cluster_cfg.kubeconfig_secret_name,
+                            cluster_cfg.execution.exclusive_nodes,
                             cfg,
                             clients,
                             conn,

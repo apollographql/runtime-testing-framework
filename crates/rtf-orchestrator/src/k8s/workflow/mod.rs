@@ -55,34 +55,41 @@ pub struct WorkflowSpec {
     pub pod_g_c: Option<PodGC>,
 }
 
+/// Toolbox-related settings needed to build the tasks in a per-execution deploy workflow.
+pub struct WorkflowToolboxSettings<'a> {
+    pub orchestrator_url: &'a str,
+    pub pull_policy: &'a str,
+    pub image: &'a str,
+    pub otel: &'a OtelConfig,
+}
+
 impl WorkflowSpec {
     pub fn for_execution(
         ex: &TestExecution,
         env: &OrchestratorEnvironment,
-        orchestrator_url: &str,
-        toolbox_pull_policy: &str,
-        toolbox_image: &str,
-        otel: &OtelConfig,
+        toolbox: &WorkflowToolboxSettings<'_>,
         kubeconfig_secret_name: &str,
+        exclusive_nodes: bool,
     ) -> Self {
         let execution_id = ex.uuid();
-        let env_vars = ex.toolbox_env_vars(orchestrator_url);
+        let env_vars = ex.toolbox_env_vars(toolbox.orchestrator_url);
         let namespace = execution_id.to_string();
 
         let mut templates = vec![
             TemplateDef::Main(MainTemplate::new(env)),
             TemplateDef::Task(create_namespace(
                 &namespace,
-                toolbox_pull_policy,
-                toolbox_image,
+                toolbox.pull_policy,
+                toolbox.image,
                 env_vars.clone(),
             )),
         ];
         templates.extend(env.tasks(
             &namespace,
-            toolbox_pull_policy,
-            toolbox_image,
-            otel,
+            toolbox.pull_policy,
+            toolbox.image,
+            toolbox.otel,
+            exclusive_nodes,
             env_vars.clone(),
         ));
 
