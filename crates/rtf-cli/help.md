@@ -25,6 +25,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote request`↴](#rtf-remote-request)
 * [`rtf remote run`↴](#rtf-remote-run)
 * [`rtf remote ci-run`↴](#rtf-remote-ci-run)
+* [`rtf remote ci-run-known`↴](#rtf-remote-ci-run-known)
 * [`rtf remote execution-log`↴](#rtf-remote-execution-log)
 * [`rtf remote execution-output`↴](#rtf-remote-execution-output)
 * [`rtf remote execution-status`↴](#rtf-remote-execution-status)
@@ -348,6 +349,7 @@ Set the `RTF_ORCHESTRATOR_URL` environment variable to override the Orchestrator
 * `request` — Send an IAP-authenticated HTTP request to the Orchestrator
 * `run` — Trigger a test run using the Orchestrator
 * `ci-run` — Trigger a test run using the Orchestrator and poll for the result
+* `ci-run-known` — Trigger a test run of a known test plan using the Orchestrator and poll for the result
 * `execution-log` — View the scenario log for a single test execution
 * `execution-output` — Pull all output for a single test execution (log, output.zip & status)
 * `execution-status` — View the status summary for a single test execution
@@ -438,6 +440,29 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 
   Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+* `--poll-interval-seconds <POLL_INTERVAL_SECONDS>`
+
+  Default value: `10`
+
+
+
+## `rtf remote ci-run-known`
+
+Trigger a test run of a known test plan using the Orchestrator and poll for the result.
+
+The output of this command is aimed at being usable in CI runs and is non-interactive.
+
+**Usage:** `rtf remote ci-run-known [OPTIONS] <TEST_PLAN_ID>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_ID>` — Known Test Plan ID from the Orchestrator.
+
+   You can find this on the UI page providing your known Test Plan's details.
+
+###### **Options:**
+
+* `--ref <GIT_REF>` — Optional git ref to pull the test plan from
 * `--poll-interval-seconds <POLL_INTERVAL_SECONDS>`
 
   Default value: `10`

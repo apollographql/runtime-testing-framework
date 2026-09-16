@@ -379,6 +379,23 @@ pub enum RemoteSubcommand {
         poll_interval_seconds: u64,
     },
 
+    /// Trigger a test run of a known test plan using the Orchestrator and poll for the result.
+    ///
+    /// The output of this command is aimed at being usable in CI runs and is non-interactive.
+    CiRunKnown {
+        /// Known Test Plan ID from the Orchestrator.
+        ///
+        /// You can find this on the UI page providing your known Test Plan's details.
+        test_plan_id: Uuid,
+
+        /// Optional git ref to pull the test plan from
+        #[arg(long = "ref")]
+        git_ref: Option<String>,
+
+        #[arg(long, default_value = "10")]
+        poll_interval_seconds: u64,
+    },
+
     /// View the scenario log for a single test execution
     ExecutionLog {
         /// ID of the Orchestrator test execution you wish to view the log of
