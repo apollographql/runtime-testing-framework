@@ -1,11 +1,39 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "packageRules": [
+  extends: [
+    'github>apollographql/renovate-config-apollo-open-source:default.json5'
+  ],
+  minimumReleaseAge: '3 days',
+  updateNotScheduled: true,
+  prCreation: "immediate",
+  // NOTE: This doesn't mean that Renovate will run every second or at the limit of the precision of the cron syntax.
+  // This is simply an expression of when Renovate **is allowed** to update things on the repo. We want it to happen
+  // whenever an update is pushed by SecOps, who run our Renovate instance, and since that happens once a day we don't
+  // want to miss one. For more information see: https://docs.renovatebot.com/configuration-options/#schedule
+  schedule: [
+    '* * * * * *'
+  ],
+  customManagers: [
     {
-      "matchPackageNames": [
-        "*"
+      customType: 'regex',
+      managerFilePatterns: [
+        '/(^|/)Dockerfile$/',
+        '/(^|/)Dockerfile\\.[^/]*$/'
       ],
-      "rangeStrategy": "replace"
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>[a-z-]+?)(?: depName=(?<depName>.+?))?(?: extractVersion=(?<extractVersion>.*))?(?:^|\\r\\n|\\r|\\n|$)(?:ENV|ARG) .+?_VERSION=(?<currentValue>.+?)(?:^|\\r\\n|\\r|\\n|$)'
+      ]
+    },
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/(^|/)(workflow-templates|\\.(?:github|gitea|forgejo)/(?:workflows|actions))/.+\\.ya?ml$/',
+        '/(^|/)action\\.ya?ml$/'
+      ],
+      matchStrings: [
+        '\\s+# renovate: datasource=(?<datasource>[a-z-]+?)(?: depName=(?<depName>.+?))?(?: extractVersion=(?<extractVersion>.*))?(?:^|\\r\\n|\\r|\\n|$)\\s+.*@(?<currentValue>.+?)(?:^|\\r\\n|\\r|\\n|$)',
+        '\\s+# renovate: datasource=(?<datasource>[a-z-]+?)(?: depName=(?<depName>.+?))?(?: extractVersion=(?<extractVersion>.*))?(?:^|\\r\\n|\\r|\\n|$)\\s+version: \'(?<currentValue>.+?)\'(?:^|\\r\\n|\\r|\\n|$)',
+        '\\s+# renovate: datasource=(?<datasource>[a-z-]+?)(?: depName=(?<depName>.+?))?(?: extractVersion=(?<extractVersion>.*))?(?:^|\\r\\n|\\r|\\n|$)\\s+rust-version: "(?<currentValue>.+?)"(?:^|\\r\\n|\\r|\\n|$)'
+      ]
     }
   ]
 }
