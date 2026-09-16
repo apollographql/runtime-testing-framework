@@ -27,7 +27,7 @@ impl TestRunFilter {
         self.known_test_plan_uuid.is_some() || self.known_test_plan_name.is_some()
     }
 
-    fn push_joins(&self, qb: &mut QueryBuilder<'_, Postgres>) {
+    fn push_joins(&self, qb: &mut QueryBuilder<Postgres>) {
         if self.needs_known_test_plan_join() {
             qb.push(
                 r#"
@@ -44,7 +44,7 @@ impl TestRunFilter {
         }
     }
 
-    fn push_where_clause(&self, qb: &mut QueryBuilder<'_, Postgres>) {
+    fn push_where_clause(&self, qb: &mut QueryBuilder<Postgres>) {
         if self.is_empty() {
             return;
         }

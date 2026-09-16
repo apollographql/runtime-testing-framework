@@ -7,10 +7,10 @@ edition.workspace = true
 proc-macro = true
 
 [dependencies]
-darling = "0.23.0"
+darling = "0.24.1"
 proc-macro2 = "1.0.107"
 quote = "1.0.47"
-syn = "2.0.119"
+syn = "3.0.5"
 
 [dev-dependencies]
 rtf-config = { path = "../rtf-config" }

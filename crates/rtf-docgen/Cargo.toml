@@ -8,6 +8,6 @@ anyhow.workspace = true
 clap.workspace = true
 serde_json.workspace = true
 
-convert_case = "0.11"
+convert_case = "0.12"
 # This must match the version printed by the generate-docs script
 rustdoc-types = "0.57"

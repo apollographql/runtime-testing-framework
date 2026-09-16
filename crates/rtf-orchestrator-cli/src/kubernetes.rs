@@ -58,7 +58,7 @@ pub enum Error {
     GetScenarioJob {
         name: &'static str,
         #[source]
-        source: kube::Error,
+        source: Box<kube::Error>,
     },
 
     #[error("scenario job {name} has no status.startTime")]
@@ -418,7 +418,7 @@ impl Client for HttpClient {
             .await
             .map_err(|source| Error::GetScenarioJob {
                 name: SCENARIO_JOB_NAME,
-                source,
+                source: Box::new(source),
             })?;
 
         window_from_job_status(job.status.as_ref())

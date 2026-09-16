@@ -1,7 +1,7 @@
 use crate::db::{Error, Queryable, Result};
 use chrono::{DateTime, Utc};
 use rtf_orchestrator_shared::status::{Status as SharedStatus, StatusUpdate as SharedStatusUpdate};
-use sqlx::{Executor, FromRow, PgConnection};
+use sqlx::{AssertSqlSafe, Executor, FromRow, PgConnection};
 use std::{cmp::Ordering, fmt};
 
 /// Helper trait for tracking a time series of [StatusUpdate] items for a parent table.
@@ -36,10 +36,10 @@ pub trait StatusTracked: Queryable {
     ) -> impl Future<Output = Result<()>> + Send {
         async move {
             conn.execute(
-                sqlx::query(&format!(
+                sqlx::query(AssertSqlSafe(format!(
                     "INSERT INTO {} (parent_id, message, status) VALUES ($1, $2, $3)",
                     Self::STATUS_TABLE
-                ))
+                )))
                 .bind(self.id())
                 .bind(message)
                 .bind(status),
@@ -48,10 +48,10 @@ pub trait StatusTracked: Queryable {
 
             if status.is_terminal() {
                 conn.execute(
-                    sqlx::query(&format!(
+                    sqlx::query(AssertSqlSafe(format!(
                         "UPDATE {} SET completed_at = NOW() WHERE id = $1;",
                         Self::TABLE_NAME
-                    ))
+                    )))
                     .bind(self.id()),
                 )
                 .await?;
@@ -66,14 +66,14 @@ pub trait StatusTracked: Queryable {
         conn: &mut PgConnection,
     ) -> impl Future<Output = Result<Option<StatusUpdate>>> + Send {
         async move {
-            Ok(sqlx::query_as(&format!(
+            Ok(sqlx::query_as(AssertSqlSafe(format!(
                 "SELECT status, message, updated_at
                  FROM {}
                  WHERE parent_id = $1
                  ORDER BY updated_at DESC
                  LIMIT 1;",
                 Self::STATUS_TABLE
-            ))
+            )))
             .bind(self.id())
             .fetch_optional(conn)
             .await?)
@@ -85,14 +85,14 @@ pub trait StatusTracked: Queryable {
         conn: &mut PgConnection,
     ) -> impl Future<Output = Result<StatusUpdate>> + Send {
         async move {
-            Ok(sqlx::query_as(&format!(
+            Ok(sqlx::query_as(AssertSqlSafe(format!(
                 "SELECT status, message, updated_at
                  FROM {}
                  WHERE parent_id = $1
                  ORDER BY updated_at DESC
                  LIMIT 1;",
                 Self::STATUS_TABLE
-            ))
+            )))
             .bind(self.id())
             .fetch_one(conn)
             .await?)
@@ -104,13 +104,13 @@ pub trait StatusTracked: Queryable {
         conn: &mut PgConnection,
     ) -> impl Future<Output = Result<Vec<StatusUpdate>>> + Send {
         async move {
-            Ok(sqlx::query_as(&format!(
+            Ok(sqlx::query_as(AssertSqlSafe(format!(
                 "SELECT status, message, updated_at
                  FROM {}
                  WHERE parent_id = $1
                  ORDER BY updated_at DESC;",
                 Self::STATUS_TABLE
-            ))
+            )))
             .bind(self.id())
             .fetch_all(conn)
             .await?)

@@ -216,7 +216,7 @@ pub struct KnownTestPlanFilter {
 }
 
 impl KnownTestPlanFilter {
-    fn push_where_clause(&self, qb: &mut QueryBuilder<'_, Postgres>) {
+    fn push_where_clause(&self, qb: &mut QueryBuilder<Postgres>) {
         if self.name.is_none() {
             return;
         }
