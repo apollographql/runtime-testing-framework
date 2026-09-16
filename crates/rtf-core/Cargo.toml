@@ -2,6 +2,7 @@
 name = "rtf-core"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 rtf-config = { path = "../rtf-config" }

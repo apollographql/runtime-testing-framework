@@ -2,6 +2,7 @@
 name = "rtf-orchestrator-cli"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 rtf-cli-shared = { path = "../rtf-cli-shared" }

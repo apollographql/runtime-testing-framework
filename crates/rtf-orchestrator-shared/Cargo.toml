@@ -2,6 +2,7 @@
 name = "rtf-orchestrator-shared"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 rtf-config = { path = "../rtf-config" }
