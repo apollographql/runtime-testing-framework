@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_and_run_test_plan","ci_run","execution_log","execution_status","open_docs","pull_execution_output","pull_run_output","remote_run","run_status"]};
+window.SIDEBAR_ITEMS = {"fn":["check_and_run_test_plan","ci_run","ci_run_known","execution_log","execution_status","open_docs","pull_execution_output","pull_run_output","remote_run","remote_run_known","run_status"]};

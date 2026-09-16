@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d15cc4ad.js";
+            window.path_to_searchindex_js = "searchindex-cbf6aaa5.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-9b5efe91.js"></script>
@@ -5762,7 +5762,9 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-remote-prepare"><code>rtf remote prepare</code>↴</a></li>
 <li><a href="#rtf-remote-request"><code>rtf remote request</code>↴</a></li>
 <li><a href="#rtf-remote-run"><code>rtf remote run</code>↴</a></li>
+<li><a href="#rtf-remote-run-known"><code>rtf remote run-known</code>↴</a></li>
 <li><a href="#rtf-remote-ci-run"><code>rtf remote ci-run</code>↴</a></li>
+<li><a href="#rtf-remote-ci-run-known"><code>rtf remote ci-run-known</code>↴</a></li>
 <li><a href="#rtf-remote-execution-log"><code>rtf remote execution-log</code>↴</a></li>
 <li><a href="#rtf-remote-execution-output"><code>rtf remote execution-output</code>↴</a></li>
 <li><a href="#rtf-remote-execution-status"><code>rtf remote execution-status</code>↴</a></li>
@@ -6033,7 +6035,9 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><code>prepare</code> — Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers</li>
 <li><code>request</code> — Send an IAP-authenticated HTTP request to the Orchestrator</li>
 <li><code>run</code> — Trigger a test run using the Orchestrator</li>
+<li><code>run-known</code> — Trigger a test run of a known test plan using the Orchestrator</li>
 <li><code>ci-run</code> — Trigger a test run using the Orchestrator and poll for the result</li>
+<li><code>ci-run-known</code> — Trigger a test run of a known test plan using the Orchestrator and poll for the result</li>
 <li><code>execution-log</code> — View the scenario log for a single test execution</li>
 <li><code>execution-output</code> — Pull all output for a single test execution (log, output.zip &amp; status)</li>
 <li><code>execution-status</code> — View the status summary for a single test execution</li>
@@ -6097,15 +6101,30 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
 </ul>
+<h2 id="rtf-remote-run-known"><a class="header" href="#rtf-remote-run-known"><code>rtf remote run-known</code></a></h2>
+<p>Trigger a test run of a known test plan using the Orchestrator.</p>
+<p>The output of this command will be the test run id and a link to the RTF UI to view the status</p>
+<p><strong>Usage:</strong> <code>rtf remote run-known [OPTIONS] &lt;TEST_PLAN_ID&gt;</code></p>
+<h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_ID&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
+</ul>
+<h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
+<ul>
+<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</li>
+</ul>
 <h2 id="rtf-remote-ci-run"><a class="header" href="#rtf-remote-ci-run"><code>rtf remote ci-run</code></a></h2>
 <p>Trigger a test run using the Orchestrator and poll for the result.</p>
 <p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
 <p><strong>Usage:</strong> <code>rtf remote ci-run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
-<h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
+<li>
+<p><code>&lt;TEST_PLAN_PATH&gt;</code> — Known Test Plan ID from the Orchestrator.</p>
+<p>You can find this on the UI page providing your known Test Plan’s details.</p>
+</li>
 </ul>
-<h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
+<h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
@@ -6119,21 +6138,42 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p>Default value: <code>10</code></p>
 </li>
 </ul>
+<h2 id="rtf-remote-ci-run-known"><a class="header" href="#rtf-remote-ci-run-known"><code>rtf remote ci-run-known</code></a></h2>
+<p>Trigger a test run of a known test plan using the Orchestrator and poll for the result.</p>
+<p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
+<p><strong>Usage:</strong> <code>rtf remote ci-run-known [OPTIONS] &lt;TEST_PLAN_ID&gt;</code></p>
+<h6 id="arguments-16"><a class="header" href="#arguments-16"><strong>Arguments:</strong></a></h6>
+<ul>
+<li>
+<p><code>&lt;TEST_PLAN_ID&gt;</code> — Known Test Plan ID from the Orchestrator.</p>
+<p>You can find this on the UI page providing your known Test Plan’s details.</p>
+</li>
+</ul>
+<h6 id="options-16"><a class="header" href="#options-16"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull the test plan from</p>
+</li>
+<li>
+<p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code></p>
+<p>Default value: <code>10</code></p>
+</li>
+</ul>
 <h2 id="rtf-remote-execution-log"><a class="header" href="#rtf-remote-execution-log"><code>rtf remote execution-log</code></a></h2>
 <p>View the scenario log for a single test execution</p>
 <p><strong>Usage:</strong> <code>rtf remote execution-log &lt;ID&gt;</code></p>
-<h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-17"><a class="header" href="#arguments-17"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to view the log of</li>
 </ul>
 <h2 id="rtf-remote-execution-output"><a class="header" href="#rtf-remote-execution-output"><code>rtf remote execution-output</code></a></h2>
 <p>Pull all output for a single test execution (log, output.zip &amp; status)</p>
 <p><strong>Usage:</strong> <code>rtf remote execution-output [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-16"><a class="header" href="#arguments-16"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-18"><a class="header" href="#arguments-18"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to pull output for</li>
 </ul>
-<h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
+<h6 id="options-17"><a class="header" href="#options-17"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>
@@ -6147,18 +6187,18 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-remote-execution-status"><a class="header" href="#rtf-remote-execution-status"><code>rtf remote execution-status</code></a></h2>
 <p>View the status summary for a single test execution</p>
 <p><strong>Usage:</strong> <code>rtf remote execution-status &lt;ID&gt;</code></p>
-<h6 id="arguments-17"><a class="header" href="#arguments-17"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-19"><a class="header" href="#arguments-19"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ID&gt;</code> — ID of the Orchestrator test execution you wish to view the status of</li>
 </ul>
 <h2 id="rtf-remote-run-output"><a class="header" href="#rtf-remote-run-output"><code>rtf remote run-output</code></a></h2>
 <p>Pull output for all executions within a given test run</p>
 <p><strong>Usage:</strong> <code>rtf remote run-output [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-18"><a class="header" href="#arguments-18"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-20"><a class="header" href="#arguments-20"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ID&gt;</code> — ID of the Orchestrator test run you wish to pull output for</li>
 </ul>
-<h6 id="options-16"><a class="header" href="#options-16"><strong>Options:</strong></a></h6>
+<h6 id="options-18"><a class="header" href="#options-18"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>
@@ -6172,11 +6212,11 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-remote-run-status"><a class="header" href="#rtf-remote-run-status"><code>rtf remote run-status</code></a></h2>
 <p>View the status summary for a test run</p>
 <p><strong>Usage:</strong> <code>rtf remote run-status [OPTIONS] &lt;ID&gt;</code></p>
-<h6 id="arguments-19"><a class="header" href="#arguments-19"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-21"><a class="header" href="#arguments-21"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ID&gt;</code> — ID of the Orchestrator test run you wish to view the status of</li>
 </ul>
-<h6 id="options-17"><a class="header" href="#options-17"><strong>Options:</strong></a></h6>
+<h6 id="options-19"><a class="header" href="#options-19"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--with-executions</code> — Whether or not details of the underlying test executions should be included</p>
