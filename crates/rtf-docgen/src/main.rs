@@ -1,8 +1,7 @@
-use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf, sync::OnceLock};
-
 use anyhow::{Result, anyhow};
 use convert_case::{Boundary, Case, Casing};
 use rustdoc_types::{Attribute, Crate, Id, Item, ItemEnum, StructKind, Type, VariantKind};
+use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf, sync::OnceLock};
 
 static FILE_PROVIDER_IDS: OnceLock<Vec<Id>> = OnceLock::new();
 
@@ -183,6 +182,32 @@ fn document_inner_variants(
     Ok(())
 }
 
+/// Returns `true` if documenting a flattened field's [ResolvedPath][Type::ResolvedPath] target
+/// would recurse into further documentation (a TOC link or a nested struct/enum). Flattened
+/// fields that don't resolve to anything documentable (e.g. a `HashMap`) have no replacement
+/// content, so their own doc comment must still be written out.
+fn flattened_field_recurses(index: &HashMap<Id, Item>, inner_item: &Item) -> bool {
+    let ItemEnum::StructField(Type::ResolvedPath(resolved)) = &inner_item.inner else {
+        return false;
+    };
+
+    if FILE_PROVIDER_IDS.get().unwrap().contains(&resolved.id) {
+        return true;
+    }
+
+    // Mirrors the recursion condition below:
+    //   * the item is not a Field (those should be considered the same as external primitives)
+    //   * the item is not an untagged enum variant (an implementation detail that doesn't need to be exposed)
+    lookup_item(index, &resolved.id).is_ok_and(|meta_item| {
+        meta_item.name.as_deref().is_some_and(|meta_name| {
+            meta_name != "Field"
+                && !meta_item
+                    .attrs
+                    .contains(&Attribute::Other("#[serde(untagged)]".to_owned()))
+        })
+    })
+}
+
 fn document_inner_fields(
     index: &HashMap<Id, Item>,
     inner_fields: &Vec<Id>,
@@ -192,11 +217,14 @@ fn document_inner_fields(
         let inner_item = lookup_item(index, inner_id)?;
         let name = get_name(inner_item)?;
 
-        // Don't write the docs if this was a flattened item or it had no docs
+        let is_flattened = inner_item
+            .attrs
+            .contains(&Attribute::Other("#[serde(flatten)]".to_owned()));
+
+        // Don't write the docs if this was a flattened item whose target will be documented via
+        // recursion below, or if it had no docs
         if let Some(inner_docs) = &inner_item.docs
-            && !inner_item
-                .attrs
-                .contains(&Attribute::Other("#[serde(flatten)]".to_owned()))
+            && !(is_flattened && flattened_field_recurses(index, inner_item))
         {
             println!("{header} `{name}`\n");
             println!("{inner_docs}\n");
