@@ -47,7 +47,7 @@ serde_yaml.workspace = true
 serde.workspace = true
 sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "migrate", "chrono", "json", "uuid"] }
 thiserror.workspace = true
-tokio-stream = "0.1.18"
+tokio-stream = "0.1.19"
 tokio.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
@@ -61,9 +61,9 @@ tikv-jemallocator.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true 
-axum-test = "20.0.0"
+axum-test = "20.1.0"
 indoc.workspace = true
 reqwest.workspace = true
-serial_test = "3.4.0"
+serial_test = "3.5.0"
 simple_test_case.workspace = true
 zip.workspace = true

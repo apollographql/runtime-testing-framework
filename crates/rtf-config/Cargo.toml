@@ -9,7 +9,7 @@ humantime.workspace = true
 indoc.workspace = true
 itertools.workspace = true
 promql-parser.workspace = true
-regex = "1.12.3"
+regex = "1.13.1"
 reqwest.workspace = true
 rtf-derive = { path = "../rtf-derive" }
 rtf-integrations = { path = "../rtf-integrations" }

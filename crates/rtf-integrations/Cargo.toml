@@ -13,7 +13,7 @@ google-cloud-secretmanager-v1.workspace = true
 google-cloud-gax.workspace = true
 graphql_client = "0.16.0"
 itertools.workspace = true
-jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] }
 oauth2.workspace = true
 open.workspace = true
 rand.workspace = true

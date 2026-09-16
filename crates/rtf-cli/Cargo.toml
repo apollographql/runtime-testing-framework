@@ -17,7 +17,7 @@ rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
 
 anyhow.workspace = true 
 assert_fs.workspace = true
-clap_complete = "4.6.2"
+clap_complete = "4.6.11"
 clap.workspace = true
 futures.workspace = true
 git-version.workspace = true
@@ -44,7 +44,7 @@ walkdir = "2.5.0"
 
 [build-dependencies]
 clap-markdown = "0.1.5"
-clap_complete = "4.6.2"
+clap_complete = "4.6.11"
 clap.workspace = true
 reqwest.workspace = true
 uuid.workspace = true
