@@ -1,9 +1,18 @@
 # The Apollo Runtime Testing Framework
 
-This repository contains the `rtf` command line tool along with associated example Test Plans and
-documentation.
+This repository contains the `rtf` command line tool and `orchestrator` service along with
+supporting crates and example Test Plans.
 
-The documentation can be viewed in GitHub Pages [here][0].
+The user facing documentation can be viewed in GitHub Pages [here][0].
+
+### Project status
+
+While this tool may be of interest to users outside of Apollo, it should be noted that RTF is an
+Apollo internal tool and not a supported Apollo product.
+
+Please refer to the `LICENSE` file in the root of the repo for further information.
+
+### Contributing to RTF as an Apollo Engineer
 
 If you are contributing to this repo, the developer documentation can be found [here][1].
 
@@ -34,11 +43,7 @@ Once that completes you should be able to run `rtf` in your terminal and see the
 more details on getting started with `rtf` please refer to the [docs][0], the source of which are
 written using [mdbook][3] in the [docs](./docs) directory.
 
-For examples of what it looks like to write Test Plans using `rtf` please see the [rtf-morgue][4]
-directory.
-
 [0]: https://apollographql.github.io/runtime-testing-framework
 [1]: https://apollographql.github.io/runtime-testing-framework/developer/explanation/index.html
 [2]: https://mise.jdx.dev/getting-started.html
 [3]: https://rust-lang.github.io/mdBook/index.html
-[4]: https://github.com/apollographql/rtf-morgue
