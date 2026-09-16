@@ -24,6 +24,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote prepare`↴](#rtf-remote-prepare)
 * [`rtf remote request`↴](#rtf-remote-request)
 * [`rtf remote run`↴](#rtf-remote-run)
+* [`rtf remote run-known`↴](#rtf-remote-run-known)
 * [`rtf remote ci-run`↴](#rtf-remote-ci-run)
 * [`rtf remote ci-run-known`↴](#rtf-remote-ci-run-known)
 * [`rtf remote execution-log`↴](#rtf-remote-execution-log)
@@ -348,6 +349,7 @@ Set the `RTF_ORCHESTRATOR_URL` environment variable to override the Orchestrator
 * `prepare` — Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers
 * `request` — Send an IAP-authenticated HTTP request to the Orchestrator
 * `run` — Trigger a test run using the Orchestrator
+* `run-known` — Trigger a test run of a known test plan using the Orchestrator
 * `ci-run` — Trigger a test run using the Orchestrator and poll for the result
 * `ci-run-known` — Trigger a test run of a known test plan using the Orchestrator and poll for the result
 * `execution-log` — View the scenario log for a single test execution
@@ -422,6 +424,24 @@ The output of this command will be the test run id and a link to the RTF UI to v
 
 
 
+## `rtf remote run-known`
+
+Trigger a test run of a known test plan using the Orchestrator.
+
+The output of this command will be the test run id and a link to the RTF UI to view the status
+
+**Usage:** `rtf remote run-known [OPTIONS] <TEST_PLAN_ID>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_ID>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
+
+###### **Options:**
+
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+
+
+
 ## `rtf remote ci-run`
 
 Trigger a test run using the Orchestrator and poll for the result.
@@ -432,7 +452,9 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_PATH>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
+* `<TEST_PLAN_PATH>` — Known Test Plan ID from the Orchestrator.
+
+   You can find this on the UI page providing your known Test Plan's details.
 
 ###### **Options:**
 
