@@ -320,7 +320,7 @@ impl Client for HttpClient {
 // short-lived cache avoids re-resolving the whole test plan (and re-querying run history) on every
 // request in that window.
 #[cached(
-    ttl = 300,
+    ttl_secs = 300,
     key = "String",
     convert = r#"{ format!("{uuid}-{:?}-{}-{}", params.git_ref, params.days_back, params.days) }"#
 )]

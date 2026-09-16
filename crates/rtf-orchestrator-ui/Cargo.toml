@@ -9,7 +9,7 @@ rtf-orchestrator-shared = { path = "../rtf-orchestrator-shared" }
 rtf-config = { path = "../rtf-config" }
 
 anyhow.workspace = true
-askama = { version = "0.16.0", features = ["serde_json"] }
+askama = { version = "0.16.1", features = ["serde_json"] }
 axum.workspace = true
 cached.workspace = true
 chrono.workspace = true

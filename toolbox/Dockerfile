@@ -1,5 +1,5 @@
 # Rust build image
-FROM --platform=$BUILDPLATFORM rust:1.96.0 AS builder
+FROM --platform=$BUILDPLATFORM rust:1.98.1 AS builder
 
 # aws-lc-rs (required by kube) needs cmake and clang
 RUN apt-get update && apt-get install -y cmake clang && rm -rf /var/lib/apt/lists/*
@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 
 # Runtime image build
-FROM --platform=$BUILDPLATFORM rust:1.96.0-slim
+FROM --platform=$BUILDPLATFORM rust:1.98.1-slim
 
 # https://kubernetes.io/releases/
 ENV V_KUBECTL="v1.35.2"

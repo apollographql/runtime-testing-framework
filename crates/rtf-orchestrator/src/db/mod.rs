@@ -1,6 +1,6 @@
 use rtf_orchestrator_shared::payload::PreparedPayload;
 use serde::Serialize;
-use sqlx::{Database, FromRow, PgConnection, Postgres};
+use sqlx::{AssertSqlSafe, Database, FromRow, PgConnection, Postgres};
 use std::fmt;
 use thiserror::Error;
 use tracing::error;
@@ -96,10 +96,10 @@ pub trait Queryable:
         conn: &mut PgConnection,
     ) -> impl Future<Output = Result<Option<Self>>> + Send {
         async move {
-            Ok(sqlx::query_as(&format!(
+            Ok(sqlx::query_as(AssertSqlSafe(format!(
                 "SELECT * FROM {} WHERE id = $1;",
                 Self::TABLE_NAME
-            ))
+            )))
             .bind(id)
             .fetch_optional(conn)
             .await?)
@@ -111,10 +111,10 @@ pub trait Queryable:
         conn: &mut PgConnection,
     ) -> impl Future<Output = Result<Self>> + Send {
         async move {
-            Ok(sqlx::query_as(&format!(
+            Ok(sqlx::query_as(AssertSqlSafe(format!(
                 "SELECT * FROM {} WHERE id = $1;",
                 Self::TABLE_NAME
-            ))
+            )))
             .bind(id)
             .fetch_one(conn)
             .await?)

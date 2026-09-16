@@ -199,10 +199,6 @@ The command to be run
 
 The name of the command to run
 
-#### `command_provider`
-
-A provider to produce the command that should be run
-
 <details>
 <summary>Variants</summary>
 
@@ -615,23 +611,6 @@ A base YAML file to start with.
 ### `overrides`
 
 One or more YAML files to merge on top of the base file in sequence.
-
-<details>
-<summary>Variants</summary>
-
-<details>
-<summary>Variants</summary>
-
-- [GitHub file](#github-file)
-- [GraphOS supergraph Router URL overrides](#graphos-supergraph-router-url-overrides)
-- [Inline file](#inline-file)
-- [Relative path](#relative-path)
-- [Required file](#required-file)
-- [Templated file](#templated-file)
-
-</details>
-
-</details>
 
 </details>
 
