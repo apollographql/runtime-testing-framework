@@ -216,7 +216,7 @@
 <a href=#216 id=216 data-nosnippet>216</a>}
 <a href=#217 id=217 data-nosnippet>217</a>
 <a href=#218 id=218 data-nosnippet>218</a><span class="kw">impl </span>KnownTestPlanFilter {
-<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">fn </span>push_where_clause(<span class="kw-2">&amp;</span><span class="self">self</span>, qb: <span class="kw-2">&amp;mut </span>QueryBuilder&lt;<span class="lifetime">'_</span>, Postgres&gt;) {
+<a href=#219 id=219 data-nosnippet>219</a>    <span class="kw">fn </span>push_where_clause(<span class="kw-2">&amp;</span><span class="self">self</span>, qb: <span class="kw-2">&amp;mut </span>QueryBuilder&lt;Postgres&gt;) {
 <a href=#220 id=220 data-nosnippet>220</a>        <span class="kw">if </span><span class="self">self</span>.name.is_none() {
 <a href=#221 id=221 data-nosnippet>221</a>            <span class="kw">return</span>;
 <a href=#222 id=222 data-nosnippet>222</a>        }

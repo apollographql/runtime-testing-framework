@@ -8,7 +8,7 @@
         &amp;mut self,
         ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.str.html">str</a>,
         name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.str.html">str</a>,
-        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.26.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
         allow_namespace_write: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.bool.html">bool</a>,
         cluster_roles: &amp;<a class="struct" href="../config/struct.ClusterRoles.html" title="struct rtf_orchestrator::config::ClusterRoles">ClusterRoles</a>,
         spec: JobSpec,
@@ -16,7 +16,7 @@
 <span class="item-spacer"></span>    fn <a href="#tymethod.wait_for_job" class="fn">wait_for_job</a>(
         &amp;mut self,
         ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.str.html">str</a>,
-        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.26.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
         poll_interval_secs: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u64.html">u64</a>,
         retry_window_secs: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u64.html">u64</a>,
     ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.98.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="enum.WatchOutcome.html" title="enum rtf_orchestrator::k8s::WatchOutcome">WatchOutcome</a>&gt; + <a class="trait" href="https://doc.rust-lang.org/1.98.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>;
@@ -29,7 +29,7 @@
     &amp;mut self,
     ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.str.html">str</a>,
     name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.str.html">str</a>,
-    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.26.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
     allow_namespace_write: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.bool.html">bool</a>,
     cluster_roles: &amp;<a class="struct" href="../config/struct.ClusterRoles.html" title="struct rtf_orchestrator::config::ClusterRoles">ClusterRoles</a>,
     spec: JobSpec,
@@ -38,7 +38,7 @@ workload cluster.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="tymethod.wait_for_job" class="method"><a class="src rightside" href="../../src/rtf_orchestrator/k8s/mod.rs.html#93-99">Source</a><h4 class="code-header">fn <a href="#tymethod.wait_for_job" class="fn">wait_for_job</a>(
     &amp;mut self,
     ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.str.html">str</a>,
-    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.26.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
     poll_interval_secs: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u64.html">u64</a>,
     retry_window_secs: <a class="primitive" href="https://doc.rust-lang.org/1.98.1/std/primitive.u64.html">u64</a>,
 ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.98.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="enum.WatchOutcome.html" title="enum rtf_orchestrator::k8s::WatchOutcome">WatchOutcome</a>&gt; + <a class="trait" href="https://doc.rust-lang.org/1.98.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a></h4></section></summary><div class="docblock"><p>Wait for a k8s [Job] running within the workload cluster to reach a terminal state,
