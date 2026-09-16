@@ -2,6 +2,7 @@
 name = "rtf-integrations"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 apollo-compiler.workspace = true

@@ -61,11 +61,15 @@ dir = "../../"
 [tasks.pr-test]
 run = "cargo test"
 
+[tasks.check-cargo-deny]
+run = "cd $(git rev-parse --show-toplevel) && cargo deny check licenses advisories --exclude-dev"
+
 [tools]
 "cargo:cargo-edit" = "0.13.9"
 "cargo:cargo-expand" = "1.0.121"
 "cargo:cargo-llvm-cov" = "0.8.4"
 "cargo:typos-cli" = "1.44.0"
+"github:EmbarkStudios/cargo-deny" = "0.18.9"
 dprint = "0.54.0"
 "helm-docs" = "1.14.2"
 mdbook = "0.5.2"
