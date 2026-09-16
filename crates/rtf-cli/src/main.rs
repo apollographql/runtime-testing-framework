@@ -14,8 +14,9 @@ use rtf_cli::{
             test_custom_provider, write_remote_trigger_payload_to_stdout,
         },
         porcelain::{
-            check_and_run_test_plan, ci_run, execution_log, execution_status, open_docs,
-            pull_execution_output, pull_run_output, remote_run, run_status,
+            check_and_run_test_plan, ci_run, ci_run_known, execution_log, execution_status,
+            open_docs, pull_execution_output, pull_run_output, remote_run, remote_run_known,
+            run_status,
         },
     },
 };
@@ -193,6 +194,14 @@ async fn main() {
 
         Command::Remote {
             subcommand:
+                RemoteSubcommand::RunKnown {
+                    test_plan_id,
+                    git_ref,
+                },
+        } => remote_run_known(test_plan_id, git_ref, variables.into()).await,
+
+        Command::Remote {
+            subcommand:
                 RemoteSubcommand::CiRun {
                     test_plan_path,
                     github,
@@ -203,6 +212,23 @@ async fn main() {
             ci_run(
                 &test_plan_path,
                 github,
+                git_ref,
+                poll_interval_seconds,
+                variables.into(),
+            )
+            .await
+        }
+
+        Command::Remote {
+            subcommand:
+                RemoteSubcommand::CiRunKnown {
+                    test_plan_id,
+                    git_ref,
+                    poll_interval_seconds,
+                },
+        } => {
+            ci_run_known(
+                test_plan_id,
                 git_ref,
                 poll_interval_seconds,
                 variables.into(),

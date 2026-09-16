@@ -185,6 +185,27 @@ fn remote_run_smoke_test_succeeds() {
 }
 
 #[test]
+fn remote_run_known_help_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "run-known", "--help"])
+        .assert()
+        .success();
+}
+
+#[test]
+#[ignore = "requires GCP Application Default Credentials and Secret Manager access"]
+fn remote_run_known_smoke_test_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "run-known",
+            "28bab6d6-bc83-4bec-b23d-160e4d034ffe",
+        ])
+        .assert()
+        .success();
+}
+
+#[test]
 fn remote_ci_run_help_succeeds() {
     cargo_bin_cmd!("rtf")
         .args(["remote", "ci-run", "--help"])
@@ -200,6 +221,27 @@ fn remote_ci_run_smoke_test_succeeds() {
             "remote",
             "ci-run",
             "../rtf-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml",
+        ])
+        .assert()
+        .success();
+}
+
+#[test]
+fn remote_ci_run_known_help_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "ci-run-known", "--help"])
+        .assert()
+        .success();
+}
+
+#[test]
+#[ignore = "requires GCP Application Default Credentials and Secret Manager access"]
+fn remote_ci_run_known_smoke_test_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "remote",
+            "ci-run-known",
+            "28bab6d6-bc83-4bec-b23d-160e4d034ffe",
         ])
         .assert()
         .success();

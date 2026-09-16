@@ -1,7 +1,8 @@
-use crate::commands::plumbing::prepare_remote_trigger_payload;
+use crate::commands::{get_context, plumbing::prepare_remote_trigger_payload};
 use rtf_core::variables::Variables;
 use rtf_integrations::orchestrator::OrchestratorClient;
 use rtf_orchestrator_shared::{
+    payload::{KnownTestPlanUuidPayload, TriggerPayload},
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
 };
@@ -27,6 +28,37 @@ pub async fn ci_run(
 
     let payload =
         prepare_remote_trigger_payload(test_plan_path, github, git_ref, variables).await?;
+
+    trigger_and_poll(TriggerPayload::Prepared(payload), poll_interval_seconds).await
+}
+
+pub async fn ci_run_known(
+    test_plan_uuid: Uuid,
+    git_ref: Option<String>,
+    poll_interval_seconds: u64,
+    variables: Variables,
+) -> anyhow::Result<()> {
+    println!("Triggering test run for test plan with ID={test_plan_uuid}...");
+
+    let ctx = get_context();
+    let (parsed_variables, _) = variables.parse(&ctx)?;
+    let flat = parsed_variables.as_flat();
+
+    trigger_and_poll(
+        TriggerPayload::KnownTestPlanUuid(KnownTestPlanUuidPayload {
+            test_plan_uuid,
+            git_ref,
+            variables: (!flat.is_empty()).then_some(flat),
+        }),
+        poll_interval_seconds,
+    )
+    .await
+}
+
+async fn trigger_and_poll(
+    payload: TriggerPayload,
+    poll_interval_seconds: u64,
+) -> anyhow::Result<()> {
     let client = OrchestratorClient::new_from_env().await?;
     let poll_interval = Duration::from_secs(poll_interval_seconds);
 

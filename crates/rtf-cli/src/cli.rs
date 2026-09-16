@@ -359,12 +359,27 @@ pub enum RemoteSubcommand {
         git_ref: Option<String>,
     },
 
+    /// Trigger a test run of a known test plan using the Orchestrator.
+    ///
+    /// The output of this command will be the test run id and a link to the
+    /// RTF UI to view the status
+    RunKnown {
+        /// Relative path to the test plan file. When using --github this must be in the
+        /// format ORG/REPO/PATH
+        test_plan_id: Uuid,
+
+        /// Optional git ref to pull files from when using --github
+        #[arg(long = "ref")]
+        git_ref: Option<String>,
+    },
+
     /// Trigger a test run using the Orchestrator and poll for the result.
     ///
     /// The output of this command is aimed at being usable in CI runs and is non-interactive.
     CiRun {
-        /// Relative path to the test plan file. When using --github this must be in the
-        /// format ORG/REPO/PATH
+        /// Known Test Plan ID from the Orchestrator.
+        ///
+        /// You can find this on the UI page providing your known Test Plan's details.
         test_plan_path: String,
 
         /// Prepare a test plan file from GitHub instead of from a local path
@@ -373,6 +388,23 @@ pub enum RemoteSubcommand {
 
         /// Optional git ref to pull files from when using --github
         #[arg(long = "ref", requires = "github")]
+        git_ref: Option<String>,
+
+        #[arg(long, default_value = "10")]
+        poll_interval_seconds: u64,
+    },
+
+    /// Trigger a test run of a known test plan using the Orchestrator and poll for the result.
+    ///
+    /// The output of this command is aimed at being usable in CI runs and is non-interactive.
+    CiRunKnown {
+        /// Known Test Plan ID from the Orchestrator.
+        ///
+        /// You can find this on the UI page providing your known Test Plan's details.
+        test_plan_id: Uuid,
+
+        /// Optional git ref to pull the test plan from
+        #[arg(long = "ref")]
         git_ref: Option<String>,
 
         #[arg(long, default_value = "10")]
