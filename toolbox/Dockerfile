@@ -25,6 +25,8 @@ FROM --platform=$BUILDPLATFORM rust:1.98.1-slim
 ENV V_KUBECTL="v1.35.2"
 # https://github.com/kubernetes/kompose/releases
 ENV V_KOMPOSE="v1.38.0"
+# https://github.com/helm/helm/releases
+ENV V_HELM="v4.3.0"
 
 # Install tools available via apt
 RUN apt-get update && apt-get install -y \
@@ -45,6 +47,11 @@ RUN curl -L "https://dl.k8s.io/release/$V_KUBECTL/bin/linux/$(dpkg --print-archi
 RUN curl -L "https://github.com/kubernetes/kompose/releases/download/$V_KOMPOSE/kompose-linux-$(dpkg --print-architecture)" -o /usr/local/bin/kompose \
     && chmod +x /usr/local/bin/kompose
 
+# https://helm.sh/docs/intro/install/#from-script
+RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 \
+    && chmod 700 get_helm.sh \
+    && ./get_helm.sh --version "$V_HELM" \
+    && rm get_helm.sh
 
 # Copy over Rust binaries from the build image
 COPY --from=builder /rtf-bin /usr/local/bin/rtf
