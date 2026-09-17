@@ -20,9 +20,10 @@ use rtf_cli::{
         },
     },
 };
+use rtf_cli_shared::init_logging;
 use rtf_config::inlining::InlineMode;
 use rustls::crypto::aws_lc_rs;
-use std::process::exit;
+use std::{io::stderr, process::exit};
 use tracing::{error, warn};
 
 #[tokio::main]
@@ -33,7 +34,7 @@ async fn main() {
         verbose,
     } = Args::parse();
 
-    if let Err(e) = rtf_cli_shared::init_logging(LOG_LEVEL_ENV_VAR, verbose) {
+    if let Err(e) = init_logging(LOG_LEVEL_ENV_VAR, verbose, stderr) {
         error!("unable to initialise logging: {e}");
         exit(1);
     };

@@ -1,13 +1,15 @@
 use anyhow::Context;
-use std::io::stderr;
 use tracing::{Level, level_filters::LevelFilter, subscriber::set_global_default};
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
+use tracing_subscriber::{EnvFilter, FmtSubscriber, fmt::MakeWriter};
 
 /// Initialise our logger based on the given environment variable.
 ///
 /// See the documentation on [EnvFilter] for details on how this works and what the supported
 /// syntax is for setting a logging filter (it's a lot richer than just setting a level).
-pub fn init_logging(env_var: &str, verbosity: u8) -> anyhow::Result<()> {
+pub fn init_logging<W>(env_var: &str, verbosity: u8, make_writer: W) -> anyhow::Result<()>
+where
+    W: for<'writer> MakeWriter<'writer> + Send + Sync + 'static,
+{
     // This is a bit of a song and dance to pull out what the max configured logging level is so we
     // can conditionally alter the output format we use when we are at INFO or above.
     // -> The thinking is that for the default case we want to restrict things to simple, compact
@@ -41,7 +43,7 @@ pub fn init_logging(env_var: &str, verbosity: u8) -> anyhow::Result<()> {
 
     let builder = FmtSubscriber::builder()
         .with_env_filter(filter)
-        .with_writer(stderr)
+        .with_writer(make_writer)
         .compact();
 
     // We can't just return a [tracing_subscriber::fmt::Subscriber] here (and then have a single
