@@ -123,7 +123,7 @@ variables:
 matrix:
   variant_names: null
   dimensions: {}
-  include: []
+  compound: {}
 custom_providers: []
 scenario:
   ...

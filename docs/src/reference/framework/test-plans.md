@@ -228,11 +228,10 @@ The syntax used for template strings involves placing _matrix dimension names_ i
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.
 
-### Including explicit variants
+### Combining related variables
 
-Use `matrix.include` to define explicit variable combinations instead of full cartesian expansion.
-For example, the following initial matrix expands out to four variants covering different crate
-revisions for inclusion in a Rust build as shown below:
+The following initial matrix expands out to four variants covering different crate revisions for
+inclusion in a Rust build as shown below:
 
 ```yaml
 matrix:
@@ -240,6 +239,7 @@ matrix:
     federation_rev: [ "v2.6.2", "v2.7.0" ]
     compiler_rev: [ "apollo-compiler@1.28.0", "apollo-compiler@1.30.0" ]
 
+# Produces the following variants:
 # - federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
 # 
@@ -253,24 +253,28 @@ matrix:
 #   compiler_rev: apollo-compiler@1.30.0
 ```
 
-If only certain combinations are valid, two of four variants are invalid. Adding another dimension
-(e.g., `graph_ref`) compounds the problem with more undesirable variants.
+If each value of `federation_rev` only has a single matching `compiler_rev`, two of the resulting
+four variants are invalid. Adding further matrix dimensions makes the problem worse, by adding more
+undesirable variants.
 
-Use `matrix.include` to define explicit variable sets. All sets must contain the same variable
-names:
+To fix this, use `matrix.compound` to define a named _compound dimension_ that groups several
+variables together. Each entry in the compound dimension must contain the same set of variables, and
+only those explicit groups of values will be used to construct the resulting matrix variants:
 
 ```yaml
 matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions: {}
 
-  include:
-    - federation_rev: v2.6.2
-      compiler_rev: apollo-compiler@1.28.0
+  compound:
+    crate_revisions:
+      - federation_rev: v2.6.2
+        compiler_rev: apollo-compiler@1.28.0
 
-    - federation_rev: v2.7.0
-      compiler_rev: apollo-compiler@1.30.0
+      - federation_rev: v2.7.0
+        compiler_rev: apollo-compiler@1.30.0
 
+# Produces the following variants:
 # - federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
 # 
@@ -278,22 +282,25 @@ matrix:
 #   compiler_rev: apollo-compiler@1.30.0
 ```
 
-This produces only the valid revision pairs. You can add further dimensions to the matrix while
-preserving the correct combinations:
+Now only the valid revision pairs are produced. The group name (`crate_revisions` here) exists only
+to identify the group within the `compound` map and allow for runtime overriding of the dimension;
+it is not templated into the test plan itself. You can add further dimensions to the matrix as
+normal while preserving the correct compound combinations:
 
 ```yaml
 matrix:
-  # The dimensions key must always be present, even if it is an empty map
   dimensions:
-    graph_ref: [ "graph_1@prod", "graph_2@prod" ]
+    graph_ref: [ "graph_1@prod", "graph_2@dev" ]
 
-  include:
-    - federation_rev: v2.6.2
-      compiler_rev: apollo-compiler@1.28.0
+  compound:
+    crate_revisions:
+      - federation_rev: v2.6.2
+        compiler_rev: apollo-compiler@1.28.0
 
-    - federation_rev: v2.7.0
-      compiler_rev: apollo-compiler@1.30.0
+      - federation_rev: v2.7.0
+        compiler_rev: apollo-compiler@1.30.0
 
+# Produces the following variants:
 # - graph_ref: "graph_1@prod"
 #   federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
@@ -302,14 +309,73 @@ matrix:
 #   federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 #
-# - graph_ref: "graph_2@prod"
+# - graph_ref: "graph_2@dev"
 #   federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
 # 
-# - graph_ref: "graph_2@prod"
+# - graph_ref: "graph_2@dev"
 #   federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 ```
+
+> When working with older test plans you may encounter the `matrix.include` key, which is a
+> deprecated alias for a single compound group named `include`. `matrix.include: [...]` behaves
+> exactly like `matrix.compound: { include:
+> [...] }` and is still supported for backwards
+> compatibility purposes, but if you see it in a test plan you're working with, you should migrate
+> it to use `matrix.compound` instead.
+
+### Combining multiple compound dimensions
+
+Compound dimensions interact with one another in the way you would expect: with each compound
+dimension contributing blocks of values to the expanded set of variants rather than individual ones
+(as with a normal matrix dimension). If in the above example we found that we needed to work with
+the graph name and variant as individual variables, we could express that using a second compound
+dimension like so:
+
+```yaml
+matrix:
+  dimensions: {}
+
+  compound:
+    graph_ref:
+      - graph_name: graph_1
+        variant: prod
+
+      - graph_name: graph_2
+        variant: dev
+
+    crate_revisions:
+      - federation_rev: v2.6.2
+        compiler_rev: apollo-compiler@1.28.0
+
+      - federation_rev: v2.7.0
+        compiler_rev: apollo-compiler@1.30.0
+
+# Produces the following variants:
+# - graph_name: "graph_1"
+#   variant: "prod"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_name: "graph_1"
+#   variant: "prod"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+#
+# - graph_name: "graph_2"
+#   variant: "dev"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_name: "graph_2"
+#   variant: "dev"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+```
+
+Producing the same number of variants as before, but now with the ability to reference graph name
+and variant directly.
 
 ## Full example
 
@@ -328,11 +394,12 @@ matrix:
     bar: [1, 2, 3]
     baz: [true, false]
 
-  include:
-    - a: 4
-      b: 5
-    - a: 6
-      b: 7
+  compound:
+    extra:
+      - a: 4
+        b: 5
+      - a: 6
+        b: 7
 
 custom_providers:
   - kind: local
