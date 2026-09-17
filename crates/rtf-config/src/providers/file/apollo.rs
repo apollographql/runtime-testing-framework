@@ -688,7 +688,7 @@ fn canned_ops_json_lines(canned_ops: Vec<CannedOperation>) -> providers::Result<
 /// ```yaml
 /// - name: license.jwt
 ///   env_var: LICENSE
-///   kind: graphos_offline_license
+///   kind: offline_graphos_license
 ///   graph_id: graph
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]

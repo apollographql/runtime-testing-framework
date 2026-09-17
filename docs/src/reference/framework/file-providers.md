@@ -622,7 +622,7 @@ API.
 ```yaml
 - name: license.jwt
   env_var: LICENSE
-  kind: graphos_offline_license
+  kind: offline_graphos_license
   graph_id: graph
 ```
 

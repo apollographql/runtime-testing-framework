@@ -47,3 +47,11 @@ written using [mdbook][3] in the [docs](./docs) directory.
 [1]: https://apollographql.github.io/runtime-testing-framework/developer/explanation/index.html
 [2]: https://mise.jdx.dev/getting-started.html
 [3]: https://rust-lang.github.io/mdBook/index.html
+
+### Adding the rtf-bot (Apollo Marvin) to your repository
+
+[This link](https://github.com/apps/apollo-marvin/installations/126130299) takes you to the page
+that allows you to configure Apollo Marvin's repository access. You can also navigate to this page
+by going to
+[the settings of the runtime-testing-framework repo](https://github.com/apollographql/runtime-testing-framework/settings)
+-> Integrations (GitHub Apps) and then clicking "Configure" next to the Apollo Marvin app.
