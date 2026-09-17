@@ -1,7 +1,9 @@
 use anyhow::bail;
 use clap::Parser;
+use rtf_cli_shared::init_logging;
 use rtf_orchestrator_cli::{Args, EnvironmentContext, run_command};
 use rustls::crypto::aws_lc_rs;
+use std::io::stdout;
 
 const LOG_LEVEL_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_LOG";
 
@@ -9,8 +11,9 @@ const LOG_LEVEL_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_LOG";
 async fn main() -> anyhow::Result<()> {
     let Args { command, verbose } = Args::parse();
 
-    // Unlike rtf-cli, we start at INFO as our default log level
-    if let Err(e) = rtf_cli_shared::init_logging(LOG_LEVEL_ENV_VAR, verbose + 1) {
+    // Unlike the main rtf-cli, we start at INFO as our default log level and target stdout instead
+    // of stderr in order to not have logs be tagged as errors in the GCP logs view.
+    if let Err(e) = init_logging(LOG_LEVEL_ENV_VAR, verbose + 1, stdout) {
         bail!("unable to initialise logging: {e}");
     };
 
@@ -19,9 +22,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let ctx = match EnvironmentContext::from_environment(command.kubeconfig()).await {
-        Err(e) => {
-            bail!("unable to initialize RTF Orchestrator CLI: {e}");
-        }
+        Err(e) => bail!("unable to initialize RTF Orchestrator CLI: {e}"),
         Ok(context) => context,
     };
 
