@@ -123,11 +123,12 @@ matrix:
   dimensions:
     name: ["foo", "bar"]
     count: [1, 2, 3]
-  include:
-    - fruit: apple
-      color: red
-    - fruit: pear
-      color: green
+  compound:
+    fruits:
+      - fruit: apple
+        color: red
+      - fruit: pear
+        color: green
 ```
 
 ```bash
@@ -187,11 +188,12 @@ matrix:
   dimensions:
     name: ["foo", "bar"]
     count: [1, 2, 3]
-  include:
-    - fruit: apple
-      color: red
-    - fruit: pear
-      color: green
+  compound:
+    fruits:
+      - fruit: apple
+        color: red
+      - fruit: pear
+        color: green
 ```
 
 ```bash
