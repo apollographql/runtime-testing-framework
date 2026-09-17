@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-cbf6aaa5.js";
+            window.path_to_searchindex_js = "searchindex-57d88209.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-9b5efe91.js"></script>
@@ -979,7 +979,7 @@ variables: {}
 matrix:
   variant_names: null
   dimensions: {}
-  include: []
+  compound: {}
 custom_providers: []
 scenario:
   name: Inline scenario config
@@ -1794,7 +1794,7 @@ variables:
 matrix:
   variant_names: null
   dimensions: {}
-  include: []
+  compound: {}
 custom_providers: []
 scenario:
   ...
@@ -2483,7 +2483,7 @@ variables:
 matrix:
   variant_names: null
   dimensions: {}
-  include: []
+  compound: {}
 custom_providers: []
 scenario:
   ...
@@ -3817,11 +3817,12 @@ matrix:
   dimensions:
     name: ["foo", "bar"]
     count: [1, 2, 3]
-  include:
-    - fruit: apple
-      color: red
-    - fruit: pear
-      color: green
+  compound:
+    fruits:
+      - fruit: apple
+        color: red
+      - fruit: pear
+        color: green
 </code></pre>
 <pre><code class="language-bash">rtf expand-matrix test-plan.yaml
 </code></pre>
@@ -3863,11 +3864,12 @@ matrix:
   dimensions:
     name: ["foo", "bar"]
     count: [1, 2, 3]
-  include:
-    - fruit: apple
-      color: red
-    - fruit: pear
-      color: green
+  compound:
+    fruits:
+      - fruit: apple
+        color: red
+      - fruit: pear
+        color: green
 </code></pre>
 <pre><code class="language-bash">rtf expand-matrix test-plan.yaml |
     jq -r '.variants | map(.name) | join("\n")'
@@ -4359,15 +4361,15 @@ generated using the template provided:</p>
 <p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.</p>
-<h3 id="including-explicit-variants"><a class="header" href="#including-explicit-variants">Including explicit variants</a></h3>
-<p>Use <code>matrix.include</code> to define explicit variable combinations instead of full cartesian expansion.
-For example, the following initial matrix expands out to four variants covering different crate
-revisions for inclusion in a Rust build as shown below:</p>
+<h3 id="combining-related-variables"><a class="header" href="#combining-related-variables">Combining related variables</a></h3>
+<p>The following initial matrix expands out to four variants covering different crate revisions for
+inclusion in a Rust build as shown below:</p>
 <pre><code class="language-yaml">matrix:
   dimensions:
     federation_rev: [ "v2.6.2", "v2.7.0" ]
     compiler_rev: [ "apollo-compiler@1.28.0", "apollo-compiler@1.30.0" ]
 
+# Produces the following variants:
 # - federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
 # 
@@ -4380,41 +4382,48 @@ revisions for inclusion in a Rust build as shown below:</p>
 # - federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
-<p>If only certain combinations are valid, two of four variants are invalid. Adding another dimension
-(e.g., <code>graph_ref</code>) compounds the problem with more undesirable variants.</p>
-<p>Use <code>matrix.include</code> to define explicit variable sets. All sets must contain the same variable
-names:</p>
+<p>If each value of <code>federation_rev</code> only has a single matching <code>compiler_rev</code>, two of the resulting
+four variants are invalid. Adding further matrix dimensions makes the problem worse, by adding more
+undesirable variants.</p>
+<p>To fix this, use <code>matrix.compound</code> to define a named <em>compound dimension</em> that groups several
+variables together. Each entry in the compound dimension must contain the same set of variables, and
+only those explicit groups of values will be used to construct the resulting matrix variants:</p>
 <pre><code class="language-yaml">matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions: {}
 
-  include:
-    - federation_rev: v2.6.2
-      compiler_rev: apollo-compiler@1.28.0
+  compound:
+    crate_revisions:
+      - federation_rev: v2.6.2
+        compiler_rev: apollo-compiler@1.28.0
 
-    - federation_rev: v2.7.0
-      compiler_rev: apollo-compiler@1.30.0
+      - federation_rev: v2.7.0
+        compiler_rev: apollo-compiler@1.30.0
 
+# Produces the following variants:
 # - federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
 # 
 # - federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
-<p>This produces only the valid revision pairs. You can add further dimensions to the matrix while
-preserving the correct combinations:</p>
+<p>Now only the valid revision pairs are produced. The group name (<code>crate_revisions</code> here) exists only
+to identify the group within the <code>compound</code> map and allow for runtime overriding of the dimension;
+it is not templated into the test plan itself. You can add further dimensions to the matrix as
+normal while preserving the correct compound combinations:</p>
 <pre><code class="language-yaml">matrix:
-  # The dimensions key must always be present, even if it is an empty map
   dimensions:
-    graph_ref: [ "graph_1@prod", "graph_2@prod" ]
+    graph_ref: [ "graph_1@prod", "graph_2@dev" ]
 
-  include:
-    - federation_rev: v2.6.2
-      compiler_rev: apollo-compiler@1.28.0
+  compound:
+    crate_revisions:
+      - federation_rev: v2.6.2
+        compiler_rev: apollo-compiler@1.28.0
 
-    - federation_rev: v2.7.0
-      compiler_rev: apollo-compiler@1.30.0
+      - federation_rev: v2.7.0
+        compiler_rev: apollo-compiler@1.30.0
 
+# Produces the following variants:
 # - graph_ref: "graph_1@prod"
 #   federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
@@ -4423,14 +4432,68 @@ preserving the correct combinations:</p>
 #   federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 #
-# - graph_ref: "graph_2@prod"
+# - graph_ref: "graph_2@dev"
 #   federation_rev: v2.6.2
 #   compiler_rev: apollo-compiler@1.28.0
 # 
-# - graph_ref: "graph_2@prod"
+# - graph_ref: "graph_2@dev"
 #   federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
+<blockquote>
+<p>When working with older test plans you may encounter the <code>matrix.include</code> key, which is a
+deprecated alias for a single compound group named <code>include</code>. <code>matrix.include: [...]</code> behaves
+exactly like <code>matrix.compound: { include: [...] }</code> and is still supported for backwards
+compatibility purposes, but if you see it in a test plan you’re working with, you should migrate
+it to use <code>matrix.compound</code> instead.</p>
+</blockquote>
+<h3 id="combining-multiple-compound-dimensions"><a class="header" href="#combining-multiple-compound-dimensions">Combining multiple compound dimensions</a></h3>
+<p>Compound dimensions interact with one another in the way you would expect: with each compound
+dimension contributing blocks of values to the expanded set of variants rather than individual ones
+(as with a normal matrix dimension). If in the above example we found that we needed to work with
+the graph name and variant as individual variables, we could express that using a second compound
+dimension like so:</p>
+<pre><code class="language-yaml">matrix:
+  dimensions: {}
+
+  compound:
+    graph_ref:
+      - graph_name: graph_1
+        variant: prod
+
+      - graph_name: graph_2
+        variant: dev
+
+    crate_revisions:
+      - federation_rev: v2.6.2
+        compiler_rev: apollo-compiler@1.28.0
+
+      - federation_rev: v2.7.0
+        compiler_rev: apollo-compiler@1.30.0
+
+# Produces the following variants:
+# - graph_name: "graph_1"
+#   variant: "prod"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_name: "graph_1"
+#   variant: "prod"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+#
+# - graph_name: "graph_2"
+#   variant: "dev"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_name: "graph_2"
+#   variant: "dev"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+</code></pre>
+<p>Producing the same number of variants as before, but now with the ability to reference graph name
+and variant directly.</p>
 <h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
 <p>The following is a minimal “kitchen sink” example of the structure of a valid <code>test-plan.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
@@ -4445,11 +4508,12 @@ matrix:
     bar: [1, 2, 3]
     baz: [true, false]
 
-  include:
-    - a: 4
-      b: 5
-    - a: 6
-      b: 7
+  compound:
+    extra:
+      - a: 4
+        b: 5
+      - a: 6
+        b: 7
 
 custom_providers:
   - kind: local
