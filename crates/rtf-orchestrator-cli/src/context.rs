@@ -21,6 +21,7 @@ pub enum FsErrorKind {
     Read,
     Write,
     SetPermissions,
+    Metadata,
     CreateDir,
     ListFiles,
 }
@@ -31,6 +32,7 @@ impl fmt::Display for FsErrorKind {
             Self::Read => f.write_str("read"),
             Self::Write => f.write_str("write"),
             Self::SetPermissions => f.write_str("set permissions on"),
+            Self::Metadata => f.write_str("read metadata for"),
             Self::CreateDir => f.write_str("create directory"),
             Self::ListFiles => f.write_str("list files under"),
         }
@@ -45,6 +47,13 @@ pub struct FsError {
     pub kind: FsErrorKind,
     #[source]
     pub source: io::Error,
+}
+
+/// A file or directory found while recursively walking a directory tree.
+#[derive(Debug, Clone)]
+pub struct FsEntry {
+    pub path: PathBuf,
+    pub is_dir: bool,
 }
 
 /// Errors produced when invoking shell commands.
@@ -114,11 +123,17 @@ pub trait CliContext {
     /// chmod `path` to `mode`.
     fn set_permissions_mode(&self, path: &Path, mode: u32) -> Result<(), FsError>;
 
+    /// Return the current permissions for `path`.
+    fn permissions(&self, path: &Path) -> Result<Permissions, FsError>;
+
     /// Returns whether a file or directory exists at `path`.
     fn path_exists(&self, path: &Path) -> bool;
 
     /// Recursively list all regular files under `dir`, returning absolute paths.
     fn list_files_under(&self, dir: &Path) -> Result<Vec<PathBuf>, FsError>;
+
+    /// Recursively list all files and directories under `dir`, tagged by kind.
+    fn list_entries_under(&self, dir: &Path) -> Result<Vec<FsEntry>, FsError>;
 
     /// Recursively create a directory and all of its parent components if they are missing.
     fn create_dir_all(&self, path: &Path) -> Result<(), FsError>;
@@ -215,6 +230,16 @@ impl CliContext for EnvironmentContext {
         })
     }
 
+    fn permissions(&self, path: &Path) -> Result<Permissions, FsError> {
+        fs::metadata(path)
+            .map(|m| m.permissions())
+            .map_err(|source| FsError {
+                path: path.to_owned(),
+                kind: FsErrorKind::Metadata,
+                source,
+            })
+    }
+
     fn path_exists(&self, path: &Path) -> bool {
         path.exists()
     }
@@ -222,6 +247,17 @@ impl CliContext for EnvironmentContext {
     fn list_files_under(&self, dir: &Path) -> Result<Vec<PathBuf>, FsError> {
         let mut out = Vec::new();
         walk_files(dir, &mut out).map_err(|source| FsError {
+            path: dir.to_owned(),
+            kind: FsErrorKind::ListFiles,
+            source,
+        })?;
+
+        Ok(out)
+    }
+
+    fn list_entries_under(&self, dir: &Path) -> Result<Vec<FsEntry>, FsError> {
+        let mut out = Vec::new();
+        walk_entries(dir, &mut out).map_err(|source| FsError {
             path: dir.to_owned(),
             kind: FsErrorKind::ListFiles,
             source,
@@ -274,6 +310,27 @@ fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     Ok(())
 }
 
+fn walk_entries(dir: &Path, out: &mut Vec<FsEntry>) -> std::io::Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            out.push(FsEntry {
+                path: path.clone(),
+                is_dir: true,
+            });
+            walk_entries(&path, out)?;
+        } else {
+            out.push(FsEntry {
+                path,
+                is_dir: false,
+            });
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
@@ -282,7 +339,7 @@ pub(crate) mod mocks {
         orchestrator::mocks::MockClient as MockOrchestrator,
     };
     use std::{
-        collections::HashMap,
+        collections::{HashMap, HashSet},
         path::PathBuf,
         sync::{Arc, RwLock},
     };
@@ -293,6 +350,7 @@ pub(crate) mod mocks {
     pub struct MockFs {
         pub files: RwLock<HashMap<PathBuf, Vec<u8>>>,
         pub permissions: RwLock<HashMap<PathBuf, u32>>,
+        pub dirs: RwLock<HashSet<PathBuf>>,
     }
 
     pub struct MockContext {
@@ -380,6 +438,19 @@ pub(crate) mod mocks {
             Ok(())
         }
 
+        fn permissions(&self, path: &Path) -> Result<Permissions, FsError> {
+            let mode = self
+                .fs
+                .permissions
+                .read()
+                .unwrap()
+                .get(path)
+                .copied()
+                .unwrap_or(0o644);
+
+            Ok(Permissions::from_mode(mode))
+        }
+
         fn path_exists(&self, path: &Path) -> bool {
             self.fs.files.read().unwrap().contains_key(path)
         }
@@ -401,7 +472,39 @@ pub(crate) mod mocks {
             Ok(paths)
         }
 
-        fn create_dir_all(&self, _path: &Path) -> Result<(), FsError> {
+        fn list_entries_under(&self, dir: &Path) -> Result<Vec<FsEntry>, FsError> {
+            let mut out: Vec<FsEntry> = self
+                .fs
+                .files
+                .read()
+                .unwrap()
+                .keys()
+                .filter(|p| p.starts_with(dir))
+                .cloned()
+                .map(|path| FsEntry {
+                    path,
+                    is_dir: false,
+                })
+                .chain(
+                    self.fs
+                        .dirs
+                        .read()
+                        .unwrap()
+                        .iter()
+                        .filter(|p| p.starts_with(dir))
+                        .cloned()
+                        .map(|path| FsEntry { path, is_dir: true }),
+                )
+                .collect();
+
+            out.sort_by(|a, b| a.path.cmp(&b.path));
+
+            Ok(out)
+        }
+
+        fn create_dir_all(&self, path: &Path) -> Result<(), FsError> {
+            self.fs.dirs.write().unwrap().insert(path.to_owned());
+
             Ok(())
         }
     }
