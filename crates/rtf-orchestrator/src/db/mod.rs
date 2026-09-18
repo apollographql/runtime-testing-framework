@@ -135,24 +135,61 @@ pub trait UpdateHandle: Send + Sync {
         tr: &TestRun,
     ) -> impl Future<Output = crate::Result<Vec<TestExecution>>> + Send;
 
+    fn try_current_test_run_status(
+        &mut self,
+        tr: &TestRun,
+    ) -> impl Future<Output = crate::Result<Option<StatusUpdate>>> + Send;
+
     fn try_current_test_execution_status(
         &mut self,
         ex: &TestExecution,
     ) -> impl Future<Output = crate::Result<Option<StatusUpdate>>> + Send;
 
-    fn update_test_run_status(
+    fn update_test_run_status_unchecked(
         &mut self,
         tr: &TestRun,
         status: Status,
         message: Option<String>,
     ) -> impl Future<Output = crate::Result<()>> + Send;
 
-    fn update_test_execution_status(
+    fn update_test_execution_status_unchecked(
         &mut self,
         ex: &TestExecution,
         status: Status,
         message: Option<String>,
     ) -> impl Future<Output = crate::Result<()>> + Send;
+
+    fn update_test_run_status(
+        &mut self,
+        tr: &TestRun,
+        status: Status,
+        message: Option<String>,
+    ) -> impl Future<Output = crate::Result<()>> + Send {
+        async move {
+            if let Some(current) = self.try_current_test_run_status(tr).await? {
+                current.status.validate_update(status, None)?;
+            }
+
+            self.update_test_run_status_unchecked(tr, status, message)
+                .await
+        }
+    }
+
+    fn update_test_execution_status(
+        &mut self,
+        ex: &TestExecution,
+        status: Status,
+        message: Option<String>,
+    ) -> impl Future<Output = crate::Result<()>> + Send {
+        async move {
+            if let Some(current) = self.try_current_test_execution_status(ex).await? {
+                current.status.validate_update(status, None)?;
+            }
+
+            self.update_test_execution_status_unchecked(ex, status, message)
+                .await
+        }
+    }
 
     fn mark_run_as_resolving(
         &mut self,
@@ -190,11 +227,31 @@ pub trait UpdateHandle: Send + Sync {
         message: String,
     ) -> impl Future<Output = ()> + Send {
         async move {
-            if let Err(err) = self
-                .update_test_run_status(tr, Status::Cancelled, Some(message.clone()))
-                .await
-            {
-                error!(id=%tr.uuid(), %err, "Unable to mark Test Run as cancelled");
+            let maybe_status = match self.try_current_test_run_status(tr).await {
+                Ok(maybe_status) => maybe_status,
+                Err(err) => {
+                    error!(id=%tr.uuid(), %err, "Unable to fetch Test Run status while attempting to cancel");
+                    return;
+                }
+            };
+
+            if let Some(current) = maybe_status {
+                // Cancelling a run is allowed to override a pre-emptive Unrunnable status we
+                // bubble up from a child execution being marked as Unrunnable. This is the only
+                // status update that flows in the opposite direction.
+                if current.status != Status::Unrunnable
+                    && let Err(err) = current.status.validate_update(Status::Cancelled, None)
+                {
+                    error!(id=%tr.uuid(), %err, "Invalid attempt to cancel test run");
+                    return;
+                }
+
+                if let Err(err) = self
+                    .update_test_run_status_unchecked(tr, Status::Cancelled, Some(message.clone()))
+                    .await
+                {
+                    error!(id=%tr.uuid(), %err, "Unable to mark Test Run as cancelled");
+                }
             }
 
             let executions = match self.executions_for_run(tr).await {
@@ -319,6 +376,13 @@ impl UpdateHandle for PgConnection {
         Ok(tr.executions(self).await?)
     }
 
+    async fn try_current_test_run_status(
+        &mut self,
+        tr: &TestRun,
+    ) -> crate::Result<Option<StatusUpdate>> {
+        Ok(tr.try_current_status(self).await?)
+    }
+
     async fn try_current_test_execution_status(
         &mut self,
         ex: &TestExecution,
@@ -326,29 +390,21 @@ impl UpdateHandle for PgConnection {
         Ok(ex.try_current_status(self).await?)
     }
 
-    async fn update_test_run_status(
+    async fn update_test_run_status_unchecked(
         &mut self,
         tr: &TestRun,
         status: Status,
         message: Option<String>,
     ) -> crate::Result<()> {
-        if let Some(current) = tr.try_current_status(self).await? {
-            current.status.validate_update(status, None)?;
-        }
-
         Ok(tr.set_status(status, message, self).await?)
     }
 
-    async fn update_test_execution_status(
+    async fn update_test_execution_status_unchecked(
         &mut self,
         ex: &TestExecution,
         status: Status,
         message: Option<String>,
     ) -> crate::Result<()> {
-        if let Some(current) = ex.try_current_status(self).await? {
-            current.status.validate_update(status, None)?;
-        }
-
         Ok(ex.set_status(status, message, self).await?)
     }
 
@@ -471,6 +527,21 @@ mod update_handle {
                 .collect())
         }
 
+        async fn try_current_test_run_status(
+            &mut self,
+            tr: &TestRun,
+        ) -> crate::Result<Option<StatusUpdate>> {
+            Ok(self
+                .status_updates
+                .iter()
+                .rev()
+                .filter_map(|u| match u {
+                    TaggedStatusUpdate::Run(id, s) if *id == tr.id() => Some(s.clone()),
+                    _ => None,
+                })
+                .next())
+        }
+
         async fn try_current_test_execution_status(
             &mut self,
             ex: &TestExecution,
@@ -486,7 +557,7 @@ mod update_handle {
                 .next())
         }
 
-        async fn update_test_run_status(
+        async fn update_test_run_status_unchecked(
             &mut self,
             tr: &TestRun,
             status: Status,
@@ -502,7 +573,7 @@ mod update_handle {
             Ok(())
         }
 
-        async fn update_test_execution_status(
+        async fn update_test_execution_status_unchecked(
             &mut self,
             ex: &TestExecution,
             status: Status,
@@ -525,5 +596,44 @@ mod update_handle {
         async fn clear_cached_payload_for_run(&mut self, run_uuid: Uuid) {
             self.cleared_payload_caches.push(run_uuid);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use simple_test_case::test_case;
+
+    // accepted
+    #[test_case(Status::Initialising, true; "initialising")]
+    #[test_case(Status::Resolving, true; "resolving")]
+    #[test_case(Status::Provisioning, true; "provisioning")]
+    #[test_case(Status::EnvironmentReady, true; "environment ready")]
+    #[test_case(Status::Running, true; "running")]
+    #[test_case(Status::Unrunnable, true; "unrunnable")]
+    // rejected
+    #[test_case(Status::Successful, false; "successful")]
+    #[test_case(Status::Failed, false; "failed")]
+    #[test_case(Status::Cancelled, false; "cancelled")]
+    #[tokio::test]
+    async fn mark_run_as_cancelled_gates_correctly(current: Status, should_update: bool) {
+        let tr = TestRun::create_stub(0, "run");
+        let mut mock = MockUpdateHandle::with_run(tr.clone());
+        mock.status_updates
+            .push(TaggedStatusUpdate::run(tr.id(), current, None::<String>));
+
+        mock.mark_run_as_cancelled(&tr, "cancelled by test".into())
+            .await;
+
+        let (expected_status, expected_num_updates) = if should_update {
+            (Status::Cancelled, 2)
+        } else {
+            (current, 1)
+        };
+
+        let statuses = mock.statuses();
+
+        assert_eq!(statuses.last(), Some(&expected_status));
+        assert_eq!(statuses.len(), expected_num_updates);
     }
 }

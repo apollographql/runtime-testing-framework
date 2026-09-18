@@ -212,8 +212,8 @@ impl Status {
         match (self, other) {
             (Successful, Successful) => Successful,
             (Failed, _) | (_, Failed) => Failed,
-            (Unrunnable, _) | (_, Unrunnable) => Unrunnable,
             (Cancelled, _) | (_, Cancelled) => Cancelled,
+            (Unrunnable, _) | (_, Unrunnable) => Unrunnable,
             (Running, _) | (_, Running) => Running,
             (EnvironmentReady, _) | (_, EnvironmentReady) => EnvironmentReady,
             (Provisioning, _) | (_, Provisioning) => Provisioning,
@@ -432,7 +432,6 @@ mod tests {
         assert_eq!(other.combine(Failed), Failed, "other + failed");
     }
 
-    #[test_case(Cancelled; "cancelled")]
     #[test_case(Running; "running")]
     #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
@@ -444,6 +443,9 @@ mod tests {
         assert_eq!(other.combine(Unrunnable), Unrunnable, "other + unrunnable");
     }
 
+    // Cancelled is the one status that overrides a pre-emptive Unrunnable, so it does not
+    // belong in `combine_unrunnable_is_unrunnable` above.
+    #[test_case(Unrunnable; "unrunnable")]
     #[test_case(Running; "running")]
     #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]

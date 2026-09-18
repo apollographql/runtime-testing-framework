@@ -407,6 +407,17 @@ where
                 .filter(|&s| s.is_terminal())
         }
 
+        // Cancelled is allowed to override a pre-emptive Unrunnable run status that was set from
+        // the branch above.
+        (Unrunnable, Cancelled) => {
+            let execution_statuses = (get_sibling_statuses)().await?;
+
+            execution_statuses
+                .into_iter()
+                .reduce(|l, r| l.combine(r))
+                .filter(|&s| s == Cancelled)
+        }
+
         _ => None,
     };
 
@@ -722,6 +733,10 @@ mod tests {
     // should be ignored
     #[test_case(Failed, Successful, &[Failed], None; "final successful but already failed")]
     #[test_case(Unrunnable, Successful, &[Unrunnable], None; "final successful but already unrunnable")]
+    #[test_case(Unrunnable, Failed, &[Unrunnable], None; "final failed but already unrunnable")]
+    // Cancelled is allowed to override an existing Unrunnable status
+    #[test_case(Unrunnable, Cancelled, &[Unrunnable], Some(Cancelled); "cancelled overrides unrunnable")]
+    #[test_case(Unrunnable, Cancelled, &[Unrunnable, Failed], None; "failed sibling outranks cancelled")]
     #[tokio::test]
     async fn status_after_execution_update(
         run_status: Status,
