@@ -37,6 +37,7 @@ workload_clusters:
         failed_execution_ttl_secs: 60
         retry_window_secs: 300
         poll_interval_secs: 10
+        namespace_cleanup_timeout_secs: 90
 
 toolbox:
   pull_policy: IfNotPresent
