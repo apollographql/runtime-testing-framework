@@ -100,89 +100,97 @@
 <a href=#100 id=100 data-nosnippet>100</a>
 <a href=#101 id=101 data-nosnippet>101</a>    <span class="doccomment">/// Delete an ephemeral namespace within the workload cluster.
 <a href=#102 id=102 data-nosnippet>102</a>    </span><span class="kw">fn </span>delete_workload_namespace(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ns: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;()&gt;&gt; + Send;
-<a href=#103 id=103 data-nosnippet>103</a>}
-<a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a><span class="doccomment">/// Kubernetes API actions that interact with both the management and workload clusters.
-<a href=#106 id=106 data-nosnippet>106</a></span><span class="kw">pub trait </span>FullClient: ManagementClient + WorkloadClient {
-<a href=#107 id=107 data-nosnippet>107</a>    <span class="doccomment">/// Wait for a [Workflow] running within the management cluster to reach a terminal state,
-<a href=#108 id=108 data-nosnippet>108</a>    /// selecting the workflow by its execution ID label. The workload cluster is also watched
-<a href=#109 id=109 data-nosnippet>109</a>    /// so that pods stuck in an unrunnable state can short-circuit the wait. Polls every
-<a href=#110 id=110 data-nosnippet>110</a>    /// `poll_interval_secs` and gives up once `retry_window_secs` of consecutive retryable errors
-<a href=#111 id=111 data-nosnippet>111</a>    /// has elapsed.
-<a href=#112 id=112 data-nosnippet>112</a>    </span><span class="kw">fn </span>wait_for_workflow(
-<a href=#113 id=113 data-nosnippet>113</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#114 id=114 data-nosnippet>114</a>        execution_id: <span class="kw-2">&amp;</span>Uuid,
-<a href=#115 id=115 data-nosnippet>115</a>        poll_interval_secs: u64,
-<a href=#116 id=116 data-nosnippet>116</a>        retry_window_secs: u64,
-<a href=#117 id=117 data-nosnippet>117</a>    ) -&gt; <span class="kw">impl </span>Future&lt;Output = WatchOutcome&gt; + Send;
-<a href=#118 id=118 data-nosnippet>118</a>}
-<a href=#119 id=119 data-nosnippet>119</a>
-<a href=#120 id=120 data-nosnippet>120</a><span class="doccomment">/// Terminal states for argo [Workflow]s and k8s [Job]s.
-<a href=#121 id=121 data-nosnippet>121</a></span><span class="attr">#[derive(Debug, Clone)]
-<a href=#122 id=122 data-nosnippet>122</a></span><span class="kw">pub enum </span>WatchOutcome {
-<a href=#123 id=123 data-nosnippet>123</a>    Succeeded,
-<a href=#124 id=124 data-nosnippet>124</a>    Failed(String),
-<a href=#125 id=125 data-nosnippet>125</a>    ContainerUnrunnable(String),
-<a href=#126 id=126 data-nosnippet>126</a>    WatchErrors(String),
-<a href=#127 id=127 data-nosnippet>127</a>}
-<a href=#128 id=128 data-nosnippet>128</a>
-<a href=#129 id=129 data-nosnippet>129</a><span class="kw">impl </span>fmt::Display <span class="kw">for </span>WatchOutcome {
-<a href=#130 id=130 data-nosnippet>130</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#132 id=132 data-nosnippet>132</a>            <span class="self">Self</span>::Succeeded =&gt; <span class="macro">write!</span>(f, <span class="string">"Succeeded"</span>),
-<a href=#133 id=133 data-nosnippet>133</a>            <span class="self">Self</span>::Failed(msg) =&gt; <span class="macro">write!</span>(f, <span class="string">"Failed ({msg})"</span>),
-<a href=#134 id=134 data-nosnippet>134</a>            <span class="self">Self</span>::ContainerUnrunnable(reason) =&gt; {
-<a href=#135 id=135 data-nosnippet>135</a>                <span class="macro">write!</span>(f, <span class="string">"pod stuck in unrunnable waiting state: {reason}"</span>)
-<a href=#136 id=136 data-nosnippet>136</a>            }
-<a href=#137 id=137 data-nosnippet>137</a>            <span class="self">Self</span>::WatchErrors(msg) =&gt; {
-<a href=#138 id=138 data-nosnippet>138</a>                <span class="macro">write!</span>(f, <span class="string">"errors watching for status ({msg})"</span>)
-<a href=#139 id=139 data-nosnippet>139</a>            }
-<a href=#140 id=140 data-nosnippet>140</a>        }
-<a href=#141 id=141 data-nosnippet>141</a>    }
-<a href=#142 id=142 data-nosnippet>142</a>}
-<a href=#143 id=143 data-nosnippet>143</a>
-<a href=#144 id=144 data-nosnippet>144</a><span class="kw">pub fn </span>workflow_name(execution_id: <span class="kw-2">&amp;</span>Uuid) -&gt; String {
-<a href=#145 id=145 data-nosnippet>145</a>    <span class="macro">format!</span>(<span class="string">"provision-env-{execution_id}"</span>)
-<a href=#146 id=146 data-nosnippet>146</a>}
-<a href=#147 id=147 data-nosnippet>147</a>
-<a href=#148 id=148 data-nosnippet>148</a><span class="kw">pub fn </span>env_configmap_name(execution_id: <span class="kw-2">&amp;</span>Uuid) -&gt; String {
-<a href=#149 id=149 data-nosnippet>149</a>    <span class="macro">format!</span>(<span class="string">"environment-config-{execution_id}"</span>)
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Poll `ns` until its pods have been deleted
+<a href=#105 id=105 data-nosnippet>105</a>    </span><span class="kw">fn </span>wait_for_namespace_pods_deleted(
+<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#107 id=107 data-nosnippet>107</a>        ns: <span class="kw-2">&amp;</span>str,
+<a href=#108 id=108 data-nosnippet>108</a>        poll_interval_secs: u64,
+<a href=#109 id=109 data-nosnippet>109</a>        timeout_secs: u64,
+<a href=#110 id=110 data-nosnippet>110</a>    ) -&gt; <span class="kw">impl </span>Future&lt;Output = bool&gt; + Send;
+<a href=#111 id=111 data-nosnippet>111</a>}
+<a href=#112 id=112 data-nosnippet>112</a>
+<a href=#113 id=113 data-nosnippet>113</a><span class="doccomment">/// Kubernetes API actions that interact with both the management and workload clusters.
+<a href=#114 id=114 data-nosnippet>114</a></span><span class="kw">pub trait </span>FullClient: ManagementClient + WorkloadClient {
+<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Wait for a [Workflow] running within the management cluster to reach a terminal state,
+<a href=#116 id=116 data-nosnippet>116</a>    /// selecting the workflow by its execution ID label. The workload cluster is also watched
+<a href=#117 id=117 data-nosnippet>117</a>    /// so that pods stuck in an unrunnable state can short-circuit the wait. Polls every
+<a href=#118 id=118 data-nosnippet>118</a>    /// `poll_interval_secs` and gives up once `retry_window_secs` of consecutive retryable errors
+<a href=#119 id=119 data-nosnippet>119</a>    /// has elapsed.
+<a href=#120 id=120 data-nosnippet>120</a>    </span><span class="kw">fn </span>wait_for_workflow(
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#122 id=122 data-nosnippet>122</a>        execution_id: <span class="kw-2">&amp;</span>Uuid,
+<a href=#123 id=123 data-nosnippet>123</a>        poll_interval_secs: u64,
+<a href=#124 id=124 data-nosnippet>124</a>        retry_window_secs: u64,
+<a href=#125 id=125 data-nosnippet>125</a>    ) -&gt; <span class="kw">impl </span>Future&lt;Output = WatchOutcome&gt; + Send;
+<a href=#126 id=126 data-nosnippet>126</a>}
+<a href=#127 id=127 data-nosnippet>127</a>
+<a href=#128 id=128 data-nosnippet>128</a><span class="doccomment">/// Terminal states for argo [Workflow]s and k8s [Job]s.
+<a href=#129 id=129 data-nosnippet>129</a></span><span class="attr">#[derive(Debug, Clone)]
+<a href=#130 id=130 data-nosnippet>130</a></span><span class="kw">pub enum </span>WatchOutcome {
+<a href=#131 id=131 data-nosnippet>131</a>    Succeeded,
+<a href=#132 id=132 data-nosnippet>132</a>    Failed(String),
+<a href=#133 id=133 data-nosnippet>133</a>    ContainerUnrunnable(String),
+<a href=#134 id=134 data-nosnippet>134</a>    WatchErrors(String),
+<a href=#135 id=135 data-nosnippet>135</a>}
+<a href=#136 id=136 data-nosnippet>136</a>
+<a href=#137 id=137 data-nosnippet>137</a><span class="kw">impl </span>fmt::Display <span class="kw">for </span>WatchOutcome {
+<a href=#138 id=138 data-nosnippet>138</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
+<a href=#139 id=139 data-nosnippet>139</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#140 id=140 data-nosnippet>140</a>            <span class="self">Self</span>::Succeeded =&gt; <span class="macro">write!</span>(f, <span class="string">"Succeeded"</span>),
+<a href=#141 id=141 data-nosnippet>141</a>            <span class="self">Self</span>::Failed(msg) =&gt; <span class="macro">write!</span>(f, <span class="string">"Failed ({msg})"</span>),
+<a href=#142 id=142 data-nosnippet>142</a>            <span class="self">Self</span>::ContainerUnrunnable(reason) =&gt; {
+<a href=#143 id=143 data-nosnippet>143</a>                <span class="macro">write!</span>(f, <span class="string">"pod stuck in unrunnable waiting state: {reason}"</span>)
+<a href=#144 id=144 data-nosnippet>144</a>            }
+<a href=#145 id=145 data-nosnippet>145</a>            <span class="self">Self</span>::WatchErrors(msg) =&gt; {
+<a href=#146 id=146 data-nosnippet>146</a>                <span class="macro">write!</span>(f, <span class="string">"errors watching for status ({msg})"</span>)
+<a href=#147 id=147 data-nosnippet>147</a>            }
+<a href=#148 id=148 data-nosnippet>148</a>        }
+<a href=#149 id=149 data-nosnippet>149</a>    }
 <a href=#150 id=150 data-nosnippet>150</a>}
 <a href=#151 id=151 data-nosnippet>151</a>
-<a href=#152 id=152 data-nosnippet>152</a><span class="attr">#[cfg(test)]
-<a href=#153 id=153 data-nosnippet>153</a></span><span class="kw">mod </span>tests {
-<a href=#154 id=154 data-nosnippet>154</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#155 id=155 data-nosnippet>155</a>    <span class="kw">use </span>kube::error::Status;
-<a href=#156 id=156 data-nosnippet>156</a>    <span class="kw">use </span>simple_test_case::test_case;
-<a href=#157 id=157 data-nosnippet>157</a>
-<a href=#158 id=158 data-nosnippet>158</a>    <span class="kw">fn </span>api_error(code: u16) -&gt; Error {
-<a href=#159 id=159 data-nosnippet>159</a>        Error::Kube(kube::Error::Api(
-<a href=#160 id=160 data-nosnippet>160</a>            Status {
-<a href=#161 id=161 data-nosnippet>161</a>                code,
-<a href=#162 id=162 data-nosnippet>162</a>                ..Default::default()
-<a href=#163 id=163 data-nosnippet>163</a>            }
-<a href=#164 id=164 data-nosnippet>164</a>            .boxed(),
-<a href=#165 id=165 data-nosnippet>165</a>        ))
-<a href=#166 id=166 data-nosnippet>166</a>    }
-<a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="attr">#[test_case(<span class="number">401</span>, <span class="bool-val">true</span>; <span class="string">"401 unauthorized is retryable"</span>)]
-<a href=#169 id=169 data-nosnippet>169</a>    #[test_case(<span class="number">429</span>, <span class="bool-val">true</span>; <span class="string">"429 too many requests is retryable"</span>)]
-<a href=#170 id=170 data-nosnippet>170</a>    #[test_case(<span class="number">500</span>, <span class="bool-val">true</span>; <span class="string">"500 internal server error is retryable"</span>)]
-<a href=#171 id=171 data-nosnippet>171</a>    #[test_case(<span class="number">599</span>, <span class="bool-val">true</span>; <span class="string">"599 top of the server error range is retryable"</span>)]
-<a href=#172 id=172 data-nosnippet>172</a>    #[test_case(<span class="number">403</span>, <span class="bool-val">false</span>; <span class="string">"403 forbidden is not retryable"</span>)]
-<a href=#173 id=173 data-nosnippet>173</a>    #[test_case(<span class="number">404</span>, <span class="bool-val">false</span>; <span class="string">"404 not found is not retryable"</span>)]
-<a href=#174 id=174 data-nosnippet>174</a>    #[test_case(<span class="number">200</span>, <span class="bool-val">false</span>; <span class="string">"success codes are not retryable"</span>)]
-<a href=#175 id=175 data-nosnippet>175</a>    #[test]
-<a href=#176 id=176 data-nosnippet>176</a>    </span><span class="kw">fn </span>is_retryable_classifies_api_error_codes(code: u16, expected: bool) {
-<a href=#177 id=177 data-nosnippet>177</a>        <span class="macro">assert_eq!</span>(api_error(code).is_retryable(), expected);
-<a href=#178 id=178 data-nosnippet>178</a>    }
-<a href=#179 id=179 data-nosnippet>179</a>
-<a href=#180 id=180 data-nosnippet>180</a>    <span class="attr">#[test]
-<a href=#181 id=181 data-nosnippet>181</a>    </span><span class="kw">fn </span>is_retryable_treats_transport_errors_as_retryable() {
-<a href=#182 id=182 data-nosnippet>182</a>        <span class="kw">let </span>err = Error::Kube(kube::Error::Service(Box::new(std::io::Error::other(
-<a href=#183 id=183 data-nosnippet>183</a>            <span class="string">"connection reset"</span>,
-<a href=#184 id=184 data-nosnippet>184</a>        ))));
-<a href=#185 id=185 data-nosnippet>185</a>        <span class="macro">assert!</span>(err.is_retryable());
+<a href=#152 id=152 data-nosnippet>152</a><span class="kw">pub fn </span>workflow_name(execution_id: <span class="kw-2">&amp;</span>Uuid) -&gt; String {
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="macro">format!</span>(<span class="string">"provision-env-{execution_id}"</span>)
+<a href=#154 id=154 data-nosnippet>154</a>}
+<a href=#155 id=155 data-nosnippet>155</a>
+<a href=#156 id=156 data-nosnippet>156</a><span class="kw">pub fn </span>env_configmap_name(execution_id: <span class="kw-2">&amp;</span>Uuid) -&gt; String {
+<a href=#157 id=157 data-nosnippet>157</a>    <span class="macro">format!</span>(<span class="string">"environment-config-{execution_id}"</span>)
+<a href=#158 id=158 data-nosnippet>158</a>}
+<a href=#159 id=159 data-nosnippet>159</a>
+<a href=#160 id=160 data-nosnippet>160</a><span class="attr">#[cfg(test)]
+<a href=#161 id=161 data-nosnippet>161</a></span><span class="kw">mod </span>tests {
+<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#163 id=163 data-nosnippet>163</a>    <span class="kw">use </span>kube::error::Status;
+<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">use </span>simple_test_case::test_case;
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">fn </span>api_error(code: u16) -&gt; Error {
+<a href=#167 id=167 data-nosnippet>167</a>        Error::Kube(kube::Error::Api(
+<a href=#168 id=168 data-nosnippet>168</a>            Status {
+<a href=#169 id=169 data-nosnippet>169</a>                code,
+<a href=#170 id=170 data-nosnippet>170</a>                ..Default::default()
+<a href=#171 id=171 data-nosnippet>171</a>            }
+<a href=#172 id=172 data-nosnippet>172</a>            .boxed(),
+<a href=#173 id=173 data-nosnippet>173</a>        ))
+<a href=#174 id=174 data-nosnippet>174</a>    }
+<a href=#175 id=175 data-nosnippet>175</a>
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="attr">#[test_case(<span class="number">401</span>, <span class="bool-val">true</span>; <span class="string">"401 unauthorized is retryable"</span>)]
+<a href=#177 id=177 data-nosnippet>177</a>    #[test_case(<span class="number">429</span>, <span class="bool-val">true</span>; <span class="string">"429 too many requests is retryable"</span>)]
+<a href=#178 id=178 data-nosnippet>178</a>    #[test_case(<span class="number">500</span>, <span class="bool-val">true</span>; <span class="string">"500 internal server error is retryable"</span>)]
+<a href=#179 id=179 data-nosnippet>179</a>    #[test_case(<span class="number">599</span>, <span class="bool-val">true</span>; <span class="string">"599 top of the server error range is retryable"</span>)]
+<a href=#180 id=180 data-nosnippet>180</a>    #[test_case(<span class="number">403</span>, <span class="bool-val">false</span>; <span class="string">"403 forbidden is not retryable"</span>)]
+<a href=#181 id=181 data-nosnippet>181</a>    #[test_case(<span class="number">404</span>, <span class="bool-val">false</span>; <span class="string">"404 not found is not retryable"</span>)]
+<a href=#182 id=182 data-nosnippet>182</a>    #[test_case(<span class="number">200</span>, <span class="bool-val">false</span>; <span class="string">"success codes are not retryable"</span>)]
+<a href=#183 id=183 data-nosnippet>183</a>    #[test]
+<a href=#184 id=184 data-nosnippet>184</a>    </span><span class="kw">fn </span>is_retryable_classifies_api_error_codes(code: u16, expected: bool) {
+<a href=#185 id=185 data-nosnippet>185</a>        <span class="macro">assert_eq!</span>(api_error(code).is_retryable(), expected);
 <a href=#186 id=186 data-nosnippet>186</a>    }
-<a href=#187 id=187 data-nosnippet>187</a>}
+<a href=#187 id=187 data-nosnippet>187</a>
+<a href=#188 id=188 data-nosnippet>188</a>    <span class="attr">#[test]
+<a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">fn </span>is_retryable_treats_transport_errors_as_retryable() {
+<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">let </span>err = Error::Kube(kube::Error::Service(Box::new(std::io::Error::other(
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="string">"connection reset"</span>,
+<a href=#192 id=192 data-nosnippet>192</a>        ))));
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="macro">assert!</span>(err.is_retryable());
+<a href=#194 id=194 data-nosnippet>194</a>    }
+<a href=#195 id=195 data-nosnippet>195</a>}
 </code></pre></div></section></main></body></html>
