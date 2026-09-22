@@ -100,6 +100,14 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
 
     /// Delete an ephemeral namespace within the workload cluster.
     fn delete_workload_namespace(&mut self, ns: &str) -> impl Future<Output = Result<()>> + Send;
+
+    /// Poll `ns` until its pods have been deleted
+    fn wait_for_namespace_pods_deleted(
+        &mut self,
+        ns: &str,
+        poll_interval_secs: u64,
+        timeout_secs: u64,
+    ) -> impl Future<Output = bool> + Send;
 }
 
 /// Kubernetes API actions that interact with both the management and workload clusters.

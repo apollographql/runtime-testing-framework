@@ -373,6 +373,33 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
 
         Ok(())
     }
+
+    async fn wait_for_namespace_pods_deleted(
+        &mut self,
+        ns: &str,
+        poll_interval_secs: u64,
+        timeout_secs: u64,
+    ) -> bool {
+        let poll_interval = time::Duration::from_secs(poll_interval_secs);
+        let deadline = Utc::now() + Duration::seconds(timeout_secs as i64);
+        let pod_api: Api<Pod> = self.workload_api(ns);
+
+        loop {
+            sleep(poll_interval).await;
+
+            let deleted = pod_api
+                .list(&ListParams::default())
+                .await
+                .map(|pods| pods.items.is_empty())
+                .unwrap_or(false);
+
+            if deleted {
+                return true;
+            } else if Utc::now() >= deadline {
+                return false;
+            }
+        }
+    }
 }
 
 impl FullClient for ClusterClients<AvailableManagement, AvailableWorkload> {

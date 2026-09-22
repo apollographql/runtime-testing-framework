@@ -149,6 +149,8 @@ pub enum EventData {
 
     CleanupNamespace,
     CleanupNamespaceAfter(u64),
+    WaitForNamespacePodDeletion,
+    MarkExecutionComplete,
     MarkUnrunnable(String),
     PurgeNamespace,
 }
@@ -165,6 +167,8 @@ impl EventData {
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespaceAfter(_) => "CleanupNamespaceAfter",
             Self::CleanupNamespace => "CleanupNamespace",
+            Self::WaitForNamespacePodDeletion => "WaitForNamespacePodDeletion",
+            Self::MarkExecutionComplete => "MarkExecutionComplete",
             Self::PurgeNamespace => "PurgeNamespace",
         }
     }
@@ -370,8 +374,38 @@ impl Event {
                     |e| error!(%e, "failed to build workload k8s client for CleanupNamespace"),
                 )?;
 
-                let res =
-                    cleanup_namespace::try_run(self.test_execution.clone(), &mut clients).await;
+                if let Err(e) =
+                    cleanup_namespace::try_run(self.test_execution.clone(), &mut clients).await
+                {
+                    error!(%e, "failed to delete namespace, still waiting for pods to clear");
+                }
+
+                Ok(Some(EventData::WaitForNamespacePodDeletion))
+            }
+
+            EventData::WaitForNamespacePodDeletion => {
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let clients = ClusterClients::try_new_workload(
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build workload k8s client for WaitForNamespaceDeletion"),
+                )?;
+
+                cleanup_namespace::wait_for_deletion(
+                    self.test_execution.clone(),
+                    self.cluster.clone(),
+                    cluster_cfg.execution.poll_interval_secs,
+                    cluster_cfg.execution.namespace_cleanup_timeout_secs,
+                    event_queue.tx(),
+                    clients,
+                )
+                .await
+            }
+
+            EventData::MarkExecutionComplete => {
                 if let Some(run_uuid) = event_queue
                     .mark_execution_complete(self.test_execution.uuid())
                     .await
@@ -379,7 +413,7 @@ impl Event {
                     conn.clear_cached_payload_for_run(run_uuid).await;
                 }
 
-                res
+                Ok(None)
             }
 
             EventData::PurgeNamespace => {
