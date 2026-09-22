@@ -215,9 +215,14 @@ pub struct ClusterExecutionConfig {
     pub scenario_node_selector: BTreeMap<String, String>,
     /// How long to wait, after cleaning up a finished execution's namespace, for its pods to
     /// be removed before freeing its concurrency slot.
+    #[serde(default = "namespace_cleanup_timeout_secs")]
     pub namespace_cleanup_timeout_secs: u64,
     #[serde(default)]
     pub per_user: PerUserExecutionConfig,
+}
+
+fn namespace_cleanup_timeout_secs() -> u64 {
+    90
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
