@@ -21,7 +21,7 @@ pub struct MockClient {
     pub wait_for_workflow: Resp<WatchOutcome>,
     pub wait_for_job: Resp<WatchOutcome>,
     pub delete_workload_namespace: Resp<Result<()>>,
-    pub wait_for_namespace_empty: Resp<bool>,
+    pub wait_for_namespace_pods_deleted: Resp<bool>,
 }
 
 impl MockClient {
@@ -35,7 +35,7 @@ impl MockClient {
             wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
             wait_for_job: Resp::new(WatchOutcome::Succeeded),
             delete_workload_namespace: Resp::new(Ok(())),
-            wait_for_namespace_empty: Resp::new(true),
+            wait_for_namespace_pods_deleted: Resp::new(true),
         }
     }
 }
@@ -85,15 +85,15 @@ impl WorkloadClient for MockClient {
             .expect("delete_workload_namespace called but no outcome configured")
     }
 
-    async fn wait_for_namespace_pods_delete(
+    async fn wait_for_namespace_pods_deleted(
         &mut self,
         _ns: &str,
         _poll_interval_secs: u64,
         _timeout_secs: u64,
     ) -> bool {
-        self.wait_for_namespace_empty
+        self.wait_for_namespace_pods_deleted
             .take()
-            .expect("wait_for_namespace_empty called but no outcome configured")
+            .expect("wait_for_namespace_pods_deleted called but no outcome configured")
     }
 }
 

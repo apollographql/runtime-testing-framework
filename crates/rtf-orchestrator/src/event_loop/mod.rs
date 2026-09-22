@@ -149,7 +149,8 @@ pub enum EventData {
 
     CleanupNamespace,
     CleanupNamespaceAfter(u64),
-    NamespacePodsDeleted,
+    WaitForNamespacePodDeletion,
+    MarkExecutionComplete,
     MarkUnrunnable(String),
     PurgeNamespace,
 }
@@ -166,7 +167,8 @@ impl EventData {
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespaceAfter(_) => "CleanupNamespaceAfter",
             Self::CleanupNamespace => "CleanupNamespace",
-            Self::NamespacePodsDeleted => "NamespacePodsDeleted",
+            Self::WaitForNamespacePodDeletion => "WaitForNamespacePodDeletion",
+            Self::MarkExecutionComplete => "MarkExecutionComplete",
             Self::PurgeNamespace => "PurgeNamespace",
         }
     }
@@ -372,33 +374,38 @@ impl Event {
                     |e| error!(%e, "failed to build workload k8s client for CleanupNamespace"),
                 )?;
 
-                let res =
-                    cleanup_namespace::try_run(self.test_execution.clone(), &mut clients).await;
+                if let Err(e) =
+                    cleanup_namespace::try_run(self.test_execution.clone(), &mut clients).await
+                {
+                    error!(%e, "failed to delete namespace, still waiting for pods to clear");
+                }
 
-                let namespace = self.test_execution.uuid().to_string();
-                let poll_interval_secs = cluster_cfg.execution.poll_interval_secs;
-                let timeout_secs = cluster_cfg.execution.namespace_cleanup_timeout_secs;
-                let etx = event_queue.tx();
-                let test_execution = self.test_execution.clone();
-                let cluster = self.cluster.clone();
-
-                spawn(async move {
-                    cleanup_namespace::wait_and_notify(
-                        &namespace,
-                        test_execution,
-                        cluster,
-                        poll_interval_secs,
-                        timeout_secs,
-                        &etx,
-                        clients,
-                    )
-                    .await;
-                });
-
-                res
+                Ok(Some(EventData::WaitForNamespacePodDeletion))
             }
 
-            EventData::NamespacePodsDeleted => {
+            EventData::WaitForNamespacePodDeletion => {
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let clients = ClusterClients::try_new_workload(
+                    &cluster_cfg.kubeconfig_path(),
+                    &cluster_cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build workload k8s client for WaitForNamespaceDeletion"),
+                )?;
+
+                cleanup_namespace::wait_for_deletion(
+                    self.test_execution.clone(),
+                    self.cluster.clone(),
+                    cluster_cfg.execution.poll_interval_secs,
+                    cluster_cfg.execution.namespace_cleanup_timeout_secs,
+                    event_queue.tx(),
+                    clients,
+                )
+                .await
+            }
+
+            EventData::MarkExecutionComplete => {
                 if let Some(run_uuid) = event_queue
                     .mark_execution_complete(self.test_execution.uuid())
                     .await

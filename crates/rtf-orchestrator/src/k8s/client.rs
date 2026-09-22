@@ -374,7 +374,7 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
         Ok(())
     }
 
-    async fn wait_for_namespace_pods_delete(
+    async fn wait_for_namespace_pods_deleted(
         &mut self,
         ns: &str,
         poll_interval_secs: u64,
@@ -382,39 +382,23 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
     ) -> bool {
         let poll_interval = time::Duration::from_secs(poll_interval_secs);
         let deadline = Utc::now() + Duration::seconds(timeout_secs as i64);
+        let pod_api: Api<Pod> = self.workload_api(ns);
 
         loop {
             sleep(poll_interval).await;
 
-            let pod_api: Api<Pod> = self.workload_api(ns);
-            let is_empty = pod_api
+            let deleted = pod_api
                 .list(&ListParams::default())
                 .await
                 .map(|pods| pods.items.is_empty())
                 .unwrap_or(false);
 
-            if let Some(outcome) =
-                namespace_pods_delete_poll_decision(is_empty, deadline, Utc::now())
-            {
-                return outcome;
+            if deleted {
+                return true;
+            } else if Utc::now() >= deadline {
+                return false;
             }
         }
-    }
-}
-
-/// Whether to stop waiting for a namespace's pods to be gone, given one poll result and how much
-/// of the timeout budget remains. `None` means keep polling.
-fn namespace_pods_delete_poll_decision(
-    is_empty: bool,
-    deadline: DateTime<Utc>,
-    now: DateTime<Utc>,
-) -> Option<bool> {
-    if is_empty {
-        Some(true)
-    } else if now >= deadline {
-        Some(false)
-    } else {
-        None
     }
 }
 
@@ -950,40 +934,5 @@ mod tests {
         );
 
         assert!(matches!(decision, PollDecision::RetryAfterRefresh));
-    }
-
-    #[test]
-    fn namespace_pods_delete_poll_decision_returns_true_when_empty() {
-        // Empty wins even if the deadline has also already passed - being done takes priority
-        // over having timed out.
-        let now = Utc::now();
-        let deadline = now - Duration::seconds(1);
-
-        assert_eq!(
-            namespace_pods_delete_poll_decision(true, deadline, now),
-            Some(true)
-        );
-    }
-
-    #[test]
-    fn namespace_pods_delete_poll_decision_keeps_waiting_before_deadline() {
-        let now = Utc::now();
-        let deadline = now + Duration::seconds(30);
-
-        assert_eq!(
-            namespace_pods_delete_poll_decision(false, deadline, now),
-            None
-        );
-    }
-
-    #[test]
-    fn namespace_pods_delete_poll_decision_gives_up_once_deadline_reached() {
-        let now = Utc::now();
-        let deadline = now - Duration::seconds(1);
-
-        assert_eq!(
-            namespace_pods_delete_poll_decision(false, deadline, now),
-            Some(false)
-        );
     }
 }
