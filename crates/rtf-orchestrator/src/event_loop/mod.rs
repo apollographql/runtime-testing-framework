@@ -374,12 +374,26 @@ impl Event {
 
                 let res =
                     cleanup_namespace::try_run(self.test_execution.clone(), &mut clients).await;
-                if let Some(run_uuid) = event_queue
-                    .mark_execution_complete(self.test_execution.uuid())
-                    .await
-                {
-                    conn.clear_cached_payload_for_run(run_uuid).await;
-                }
+
+                let namespace = self.test_execution.uuid().to_string();
+                let poll_interval_secs = cluster_cfg.execution.poll_interval_secs;
+                let timeout_secs = cluster_cfg.execution.namespace_cleanup_timeout_secs;
+                let etx = event_queue.tx();
+                let test_execution = self.test_execution.clone();
+                let cluster = self.cluster.clone();
+
+                spawn(async move {
+                    cleanup_namespace::wait_and_notify(
+                        &namespace,
+                        test_execution,
+                        cluster,
+                        poll_interval_secs,
+                        timeout_secs,
+                        &etx,
+                        clients,
+                    )
+                    .await;
+                });
 
                 res
             }
