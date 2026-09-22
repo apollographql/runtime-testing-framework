@@ -149,6 +149,7 @@ pub enum EventData {
 
     CleanupNamespace,
     CleanupNamespaceAfter(u64),
+    NamespacePodsDeleted,
     MarkUnrunnable(String),
     PurgeNamespace,
 }
@@ -165,6 +166,7 @@ impl EventData {
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespaceAfter(_) => "CleanupNamespaceAfter",
             Self::CleanupNamespace => "CleanupNamespace",
+            Self::NamespacePodsDeleted => "NamespacePodsDeleted",
             Self::PurgeNamespace => "PurgeNamespace",
         }
     }
@@ -380,6 +382,17 @@ impl Event {
                 }
 
                 res
+            }
+
+            EventData::NamespacePodsDeleted => {
+                if let Some(run_uuid) = event_queue
+                    .mark_execution_complete(self.test_execution.uuid())
+                    .await
+                {
+                    conn.clear_cached_payload_for_run(run_uuid).await;
+                }
+
+                Ok(None)
             }
 
             EventData::PurgeNamespace => {
