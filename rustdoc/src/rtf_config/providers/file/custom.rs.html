@@ -249,7 +249,7 @@
 <a href=#249 id=249 data-nosnippet>249</a>    <span class="kw">use crate</span>::{
 <a href=#250 id=250 data-nosnippet>250</a>        VariableDefinition,
 <a href=#251 id=251 data-nosnippet>251</a>        context::Context,
-<a href=#252 id=252 data-nosnippet>252</a>        inlining::InlineMode,
+<a href=#252 id=252 data-nosnippet>252</a>        inlining::{Inline, InlineMode},
 <a href=#253 id=253 data-nosnippet>253</a>        providers::{
 <a href=#254 id=254 data-nosnippet>254</a>            command::CommandSection,
 <a href=#255 id=255 data-nosnippet>255</a>            file::{FileProvider, NamedFileProvider, RelativeFile, StableSource},
@@ -671,7 +671,7 @@
 <a href=#671 id=671 data-nosnippet>671</a>        });
 <a href=#672 id=672 data-nosnippet>672</a>
 <a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>_res = provider
-<a href=#674 id=674 data-nosnippet>674</a>            .inline(<span class="kw-2">&amp;</span>InlineMode::All, <span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
+<a href=#674 id=674 data-nosnippet>674</a>            .try_inline(InlineMode::All, <span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
 <a href=#675 id=675 data-nosnippet>675</a>            .<span class="kw">await</span>;
 <a href=#676 id=676 data-nosnippet>676</a>    }
 <a href=#677 id=677 data-nosnippet>677</a>}

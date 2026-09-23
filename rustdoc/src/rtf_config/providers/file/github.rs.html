@@ -107,7 +107,7 @@
 <a href=#107 id=107 data-nosnippet>107</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 <a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">use crate</span>::{
 <a href=#109 id=109 data-nosnippet>109</a>        context::Context,
-<a href=#110 id=110 data-nosnippet>110</a>        inlining::InlineMode,
+<a href=#110 id=110 data-nosnippet>110</a>        inlining::{Inline, InlineMode},
 <a href=#111 id=111 data-nosnippet>111</a>        mock_context::MockContext,
 <a href=#112 id=112 data-nosnippet>112</a>        providers::file::{
 <a href=#113 id=113 data-nosnippet>113</a>            FileProvider, InlineFile, ResolveAndWrite,
@@ -161,7 +161,7 @@
 <a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span><span class="kw-2">mut </span>github_file = FileProvider::GithubFile(github_file());
 <a href=#162 id=162 data-nosnippet>162</a>
 <a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">let </span>res = github_file
-<a href=#164 id=164 data-nosnippet>164</a>            .inline(<span class="kw-2">&amp;</span>InlineMode::All, <span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
+<a href=#164 id=164 data-nosnippet>164</a>            .try_inline(InlineMode::All, <span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
 <a href=#165 id=165 data-nosnippet>165</a>            .<span class="kw">await</span>;
 <a href=#166 id=166 data-nosnippet>166</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected provider to inline, got {res:?}"</span>);
 <a href=#167 id=167 data-nosnippet>167</a>        <span class="macro">assert_eq!</span>(
@@ -177,7 +177,7 @@
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span><span class="kw-2">mut </span>github_file = FileProvider::GithubFile(github_file());
 <a href=#178 id=178 data-nosnippet>178</a>
 <a href=#179 id=179 data-nosnippet>179</a>        <span class="kw">let </span>_res = github_file
-<a href=#180 id=180 data-nosnippet>180</a>            .inline(<span class="kw-2">&amp;</span>InlineMode::All, <span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
+<a href=#180 id=180 data-nosnippet>180</a>            .try_inline(InlineMode::All, <span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
 <a href=#181 id=181 data-nosnippet>181</a>            .<span class="kw">await</span>;
 <a href=#182 id=182 data-nosnippet>182</a>    }
 <a href=#183 id=183 data-nosnippet>183</a>

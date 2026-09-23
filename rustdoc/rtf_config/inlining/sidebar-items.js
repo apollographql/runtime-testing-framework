@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErrorKind","InlineMode","InlinedProvider"],"type":["Error","ErrorBuilder","Errors","Result"]};
+window.SIDEBAR_ITEMS = {"enum":["ErrorKind","InlineMode","InlinedProvider"],"trait":["Inline"],"type":["Error","ErrorBuilder","Errors","Result"]};

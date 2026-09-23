@@ -6,9 +6,9 @@
 <a href=#6 id=6 data-nosnippet>6</a>    enum_impl_check, enum_impl_check_array_duplicates, enum_impl_run_environment,
 <a href=#7 id=7 data-nosnippet>7</a>    enum_impl_run_providers,
 <a href=#8 id=8 data-nosnippet>8</a>    formats::{CustomProviderDeclaration, OutputCollection, <span class="prelude-ty">Result</span>},
-<a href=#9 id=9 data-nosnippet>9</a>    inlining::{<span class="self">self</span>, InlineMode, InlinedProvider},
+<a href=#9 id=9 data-nosnippet>9</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider},
 <a href=#10 id=10 data-nosnippet>10</a>    providers::{<span class="self">self</span>, file::StableSource},
-<a href=#11 id=11 data-nosnippet>11</a>    run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
+<a href=#11 id=11 data-nosnippet>11</a>    run::{Provider, RunEnvironment, ValidateEnvironment},
 <a href=#12 id=12 data-nosnippet>12</a>    templating::{<span class="self">self</span>, FileType, Template, TemplateContext},
 <a href=#13 id=13 data-nosnippet>13</a>};
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>rtf_derive::Template;
@@ -115,15 +115,15 @@
 <a href=#115 id=115 data-nosnippet>115</a>    </span>}
 <a href=#116 id=116 data-nosnippet>116</a>}
 <a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a><span class="kw">impl</span>&lt;T: ValidateEnvironment&gt; EnvironmentConfig&lt;T&gt; {
-<a href=#119 id=119 data-nosnippet>119</a>    <span class="kw">pub async fn </span>inline(
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#121 id=121 data-nosnippet>121</a>        mode: <span class="kw-2">&amp;</span>InlineMode,
-<a href=#122 id=122 data-nosnippet>122</a>        ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
-<a href=#123 id=123 data-nosnippet>123</a>        cache: <span class="kw-2">&amp;mut </span>HashMap&lt;u64, InlinedProvider&gt;,
-<a href=#124 id=124 data-nosnippet>124</a>    ) -&gt; inlining::Result&lt;()&gt; {
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="self">self</span>.execution.inline(mode, ctx, cache).<span class="kw">await
-<a href=#126 id=126 data-nosnippet>126</a>    </span>}
+<a href=#118 id=118 data-nosnippet>118</a><span class="kw">impl</span>&lt;T: ValidateEnvironment&gt; Inline <span class="kw">for </span>EnvironmentConfig&lt;T&gt; {
+<a href=#119 id=119 data-nosnippet>119</a>    <span class="kw">fn </span>try_inline&lt;<span class="lifetime">'a</span>&gt;(
+<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
+<a href=#121 id=121 data-nosnippet>121</a>        mode: InlineMode,
+<a href=#122 id=122 data-nosnippet>122</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
+<a href=#123 id=123 data-nosnippet>123</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#124 id=124 data-nosnippet>124</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
+<a href=#125 id=125 data-nosnippet>125</a>        <span class="self">self</span>.execution.try_inline(mode, ctx, cache)
+<a href=#126 id=126 data-nosnippet>126</a>    }
 <a href=#127 id=127 data-nosnippet>127</a>}
 <a href=#128 id=128 data-nosnippet>128</a>
 <a href=#129 id=129 data-nosnippet>129</a><span class="kw">impl</span>&lt;T: ValidateEnvironment&gt; Template <span class="kw">for </span>EnvironmentConfig&lt;T&gt; {
