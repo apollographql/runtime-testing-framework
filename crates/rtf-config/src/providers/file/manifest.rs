@@ -2,14 +2,15 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_resolve_and_write,
-    inlining::{self, InlineMode, InlinedProvider, provider_cache_key},
-    providers::file::StableSource,
-    providers::file::{
-        AsUtf8FileContent, InlineDir, InlineFile, RelativeDir, RelativeFile, RequiredFile,
-        ResolveAndWrite, ResolveFileContent, check_relative_path_specifiers, enum_impl_check,
-        github::GithubFile, utility::TemplatedFile,
+    inlining::{self, Inline, InlineMode, InlinedProvider, provider_cache_key},
+    providers::{
+        self,
+        file::{
+            AsUtf8FileContent, InlineDir, InlineFile, RelativeDir, RelativeFile, RequiredFile,
+            ResolveAndWrite, ResolveFileContent, StableSource, check_relative_path_specifiers,
+            enum_impl_check, github::GithubFile, utility::TemplatedFile,
+        },
     },
-    providers::{self},
     run::{ExtractRelativeFiles, try_read_relative_dir, try_read_relative_file},
     templating::{self, Template, TemplateContext},
 };
@@ -20,6 +21,7 @@ use std::{
     collections::{HashMap, HashSet},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    pin::Pin,
     str::FromStr,
 };
 
@@ -133,61 +135,6 @@ pub enum ManifestFileProvider {
 }
 
 impl ManifestFileProvider {
-    pub async fn inline(
-        &mut self,
-        mode: &InlineMode,
-        ctx: &impl ResolutionContext,
-        cache: &mut HashMap<u64, InlinedProvider>,
-    ) -> inlining::Result<()> {
-        if matches!(self, Self::Inline(_) | Self::InlineDir(_)) {
-            return Ok(());
-        }
-
-        let key = provider_cache_key(&*self);
-        if let Some(cached) = cache.get(&key) {
-            match cached.clone() {
-                InlinedProvider::File(f) => *self = Self::Inline(f),
-                InlinedProvider::Dir(d) => *self = Self::InlineDir(d),
-            }
-
-            return Ok(());
-        }
-
-        match (&mut *self, mode) {
-            (ManifestFileProvider::RelativeDir(inner), _) => {
-                *self = ManifestFileProvider::InlineDir(inner.try_into_inline_files(ctx).await?);
-            }
-            (ManifestFileProvider::RelativePath(inner), _) => {
-                *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-            }
-            (_, InlineMode::RelativeFiles) => return Ok(()),
-            (ManifestFileProvider::GithubFile(inner), InlineMode::All) => {
-                *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-            }
-            (
-                ManifestFileProvider::Inline(_)
-                | ManifestFileProvider::InlineDir(_)
-                | ManifestFileProvider::Templated(_),
-                InlineMode::All,
-            ) => return Ok(()),
-            (ManifestFileProvider::Required(inner), InlineMode::All) => {
-                *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-            }
-        }
-
-        match self {
-            Self::Inline(f) => {
-                cache.insert(key, InlinedProvider::File(f.clone()));
-            }
-            Self::InlineDir(d) => {
-                cache.insert(key, InlinedProvider::Dir(d.clone()));
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
-
     pub fn github_permalink(&self, ctx: &impl ResolutionContext) -> Option<String> {
         match self {
             Self::GithubFile(gh) => Some(gh.permalink()),
@@ -204,6 +151,66 @@ impl ManifestFileProvider {
 
             Self::Inline(_) | Self::InlineDir(_) | Self::Required(_) | Self::Templated(_) => None,
         }
+    }
+}
+
+impl Inline for ManifestFileProvider {
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            if matches!(self, Self::Inline(_) | Self::InlineDir(_)) {
+                return Ok(());
+            }
+
+            let key = provider_cache_key(&*self);
+            if let Some(cached) = cache.get(&key) {
+                match cached.clone() {
+                    InlinedProvider::File(f) => *self = Self::Inline(f),
+                    InlinedProvider::Dir(d) => *self = Self::InlineDir(d),
+                }
+
+                return Ok(());
+            }
+
+            match (&mut *self, mode) {
+                (ManifestFileProvider::RelativeDir(inner), _) => {
+                    *self =
+                        ManifestFileProvider::InlineDir(inner.try_into_inline_files(ctx).await?);
+                }
+                (ManifestFileProvider::RelativePath(inner), _) => {
+                    *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+                }
+                (_, InlineMode::RelativeFiles) => return Ok(()),
+                (ManifestFileProvider::GithubFile(inner), InlineMode::All) => {
+                    *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+                }
+                (
+                    ManifestFileProvider::Inline(_)
+                    | ManifestFileProvider::InlineDir(_)
+                    | ManifestFileProvider::Templated(_),
+                    InlineMode::All,
+                ) => return Ok(()),
+                (ManifestFileProvider::Required(inner), InlineMode::All) => {
+                    *self = ManifestFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+                }
+            }
+
+            match self {
+                Self::Inline(f) => {
+                    cache.insert(key, InlinedProvider::File(f.clone()));
+                }
+                Self::InlineDir(d) => {
+                    cache.insert(key, InlinedProvider::Dir(d.clone()));
+                }
+                _ => {}
+            }
+
+            Ok(())
+        })
     }
 }
 

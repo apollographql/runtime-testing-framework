@@ -249,7 +249,7 @@ mod tests {
     use crate::{
         VariableDefinition,
         context::Context,
-        inlining::InlineMode,
+        inlining::{Inline, InlineMode},
         providers::{
             command::CommandSection,
             file::{FileProvider, NamedFileProvider, RelativeFile, StableSource},
@@ -671,7 +671,7 @@ mod tests {
         });
 
         let _res = provider
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
     }
 }

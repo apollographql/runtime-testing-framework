@@ -1,10 +1,17 @@
 use crate::{
-    providers,
-    providers::file::{InlineDir, InlineFile},
+    context::ResolutionContext,
+    providers::{
+        self,
+        file::{InlineDir, InlineFile},
+    },
     templating,
 };
 use serde::Serialize;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::{
+    collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
+    pin::Pin,
+};
 
 /// User facing descriptions of the reason that inlining a [`crate::providers::file::RelativeFile`] failed.
 ///
@@ -57,7 +64,7 @@ impl From<templating::Errors> for Errors {
 }
 
 /// The mode used to inline files
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InlineMode {
     All,
     RelativeFiles,
@@ -68,6 +75,21 @@ pub enum InlineMode {
 pub enum InlinedProvider {
     File(InlineFile),
     Dir(InlineDir),
+}
+
+pub trait Inline: Send + Sync {
+    // We need to pin thies futures on the heap to be able to poll it in order to avoid a
+    // recursively defined future (which is infinitely sized).
+    //
+    // We end up being recursively defined
+    // because of the various file providers which contain nested providers.
+
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
 }
 
 /// Compute a stable `u64` cache key for a serializable provider.

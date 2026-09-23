@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::environment::manifest::{ManifestEnvironment, NamedManifestFiles},
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{
         self,
         file::{
@@ -69,14 +69,16 @@ impl RunProviders for ComposeResources {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         self.compose_files.named_providers()
     }
+}
 
-    fn inline<'a>(
+impl Inline for ComposeResources {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
-        Box::pin(async move { self.compose_files.inline(mode, ctx, cache).await })
+        self.compose_files.try_inline(mode, ctx, cache)
     }
 }
 
@@ -760,7 +762,7 @@ pub(crate) mod tests {
         };
 
         let result = environment
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");

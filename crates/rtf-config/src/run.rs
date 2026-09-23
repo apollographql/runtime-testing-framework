@@ -6,7 +6,7 @@ use crate::{
     StableSource,
     checks::{Check, CheckArrayDuplicates},
     context::ResolutionContext,
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{
         self,
         command::CommandProvider,
@@ -157,7 +157,7 @@ macro_rules! enum_impl_run_environment {
 pub trait ValidateScenario: RunProviders + Check + Template + CheckArrayDuplicates + Clone {}
 pub trait RunScenario: ValidateScenario + Execute {}
 
-pub trait RunProviders: Send + Sync {
+pub trait RunProviders: Inline + Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
 
     fn contains_custom_providers(&self) -> bool {
@@ -238,37 +238,28 @@ pub trait RunProviders: Send + Sync {
             Ok(())
         }
     }
-
-    // We need to pin these futures on the heap to be able to poll it in order to avoid a
-    // recursively defined future (which is infinitely sized). We end up being recursively
-    // defined because of the FromCommand file provider which is just a wrapper around the
-    // CommandSection struct.
-
-    fn inline<'a>(
-        &'a mut self,
-        mode: &'a InlineMode,
-        ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>>;
 }
 
 #[macro_export]
 macro_rules! enum_impl_run_providers {
     ($enum:ident => $($variant:ident),+) => {
-        impl RunProviders for $enum {
+        impl $crate::run::RunProviders for $enum {
             fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
                 match self {
                     $(Self::$variant(inner) => inner.named_providers(),)+
                 }
             }
-            fn inline<'a>(
+        }
+
+        impl $crate::inlining::Inline for $enum {
+            fn try_inline<'a>(
                 &'a mut self,
-                mode: &'a InlineMode,
+                mode: InlineMode,
                 ctx: &'a impl ResolutionContext,
                 cache: &'a mut HashMap<u64, InlinedProvider>,
             ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
                 match self {
-                    $(Self::$variant(inner) => inner.inline(mode, ctx, cache),)+
+                    $(Self::$variant(inner) => inner.try_inline(mode, ctx, cache),)+
                 }
             }
         }
@@ -281,10 +272,12 @@ impl RunProviders for Vec<NamedFileProvider> {
             .map(|nfp| (nfp.name.as_str(), Provider::File { fp: &nfp.provider }))
             .collect()
     }
+}
 
-    fn inline<'a>(
+impl Inline for Vec<NamedFileProvider> {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
@@ -292,7 +285,7 @@ impl RunProviders for Vec<NamedFileProvider> {
             let mut errs = inlining::ErrorBuilder::new();
 
             for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline(mode, ctx, cache).await);
+                errs.append(nfp.provider.try_inline(mode, ctx, cache).await);
             }
 
             errs.into_result(())
@@ -311,10 +304,12 @@ impl RunProviders for Vec<NamedManifestFileProvider> {
             })
             .collect()
     }
+}
 
-    fn inline<'a>(
+impl Inline for Vec<NamedManifestFileProvider> {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
@@ -322,7 +317,7 @@ impl RunProviders for Vec<NamedManifestFileProvider> {
             let mut errs = inlining::ErrorBuilder::new();
 
             for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline(mode, ctx, cache).await);
+                errs.append(nfp.provider.try_inline(mode, ctx, cache).await);
             }
 
             errs.into_result(())

@@ -1,18 +1,20 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{
         self,
         command::CommandSection,
         file::{RawSource, SourceDir, StableSource},
     },
-    run::RunProviders,
     templating::{self, Scalar, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    pin::Pin,
+};
 
 /// # Custom Provider Definition
 ///
@@ -32,15 +34,6 @@ pub struct CustomProviderDefinition {
 }
 
 impl CustomProviderDefinition {
-    pub async fn inline(
-        &mut self,
-        mode: &InlineMode,
-        ctx: &impl ResolutionContext,
-        cache: &mut HashMap<u64, InlinedProvider>,
-    ) -> inlining::Result<()> {
-        self.command.inline(mode, ctx, cache).await
-    }
-
     /// Validate variable definitions and provided values against allowed_values constraints.
     pub fn validate_variables(
         &self,
@@ -121,6 +114,17 @@ impl Template for CustomProviderDefinition {
 
         self.command
             .try_template_nested(path, "command_section", source, &file_ctx)
+    }
+}
+
+impl Inline for CustomProviderDefinition {
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        self.command.try_inline(mode, ctx, cache)
     }
 }
 

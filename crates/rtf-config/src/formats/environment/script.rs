@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{self, command::CommandSection},
     run::{Execute, Provider, RunEnvironment, RunProviders, ValidateEnvironment},
 };
@@ -64,18 +64,20 @@ impl RunProviders for ScriptEnvironment {
 
         providers
     }
+}
 
-    fn inline<'a>(
+impl Inline for ScriptEnvironment {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.setup.inline(mode, ctx, cache).await);
-            errs.append(self.teardown.inline(mode, ctx, cache).await);
+            errs.append(self.setup.try_inline(mode, ctx, cache).await);
+            errs.append(self.teardown.try_inline(mode, ctx, cache).await);
 
             errs.into_result(())
         })
@@ -370,7 +372,7 @@ pub(crate) mod tests {
         };
 
         let result = environment
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");

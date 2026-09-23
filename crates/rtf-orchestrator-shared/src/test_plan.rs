@@ -8,7 +8,7 @@ use rtf_config::{
         DockerComposeEnvironment, DockerScenario, FileProviderServices, K8sEnvironment,
         NullEnvironment, PrometheusQuery, TestPlan,
     },
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     run::{Provider, RunProviders, ValidateEnvironment},
     templating::Template as _,
 };
@@ -103,17 +103,19 @@ impl RunProviders for OrchestratorEnvironment {
             Self::K8s(inner) => inner.named_providers(),
         }
     }
+}
 
-    fn inline<'a>(
+impl Inline for OrchestratorEnvironment {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
-            Self::Null(inner) => inner.inline(mode, ctx, cache),
-            Self::DockerCompose(inner) => inner.inline(mode, ctx, cache),
-            Self::K8s(inner) => inner.inline(mode, ctx, cache),
+            Self::Null(inner) => inner.try_inline(mode, ctx, cache),
+            Self::DockerCompose(inner) => inner.try_inline(mode, ctx, cache),
+            Self::K8s(inner) => inner.try_inline(mode, ctx, cache),
         }
     }
 }

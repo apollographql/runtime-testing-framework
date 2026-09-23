@@ -3,10 +3,9 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
-    inlining,
     providers::{
         self,
-        file::{AsUtf8FileContent, DirFile, InlineDir, ResolveFileContent},
+        file::{AsUtf8FileContent, DirFile, ResolveFileContent},
     },
     templating::Field,
 };
@@ -26,11 +25,7 @@ use rtf_integrations::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{collections::HashMap, path::Path, sync::Arc};
 use tracing::warn;
 
 /// # GraphOS supergraph SDL
@@ -144,15 +139,6 @@ impl GraphosSubgraphs {
             .collect();
 
         contents
-    }
-
-    pub(crate) async fn inline(&self, ctx: &impl ResolutionContext) -> inlining::Result<InlineDir> {
-        // The target in try_get_all_file_contents is used to prefix the actual file paths
-        // We are not interested in that here so we set a new PathBuf so we just get the file name
-        // as <subgraph_name>.graphql
-        let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
-
-        Ok(InlineDir { files })
     }
 }
 
@@ -891,7 +877,7 @@ mod tests {
     use crate::{
         checks::ErrorKind,
         context::Context,
-        inlining::InlineMode,
+        inlining::{Inline, InlineMode},
         mock_context::MockContext,
         providers::file::{
             FileProvider, InlineFile,
@@ -1561,7 +1547,7 @@ mod tests {
         });
 
         let res = provider
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
@@ -1598,7 +1584,7 @@ mod tests {
         });
 
         let res = provider
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 

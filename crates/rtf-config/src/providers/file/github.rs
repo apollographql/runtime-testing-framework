@@ -107,7 +107,7 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        inlining::InlineMode,
+        inlining::{Inline, InlineMode},
         mock_context::MockContext,
         providers::file::{
             FileProvider, InlineFile, ResolveAndWrite,
@@ -161,7 +161,7 @@ mod tests {
         let mut github_file = FileProvider::GithubFile(github_file());
 
         let res = github_file
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
         assert_eq!(
@@ -177,7 +177,7 @@ mod tests {
         let mut github_file = FileProvider::GithubFile(github_file());
 
         let _res = github_file
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
     }
 

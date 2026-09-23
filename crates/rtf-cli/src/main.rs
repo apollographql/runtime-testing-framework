@@ -103,7 +103,7 @@ async fn main() {
                 args.github,
                 args.git_ref,
                 variables.into(),
-                &mode,
+                mode,
                 &args.outdir,
                 args.force,
             )

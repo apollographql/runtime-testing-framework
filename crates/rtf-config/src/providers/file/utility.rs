@@ -3,18 +3,18 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_as_utf8_file_content, enum_impl_check,
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, provider_cache_key},
     merge_yaml,
-    providers::file::StableSource,
     providers::{
         self, Result,
         command::CommandSection,
         file::{
             AsUtf8FileContent, FileProvider, InlineFile, RelativeFile, RequiredFile,
-            ResolveAndWrite, apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
+            ResolveAndWrite, StableSource, apollo::GraphosSubgraphRouterUrlOverrides,
+            github::GithubFile,
         },
     },
-    run::{Execute, ExtractRelativeFiles, RunProviders, try_read_relative_file},
+    run::{Execute, ExtractRelativeFiles, try_read_relative_file},
     templating::{
         self, Scalar, Template, TemplateContext, extract_template_vars, interpolate_variables,
     },
@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
+    pin::Pin,
 };
 use tracing::error;
 
@@ -124,16 +125,47 @@ pub enum MergeFileProvider {
     Templated(TemplatedFile),
 }
 
-impl MergeFileProvider {
-    pub(crate) async fn inline_all_relative_paths<'a>(
+impl Inline for MergeFileProvider {
+    fn try_inline<'a>(
         &'a mut self,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> inlining::Result<()> {
-        if let Self::RelativePath(relative_path) = self {
-            *self = Self::Inline(relative_path.try_into_inline_file(ctx).await?);
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        macro_rules! inline {
+            ($fp:expr) => {
+                *self = Self::Inline($fp.try_into_inline_file(ctx).await?)
+            };
         }
 
-        Ok(())
+        Box::pin(async move {
+            let key = provider_cache_key(&*self);
+            if let Some(cached) = cache.get(&key) {
+                match cached.clone() {
+                    InlinedProvider::File(f) => *self = Self::Inline(f),
+                    InlinedProvider::Dir(_) => unreachable!("no dir producing providers"),
+                }
+
+                return Ok(());
+            }
+
+            match (&mut *self, mode) {
+                (Self::Inline(_), _) => (),
+                (Self::RelativePath(fp), _) => inline!(fp),
+                (_, InlineMode::RelativeFiles) => (),
+
+                (Self::GithubFile(fp), InlineMode::All) => inline!(fp),
+                (Self::GraphosSubgraphRouterUrlOverrides(fp), InlineMode::All) => inline!(fp),
+                (Self::Required(fp), InlineMode::All) => inline!(fp),
+                (Self::Templated(fp), InlineMode::All) => inline!(fp),
+            }
+
+            if let Self::Inline(f) = self {
+                cache.insert(key, InlinedProvider::File(f.clone()));
+            };
+
+            Ok(())
+        })
     }
 }
 
@@ -294,17 +326,21 @@ impl ExtractRelativeFiles for MergeYaml {
     }
 }
 
-impl MergeYaml {
-    pub(crate) async fn inline_all_relative_paths<'a>(
+impl Inline for MergeYaml {
+    fn try_inline<'a>(
         &'a mut self,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> inlining::Result<()> {
-        let mut errs = inlining::ErrorBuilder::new();
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
 
-        errs.append(self.base.inline_all_relative_paths(ctx).await);
-        errs.append(self.overrides.inline_all_relative_paths(ctx).await);
+            errs.append(self.base.try_inline(mode, ctx, cache).await);
+            errs.append(self.overrides.try_inline(mode, ctx, cache).await);
 
-        errs.into_result(())
+            errs.into_result(())
+        })
     }
 }
 
@@ -322,25 +358,31 @@ impl Overrides {
             Self::Array(ts) => ts.len(),
         }
     }
+}
 
-    async fn inline_all_relative_paths<'a>(
+impl Inline for Overrides {
+    fn try_inline<'a>(
         &'a mut self,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> inlining::Result<()> {
-        let mut errs = inlining::ErrorBuilder::new();
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
 
-        match self {
-            Self::One(merge_file_provider) => {
-                errs.append(merge_file_provider.inline_all_relative_paths(ctx).await);
-            }
-            Self::Array(merge_file_providers) => {
-                for mfp in merge_file_providers.iter_mut() {
-                    errs.append(mfp.inline_all_relative_paths(ctx).await);
+            match self {
+                Self::One(fp) => {
+                    errs.append(fp.try_inline(mode, ctx, cache).await);
+                }
+                Self::Array(fps) => {
+                    for fp in fps.iter_mut() {
+                        errs.append(fp.try_inline(mode, ctx, cache).await);
+                    }
                 }
             }
-        }
 
-        errs.into_result(())
+            errs.into_result(())
+        })
     }
 }
 
@@ -404,15 +446,6 @@ impl FromCommand {
     pub(crate) fn new(inner: CommandSection) -> Self {
         Self { inner }
     }
-
-    pub(crate) async fn inline(
-        &mut self,
-        mode: &InlineMode,
-        ctx: &impl ResolutionContext,
-        cache: &mut HashMap<u64, InlinedProvider>,
-    ) -> inlining::Result<()> {
-        self.inner.inline(mode, ctx, cache).await
-    }
 }
 
 impl ResolveAndWrite for FromCommand {
@@ -455,6 +488,17 @@ impl Check for FromCommand {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         self.inner.try_check(path, ctx)
+    }
+}
+
+impl Inline for FromCommand {
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        self.inner.try_inline(mode, ctx, cache)
     }
 }
 
@@ -1059,7 +1103,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn text_file_provider_inline_all_relative_paths_succeeds() {
+    async fn text_file_try_inline_succeeds() {
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
@@ -1071,7 +1115,9 @@ mod tests {
             src: Some(StableSource::TestPlan),
         });
 
-        let result = text_file_provider.inline_all_relative_paths(&ctx).await;
+        let result = text_file_provider
+            .try_inline(InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
+            .await;
         let expected_text_file_provider = MergeFileProvider::Inline(InlineFile {
             content: file_content.to_string(),
         });
@@ -1083,8 +1129,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn text_file_provider_inline_all_relative_paths_succeeds_and_leaves_inline_text_file_provider_unchanged()
-     {
+    async fn text_file_provider_try_inline_succeeds_and_leaves_inline_text_file_provider_unchanged()
+    {
         let ctx = Context::new();
         let file_content = "example file content";
 
@@ -1093,7 +1139,9 @@ mod tests {
         });
         let expected_text_file_provider = text_file_provider.clone();
 
-        let result = text_file_provider.inline_all_relative_paths(&ctx).await;
+        let result = text_file_provider
+            .try_inline(InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
+            .await;
         assert!(
             result.is_ok(),
             "Expected inline_all_relative_paths to succeed, got {result:?}"
@@ -1104,7 +1152,7 @@ mod tests {
     #[test_case(1; "one override")]
     #[test_case(2; "multiple overrides")]
     #[tokio::test]
-    async fn merge_yaml_inline_all_relative_paths_succeeds(num_overrides: u8) {
+    async fn merge_yaml_try_inline_succeeds(num_overrides: u8) {
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
@@ -1136,7 +1184,9 @@ mod tests {
             overrides,
         };
 
-        let result = merge_yaml.inline_all_relative_paths(&ctx).await;
+        let result = merge_yaml
+            .try_inline(InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
+            .await;
 
         let expected_overrides = match num_overrides {
             1 => Overrides::One(MergeFileProvider::Inline(InlineFile {
@@ -1181,7 +1231,7 @@ mod tests {
         });
 
         let result = file_provider
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
@@ -1213,7 +1263,7 @@ mod tests {
         });
 
         let _res = file_provider
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
     }
 

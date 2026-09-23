@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result, output_collection::OutputCollection},
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{
         self,
         command::CommandSection,
@@ -53,15 +53,6 @@ impl ScenarioConfig<ScenarioExecution> {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    pub async fn inline(
-        &mut self,
-        mode: &InlineMode,
-        ctx: &impl ResolutionContext,
-        cache: &mut HashMap<u64, InlinedProvider>,
-    ) -> inlining::Result<()> {
-        self.execution.inline(mode, ctx, cache).await
-    }
-
     pub fn output_collection(&self) -> Option<&OutputCollection> {
         match &self.execution {
             ScenarioExecution::Docker(ex) => Some(&ex.output_collection),
@@ -85,6 +76,17 @@ impl ScenarioConfig<ScenarioExecution> {
             custom_providers: Default::default(),
             execution: ScenarioExecution::Script(CommandSection::empty()),
         }
+    }
+}
+
+impl<T: ValidateScenario> Inline for ScenarioConfig<T> {
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        self.execution.try_inline(mode, ctx, cache)
     }
 }
 
@@ -205,16 +207,18 @@ impl RunProviders for ScenarioExecution {
             Self::Script(inner) => inner.named_providers(),
         }
     }
+}
 
-    fn inline<'a>(
+impl Inline for ScenarioExecution {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
-            Self::Docker(inner) => inner.file_providers.inline(mode, ctx, cache),
-            Self::Script(inner) => inner.inline(mode, ctx, cache),
+            Self::Docker(inner) => inner.file_providers.try_inline(mode, ctx, cache),
+            Self::Script(inner) => inner.try_inline(mode, ctx, cache),
         }
     }
 }
@@ -421,14 +425,16 @@ impl RunProviders for DockerScenario {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         self.file_providers.named_providers()
     }
+}
 
-    fn inline<'a>(
+impl Inline for DockerScenario {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
-        self.file_providers.inline(mode, ctx, cache)
+        self.file_providers.try_inline(mode, ctx, cache)
     }
 }
 
@@ -1184,7 +1190,7 @@ mod tests {
         };
 
         let result = scenario
-            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .try_inline(InlineMode::All, &ctx, &mut HashMap::new())
             .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");

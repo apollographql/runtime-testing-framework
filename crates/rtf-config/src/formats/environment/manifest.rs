@@ -2,7 +2,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::{PathKind, ResolutionContext},
     formats::OutputCollection,
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{
         self,
         file::{
@@ -158,7 +158,7 @@ impl<M: ValidateEnvironment + NamedManifestFiles> ManifestEnvironment<M> {
         errs.append(
             self.resources
                 .manifest_files_mut()
-                .inline(&InlineMode::All, ctx, cache)
+                .try_inline(InlineMode::All, ctx, cache)
                 .await,
         );
 
@@ -199,18 +199,20 @@ impl<M: ValidateEnvironment> RunProviders for ManifestEnvironment<M> {
 
         providers
     }
+}
 
-    fn inline<'a>(
+impl<M: ValidateEnvironment> Inline for ManifestEnvironment<M> {
+    fn try_inline<'a>(
         &'a mut self,
-        mode: &'a InlineMode,
+        mode: InlineMode,
         ctx: &'a impl ResolutionContext,
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.resources.inline(mode, ctx, cache).await);
-            errs.append(self.file_providers.inline(mode, ctx, cache).await);
+            errs.append(self.resources.try_inline(mode, ctx, cache).await);
+            errs.append(self.file_providers.try_inline(mode, ctx, cache).await);
 
             errs.into_result(())
         })
