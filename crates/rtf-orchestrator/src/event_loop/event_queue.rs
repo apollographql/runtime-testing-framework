@@ -10,8 +10,7 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    inlining::InlineMode,
-    run::RunProviders,
+    inlining::{Inline, InlineMode},
     templating::{Template, TemplateContext},
 };
 use rtf_orchestrator_shared::{
@@ -664,8 +663,8 @@ impl ProvisioningHandle {
         test_plan
             .environment
             .execution
-            .inline(
-                &InlineMode::All,
+            .try_inline(
+                InlineMode::All,
                 ctx.as_ref(),
                 &mut *inline_cache.lock().await,
             )
@@ -674,8 +673,8 @@ impl ProvisioningHandle {
         test_plan
             .scenario
             .execution
-            .inline(
-                &InlineMode::All,
+            .try_inline(
+                InlineMode::All,
                 ctx.as_ref(),
                 &mut *inline_cache.lock().await,
             )

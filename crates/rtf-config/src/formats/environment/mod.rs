@@ -6,9 +6,9 @@ use crate::{
     enum_impl_check, enum_impl_check_array_duplicates, enum_impl_run_environment,
     enum_impl_run_providers,
     formats::{CustomProviderDeclaration, OutputCollection, Result},
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{self, file::StableSource},
-    run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
+    run::{Provider, RunEnvironment, ValidateEnvironment},
     templating::{self, FileType, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -115,14 +115,14 @@ impl<T: RunEnvironment> EnvironmentConfig<T> {
     }
 }
 
-impl<T: ValidateEnvironment> EnvironmentConfig<T> {
-    pub async fn inline(
-        &mut self,
-        mode: &InlineMode,
-        ctx: &impl ResolutionContext,
-        cache: &mut HashMap<u64, InlinedProvider>,
-    ) -> inlining::Result<()> {
-        self.execution.inline(mode, ctx, cache).await
+impl<T: ValidateEnvironment> Inline for EnvironmentConfig<T> {
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        self.execution.try_inline(mode, ctx, cache)
     }
 }
 

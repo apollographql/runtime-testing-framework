@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers,
     run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
 };
@@ -65,14 +65,16 @@ impl RunProviders for NullEnvironment {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         Vec::new()
     }
+}
 
-    fn inline<'a>(
+impl Inline for NullEnvironment {
+    fn try_inline<'a>(
         &'a mut self,
-        _mode: &'a InlineMode,
+        _mode: InlineMode,
         _ctx: &'a impl ResolutionContext,
         _cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
-        Box::pin(async move { Ok(()) })
+        Box::pin(async { Ok(()) })
     }
 }
 

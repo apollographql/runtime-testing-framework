@@ -6,7 +6,7 @@ use rtf_config::{
     StableSource,
     context::ResolutionContext,
     formats::{PrepareOnlyTestPlanConfig, Sources},
-    inlining::{self, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     templating::{Template, TemplateContext},
 };
 use rtf_core::variables::Variables;
@@ -20,7 +20,7 @@ pub async fn inline_test_plan(
     github: bool,
     git_ref: Option<String>,
     variables: Variables,
-    mode: &InlineMode,
+    mode: InlineMode,
     outdir: &str,
     force: bool,
 ) -> anyhow::Result<()> {
@@ -38,7 +38,7 @@ pub async fn inline_test_plan(
 async fn inline_file_providers_with_context(
     mut test_plan: PrepareOnlyTestPlanConfig,
     sources: Sources,
-    mode: &InlineMode,
+    mode: InlineMode,
     variables: Variables,
     mut ctx: impl ResolutionContext,
     outdir: &str,
@@ -90,10 +90,10 @@ async fn inline_file_providers_with_context(
 
 async fn inline_file_providers(
     test_plan: &mut PrepareOnlyTestPlanConfig,
-    mode: &InlineMode,
+    mode: InlineMode,
     ctx: &mut impl ResolutionContext,
     template_variables: &HashMap<String, StableSource>,
-    inline_cache: &mut HashMap<u64, InlinedProvider>,
+    cache: &mut HashMap<u64, InlinedProvider>,
 ) -> inlining::Result<()> {
     let mut errs = inlining::ErrorBuilder::new();
 
@@ -112,15 +112,15 @@ async fn inline_file_providers(
 
     // Inline all file providers after templating
     info!("inlining file providers for test plan");
-    errs.append(test_plan.scenario.inline(mode, ctx, inline_cache).await);
-    errs.append(test_plan.environment.inline(mode, ctx, inline_cache).await);
+    errs.append(test_plan.scenario.try_inline(mode, ctx, cache).await);
+    errs.append(test_plan.environment.try_inline(mode, ctx, cache).await);
 
     errs.into_result(())
 }
 
 async fn inline_one(
     test_plan: &mut PrepareOnlyTestPlanConfig,
-    mode: &InlineMode,
+    mode: InlineMode,
     template_variables: &HashMap<String, StableSource>,
     outdir: &Path,
     test_plan_name: Option<String>,
