@@ -413,21 +413,36 @@ impl Inline for FileProvider {
                 };
             }
 
+            macro_rules! inline_inner {
+                ($fp:expr) => {
+                    match mode {
+                        InlineMode::RelativeFiles => $fp.try_inline(mode, ctx, cache).await?,
+                        InlineMode::All => {
+                            *self = FileProvider::Inline($fp.try_into_inline_file(ctx).await?)
+                        }
+                    }
+                };
+            }
+
             match &mut *self {
                 // already in inline form and checked above
                 Self::Inline(_) | Self::InlineDir(_) => unreachable!("checked above"),
+
+                // custom providers must be expanded before inlining
+                Self::CustomProvider(_) => panic!("should have been expanded before getting here"),
 
                 // relative providers always inline regardless of mode
                 Self::RelativeDir(fp) => *self = fp.try_into_inline_file_provider(ctx).await?,
                 Self::RelativePath(fp) => *self = fp.try_into_inline_file_provider(ctx).await?,
 
+                // FromCommand inlines the providers inside of it but doesn't execute the script
+                Self::FromCommand(fp) => fp.inner.try_inline(mode, ctx, cache).await?,
+
                 // providers that only inline when mode == All
                 Self::BuildRouterFromSource(fp) => inline_if_all!(fp),
                 Self::Conditional(fp) => inline_if_all!(fp),
-                Self::CustomProvider(fp) => inline_if_all!(fp),
                 Self::GithubFile(fp) => inline_if_all!(fp),
                 Self::GraphosCannedOps(fp) => inline_if_all!(fp),
-                Self::GraphosCannedOpsById(fp) => inline_if_all!(fp),
                 Self::GraphosSubgraphRouterUrlOverrides(fp) => inline_if_all!(fp),
                 Self::GraphosSubgraphs(fp) => inline_if_all!(fp),
                 Self::GraphosSubgraphNames(fp) => inline_if_all!(fp),
@@ -437,16 +452,9 @@ impl Inline for FileProvider {
                 Self::RouterDownloadScript(fp) => inline_if_all!(fp),
                 Self::Templated(fp) => inline_if_all!(fp),
 
-                // FromCommand inlines the providers inside of it but doesn't execute the script
-                Self::FromCommand(fp) => fp.inner.try_inline(mode, ctx, cache).await?,
-
-                // MergeYaml inlines inner relative files where possible
-                Self::MergeYaml(fp) => match mode {
-                    InlineMode::RelativeFiles => fp.try_inline(mode, ctx, cache).await?,
-                    InlineMode::All => {
-                        *self = FileProvider::Inline(fp.try_into_inline_file(ctx).await?)
-                    }
-                },
+                // providers that inline inner relative files where possible
+                Self::GraphosCannedOpsById(fp) => inline_inner!(fp),
+                Self::MergeYaml(fp) => inline_inner!(fp),
             }
 
             match self {
@@ -1165,9 +1173,9 @@ mod tests {
         r#"
         kind: graphos_canned_ops_by_id
         graph_ref: "{{ graph_ref }}"
-        operation_ids:
-          - "{{ op_1 }}"
-          - "{{ op_2 }}"
+        operations:
+          kind: relative_path
+          path: "{{ ops }}"
     "#
     );
     const GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES: &str = indoc!(
@@ -1306,7 +1314,7 @@ mod tests {
     #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations", "time_range"]; "graphos_canned_ops")]
-    #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "op_1", "op_2"]; "graphos_canned_ops_by_id")]
+    #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "ops"]; "graphos_canned_ops_by_id")]
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
     #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
     #[test_case(GRAPHOS_SUBGRAPH_NAMES, &["graph_ref"]; "graphos_subgraph_names")]

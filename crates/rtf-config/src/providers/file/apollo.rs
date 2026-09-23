@@ -3,9 +3,10 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
+    inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{
         self,
-        file::{AsUtf8FileContent, DirFile, ResolveFileContent},
+        file::{AsUtf8FileContent, DirFile, ResolveFileContent, utility::TextFileProvider},
     },
     templating::Field,
 };
@@ -25,7 +26,7 @@ use rtf_integrations::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, pin::Pin, sync::Arc};
 use tracing::warn;
 
 /// # GraphOS supergraph SDL
@@ -590,28 +591,30 @@ impl Check for GraphosCannedOps {
 
 /// # GraphOS canned operations by ID
 ///
-/// The user specifies the graph ref and parameters that should be used to
-/// generate canned GraphQL requests based on operations data obtained from
-/// the GraphOS API.
+/// The user specifies the graph ref and a set of operation IDs to be fetched
+/// from the GraphOS API for generating canned GraphQL requests.
 ///
 /// ```yaml
 /// - name: canned_ops.json
 ///   env_var: CANNED_OPS_FILE
 ///   kind: graphos_canned_ops_by_id
 ///   graph_ref: graph@variant
-///   operation_ids:
-///     - 5b1f8a2a1bd4be697559013a23fcbcb9186afe77
-///     - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
-///     - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
+///   operation:
+///     kind: inline
+///     content: |
+///       5b1f8a2a1bd4be697559013a23fcbcb9186afe77
+///       3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
+///       50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosCannedOpsById {
     /// The Apollo graph ref to pull operations for.
     pub graph_ref: Field<String>,
-    /// Operation IDs from the Apollo studio API for the operations you want to
-    /// work with as queried from an `OperationInsightsListItem` in the Studio
-    /// graphQL API.
-    pub operation_ids: Vec<Field<String>>,
+    /// A text file provider containing the operation IDs from the Apollo studio API for the
+    /// operations you want to work with as queried from an `OperationInsightsListItem` in the
+    /// Studio graphQL API.
+    /// Operations must be specified one per-line
+    pub operations: TextFileProvider,
 }
 
 impl AsUtf8FileContent for GraphosCannedOpsById {
@@ -631,10 +634,13 @@ impl AsUtf8FileContent for GraphosCannedOpsById {
 
         let client = ctx.platform_client().expect("to have a platform client");
         let ids: Vec<String> = self
-            .operation_ids
-            .iter()
-            .map(|id| id.as_resolved().clone())
+            .operations
+            .try_get_file_content(ctx)
+            .await?
+            .lines()
+            .map(|s| s.trim().to_string())
             .collect();
+
         let canned_ops = canned_ops_for_ids(&details, ids, client).await?;
 
         canned_ops_json_lines(canned_ops)
@@ -648,6 +654,17 @@ impl Check for GraphosCannedOpsById {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
+impl Inline for GraphosCannedOpsById {
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        self.operations.try_inline(mode, ctx, cache)
     }
 }
 
@@ -958,7 +975,9 @@ mod tests {
     fn canned_ops_by_id(graph_ref: &str) -> FileProvider {
         FileProvider::GraphosCannedOpsById(GraphosCannedOpsById {
             graph_ref: Field::Resolved(graph_ref.to_string()),
-            operation_ids: Vec::new(),
+            operations: TextFileProvider::Inline(InlineFile {
+                content: String::new(),
+            }),
         })
     }
 
