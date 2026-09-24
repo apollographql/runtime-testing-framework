@@ -659,9 +659,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[should_panic(
-        expected = "Should not be able to get here. Custom provider should have been expanded when templating the config."
-    )]
+    #[should_panic(expected = "should have been expanded before getting here")]
     async fn custom_provider_inline_all_files_panics() {
         let ctx = Context::new();
         let mut provider = FileProvider::CustomProvider(CustomProvider {

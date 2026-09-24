@@ -111,6 +111,78 @@ impl Check for TemplatedFile {
     }
 }
 
+macro_rules! enum_impl_file_provider {
+    ($name:ident; $($variant:ident),+) => {
+        enum_impl_check!($name => $($variant),+);
+        enum_impl_as_utf8_file_content!($name => $($variant),+);
+    };
+}
+
+/// # Text file provider
+///
+/// A subset of file providers that can return plain text.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum TextFileProvider {
+    GithubFile(GithubFile),
+    Inline(InlineFile),
+    RelativePath(RelativeFile),
+    Required(RequiredFile),
+    Templated(TemplatedFile),
+}
+
+impl Inline for TextFileProvider {
+    fn try_inline<'a>(
+        &'a mut self,
+        mode: InlineMode,
+        ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
+        macro_rules! inline {
+            ($fp:expr) => {
+                *self = Self::Inline($fp.try_into_inline_file(ctx).await?)
+            };
+        }
+
+        Box::pin(async move {
+            let key = provider_cache_key(&*self);
+            if let Some(cached) = cache.get(&key) {
+                match cached.clone() {
+                    InlinedProvider::File(f) => *self = Self::Inline(f),
+                    InlinedProvider::Dir(_) => unreachable!("no dir producing providers"),
+                }
+
+                return Ok(());
+            }
+
+            match (&mut *self, mode) {
+                (Self::Inline(_), _) => (),
+                (Self::RelativePath(fp), _) => inline!(fp),
+                (_, InlineMode::RelativeFiles) => (),
+
+                (Self::GithubFile(fp), InlineMode::All) => inline!(fp),
+                (Self::Required(fp), InlineMode::All) => inline!(fp),
+                (Self::Templated(fp), InlineMode::All) => inline!(fp),
+            }
+
+            if let Self::Inline(f) = self {
+                cache.insert(key, InlinedProvider::File(f.clone()));
+            };
+
+            Ok(())
+        })
+    }
+}
+
+enum_impl_file_provider!(
+    TextFileProvider;
+    GithubFile,
+    Inline,
+    RelativePath,
+    Required,
+    Templated
+);
+
 /// # Merge file provider
 ///
 /// A subset of file providers that can be merged into a base YAML file.
@@ -169,18 +241,8 @@ impl Inline for MergeFileProvider {
     }
 }
 
-// Each time we add a new variant to the MergeFileProvider enum above we need to remember to add it
-// to the macro invocation below in order to update the trait implementations for the enum. (You
-// can't really forget to do this as the compiler will complain about missing match arms if you
-// do!)
-macro_rules! enum_impl_merge_file_provider {
-    ($($variant:ident),+) => {
-        enum_impl_check!(MergeFileProvider => $($variant),+);
-        enum_impl_as_utf8_file_content!(MergeFileProvider => $($variant),+);
-    };
-}
-
-enum_impl_merge_file_provider!(
+enum_impl_file_provider!(
+    MergeFileProvider;
     GithubFile,
     GraphosSubgraphRouterUrlOverrides,
     Inline,

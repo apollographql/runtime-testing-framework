@@ -308,18 +308,20 @@ Accepts duration strings like "30d", "7d", "12h". Defaults to "30d" if unset.
 
 ## GraphOS canned operations by ID
 
-The user specifies the graph ref and parameters that should be used to generate canned GraphQL
-requests based on operations data obtained from the GraphOS API.
+The user specifies the graph ref and a set of operation IDs to be fetched from the GraphOS API for
+generating canned GraphQL requests.
 
 ```yaml
 - name: canned_ops.json
   env_var: CANNED_OPS_FILE
   kind: graphos_canned_ops_by_id
   graph_ref: graph@variant
-  operation_ids:
-    - 5b1f8a2a1bd4be697559013a23fcbcb9186afe77
-    - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
-    - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
+  operation:
+    kind: inline
+    content: |
+      5b1f8a2a1bd4be697559013a23fcbcb9186afe77
+      3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
+      50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
 ```
 
 <details>
@@ -329,10 +331,22 @@ requests based on operations data obtained from the GraphOS API.
 
 The Apollo graph ref to pull operations for.
 
-### `operation_ids`
+### `operations`
 
-Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
-`OperationInsightsListItem` in the Studio graphQL API.
+A text file provider containing the operation IDs from the Apollo studio API for the operations you
+want to work with as queried from an `OperationInsightsListItem` in the Studio graphQL API.
+Operations must be specified one per-line
+
+<details>
+<summary>Variants</summary>
+
+- [GitHub file](#github-file)
+- [Inline file](#inline-file)
+- [Relative path](#relative-path)
+- [Required file](#required-file)
+- [Templated file](#templated-file)
+
+</details>
 
 </details>
 
