@@ -8,6 +8,7 @@
 <p>The Orchestrator is able to pull and run RTF Test Plans directly from GitHub.
    Enter the details of the Test Plan you with to run below.</p>
 
+{% block form %}
 {% call macros::error_message(error) %}{% endcall %}
 
 <form method="post" action="/ui/trigger">
@@ -47,4 +48,5 @@
     </p>
     <button type="submit">Trigger run</button>
 </form>
+{% endblock %}
 {% endblock %}

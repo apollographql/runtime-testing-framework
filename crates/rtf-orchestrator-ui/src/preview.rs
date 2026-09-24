@@ -1,7 +1,4 @@
-//! Canned data for every page template, built from the same `orchestrator::mocks` summary
-//! builders the crate's own unit tests use.
-//!
-//! Used by `examples/preview`
+//! Canned data for every page template, used by `examples/preview`.
 use crate::{links::sample_config, orchestrator::mocks};
 use chrono::Utc;
 use rtf_orchestrator_shared::{
@@ -13,8 +10,6 @@ use rtf_orchestrator_shared::{
 use serde_json::json;
 use uuid::Uuid;
 
-// Re-exported so `examples/preview` can name these types (and so it renders the exact same
-// `Template`/view-model types the real handlers do, not lookalikes).
 pub use crate::templates::*;
 pub use crate::view::*;
 

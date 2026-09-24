@@ -3,6 +3,7 @@ use rtf_orchestrator_shared::summary::{TestRunListResponse, TestRunSummary};
 use url::form_urlencoded;
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct RunListRowView {
     pub id: Uuid,
     pub name: String,
@@ -23,6 +24,7 @@ impl From<TestRunSummary> for RunListRowView {
     }
 }
 
+#[derive(Debug)]
 enum RunListScope {
     Filtered {
         initiated_by: String,
@@ -31,6 +33,7 @@ enum RunListScope {
     KnownTestPlan(Uuid),
 }
 
+#[derive(Debug)]
 pub struct RunListView {
     pub rows: Vec<RunListRowView>,
     pagination: Pagination,

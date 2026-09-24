@@ -23,6 +23,7 @@ fn format_rfc3339(dt: DateTime<Utc>) -> String {
     format_rfc3339_seconds(system_time).to_string()
 }
 
+#[derive(Debug)]
 pub struct StatusView {
     pub label: String,
     pub class: &'static str,
@@ -44,6 +45,7 @@ fn exit_code_label(exit_code: Option<i32>) -> String {
     }
 }
 
+#[derive(Debug)]
 struct Pagination {
     total: i64,
     limit: i64,

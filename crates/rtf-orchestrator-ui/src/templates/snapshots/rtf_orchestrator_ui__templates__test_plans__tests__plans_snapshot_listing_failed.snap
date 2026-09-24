@@ -1,0 +1,8 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/test_plans.rs
+expression: render_fragment!(t.as_plans())
+---
+
+
+
+<p class="error-box">Could not load known test plans from the orchestrator.</p>

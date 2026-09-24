@@ -1,0 +1,9 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/test_plan_detail.rs
+expression: render_fragment!(details_failed().as_overview())
+---
+
+
+
+
+<p class="error-box">Could not load details for this test plan.</p>

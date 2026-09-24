@@ -1,0 +1,47 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/trigger.rs
+expression: "render_fragment!(preview::trigger_empty().as_form())"
+---
+
+
+
+
+
+
+<form method="post" action="/ui/trigger">
+    <p>
+        <label for="org">Org</label><br>
+        <input id="org" name="org" type="text" placeholder="apollographql" value="" required size="40" />
+    </p>
+    <p>
+        <label for="repo">Repo</label><br>
+        <input id="repo" name="repo" type="text" placeholder="runtime-testing-framework" value=""
+            required size="40" />
+    </p>
+    <p>
+        <label for="path">Path to test-plan.yaml</label><br>
+        <input id="path" name="path" type="text"
+            placeholder="example-test-plans/orchestrator-smoke/test-plan.yaml" value=""
+            required size="60" />
+    </p>
+    <p>
+        <label for="ref">Ref <span class="muted">(optional &mdash; branch, tag, or SHA; defaults to the
+                default branch)</span></label><br>
+        <input id="ref" name="ref" type="text" placeholder="main" value="" size="40" />
+    </p>
+    <p>
+        <label for="variables">Variables <span class="muted">(optional &mdash; JSON object)</span></label>
+        <button type="button" popovertarget="variables-help" class="copy-btn" aria-label="Variables help"
+            style="vertical-align: baseline;">&#9432;</button>
+        <div id="variables-help" popover>
+            <p>A JSON object mapping variable names to values. A plain value templates a single
+                variable; an array of values defines a matrix dimension (one variant per element).</p>
+            <pre>{
+  "subject": ["world", "sailor"]
+}</pre>
+        </div>
+        <textarea id="variables" name="variables" rows="6" cols="60"
+            placeholder="{ &quot;subject&quot;: [&quot;world&quot;, &quot;sailor&quot;] }"></textarea>
+    </p>
+    <button type="submit">Trigger run</button>
+</form>

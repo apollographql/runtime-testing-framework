@@ -1,0 +1,22 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/test_plans.rs
+expression: render_fragment!(t.as_plans())
+---
+
+
+
+
+
+
+
+
+
+<p>No known test plans are registered.</p>
+
+
+<p class="muted">
+    
+    
+    
+    
+</p>

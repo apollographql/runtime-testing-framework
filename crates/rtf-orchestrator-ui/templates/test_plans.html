@@ -6,6 +6,7 @@
 {% block content %}
 <h2>Registered test plans</h2>
 
+{% block plans %}
 {% call macros::error_message(list_error) %}{% endcall %}
 
 {% match list %}
@@ -29,4 +30,5 @@
 {% call macros::pagination_footer(list) %}{% endcall %}
 {% when None %}
 {% endmatch %}
+{% endblock %}
 {% endblock %}

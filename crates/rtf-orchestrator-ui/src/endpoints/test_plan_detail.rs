@@ -1,5 +1,5 @@
 use crate::{
-    endpoints::{parse_trigger_ref_and_variables, render_body, to_response},
+    endpoints::{SelectedTemplate, parse_trigger_ref_and_variables, to_response},
     orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
     view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView},
@@ -10,7 +10,6 @@ use axum::{
     http::HeaderMap,
     response::{IntoResponse, Redirect, Response},
 };
-use reqwest::StatusCode;
 use rtf_orchestrator_shared::{
     known_test_plan::{KnownTestPlanRunsParams, KnownTestPlanSummary},
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
@@ -23,13 +22,8 @@ use uuid::Uuid;
 
 const DEFAULT_LIMIT: i64 = 20;
 
-/// Query params accepted by the known test plan detail page. `trigger_ref`/`trigger_variables`/
-/// `trigger_error` are only ever set by [`redirect_with_trigger_error`] after a failed trigger
-/// submission, to re-populate the form and show the failure inline. `trigger_ref` doubles as the
-/// ref to preview details for: the trigger form's small "Preview" GET form re-submits the page at
-/// `?trigger_ref=...` to re-resolve variables/matrix/services/environment for that ref, and the
-/// POST trigger form carries the same value through as a hidden field so triggering always uses
-/// whatever ref is currently being previewed. `days_back`/`days` page the history charts.
+/// `trigger_variables`/`trigger_error` are only set by [`redirect_with_trigger_error`]. `trigger_ref`
+/// is also the ref that details are resolved for, and must be carried through to the trigger form.
 #[derive(Debug, Default, serde::Deserialize)]
 pub struct TestPlanDetailParams {
     offset: Option<i64>,
@@ -45,6 +39,7 @@ pub struct TestPlanDetailParams {
     days: Option<u32>,
 }
 
+#[derive(Debug)]
 struct TestPlanDetailPage {
     limit: i64,
     offset: i64,
@@ -69,16 +64,13 @@ impl Default for TestPlanDetailPage {
     }
 }
 
+#[derive(Debug)]
 struct TestPlanDetailResults {
     plan: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
     runs: Result<TestRunListResponse, orchestrator::Error>,
     details: Result<Option<TestPlanDetails>, orchestrator::Error>,
 }
 
-/// `GET /ui/test-plan/{uuid}` — the plan's metadata (with a GitHub link), the executions
-/// overview/services table/trigger form/history charts built from the orchestrator's details
-/// endpoint, and a paginated table of its recent runs. The plan, its details, and its runs are all
-/// fetched concurrently, since none of those three calls needs anything from either of the others.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Path(uuid): Path<Uuid>,
@@ -104,60 +96,49 @@ pub async fn handler<C: Client>(
         orchestrator_client.test_plan_details(uuid, &details_params)
     );
 
-    to_response(test_plan_detail_body(
-        uuid,
-        TestPlanDetailResults {
-            plan,
-            runs,
-            details,
-        },
-        TestPlanDetailPage {
-            limit: DEFAULT_LIMIT,
-            offset,
-            trigger_git_ref: params.trigger_git_ref.unwrap_or_default(),
-            trigger_variables: params.trigger_variables.unwrap_or_default(),
-            trigger_error: params.trigger_error,
-            days_back,
-            days,
-        },
-    ))
+    to_response(
+        select_template(
+            uuid,
+            TestPlanDetailResults {
+                plan,
+                runs,
+                details,
+            },
+            TestPlanDetailPage {
+                limit: DEFAULT_LIMIT,
+                offset,
+                trigger_git_ref: params.trigger_git_ref.unwrap_or_default(),
+                trigger_variables: params.trigger_variables.unwrap_or_default(),
+                trigger_error: params.trigger_error,
+                days_back,
+                days,
+            },
+        )
+        .render(),
+    )
 }
 
-/// Maps the plan lookup and runs-list results to a rendered `(status, body)` pair: the plan header,
-/// trigger form, and runs table on success, a "not found" page for an unknown uuid, or an error
-/// page for a plan-fetch failure. A runs-list failure still renders the page - with the plan header
-/// and GitHub link intact and an inline error in place of the runs table - mirroring the home
-/// page's `index_body`. `fetch.runs` is only rendered when `fetch.plan` is `Ok(Some(_))`; kept as
-/// a plain field (rather than only fetched conditionally) so this whole mapping stays a single
-/// pure, directly-testable function, matching `run_status_body`/`execution_detail_body`.
-fn test_plan_detail_body(
+fn select_template(
     uuid: Uuid,
     fetch: TestPlanDetailResults,
     page: TestPlanDetailPage,
-) -> (StatusCode, String) {
+) -> SelectedTemplate<TestPlanDetailTemplate, TestPlanNotFoundTemplate> {
     let plan = match fetch.plan {
         Ok(Some(plan)) => plan,
         Ok(None) => {
-            return render_body(
-                StatusCode::NOT_FOUND,
-                TestPlanNotFoundTemplate {
-                    uuid: uuid.to_string(),
-                },
-            );
+            return SelectedTemplate::NotFound(TestPlanNotFoundTemplate {
+                uuid: uuid.to_string(),
+            });
         }
         Err(error) => {
             error!(%error, %uuid, "failed to fetch known test plan from orchestrator");
-            return render_body(
-                StatusCode::BAD_GATEWAY,
-                ErrorTemplate {
-                    message: "Could not load this known test plan from the orchestrator."
-                        .to_owned(),
-                },
-            );
+            return SelectedTemplate::Error(ErrorTemplate {
+                message: format!(
+                    "Could not load this known test plan from the orchestrator: {error}"
+                ),
+            });
         }
     };
-
-    let plan_view = KnownTestPlanRowView::from(plan);
 
     let (details, details_error) = match fetch.details {
         Ok(Some(details)) => (
@@ -175,60 +156,53 @@ fn test_plan_detail_body(
             error!(%error, %uuid, "failed to fetch test plan details from orchestrator");
             (
                 None,
-                Some("Could not load details for this test plan from the orchestrator.".to_owned()),
+                Some(format!(
+                    "Could not load details for this test plan from the orchestrator: {error}"
+                )),
             )
         }
     };
 
-    match fetch.runs {
-        Ok(response) => render_body(
-            StatusCode::OK,
-            TestPlanDetailTemplate {
-                plan: plan_view,
-                details,
-                details_error,
-                runs: Some(RunListView::for_known_test_plan(
-                    response,
-                    page.limit,
-                    page.offset,
-                    uuid,
-                )),
-                runs_error: None,
-                trigger_git_ref: page.trigger_git_ref,
-                trigger_variables: page.trigger_variables,
-                trigger_error: page.trigger_error,
-                days_back: page.days_back,
-                days: page.days,
-            },
+    let (runs, runs_error) = match fetch.runs {
+        Ok(response) => (
+            Some(RunListView::for_known_test_plan(
+                response,
+                page.limit,
+                page.offset,
+                uuid,
+            )),
+            None,
         ),
         Err(error) => {
             error!(%error, %uuid, "failed to list runs for known test plan from orchestrator");
-            render_body(
-                StatusCode::OK,
-                TestPlanDetailTemplate {
-                    plan: plan_view,
-                    details,
-                    details_error,
-                    runs: None,
-                    runs_error: Some("Could not load recent runs for this test plan.".to_owned()),
-                    trigger_git_ref: page.trigger_git_ref,
-                    trigger_variables: page.trigger_variables,
-                    trigger_error: page.trigger_error,
-                    days_back: page.days_back,
-                    days: page.days,
-                },
+            (
+                None,
+                Some(format!(
+                    "Could not load recent runs for this test plan: {error}"
+                )),
             )
         }
-    }
+    };
+
+    SelectedTemplate::Found(Box::new(TestPlanDetailTemplate {
+        plan: KnownTestPlanRowView::from(plan),
+        details,
+        details_error,
+        runs,
+        runs_error,
+        trigger_git_ref: page.trigger_git_ref,
+        trigger_variables: page.trigger_variables,
+        trigger_error: page.trigger_error,
+        days_back: page.days_back,
+        days: page.days,
+    }))
 }
 
-/// Form fields submitted by the trigger form embedded on the known test plan detail page.
 #[derive(Debug, Default, serde::Deserialize)]
 pub struct KnownTestPlanTriggerForm {
     #[serde(rename = "ref")]
     git_ref: String,
-    /// A JSON object of `HashMap<String, VariableOverride>` - a plain value templates a single
-    /// variable, an array value defines a matrix dimension. Blank means no overrides.
+    /// JSON object of variable overrides, where an array value defines a matrix dimension.
     variables: String,
     #[serde(default)]
     days_back: Option<u32>,
@@ -237,8 +211,6 @@ pub struct KnownTestPlanTriggerForm {
 }
 
 impl KnownTestPlanTriggerForm {
-    /// Builds the orchestrator payload for `uuid`, or the message to show inline if `variables`
-    /// isn't valid JSON. Trims both fields first, mirroring `trigger::TriggerForm::try_into_payload`.
     fn try_into_payload(&self, uuid: Uuid) -> Result<KnownTestPlanUuidPayload, String> {
         let (git_ref, variables) = parse_trigger_ref_and_variables(&self.git_ref, &self.variables)?;
 
@@ -250,12 +222,6 @@ impl KnownTestPlanTriggerForm {
     }
 }
 
-/// `POST /ui/test-plan/{uuid}/trigger` — builds a [`KnownTestPlanUuidPayload`] from the submitted
-/// form and POSTs it to the orchestrator's `test-run/trigger` endpoint, forwarding the caller's IAP
-/// identity as with the GitHub trigger form. On success, redirects to the new run's status page. On
-/// failure, redirects back to this plan's detail page with the submitted fields and the failure
-/// message carried as query params - simpler than re-rendering the whole detail page directly here,
-/// which would mean duplicating the `GET` handler's plan/runs fetching in the `POST` handler too.
 pub async fn post_trigger<C: Client>(
     State(orchestrator_client): State<C>,
     headers: HeaderMap,
@@ -287,9 +253,6 @@ pub async fn post_trigger<C: Client>(
     }
 }
 
-/// Redirects back to the plan's detail page carrying the submitted form fields and the failure
-/// message as query params, so the subsequent `GET` re-populates the form and shows the error
-/// inline.
 fn redirect_with_trigger_error(
     uuid: Uuid,
     form: &KnownTestPlanTriggerForm,
@@ -316,280 +279,115 @@ fn redirect_with_trigger_error(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        endpoints::body_text,
-        orchestrator::mocks::{MockClient, sample_known_test_plan, sample_test_plan_details},
+    use crate::orchestrator::mocks::{
+        MockClient, sample_known_test_plan, sample_test_plan_details,
     };
     use axum::http::header::LOCATION;
+    use reqwest::StatusCode;
     use rtf_orchestrator_shared::status::Status;
+    use std::assert_matches;
 
-    #[test]
-    fn test_plan_detail_body_renders_the_plan_and_its_runs() {
-        let uuid = Uuid::from_u128(1);
-        let (status, body) = test_plan_detail_body(
-            uuid,
-            TestPlanDetailResults {
-                plan: Ok(Some(sample_known_test_plan(uuid))),
-                runs: Ok(TestRunListResponse::default()),
-                details: Ok(Some(sample_test_plan_details(uuid))),
-            },
-            TestPlanDetailPage::default(),
-        );
-
-        assert_eq!(status, StatusCode::OK);
-        assert!(
-            body.contains("my-known-test-plan"),
-            "plan name should render"
-        );
-        assert!(
-            body.contains("a sample known test plan"),
-            "plan description should render"
-        );
-        assert!(
-            body.contains(
-                r#"href="https://github.com/apollographql/runtime-testing-framework/blob/abc1234def5678/test-plans/example.yaml""#
-            ),
-            "plan should link to its file on GitHub at the resolved sha, got: {body}"
-        );
-        assert!(
-            body.contains("<form"),
-            "expected the trigger form to render"
-        );
-        assert!(
-            body.contains("Namespace write access") && body.contains("Disabled"),
-            "expected namespace write access to render as disabled by default, got: {body}"
-        );
+    fn ok_results(uuid: Uuid) -> TestPlanDetailResults {
+        TestPlanDetailResults {
+            plan: Ok(Some(sample_known_test_plan(uuid))),
+            runs: Ok(TestRunListResponse::default()),
+            details: Ok(Some(sample_test_plan_details(uuid))),
+        }
     }
 
     #[test]
-    fn test_plan_detail_body_shows_namespace_write_access_when_enabled() {
+    fn selected_template_is_found_for_a_known_test_plan() {
         let uuid = Uuid::from_u128(1);
-        let (_, body) = test_plan_detail_body(
-            uuid,
-            TestPlanDetailResults {
-                plan: Ok(Some(KnownTestPlanSummary {
-                    allow_k8s_write: true,
-                    ..sample_known_test_plan(uuid)
-                })),
-                runs: Ok(TestRunListResponse::default()),
-                details: Ok(Some(sample_test_plan_details(uuid))),
-            },
-            TestPlanDetailPage::default(),
-        );
+        let t = select_template(uuid, ok_results(uuid), TestPlanDetailPage::default());
 
-        assert!(
-            body.contains("Namespace write access") && body.contains("Enabled"),
-            "expected namespace write access to render as enabled, got: {body}"
-        );
+        assert_matches!(t, SelectedTemplate::Found(_));
     }
 
     #[test]
-    fn test_plan_detail_body_renders_not_found_for_an_unknown_uuid() {
+    fn selected_template_is_not_found_for_an_unknown_test_plan() {
         let uuid = Uuid::from_u128(1);
-        let (status, body) = test_plan_detail_body(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
                 plan: Ok(None),
-                runs: Ok(TestRunListResponse::default()),
-                details: Ok(Some(sample_test_plan_details(uuid))),
+                ..ok_results(uuid)
             },
             TestPlanDetailPage::default(),
         );
 
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert!(body.contains("not found"));
+        assert_matches!(t, SelectedTemplate::NotFound(_));
     }
 
     #[test]
-    fn test_plan_detail_body_renders_error_when_the_plan_fetch_fails() {
+    fn selected_template_is_an_error_when_the_plan_fetch_fails() {
         let uuid = Uuid::from_u128(1);
-        let (status, body) = test_plan_detail_body(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
                 plan: Err(orchestrator::Error::KnownTestPlanStatus {
                     status: StatusCode::BAD_GATEWAY,
                     uuid,
                 }),
-                runs: Ok(TestRunListResponse::default()),
-                details: Ok(Some(sample_test_plan_details(uuid))),
+                ..ok_results(uuid)
             },
             TestPlanDetailPage::default(),
         );
 
-        assert_eq!(status, StatusCode::BAD_GATEWAY);
-        assert!(body.contains("went wrong"));
+        assert_matches!(t, SelectedTemplate::Error(_));
     }
 
     #[test]
-    fn test_plan_detail_body_still_renders_the_plan_when_the_runs_fetch_fails() {
+    fn selected_template_is_an_found_with_runs_error_when_the_runs_fetch_fails() {
         let uuid = Uuid::from_u128(1);
-        let (status, body) = test_plan_detail_body(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
-                plan: Ok(Some(sample_known_test_plan(uuid))),
                 runs: Err(orchestrator::Error::ListKnownTestPlanRuns {
                     status: StatusCode::BAD_GATEWAY,
                     uuid,
                 }),
-                details: Ok(Some(sample_test_plan_details(uuid))),
+                ..ok_results(uuid)
             },
             TestPlanDetailPage::default(),
-        );
+        )
+        .unwrap_found();
 
-        assert_eq!(
-            status,
-            StatusCode::OK,
-            "the plan header should still render"
-        );
-        assert!(body.contains("my-known-test-plan"));
-        assert!(body.contains("Could not load recent runs"));
+        assert!(t.runs_error.is_some());
     }
 
     #[test]
-    fn test_plan_detail_body_still_renders_the_plan_when_the_details_fetch_fails() {
+    fn selected_template_is_found_with_details_error_when_the_details_fetch_fails() {
         let uuid = Uuid::from_u128(1);
-        let (status, body) = test_plan_detail_body(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
-                plan: Ok(Some(sample_known_test_plan(uuid))),
-                runs: Ok(TestRunListResponse::default()),
                 details: Err(orchestrator::Error::TestPlanDetailsStatus {
                     status: StatusCode::BAD_GATEWAY,
                     uuid,
                 }),
+                ..ok_results(uuid)
             },
             TestPlanDetailPage::default(),
-        );
+        )
+        .unwrap_found();
 
-        assert_eq!(
-            status,
-            StatusCode::OK,
-            "the plan header and runs table should still render"
-        );
-        assert!(body.contains("my-known-test-plan"));
-        assert!(body.contains("Could not load details for this test plan"));
-        assert!(
-            body.contains(
-                r#"href="https://github.com/apollographql/runtime-testing-framework/blob/HEAD/test-plans/example.yaml""#
-            ),
-            "should fall back to the plan's HEAD-based GitHub link when details failed to load, got: {body}"
-        );
-    }
-
-    #[test]
-    fn test_plan_detail_body_renders_a_dropdown_for_an_allowed_values_variable() {
-        let uuid = Uuid::from_u128(1);
-        let (status, body) = test_plan_detail_body(
-            uuid,
-            TestPlanDetailResults {
-                plan: Ok(Some(sample_known_test_plan(uuid))),
-                runs: Ok(TestRunListResponse::default()),
-                details: Ok(Some(sample_test_plan_details(uuid))),
-            },
-            TestPlanDetailPage::default(),
-        );
-
-        assert_eq!(status, StatusCode::OK);
-        assert!(
-            body.contains("<select") && body.contains("multiple"),
-            "expected a multi-select dropdown for the `tier` variable's allowed_values, got: {body}"
-        );
-        assert!(body.contains("enterprise"));
+        assert!(t.details_error.is_some());
     }
 
     #[test]
     fn test_plan_detail_body_repopulates_the_trigger_form_and_shows_its_error() {
         let uuid = Uuid::from_u128(1);
-        let (status, body) = test_plan_detail_body(
+        let t = select_template(
             uuid,
-            TestPlanDetailResults {
-                plan: Ok(Some(sample_known_test_plan(uuid))),
-                runs: Ok(TestRunListResponse::default()),
-                details: Ok(Some(sample_test_plan_details(uuid))),
-            },
+            ok_results(uuid),
             TestPlanDetailPage {
-                trigger_git_ref: "a-branch".to_owned(),
-                trigger_variables: r#"{"key": "value"}"#.to_owned(),
                 trigger_error: Some("unknown test plan".to_owned()),
                 ..Default::default()
             },
-        );
-
-        assert_eq!(status, StatusCode::OK);
-        assert!(
-            body.contains("unknown test plan"),
-            "expected the trigger error to render"
-        );
-        assert!(
-            body.contains("a-branch"),
-            "expected the submitted ref to repopulate the form"
-        );
-        assert!(
-            // askama HTML-escapes the textarea's contents, so `"` becomes `&#34;`.
-            body.contains("{&#34;key&#34;: &#34;value&#34;}"),
-            "expected the submitted variables to repopulate the form, got: {body}"
-        );
-        assert!(
-            body.contains(r#"<p class="error-box">unknown test plan</p>"#),
-            "expected the trigger error to render in the error-box style, got: {body}"
-        );
-    }
-
-    #[test]
-    fn test_plan_detail_body_expands_and_focuses_the_variables_field_on_error_with_no_variables_submitted()
-     {
-        let uuid = Uuid::from_u128(1);
-        let (_, body) = test_plan_detail_body(
-            uuid,
-            TestPlanDetailResults {
-                plan: Ok(Some(sample_known_test_plan(uuid))),
-                runs: Ok(TestRunListResponse::default()),
-                details: Ok(Some(sample_test_plan_details(uuid))),
-            },
-            TestPlanDetailPage {
-                // An orchestrator-side rejection (e.g. a bad ref) can happen with no variables
-                // submitted at all - the customize/advanced sections should still expand and the
-                // variables field should still get focus so the error is visible.
-                trigger_variables: String::new(),
-                trigger_error: Some("unknown ref".to_owned()),
-                ..Default::default()
-            },
-        );
-
-        assert!(
-            body.contains(r#"<details id="customize-trigger" class="test-plan-card" open>"#),
-            "expected the customize section to expand on error even with no variables submitted, got: {body}"
-        );
-        assert!(
-            body.contains(r#"<textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60" autofocus>"#),
-            "expected the variables textarea to be focused on error, got: {body}"
-        );
-    }
-
-    #[tokio::test]
-    async fn handler_calls_the_client_and_renders_whatever_comes_back() {
-        let uuid = Uuid::from_u128(3);
-        let resp = handler(
-            State(MockClient::with_test_run(
-                Uuid::from_u128(1),
-                Uuid::from_u128(2),
-                Status::Running,
-            )),
-            Path(uuid),
-            Query(TestPlanDetailParams::default()),
         )
-        .await;
+        .unwrap_found();
 
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = body_text(resp).await;
-        assert!(
-            body.contains("my-known-test-plan"),
-            "expected the mock client's sample known test plan to render"
-        );
-        assert!(
-            body.contains("my-test-run"),
-            "expected the mock client's sample run to render in the runs table"
-        );
+        assert_eq!(t.trigger_error.as_deref(), Some("unknown test plan"));
     }
 
     fn sample_form() -> KnownTestPlanTriggerForm {

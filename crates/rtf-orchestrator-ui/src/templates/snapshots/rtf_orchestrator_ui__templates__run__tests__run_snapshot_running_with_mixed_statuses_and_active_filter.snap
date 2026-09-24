@@ -1,45 +1,7 @@
 ---
-source: crates/rtf-orchestrator-ui/src/view/run.rs
-expression: body
+source: crates/rtf-orchestrator-ui/src/templates/run.rs
+expression: render_fragment!(running_run().as_run())
 ---
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Run 00000000-0000-0000-0000-000000000001</title>
-    <link rel="icon" type="image/png" href="/ui/static/gongphin.png" />
-    <link rel="stylesheet" href="/ui/static/theme.css" />
-    <script src="/ui/static/theme-toggle.js"></script>
-    <script src="/ui/static/htmx.min.js"></script>
-</head>
-
-<body>
-    <header>
-        <a class="brand" href="/ui">
-            <img class="logo" src="/ui/static/gongphin.png" alt="" />
-            <h1>RTF Orchestrator</h1>
-        </a>
-        <nav>
-            <a href="/ui/test-plans">Registered Test Plans</a>
-            <a href="/ui/trigger">Trigger from GitHub</a>
-            <a href="https://scaling-dollop-ywevlle.pages.github.io/" target="_blank" rel="noopener noreferrer">RTF Docs</a>
-        </nav>
-        <div class="header-actions">
-            <form class="run-lookup"
-                onsubmit="event.preventDefault(); const id = this.runId.value.trim(); if (id) { window.location.href = '/ui/run/' + encodeURIComponent(id); }">
-                <input name="runId" type="text" placeholder="Test run ID" aria-label="Test run ID" required
-                    size="36" />
-                <button type="submit">View status</button>
-            </form>
-            <button id="theme-toggle" type="button" aria-label="Toggle color theme">Dark</button>
-        </div>
-    </header>
-    <main>
-<p><a href="/ui">&larr; Find another run</a></p>
-
-<p><a href="/ui/test-plan/00000000-0000-0000-0000-000000000002">&larr; Back to test plan</a></p>
 
 <div id="run"  hx-get="/ui/run/00000000-0000-0000-0000-000000000001?execution_status=FAILED" hx-select="#run" hx-trigger="every 10s"
     hx-swap="outerHTML" >
@@ -206,22 +168,3 @@ expression: body
         
     </div>
 </div>
-</main>
-    <script>
-        const COPY_BTN_CHECK_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8.5 6.5 12 13 4"></polyline></svg>';
-
-        document.addEventListener("click", (event) => {
-            const button = event.target.closest(".copy-btn");
-            if (!button) return;
-            navigator.clipboard.writeText(button.dataset.copy).then(() => {
-                const original = button.innerHTML;
-                button.innerHTML = COPY_BTN_CHECK_ICON;
-                setTimeout(() => {
-                    button.innerHTML = original;
-                }, 1200);
-            });
-        });
-    </script>
-</body>
-
-</html>

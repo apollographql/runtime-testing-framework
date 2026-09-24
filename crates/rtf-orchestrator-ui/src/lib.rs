@@ -35,9 +35,6 @@ pub async fn run_server() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Build the UI router, backed by `provider` for run data. All routes live under the `/ui` prefix.
-/// `links_cfg` is shared across handlers via an [Extension] rather than `State`, since `State` is
-/// reserved for the generic orchestrator [`orchestrator::Client`].
 fn router<C>(orchestrator_client: C, links_cfg: LinksConfig) -> Router
 where
     C: orchestrator::Client + Clone,

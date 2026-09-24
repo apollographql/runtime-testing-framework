@@ -1,0 +1,6 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/run.rs
+expression: render_fragment!(terminal_run_without_test_plan().as_back_links())
+---
+
+<p><a href="/ui">&larr; Find another run</a></p>

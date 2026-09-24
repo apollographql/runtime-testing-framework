@@ -8,10 +8,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-/// `GET /ui/execution/{eid}/output.zip`
-///
-/// The orchestrator answers this with a 307 to a signed GCS URL, which this handler relays
-/// verbatim rather than following - the UI never downloads the artifact's bytes itself.
+/// Relays the orchestrator's redirect to a signed GCS URL rather than proxying the zip itself.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Path(execution_id): Path<Uuid>,

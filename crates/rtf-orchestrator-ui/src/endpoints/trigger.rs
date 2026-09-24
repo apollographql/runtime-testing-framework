@@ -1,4 +1,3 @@
-//! `GET`/`POST /ui/trigger` — trigger a run from a GitHub-hosted test plan.
 use crate::{
     endpoints::{parse_trigger_ref_and_variables, render_body, to_response},
     orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
@@ -18,14 +17,10 @@ use rtf_orchestrator_shared::{
 use serde::Deserialize;
 use tracing::error;
 
-/// `GET /ui/trigger` - the "trigger a run from a GitHub-hosted test plan" form.
 pub async fn get_handler() -> Response {
     to_response(render_body(StatusCode::OK, TriggerTemplate::default()))
 }
 
-/// `POST /ui/trigger` - builds a [`GitHubPayload`] from the submitted form and POSTs it to the
-/// orchestrator's `test-run/trigger` endpoint, forwarding the caller's IAP identity so the run's
-/// `initiated_by` reflects who submitted the form rather than `"unknown"`.
 pub async fn post_handler<C: Client>(
     State(orchestrator_client): State<C>,
     headers: HeaderMap,
@@ -55,7 +50,6 @@ pub async fn post_handler<C: Client>(
     trigger_result_response(form, result)
 }
 
-/// Form fields submitted by the "trigger a run from GitHub" form.
 #[derive(Debug, Default, Deserialize)]
 pub struct TriggerForm {
     org: String,
@@ -63,15 +57,11 @@ pub struct TriggerForm {
     path: String,
     #[serde(rename = "ref")]
     git_ref: String,
-    /// A JSON object of `HashMap<String, VariableOverride>` - a plain value templates a single
-    /// variable, an array value defines a matrix dimension. Blank means no overrides.
+    /// JSON object of variable overrides, where an array value defines a matrix dimension.
     variables: String,
 }
 
 impl TriggerForm {
-    /// Builds the orchestrator payload, or the message to show inline if `variables` isn't valid
-    /// JSON. Trims every field first, so stray leading/trailing whitespace doesn't turn into a
-    /// bogus org/repo/path or a spuriously "non-blank" variables box.
     fn try_into_payload(&self) -> Result<GitHubPayload, String> {
         let (git_ref, variables) = parse_trigger_ref_and_variables(&self.git_ref, &self.variables)?;
 
@@ -98,9 +88,6 @@ impl From<TriggerForm> for TriggerTemplate {
     }
 }
 
-/// Maps the result of triggering a run to a response: a redirect to the new run's status page on
-/// success, or the form re-rendered with its fields intact and an inline error otherwise. Kept
-/// free of the orchestrator [`Client`] so it's testable directly against hand-built results.
 fn trigger_result_response(
     form: TriggerForm,
     result: Result<TestRunSummary, orchestrator::Error>,
@@ -110,32 +97,38 @@ fn trigger_result_response(
 
         Err(error) => {
             error!(%error, "failed to trigger a run from the orchestrator");
-            let (status, message) = match error {
-                orchestrator::Error::Trigger { status, message } => (status, message),
-                e => (
-                    StatusCode::BAD_GATEWAY,
-                    format!("Unable to trigger run: {e}"),
-                ),
-            };
+            let (status, template) = trigger_error_template(form, error);
 
-            to_response(render_body(
-                status,
-                TriggerTemplate {
-                    error: Some(message),
-                    ..form.into()
-                },
-            ))
+            to_response(render_body(status, template))
         }
     }
+}
+
+fn trigger_error_template(
+    form: TriggerForm,
+    error: orchestrator::Error,
+) -> (StatusCode, TriggerTemplate) {
+    let (status, message) = match error {
+        orchestrator::Error::Trigger { status, message } => (status, message),
+        e => (
+            StatusCode::BAD_GATEWAY,
+            format!("Unable to trigger run: {e}"),
+        ),
+    };
+
+    (
+        status,
+        TriggerTemplate {
+            error: Some(message),
+            ..form.into()
+        },
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        endpoints::body_text,
-        orchestrator::mocks::{MockClient, sample_summary},
-    };
+    use crate::orchestrator::mocks::{MockClient, sample_summary};
     use axum::http::header::LOCATION;
     use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
@@ -173,15 +166,6 @@ mod tests {
         let resp = get_handler().await;
 
         assert_eq!(resp.status(), StatusCode::OK);
-
-        let body = body_text(resp).await;
-
-        assert!(
-            body.contains("<form"),
-            "expected a form on the trigger page"
-        );
-        assert!(body.contains(r#"name="org""#));
-        assert!(body.contains(r#"name="variables""#));
     }
 
     #[test]
@@ -200,40 +184,41 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn trigger_result_response_re_renders_the_form_with_the_orchestrators_error() {
-        let resp = trigger_result_response(
+    #[test]
+    fn trigger_error_template_re_populates_the_form_with_the_orchestrators_error() {
+        let (status, t) = trigger_error_template(
             sample_form(),
-            Err(orchestrator::Error::Trigger {
+            orchestrator::Error::Trigger {
                 status: StatusCode::BAD_REQUEST,
                 message: "unknown path in repo".to_owned(),
-            }),
+            },
         );
 
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-
-        let body = body_text(resp).await;
-
-        assert!(body.contains("unknown path in repo"));
-        assert!(
-            body.contains("apollographql"),
-            "form fields should be repopulated, got: {body}"
-        );
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(t.error.as_deref(), Some("unknown path in repo"));
+        assert_eq!(t.org, "apollographql");
+        assert_eq!(t.repo, "runtime-testing-framework");
+        assert_eq!(t.path, "test-plans/smoke/test-plan.yaml");
     }
 
-    #[tokio::test]
-    async fn trigger_result_response_falls_back_to_bad_gateway_on_an_unexpected_error() {
-        // `ListRuns` never actually comes back from `trigger` - it stands in here for any
-        // non-`Trigger` variant, to exercise the fallback arm of the match.
-        let resp = trigger_result_response(
+    #[test]
+    fn trigger_error_template_falls_back_to_bad_gateway_on_an_unexpected_error() {
+        // Stands in for any non-`Trigger` error.
+        let (status, t) = trigger_error_template(
             sample_form(),
-            Err(orchestrator::Error::ListRuns {
+            orchestrator::Error::ListRuns {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
-            }),
+            },
         );
 
-        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
-        assert!(body_text(resp).await.contains("Unable to trigger run"));
+        assert_eq!(status, StatusCode::BAD_GATEWAY);
+        assert!(
+            t.error
+                .as_deref()
+                .is_some_and(|e| e.starts_with("Unable to trigger run")),
+            "got: {:?}",
+            t.error
+        );
     }
 
     #[tokio::test]

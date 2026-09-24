@@ -1,0 +1,24 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/execution.rs
+expression: render_fragment!(execution(None).as_history())
+---
+
+<h3>Status history</h3>
+
+<ol class="timeline">
+    
+    <li>
+        <span class="status status--success">SUCCESSFUL</span>
+        <time>2024-03-15T09:05:00Z</time>
+        <p>execution finished</p>
+        
+    </li>
+    
+    <li>
+        <span class="status status--active">RUNNING</span>
+        <time>2024-03-15T09:00:00Z</time>
+        
+        
+    </li>
+    
+</ol>

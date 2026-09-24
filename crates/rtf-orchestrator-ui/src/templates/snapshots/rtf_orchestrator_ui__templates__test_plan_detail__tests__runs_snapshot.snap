@@ -1,0 +1,44 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/test_plan_detail.rs
+expression: render_fragment!(t.as_runs())
+---
+
+<h2>Recent runs</h2>
+
+
+
+
+
+
+
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Initiated by</th>
+            <th>Started</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <td><a href="/ui/run/00000000-0000-0000-0000-000000000001">my-test-run</a></td>
+            <td><span class="status status--success">SUCCESSFUL</span></td>
+            <td>someone@apollographql.com</td>
+            <td>2024-03-15T12:00:00Z</td>
+        </tr>
+        
+        
+        
+    </tbody>
+</table>
+
+<p class="muted">
+    
+    1-1 of 1
+    
+    
+    
+</p>

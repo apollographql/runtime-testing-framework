@@ -4,12 +4,15 @@
 {% block title %}Run {{ run.id }}{% endblock %}
 
 {% block content %}
+{% block back_links %}
 <p><a href="/ui">&larr; Find another run</a></p>
 {% match run.test_plan_id %}
 {% when Some with (test_plan_id) %}
 <p><a href="/ui/test-plan/{{ test_plan_id }}">&larr; Back to test plan</a></p>
 {% when None %}
 {% endmatch %}
+{% endblock %}
+{% block run %}
 <div id="run" {% if run.should_poll %} hx-get="{{ run.poll_url() }}" hx-select="#run" hx-trigger="every 10s"
     hx-swap="outerHTML" {% endif %}>
     <section class="banner">
@@ -157,4 +160,5 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
 {% endblock %}

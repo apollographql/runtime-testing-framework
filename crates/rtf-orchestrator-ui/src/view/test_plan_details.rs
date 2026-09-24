@@ -150,13 +150,14 @@ pub struct CompoundGroupView {
     pub entries: Vec<Vec<(String, String)>>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct TestPlanDetailsJsData<'a> {
     pub variables: &'a [TriggerVariableView],
     pub compound_groups: Vec<(String, usize)>,
     pub history: &'a TestPlanHistory,
 }
 
+#[derive(Debug)]
 pub struct TestPlanDetailsView {
     pub uuid: Uuid,
     pub github_url: String,

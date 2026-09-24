@@ -15,7 +15,6 @@ use tracing::error;
 
 const DEFAULT_LIMIT: i64 = 20;
 
-/// Query params accepted by the home page.
 #[derive(Debug, serde::Deserialize)]
 pub struct IndexParams {
     initiated_by: Option<String>,
@@ -23,7 +22,6 @@ pub struct IndexParams {
     offset: Option<i64>,
 }
 
-/// A coarse time-range preset rather than a raw datetime
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StartedWithin {
     Hour,
@@ -33,7 +31,6 @@ enum StartedWithin {
 }
 
 impl StartedWithin {
-    /// Anything unrecognized is treated the same as absent rather than rejected.
     fn parse(value: &str) -> Option<Self> {
         match value {
             "hour" => Some(Self::Hour),
@@ -54,24 +51,18 @@ impl StartedWithin {
     }
 }
 
-/// `GET /ui` — the run-id lookup box plus a filterable table of recent runs.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Query(params): Query<IndexParams>,
 ) -> Response {
     let offset = params.offset.unwrap_or(0).max(0);
-    // Trim so a whitespace-only box (stray leading/trailing space) doesn't silently filter on a
-    // value nothing will ever match — an empty result then genuinely means "no filter applied."
+    // Untrimmed, a stray space would filter on a value that matches nothing.
     let initiated_by = params
         .initiated_by
         .as_deref()
         .unwrap_or("")
         .trim()
         .to_string();
-    // Kept as the raw string, not re-derived from `StartedWithin` — parsing it decides the actual
-    // `started_after` filter below, but the display/pagination-link copy doesn't need a second,
-    // separately-materialized value; an unrecognized value just passes through unchanged (the
-    // `<select>` has no matching `<option>` for it, so it renders as "Any time" regardless).
     let started_within = params.started_within.unwrap_or_default();
 
     let filter = RunListFilter {
@@ -83,54 +74,40 @@ pub async fn handler<C: Client>(
 
     let list = orchestrator_client.list_runs(&filter).await;
 
-    to_response(index_body(
-        list,
-        DEFAULT_LIMIT,
-        offset,
-        initiated_by,
-        started_within,
+    to_response(render_body(
+        StatusCode::OK,
+        index_template(list, DEFAULT_LIMIT, offset, initiated_by, started_within),
     ))
 }
 
-/// Maps the result of listing recent runs to a rendered `(status, body)` pair. A fetch failure
-/// still renders the page — with the run-id lookup box intact and an inline error in place of the
-/// table — since that box doesn't depend on the list endpoint at all.
-fn index_body(
+fn index_template(
     result: Result<TestRunListResponse, orchestrator::Error>,
     limit: i64,
     offset: i64,
     initiated_by: String,
     started_within: String,
-) -> (StatusCode, String) {
+) -> IndexTemplate {
     match result {
-        Ok(response) => render_body(
-            StatusCode::OK,
-            IndexTemplate {
-                list: Some(RunListView::new(
-                    response,
-                    limit,
-                    offset,
-                    initiated_by.clone(),
-                    started_within.clone(),
-                )),
-                list_error: None,
-                initiated_by,
-                started_within,
-            },
-        ),
+        Ok(response) => IndexTemplate {
+            list: Some(RunListView::new(
+                response,
+                limit,
+                offset,
+                initiated_by.clone(),
+                started_within.clone(),
+            )),
+            list_error: None,
+            initiated_by,
+            started_within,
+        },
         Err(error) => {
             error!(%error, "failed to list runs from orchestrator");
-            render_body(
-                StatusCode::OK,
-                IndexTemplate {
-                    initiated_by,
-                    started_within,
-                    list: None,
-                    list_error: Some(
-                        "Could not load recent runs from the orchestrator.".to_owned(),
-                    ),
-                },
-            )
+            IndexTemplate {
+                initiated_by,
+                started_within,
+                list: None,
+                list_error: Some("Could not load recent runs from the orchestrator.".to_owned()),
+            }
         }
     }
 }
@@ -146,29 +123,29 @@ mod tests {
     use uuid::Uuid;
 
     #[test]
-    fn index_body_renders_the_recent_runs_table() {
+    fn index_template_carries_the_recent_runs_and_filters() {
         let run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);
-        let (status, body) = index_body(
+        let t = index_template(
             Ok(TestRunListResponse {
                 runs: vec![run],
                 total: 1,
             }),
             DEFAULT_LIMIT,
             0,
-            String::new(),
-            String::new(),
+            "testuser".to_owned(),
+            "week".to_owned(),
         );
 
-        assert_eq!(status, StatusCode::OK);
-        assert!(
-            body.contains("my-test-run"),
-            "recent-runs row should render"
-        );
+        let list = t.list.expect("the runs list should be present");
+        assert_eq!(list.rows.len(), 1);
+        assert_eq!(t.list_error, None);
+        assert_eq!(t.initiated_by, "testuser");
+        assert_eq!(t.started_within, "week");
     }
 
     #[test]
-    fn index_body_still_renders_the_lookup_form_when_listing_fails() {
-        let (status, body) = index_body(
+    fn index_template_carries_an_inline_error_when_listing_fails() {
+        let t = index_template(
             Err(orchestrator::Error::ListRuns {
                 status: StatusCode::BAD_GATEWAY,
             }),
@@ -178,12 +155,8 @@ mod tests {
             String::new(),
         );
 
-        assert_eq!(status, StatusCode::OK, "the page itself still renders");
-        assert!(
-            body.contains("<form"),
-            "run-id lookup box should survive a list failure"
-        );
-        assert!(body.contains("Could not load recent runs"));
+        assert!(t.list.is_none());
+        assert!(t.list_error.is_some());
     }
 
     #[tokio::test]
