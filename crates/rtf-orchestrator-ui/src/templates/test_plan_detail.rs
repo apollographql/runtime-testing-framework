@@ -3,7 +3,7 @@ use askama::Template;
 
 /// The known test plan detail page: the plan's metadata (with a GitHub link) plus a paginated
 /// table of its recent runs.
-#[derive(Template)]
+#[derive(Debug, Template)]
 #[template(
     path = "test_plan_detail.html",
     blocks = ["plan_header", "overview", "trigger_form", "runs"]
@@ -49,7 +49,7 @@ impl TestPlanDetailTemplate {
 }
 
 /// Shown when a well-formed uuid does not correspond to any registered known test plan.
-#[derive(Template)]
+#[derive(Debug, Template)]
 #[template(path = "test_plan_not_found.html")]
 pub struct TestPlanNotFoundTemplate {
     pub uuid: String,
@@ -58,7 +58,7 @@ pub struct TestPlanNotFoundTemplate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{orchestrator::mocks, preview};
+    use crate::{orchestrator::mocks, preview, render_fragment};
     use chrono::{TimeZone, Utc};
     use rtf_orchestrator_shared::{status::Status, summary::TestRunListResponse};
     use uuid::Uuid;

@@ -3,6 +3,7 @@ use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanListResponse, KnownT
 use url::form_urlencoded;
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct KnownTestPlanRowView {
     pub uuid: Uuid,
     pub name: String,
@@ -33,6 +34,7 @@ fn known_test_plan_github_url(org: &str, repo: &str, path: &str) -> String {
     format!("https://github.com/{org}/{repo}/blob/HEAD/{path}")
 }
 
+#[derive(Debug)]
 pub struct KnownTestPlanListView {
     pub rows: Vec<KnownTestPlanRowView>,
     pagination: Pagination,

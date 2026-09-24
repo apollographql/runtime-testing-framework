@@ -4,13 +4,16 @@
 {% block title %}Execution {{ execution.name }}{% endblock %}
 
 {% block content %}
+{% block back_links %}
 <p><a href="/ui/run/{{ execution.run_id }}">&larr; Back to run</a></p>
 {% match execution.test_plan_id %}
 {% when Some with (test_plan_id) %}
 <p><a href="/ui/test-plan/{{ test_plan_id }}">&larr; Back to test plan</a></p>
 {% when None %}
 {% endmatch %}
+{% endblock %}
 
+{% block banner %}
 <section class="banner">
     <h2>{{ execution.name }}</h2>
     <p>{% call macros::status_pill(execution.status) %}{% endcall %}</p>
@@ -43,7 +46,9 @@
         <a href="/ui/execution/{{ execution.id }}/output.zip">Download output.zip</a>
     </p>
 </section>
+{% endblock %}
 
+{% block history %}
 <h3>Status history</h3>
 {% if execution.history.is_empty() %}
 <p>No status history yet.</p>
@@ -61,4 +66,5 @@
     {% endfor %}
 </ol>
 {% endif %}
+{% endblock %}
 {% endblock %}

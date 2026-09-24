@@ -1,0 +1,8 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/index.rs
+expression: render_fragment!(t.as_runs())
+---
+
+
+
+<p class="error-box">Could not load recent runs from the orchestrator.</p>

@@ -1,19 +1,3 @@
-/// Renders a block fragment, failing on empty output: askama silently renders `""` for a block
-/// nested inside control flow (`match`, `if let`) rather than failing to compile, so an empty
-/// snapshot would otherwise be easy to accept by mistake.
-#[cfg(test)]
-macro_rules! render_fragment {
-    ($t:expr) => {{
-        let body = $t.render().unwrap();
-        assert!(
-            !body.trim().is_empty(),
-            "fragment rendered as an empty string"
-        );
-
-        body
-    }};
-}
-
 mod error;
 mod execution;
 mod index;
@@ -29,3 +13,20 @@ pub use run::{RunNotFoundTemplate, RunTemplate};
 pub use test_plan_detail::{TestPlanDetailTemplate, TestPlanNotFoundTemplate};
 pub use test_plans::TestPlansTemplate;
 pub use trigger::TriggerTemplate;
+
+/// Renders a block fragment, failing on empty output: askama silently renders `""` for a block
+/// nested inside control flow (`match`, `if let`) rather than failing to compile, so an empty
+/// snapshot would otherwise be easy to accept by mistake.
+#[cfg(test)]
+#[macro_export]
+macro_rules! render_fragment {
+    ($t:expr) => {{
+        let body = $t.render().unwrap();
+        assert!(
+            !body.trim().is_empty(),
+            "fragment rendered as an empty string"
+        );
+
+        body
+    }};
+}

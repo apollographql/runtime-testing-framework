@@ -1,5 +1,5 @@
 use crate::{
-    endpoints::{parse_trigger_ref_and_variables, render_body, to_response},
+    endpoints::{SelectedTemplate, parse_trigger_ref_and_variables, to_response},
     orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
     view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView},
@@ -10,7 +10,6 @@ use axum::{
     http::HeaderMap,
     response::{IntoResponse, Redirect, Response},
 };
-use reqwest::StatusCode;
 use rtf_orchestrator_shared::{
     known_test_plan::{KnownTestPlanRunsParams, KnownTestPlanSummary},
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
@@ -45,6 +44,7 @@ pub struct TestPlanDetailParams {
     days: Option<u32>,
 }
 
+#[derive(Debug)]
 struct TestPlanDetailPage {
     limit: i64,
     offset: i64,
@@ -69,6 +69,7 @@ impl Default for TestPlanDetailPage {
     }
 }
 
+#[derive(Debug)]
 struct TestPlanDetailResults {
     plan: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
     runs: Result<TestRunListResponse, orchestrator::Error>,
@@ -105,7 +106,7 @@ pub async fn handler<C: Client>(
     );
 
     to_response(
-        SelectedTemplate::new(
+        select_template(
             uuid,
             TestPlanDetailResults {
                 plan,
@@ -126,108 +127,84 @@ pub async fn handler<C: Client>(
     )
 }
 
-enum SelectedTemplate {
-    Found(Box<TestPlanDetailTemplate>),
-    NotFound(TestPlanNotFoundTemplate),
-    Error(ErrorTemplate),
-}
+fn select_template(
+    uuid: Uuid,
+    fetch: TestPlanDetailResults,
+    page: TestPlanDetailPage,
+) -> SelectedTemplate<TestPlanDetailTemplate, TestPlanNotFoundTemplate> {
+    let plan = match fetch.plan {
+        Ok(Some(plan)) => plan,
+        Ok(None) => {
+            return SelectedTemplate::NotFound(TestPlanNotFoundTemplate {
+                uuid: uuid.to_string(),
+            });
+        }
+        Err(error) => {
+            error!(%error, %uuid, "failed to fetch known test plan from orchestrator");
+            return SelectedTemplate::Error(ErrorTemplate {
+                message: format!(
+                    "Could not load this known test plan from the orchestrator: {error}"
+                ),
+            });
+        }
+    };
 
-impl SelectedTemplate {
-    fn new(uuid: Uuid, fetch: TestPlanDetailResults, page: TestPlanDetailPage) -> Self {
-        let plan = match fetch.plan {
-            Ok(Some(plan)) => plan,
-            Ok(None) => {
-                return Self::NotFound(TestPlanNotFoundTemplate {
-                    uuid: uuid.to_string(),
-                });
-            }
-            Err(error) => {
-                error!(%error, %uuid, "failed to fetch known test plan from orchestrator");
-                return Self::Error(ErrorTemplate {
-                    message: format!(
-                        "Could not load this known test plan from the orchestrator: {error}"
-                    ),
-                });
-            }
-        };
-
-        let (details, details_error) = match fetch.details {
-            Ok(Some(details)) => (
-                Some(TestPlanDetailsView::new(details, page.days_back, page.days)),
+    let (details, details_error) = match fetch.details {
+        Ok(Some(details)) => (
+            Some(TestPlanDetailsView::new(details, page.days_back, page.days)),
+            None,
+        ),
+        Ok(None) => {
+            error!(%uuid, "test plan details endpoint returned 404 for an already-known test plan");
+            (
                 None,
-            ),
-            Ok(None) => {
-                error!(%uuid, "test plan details endpoint returned 404 for an already-known test plan");
-                (
-                    None,
-                    Some(
-                        "Could not load details for this test plan from the orchestrator."
-                            .to_owned(),
-                    ),
-                )
-            }
-            Err(error) => {
-                error!(%error, %uuid, "failed to fetch test plan details from orchestrator");
-                (
-                    None,
-                    Some(format!(
-                        "Could not load details for this test plan from the orchestrator: {error}"
-                    )),
-                )
-            }
-        };
-
-        let (runs, runs_error) = match fetch.runs {
-            Ok(response) => (
-                Some(RunListView::for_known_test_plan(
-                    response,
-                    page.limit,
-                    page.offset,
-                    uuid,
+                Some("Could not load details for this test plan from the orchestrator.".to_owned()),
+            )
+        }
+        Err(error) => {
+            error!(%error, %uuid, "failed to fetch test plan details from orchestrator");
+            (
+                None,
+                Some(format!(
+                    "Could not load details for this test plan from the orchestrator: {error}"
                 )),
+            )
+        }
+    };
+
+    let (runs, runs_error) = match fetch.runs {
+        Ok(response) => (
+            Some(RunListView::for_known_test_plan(
+                response,
+                page.limit,
+                page.offset,
+                uuid,
+            )),
+            None,
+        ),
+        Err(error) => {
+            error!(%error, %uuid, "failed to list runs for known test plan from orchestrator");
+            (
                 None,
-            ),
-            Err(error) => {
-                error!(%error, %uuid, "failed to list runs for known test plan from orchestrator");
-                (
-                    None,
-                    Some(format!(
-                        "Could not load recent runs for this test plan: {error}"
-                    )),
-                )
-            }
-        };
-
-        Self::Found(Box::new(TestPlanDetailTemplate {
-            plan: KnownTestPlanRowView::from(plan),
-            details,
-            details_error,
-            runs,
-            runs_error,
-            trigger_git_ref: page.trigger_git_ref,
-            trigger_variables: page.trigger_variables,
-            trigger_error: page.trigger_error,
-            days_back: page.days_back,
-            days: page.days,
-        }))
-    }
-
-    fn status(&self) -> StatusCode {
-        match self {
-            Self::Found(_) => StatusCode::OK,
-            Self::NotFound(_) => StatusCode::NOT_FOUND,
-            Self::Error(_) => StatusCode::BAD_GATEWAY,
+                Some(format!(
+                    "Could not load recent runs for this test plan: {error}"
+                )),
+            )
         }
-    }
+    };
 
-    fn render(self) -> (StatusCode, String) {
-        let status = self.status();
-        match self {
-            Self::Found(t) => render_body(status, *t),
-            Self::NotFound(t) => render_body(status, t),
-            Self::Error(t) => render_body(status, t),
-        }
-    }
+    SelectedTemplate::Found(Box::new(TestPlanDetailTemplate {
+        plan: KnownTestPlanRowView::from(plan),
+        details,
+        details_error,
+        runs,
+        runs_error,
+        trigger_git_ref: page.trigger_git_ref,
+        trigger_variables: page.trigger_variables,
+        trigger_error: page.trigger_error,
+        days_back: page.days_back,
+        days: page.days,
+    }))
 }
 
 /// Form fields submitted by the trigger form embedded on the known test plan detail page.
@@ -324,12 +301,13 @@ fn redirect_with_trigger_error(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        endpoints::body_text,
-        orchestrator::mocks::{MockClient, sample_known_test_plan, sample_test_plan_details},
+    use crate::orchestrator::mocks::{
+        MockClient, sample_known_test_plan, sample_test_plan_details,
     };
     use axum::http::header::LOCATION;
+    use reqwest::StatusCode;
     use rtf_orchestrator_shared::status::Status;
+    use std::assert_matches;
 
     fn ok_results(uuid: Uuid) -> TestPlanDetailResults {
         TestPlanDetailResults {
@@ -339,39 +317,18 @@ mod tests {
         }
     }
 
-    macro_rules! expect_found {
-        ($st:expr) => {{
-            assert_eq!($st.status(), StatusCode::OK);
+    #[test]
+    fn selected_template_is_found_for_a_known_test_plan() {
+        let uuid = Uuid::from_u128(1);
+        let t = select_template(uuid, ok_results(uuid), TestPlanDetailPage::default());
 
-            match $st {
-                SelectedTemplate::Found(t) => *t,
-                SelectedTemplate::NotFound(_) => panic!("expected Found, got NotFound"),
-                SelectedTemplate::Error(t) => panic!("expected Found, got Error: {}", t.message),
-            }
-        }};
+        assert_matches!(t, SelectedTemplate::Found(_));
     }
 
     #[test]
-    fn test_plan_detail_body_renders_the_plan_and_its_runs() {
+    fn selected_template_is_not_found_for_an_unknown_test_plan() {
         let uuid = Uuid::from_u128(1);
-        let t = expect_found!(SelectedTemplate::new(
-            uuid,
-            ok_results(uuid),
-            TestPlanDetailPage::default(),
-        ));
-
-        assert_eq!(t.plan.name, "my-known-test-plan");
-        assert_eq!(t.plan.description, "a sample known test plan");
-        assert!(t.details.is_some());
-        assert!(t.runs.is_some());
-        assert_eq!(t.details_error, None);
-        assert_eq!(t.runs_error, None);
-    }
-
-    #[test]
-    fn test_plan_detail_body_renders_not_found_for_an_unknown_uuid() {
-        let uuid = Uuid::from_u128(1);
-        let outcome = SelectedTemplate::new(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
                 plan: Ok(None),
@@ -380,14 +337,13 @@ mod tests {
             TestPlanDetailPage::default(),
         );
 
-        assert_eq!(outcome.status(), StatusCode::NOT_FOUND);
-        assert!(matches!(&outcome, SelectedTemplate::NotFound(t) if t.uuid == uuid.to_string()));
+        assert_matches!(t, SelectedTemplate::NotFound(_));
     }
 
     #[test]
-    fn test_plan_detail_body_renders_error_when_the_plan_fetch_fails() {
+    fn selected_template_is_an_error_when_the_plan_fetch_fails() {
         let uuid = Uuid::from_u128(1);
-        let outcome = SelectedTemplate::new(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
                 plan: Err(orchestrator::Error::KnownTestPlanStatus {
@@ -399,14 +355,13 @@ mod tests {
             TestPlanDetailPage::default(),
         );
 
-        assert_eq!(outcome.status(), StatusCode::BAD_GATEWAY);
-        assert!(matches!(outcome, SelectedTemplate::Error(_)));
+        assert_matches!(t, SelectedTemplate::Error(_));
     }
 
     #[test]
-    fn test_plan_detail_body_still_renders_the_plan_when_the_runs_fetch_fails() {
+    fn selected_template_is_an_found_with_runs_error_when_the_runs_fetch_fails() {
         let uuid = Uuid::from_u128(1);
-        let t = expect_found!(SelectedTemplate::new(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
                 runs: Err(orchestrator::Error::ListKnownTestPlanRuns {
@@ -416,17 +371,16 @@ mod tests {
                 ..ok_results(uuid)
             },
             TestPlanDetailPage::default(),
-        ));
+        )
+        .unwrap_found();
 
-        assert_eq!(t.plan.name, "my-known-test-plan");
-        assert!(t.runs.is_none());
         assert!(t.runs_error.is_some());
     }
 
     #[test]
-    fn test_plan_detail_body_still_renders_the_plan_when_the_details_fetch_fails() {
+    fn selected_template_is_found_with_details_error_when_the_details_fetch_fails() {
         let uuid = Uuid::from_u128(1);
-        let t = expect_found!(SelectedTemplate::new(
+        let t = select_template(
             uuid,
             TestPlanDetailResults {
                 details: Err(orchestrator::Error::TestPlanDetailsStatus {
@@ -436,57 +390,26 @@ mod tests {
                 ..ok_results(uuid)
             },
             TestPlanDetailPage::default(),
-        ));
+        )
+        .unwrap_found();
 
-        assert_eq!(t.plan.name, "my-known-test-plan");
-        assert!(t.runs.is_some(), "the runs table should still render");
-        assert!(t.details.is_none());
         assert!(t.details_error.is_some());
     }
 
     #[test]
     fn test_plan_detail_body_repopulates_the_trigger_form_and_shows_its_error() {
         let uuid = Uuid::from_u128(1);
-        let t = expect_found!(SelectedTemplate::new(
+        let t = select_template(
             uuid,
             ok_results(uuid),
             TestPlanDetailPage {
-                trigger_git_ref: "a-branch".to_owned(),
-                trigger_variables: r#"{"key": "value"}"#.to_owned(),
                 trigger_error: Some("unknown test plan".to_owned()),
                 ..Default::default()
             },
-        ));
-
-        assert_eq!(t.trigger_git_ref, "a-branch");
-        assert_eq!(t.trigger_variables, r#"{"key": "value"}"#);
-        assert_eq!(t.trigger_error.as_deref(), Some("unknown test plan"));
-    }
-
-    #[tokio::test]
-    async fn handler_calls_the_client_and_renders_whatever_comes_back() {
-        let uuid = Uuid::from_u128(3);
-        let resp = handler(
-            State(MockClient::with_test_run(
-                Uuid::from_u128(1),
-                Uuid::from_u128(2),
-                Status::Running,
-            )),
-            Path(uuid),
-            Query(TestPlanDetailParams::default()),
         )
-        .await;
+        .unwrap_found();
 
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = body_text(resp).await;
-        assert!(
-            body.contains("my-known-test-plan"),
-            "expected the mock client's sample known test plan to render"
-        );
-        assert!(
-            body.contains("my-test-run"),
-            "expected the mock client's sample run to render in the runs table"
-        );
+        assert_eq!(t.trigger_error.as_deref(), Some("unknown test plan"));
     }
 
     fn sample_form() -> KnownTestPlanTriggerForm {

@@ -23,6 +23,7 @@
 
 <br>
 
+{% block filters %}
 <h2>Recent runs</h2>
 <form class="filter-form" method="get" action="/ui">
     <input name="initiated_by" type="text" placeholder="Initiated by" aria-label="Initiated by"
@@ -37,8 +38,10 @@
     <button type="submit">Filter</button>
     <a href="/ui">Clear</a>
 </form>
+{% endblock %}
 <br>
 
+{% block runs %}
 {% call macros::error_message(list_error) %}{% endcall %}
 
 {% match list %}
@@ -46,4 +49,5 @@
 {% call macros::run_list_table(list) %}{% endcall %}
 {% when None %}
 {% endmatch %}
+{% endblock %}
 {% endblock %}

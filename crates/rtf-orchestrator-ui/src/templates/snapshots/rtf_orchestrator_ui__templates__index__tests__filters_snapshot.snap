@@ -1,0 +1,19 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/index.rs
+expression: "render_fragment!(index(\"\", \"\").as_filters())"
+---
+
+<h2>Recent runs</h2>
+<form class="filter-form" method="get" action="/ui">
+    <input name="initiated_by" type="text" placeholder="Initiated by" aria-label="Initiated by"
+        value="" />
+    <select name="started_within" aria-label="Started within">
+        <option value="" selected>Any time</option>
+        <option value="hour" >Last hour</option>
+        <option value="day" >Last 24 hours</option>
+        <option value="week" >Last 7 days</option>
+        <option value="month" >Last 30 days</option>
+    </select>
+    <button type="submit">Filter</button>
+    <a href="/ui">Clear</a>
+</form>

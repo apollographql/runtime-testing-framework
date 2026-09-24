@@ -1,36 +1,34 @@
-{% extends "base.html" %}
-{% import "macros.html" as macros %}
+---
+source: crates/rtf-orchestrator-ui/src/templates/trigger.rs
+expression: "render_fragment!(preview::trigger_error().as_form())"
+---
 
-{% block title %}RTF &middot; Trigger a run{% endblock %}
 
-{% block content %}
-<h2>Trigger a run from GitHub</h2>
-<p>The Orchestrator is able to pull and run RTF Test Plans directly from GitHub.
-   Enter the details of the Test Plan you with to run below.</p>
 
-{% block form %}
-{% call macros::error_message(error) %}{% endcall %}
+<p class="error-box">unknown path in repo</p>
+
+
 
 <form method="post" action="/ui/trigger">
     <p>
         <label for="org">Org</label><br>
-        <input id="org" name="org" type="text" placeholder="apollographql" value="{{ org }}" required size="40" />
+        <input id="org" name="org" type="text" placeholder="apollographql" value="apollographql" required size="40" />
     </p>
     <p>
         <label for="repo">Repo</label><br>
-        <input id="repo" name="repo" type="text" placeholder="runtime-testing-framework" value="{{ repo }}"
+        <input id="repo" name="repo" type="text" placeholder="runtime-testing-framework" value="runtime-testing-framework"
             required size="40" />
     </p>
     <p>
         <label for="path">Path to test-plan.yaml</label><br>
         <input id="path" name="path" type="text"
-            placeholder="example-test-plans/orchestrator-smoke/test-plan.yaml" value="{{ path }}"
+            placeholder="example-test-plans/orchestrator-smoke/test-plan.yaml" value="test-plans/example.yaml"
             required size="60" />
     </p>
     <p>
         <label for="ref">Ref <span class="muted">(optional &mdash; branch, tag, or SHA; defaults to the
                 default branch)</span></label><br>
-        <input id="ref" name="ref" type="text" placeholder="main" value="{{ git_ref }}" size="40" />
+        <input id="ref" name="ref" type="text" placeholder="main" value="main" size="40" />
     </p>
     <p>
         <label for="variables">Variables <span class="muted">(optional &mdash; JSON object)</span></label>
@@ -44,9 +42,7 @@
 }</pre>
         </div>
         <textarea id="variables" name="variables" rows="6" cols="60"
-            placeholder="{ &quot;subject&quot;: [&quot;world&quot;, &quot;sailor&quot;] }">{{ variables }}</textarea>
+            placeholder="{ &quot;subject&quot;: [&quot;world&quot;, &quot;sailor&quot;] }">{&#34;duration&#34;: &#34;60s&#34;}</textarea>
     </p>
     <button type="submit">Trigger run</button>
 </form>
-{% endblock %}
-{% endblock %}

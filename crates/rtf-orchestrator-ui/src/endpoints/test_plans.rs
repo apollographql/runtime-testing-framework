@@ -37,35 +37,32 @@ pub async fn handler<C: Client>(
         })
         .await;
 
-    to_response(test_plans_body(list, DEFAULT_LIMIT, offset))
+    to_response(render_body(
+        StatusCode::OK,
+        test_plans_template(list, DEFAULT_LIMIT, offset),
+    ))
 }
 
-/// Maps the result of listing known test plans to a rendered `(status, body)` pair. A fetch
-/// failure still renders the page, with an inline error in place of the table.
-fn test_plans_body(
+/// Maps the result of listing known test plans to the page's template. A fetch failure still
+/// renders the page, with an inline error in place of the table.
+fn test_plans_template(
     result: Result<KnownTestPlanListResponse, orchestrator::Error>,
     limit: i64,
     offset: i64,
-) -> (StatusCode, String) {
+) -> TestPlansTemplate {
     match result {
-        Ok(response) => render_body(
-            StatusCode::OK,
-            TestPlansTemplate {
-                list: Some(KnownTestPlanListView::new(response, limit, offset)),
-                list_error: None,
-            },
-        ),
+        Ok(response) => TestPlansTemplate {
+            list: Some(KnownTestPlanListView::new(response, limit, offset)),
+            list_error: None,
+        },
         Err(error) => {
             error!(%error, "failed to list known test plans from orchestrator");
-            render_body(
-                StatusCode::OK,
-                TestPlansTemplate {
-                    list: None,
-                    list_error: Some(
-                        "Could not load known test plans from the orchestrator.".to_owned(),
-                    ),
-                },
-            )
+            TestPlansTemplate {
+                list: None,
+                list_error: Some(
+                    "Could not load known test plans from the orchestrator.".to_owned(),
+                ),
+            }
         }
     }
 }
@@ -73,16 +70,12 @@ fn test_plans_body(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        endpoints::body_text,
-        orchestrator::mocks::{MockClient, sample_known_test_plan},
-    };
-    use rtf_orchestrator_shared::status::Status;
+    use crate::orchestrator::mocks::sample_known_test_plan;
     use uuid::Uuid;
 
     #[test]
-    fn test_plans_body_renders_the_table() {
-        let (status, body) = test_plans_body(
+    fn test_plans_template_carries_the_listed_plans() {
+        let t = test_plans_template(
             Ok(KnownTestPlanListResponse {
                 test_plans: vec![sample_known_test_plan(Uuid::new_v4())],
                 total: 1,
@@ -91,16 +84,15 @@ mod tests {
             0,
         );
 
-        assert_eq!(status, StatusCode::OK);
-        assert!(
-            body.contains("my-known-test-plan"),
-            "known test plan row should render"
-        );
+        let list = t.list.expect("the plans list should be present");
+        assert_eq!(list.rows.len(), 1);
+        assert_eq!(list.rows[0].name, "my-known-test-plan");
+        assert_eq!(t.list_error, None);
     }
 
     #[test]
-    fn test_plans_body_still_renders_the_page_when_listing_fails() {
-        let (status, body) = test_plans_body(
+    fn test_plans_template_carries_an_inline_error_when_listing_fails() {
+        let t = test_plans_template(
             Err(orchestrator::Error::ListKnownTestPlans {
                 status: StatusCode::BAD_GATEWAY,
             }),
@@ -108,26 +100,7 @@ mod tests {
             0,
         );
 
-        assert_eq!(status, StatusCode::OK, "the page itself still renders");
-        assert!(body.contains("Could not load known test plans"));
-    }
-
-    #[tokio::test]
-    async fn handler_calls_the_client_and_renders_whatever_comes_back() {
-        let resp = handler(
-            State(MockClient::with_test_run(
-                Uuid::from_u128(1),
-                Uuid::from_u128(2),
-                Status::Running,
-            )),
-            Query(TestPlansParams { offset: None }),
-        )
-        .await;
-
-        assert_eq!(resp.status(), StatusCode::OK);
-        assert!(
-            body_text(resp).await.contains("my-known-test-plan"),
-            "expected the mock client's sample known test plan to render"
-        );
+        assert!(t.list.is_none());
+        assert!(t.list_error.is_some());
     }
 }

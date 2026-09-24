@@ -1,0 +1,6 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/execution.rs
+expression: render_fragment!(execution(None).as_back_links())
+---
+
+<p><a href="/ui/run/00000000-0000-0000-0000-000000000001">&larr; Back to run</a></p>

@@ -1,4 +1,7 @@
-use crate::orchestrator::{self, Download};
+use crate::{
+    orchestrator::{self, Download},
+    templates::ErrorTemplate,
+};
 use askama::Template;
 use axum::{
     http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, LOCATION},
@@ -30,6 +33,45 @@ fn render_body<T: Template>(status: StatusCode, template: T) -> (StatusCode, Str
 
 fn to_response((status, body): (StatusCode, String)) -> Response {
     (status, Html(body)).into_response()
+}
+
+#[derive(Debug)]
+enum SelectedTemplate<T1, T2> {
+    Found(Box<T1>),
+    NotFound(T2),
+    Error(ErrorTemplate),
+}
+
+impl<T1, T2> SelectedTemplate<T1, T2>
+where
+    T1: Template,
+    T2: Template,
+{
+    fn status(&self) -> StatusCode {
+        match self {
+            Self::Found(_) => StatusCode::OK,
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::Error(_) => StatusCode::BAD_GATEWAY,
+        }
+    }
+
+    fn render(self) -> (StatusCode, String) {
+        let status = self.status();
+        match self {
+            Self::Found(t) => render_body(status, *t),
+            Self::NotFound(t) => render_body(status, t),
+            Self::Error(t) => render_body(status, t),
+        }
+    }
+
+    #[cfg(test)]
+    fn unwrap_found(self) -> Box<T1> {
+        match self {
+            Self::Found(t) => t,
+            Self::NotFound(t) => panic!("unwrap_found called on a NotFound: {t}"),
+            Self::Error(e) => panic!("unwrap_found called on an Error: {e}"),
+        }
+    }
 }
 
 type TriggerVariables = HashMap<String, VariableOverride>;

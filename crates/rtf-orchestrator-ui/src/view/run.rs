@@ -19,6 +19,7 @@ use uuid::Uuid;
 /// UI stops polling and the user can refresh manually.
 const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 
+#[derive(Debug)]
 pub struct RunView {
     pub id: Uuid,
     pub test_plan_id: Option<Uuid>,
@@ -160,6 +161,7 @@ const STATUS_LIFECYCLE_ORDER: [Status; 8] = [
     Status::Unrunnable,
 ];
 
+#[derive(Debug)]
 pub struct StatusCountView {
     pub status: StatusView,
     pub count: usize,
@@ -182,6 +184,7 @@ fn status_breakdown(executions: &[TestExecutionSummary]) -> Vec<StatusCountView>
         .collect()
 }
 
+#[derive(Debug)]
 pub struct ExecutionView {
     pub id: Uuid,
     pub name: String,
@@ -240,18 +243,11 @@ fn rerun_url(test_plan_id: Uuid, trigger_variables: Option<&Value>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        links::sample_config, orchestrator::mocks::sample_summary, templates::RunTemplate,
-    };
-    use askama::Template;
-    use chrono::{Duration, TimeZone};
+    use crate::{links::sample_config, orchestrator::mocks::sample_summary};
+    use chrono::Duration;
     use serde_json::json;
     use simple_test_case::test_case;
     use std::collections::HashMap;
-
-    fn fixed_now() -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2024, 3, 15, 12, 30, 0).unwrap()
-    }
 
     #[test_case(Status::Running, 0, true; "recent running run polls")]
     #[test_case(Status::Running, MAX_POLL_AGE_SECS + 1, false; "stuck running run stops polling")]
@@ -287,40 +283,6 @@ mod tests {
     }
 
     #[test]
-    fn run_template_carries_the_poll_trigger_while_non_terminal() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(
-            sample_summary(run_id, ex_id, Status::Running),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run }.render().expect("template renders");
-
-        assert!(body.contains(&format!("hx-get=\"/ui/run/{run_id}\"")));
-        assert!(body.contains("hx-select=\"#run\""));
-    }
-
-    #[test]
-    fn run_template_links_back_to_the_test_plan_when_known() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let test_plan_id = Uuid::from_u128(3);
-        let mut run = sample_summary(run_id, ex_id, Status::Running);
-        run.test_plan_id = Some(test_plan_id);
-        let view = RunView::new(run, Utc::now(), &sample_config(), String::new());
-        let body = RunTemplate { run: view }
-            .render()
-            .expect("template renders");
-
-        assert!(
-            body.contains(&format!("/ui/test-plan/{test_plan_id}")),
-            "run page should link back to its known test plan"
-        );
-    }
-
-    #[test]
     fn rerun_url_carries_the_test_plan_id_with_no_variables_param_when_the_run_had_none() {
         let test_plan_id = Uuid::from_u128(3);
         let mut run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);
@@ -349,56 +311,6 @@ mod tests {
             decoded.get("trigger_variables").map(|v| v.as_ref()),
             Some(r#"{"env":"prod","tier":["gold","silver"]}"#)
         );
-    }
-
-    #[test]
-    fn run_template_shows_a_rerun_link_when_the_run_has_a_known_test_plan() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let test_plan_id = Uuid::from_u128(3);
-        let mut run = sample_summary(run_id, ex_id, Status::Running);
-        run.test_plan_id = Some(test_plan_id);
-        run.trigger_variables = Some(json!({"env": "prod"}));
-        let view = RunView::new(run, Utc::now(), &sample_config(), String::new());
-        let body = RunTemplate { run: view }
-            .render()
-            .expect("template renders");
-
-        assert!(body.contains(&format!("/ui/test-plan/{test_plan_id}?trigger_variables=")));
-    }
-
-    #[test]
-    fn run_template_omits_the_rerun_link_when_the_run_has_no_known_test_plan() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let view = RunView::new(
-            sample_summary(run_id, ex_id, Status::Running),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run: view }
-            .render()
-            .expect("template renders");
-
-        assert!(!body.contains("Re-run"));
-    }
-
-    #[test]
-    fn run_template_omits_the_poll_trigger_once_terminal() {
-        let run_id = Uuid::from_u128(1);
-        let ex_id = Uuid::from_u128(2);
-        let run = RunView::new(
-            sample_summary(run_id, ex_id, Status::Successful),
-            Utc::now(),
-            &sample_config(),
-            String::new(),
-        );
-        let body = RunTemplate { run }.render().expect("template renders");
-
-        // The manual "Refresh now" button always carries `hx-get`/`hx-select`; `hx-trigger` only
-        // ever appears on the auto-poll attributes, so its absence is what proves polling stopped.
-        assert!(!body.contains("hx-trigger"));
     }
 
     #[test_case(None, &[]; "absent trigger variables render nothing")]
@@ -574,86 +486,5 @@ mod tests {
             vec![("SUCCESSFUL", 2), ("FAILED", 1)],
             "breakdown should count every execution in lifecycle order and ignore the active filter"
         );
-    }
-
-    #[test]
-    fn run_template_snapshot_running_with_mixed_statuses_and_active_filter() {
-        let started = Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0).unwrap();
-
-        let run = TestRunSummary {
-            id: Uuid::from_u128(1),
-            test_plan_id: Some(Uuid::from_u128(2)),
-            name: "nightly-smoke".to_owned(),
-            cluster: "alpha".to_owned(),
-            trigger_variables: Some(json!({"foo": "bar", "baz": [1, 2, 3]})),
-            current_status: Status::Running,
-            initiated_by: "someone@apollographql.com".to_owned(),
-            started_at: started,
-            updated_at: started + Duration::minutes(5),
-            executions: vec![
-                TestExecutionSummary {
-                    id: Uuid::from_u128(3),
-                    name: "exec-ok".to_owned(),
-                    current_status: Status::Successful,
-                    exit_code: Some(0),
-                    started_at: started,
-                    updated_at: started + Duration::minutes(3),
-                    completed_at: Some(started + Duration::minutes(3)),
-                    ..Default::default()
-                },
-                TestExecutionSummary {
-                    id: Uuid::from_u128(4),
-                    name: "exec-broke".to_owned(),
-                    current_status: Status::Failed,
-                    exit_code: Some(1),
-                    started_at: started,
-                    updated_at: started + Duration::minutes(4),
-                    completed_at: Some(started + Duration::minutes(4)),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        };
-        let view = RunView::new(run, fixed_now(), &sample_config(), "FAILED".to_owned());
-        let body = RunTemplate { run: view }
-            .render()
-            .expect("template renders");
-
-        insta::assert_snapshot!(body);
-    }
-
-    #[test]
-    fn run_template_snapshot_terminal_run_with_completed_at() {
-        let started = Utc.with_ymd_and_hms(2024, 3, 15, 9, 0, 0).unwrap();
-        let completed = started + Duration::minutes(12);
-
-        let run = TestRunSummary {
-            id: Uuid::from_u128(1),
-            test_plan_id: Some(Uuid::from_u128(2)),
-            name: "release-check".to_owned(),
-            cluster: "alpha".to_owned(),
-            current_status: Status::Successful,
-            initiated_by: "someone@apollographql.com".to_owned(),
-            started_at: started,
-            updated_at: completed,
-            completed_at: Some(completed),
-            executions: vec![TestExecutionSummary {
-                id: Uuid::from_u128(3),
-                name: "exec-alpha".to_owned(),
-                current_status: Status::Successful,
-                exit_code: Some(0),
-                started_at: started,
-                updated_at: completed,
-                completed_at: Some(completed),
-                ..Default::default()
-            }],
-            ..Default::default()
-        };
-        let view = RunView::new(run, fixed_now(), &sample_config(), String::new());
-        let body = RunTemplate { run: view }
-            .render()
-            .expect("template renders");
-
-        insta::assert_snapshot!(body);
     }
 }

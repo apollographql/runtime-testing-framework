@@ -110,32 +110,40 @@ fn trigger_result_response(
 
         Err(error) => {
             error!(%error, "failed to trigger a run from the orchestrator");
-            let (status, message) = match error {
-                orchestrator::Error::Trigger { status, message } => (status, message),
-                e => (
-                    StatusCode::BAD_GATEWAY,
-                    format!("Unable to trigger run: {e}"),
-                ),
-            };
+            let (status, template) = trigger_error_template(form, error);
 
-            to_response(render_body(
-                status,
-                TriggerTemplate {
-                    error: Some(message),
-                    ..form.into()
-                },
-            ))
+            to_response(render_body(status, template))
         }
     }
+}
+
+/// The status and re-populated form to show for a failed trigger: the orchestrator's own status and
+/// message for a rejected trigger, or a generic `502` for anything unexpected.
+fn trigger_error_template(
+    form: TriggerForm,
+    error: orchestrator::Error,
+) -> (StatusCode, TriggerTemplate) {
+    let (status, message) = match error {
+        orchestrator::Error::Trigger { status, message } => (status, message),
+        e => (
+            StatusCode::BAD_GATEWAY,
+            format!("Unable to trigger run: {e}"),
+        ),
+    };
+
+    (
+        status,
+        TriggerTemplate {
+            error: Some(message),
+            ..form.into()
+        },
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        endpoints::body_text,
-        orchestrator::mocks::{MockClient, sample_summary},
-    };
+    use crate::orchestrator::mocks::{MockClient, sample_summary};
     use axum::http::header::LOCATION;
     use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
@@ -173,15 +181,6 @@ mod tests {
         let resp = get_handler().await;
 
         assert_eq!(resp.status(), StatusCode::OK);
-
-        let body = body_text(resp).await;
-
-        assert!(
-            body.contains("<form"),
-            "expected a form on the trigger page"
-        );
-        assert!(body.contains(r#"name="org""#));
-        assert!(body.contains(r#"name="variables""#));
     }
 
     #[test]
@@ -200,40 +199,42 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn trigger_result_response_re_renders_the_form_with_the_orchestrators_error() {
-        let resp = trigger_result_response(
+    #[test]
+    fn trigger_error_template_re_populates_the_form_with_the_orchestrators_error() {
+        let (status, t) = trigger_error_template(
             sample_form(),
-            Err(orchestrator::Error::Trigger {
+            orchestrator::Error::Trigger {
                 status: StatusCode::BAD_REQUEST,
                 message: "unknown path in repo".to_owned(),
-            }),
+            },
         );
 
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-
-        let body = body_text(resp).await;
-
-        assert!(body.contains("unknown path in repo"));
-        assert!(
-            body.contains("apollographql"),
-            "form fields should be repopulated, got: {body}"
-        );
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(t.error.as_deref(), Some("unknown path in repo"));
+        assert_eq!(t.org, "apollographql");
+        assert_eq!(t.repo, "runtime-testing-framework");
+        assert_eq!(t.path, "test-plans/smoke/test-plan.yaml");
     }
 
-    #[tokio::test]
-    async fn trigger_result_response_falls_back_to_bad_gateway_on_an_unexpected_error() {
+    #[test]
+    fn trigger_error_template_falls_back_to_bad_gateway_on_an_unexpected_error() {
         // `ListRuns` never actually comes back from `trigger` - it stands in here for any
         // non-`Trigger` variant, to exercise the fallback arm of the match.
-        let resp = trigger_result_response(
+        let (status, t) = trigger_error_template(
             sample_form(),
-            Err(orchestrator::Error::ListRuns {
+            orchestrator::Error::ListRuns {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
-            }),
+            },
         );
 
-        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
-        assert!(body_text(resp).await.contains("Unable to trigger run"));
+        assert_eq!(status, StatusCode::BAD_GATEWAY);
+        assert!(
+            t.error
+                .as_deref()
+                .is_some_and(|e| e.starts_with("Unable to trigger run")),
+            "got: {:?}",
+            t.error
+        );
     }
 
     #[tokio::test]
