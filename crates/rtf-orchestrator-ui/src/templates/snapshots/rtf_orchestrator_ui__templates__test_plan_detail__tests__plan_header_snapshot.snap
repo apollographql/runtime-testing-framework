@@ -1,0 +1,24 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/test_plan_detail.rs
+expression: "render_fragment!(preview::test_plan_detail().as_plan_header())"
+---
+
+<div class="test-plan-card">
+    <h2>my-known-test-plan</h2>
+    
+    <p>a sample known test plan</p>
+    
+    <p class="muted location">
+        <a href="https://github.com/apollographql/runtime-testing-framework/blob/abc1234def5678/test-plans/example.yaml" target="_blank" rel="noopener noreferrer">apollographql/runtime-testing-framework/test-plans/example.yaml &#8599;</a>
+    </p>
+    <dl>
+        
+        <dt>Commit</dt>
+        <dd><code>abc1234def5678</code></dd>
+        <dt>Cluster</dt>
+        <dd><code>alpha</code></dd>
+        
+        <dt>Namespace write access</dt>
+        <dd>Disabled</dd>
+    </dl>
+</div>

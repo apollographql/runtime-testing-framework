@@ -6,18 +6,14 @@
 {% block content %}
 <p><a href="/ui/test-plans">&larr; Back to known test plans</a></p>
 
+{% block plan_header %}
 <div class="test-plan-card">
     <h2>{{ plan.name }}</h2>
     {% if plan.description != "" %}
     <p>{{ plan.description }}</p>
     {% endif %}
     <p class="muted location">
-        {% match details %}
-        {% when Some with (d) %}
-        <a href="{{ d.github_url }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
-        {% when None %}
-        <a href="{{ plan.github_url }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
-        {% endmatch %}
+        <a href="{{ self.github_url() }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
     </p>
     <dl>
         {% match details %}
@@ -29,13 +25,14 @@
         {% when None %}
         {% endmatch %}
         <dt>Namespace write access</dt>
-        <dd>{% if plan.allow_k8s_write %}Enabled{% else %}Disabled{% endif %}</dd>
+        <dd>{{ self.write_access_label() }}</dd>
     </dl>
 </div>
+{% endblock %}
 
+{% block overview %}
 {% match details %}
 {% when Some with (d) %}
-
 <div class="detail-grid">
     <div class="detail-main">
 
@@ -145,7 +142,13 @@
         </div>
     </div>
 </div>
+{% when None %}
+{% call macros::error_message(details_error) %}{% endcall %}
+{% endmatch %}
+{% endblock %}
 
+{% block trigger_form %}
+{% if let Some(d) = details %}
 <h2>Trigger a run</h2>
 
 {% call macros::error_message(trigger_error) %}{% endcall %}
@@ -160,7 +163,7 @@
     <input type="hidden" name="days" value="{{ days }}" />
 </form>
 
-<details id="customize-trigger" class="test-plan-card" {% if trigger_error.is_some() || !trigger_variables.is_empty() %}open{% endif %}>
+<details id="customize-trigger" class="test-plan-card" {% if self.customize_expanded() %}open{% endif %}>
     <summary>Customize ref &amp; variables</summary>
 
     <form method="get" action="/ui/test-plan/{{ plan.uuid }}">
@@ -219,22 +222,23 @@
         {% endfor %}
     </div>
 
-    <details {% if trigger_error.is_some() || !trigger_variables.is_empty() %}open{% endif %}>
+    <details {% if self.customize_expanded() %}open{% endif %}>
         <summary>Advanced: raw variables JSON</summary>
         <p class="muted" style="margin-bottom:0.3rem;">Auto-generated from the fields above &mdash;
             edit directly for anything not covered by them.</p>
-        <textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60" {% if trigger_error.is_some() %}autofocus{% endif %}>{{ trigger_variables }}</textarea>
+        <textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60" {% if self.focus_variables() %}autofocus{% endif %}>{{ trigger_variables }}</textarea>
     </details>
 </details>
+{% endif %}
+{% endblock %}
 
+{% if let Some(d) = details %}
 <script type="application/json" id="test-plan-details-data">{{ d.js_data()|json|safe }}</script>
 <script src="/ui/static/chart.min.js"></script>
 <script src="/ui/static/test-plan-detail.js"></script>
+{% endif %}
 
-{% when None %}
-{% call macros::error_message(details_error) %}{% endcall %}
-{% endmatch %}
-
+{% block runs %}
 <h2>Recent runs</h2>
 
 {% call macros::error_message(runs_error) %}{% endcall %}
@@ -244,4 +248,5 @@
 {% call macros::run_list_table(runs) %}{% endcall %}
 {% when None %}
 {% endmatch %}
+{% endblock %}
 {% endblock %}

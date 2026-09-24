@@ -1,0 +1,103 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/test_plan_detail.rs
+expression: "render_fragment!(preview::test_plan_detail().as_overview())"
+---
+
+
+<div class="detail-grid">
+    <div class="detail-main">
+
+        <section class="banner">
+            <h2>Overview</h2>
+            <dl>
+                <dt>Number of executions per run</dt>
+                <dd id="stat-executions">8</dd>
+                <dd class="muted" id="stat-formula">2 region × 2 colours × 2 subjects</dd>
+
+                
+                
+                <dt>Services / execution</dt>
+                <dd>2</dd>
+                
+                
+
+                
+                <dt>colours (fixed &mdash; not alterable per trigger)
+                    <span class="hint" title="This dimension can't be edited via the fields below. To change its entries, or move one of its variables into or out of it, edit the raw variables JSON directly.">?</span>
+                </dt>
+                <dd>
+                    background: blue &middot; foreground: red; background: white &middot; foreground: black
+                </dd>
+                
+                <dt>subjects (fixed &mdash; not alterable per trigger)
+                    <span class="hint" title="This dimension can't be edited via the fields below. To change its entries, or move one of its variables into or out of it, edit the raw variables JSON directly.">?</span>
+                </dt>
+                <dd>
+                    scenario_subject: sailor &middot; setup_subject: world!; scenario_subject: father &middot; setup_subject: mother
+                </dd>
+                
+            </dl>
+        </section>
+
+        
+        
+        <h2>Services deployed per execution</h2>
+        
+        <p class="muted">Every matrix combination stands up this same environment.</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Image</th>
+                    <th>Replicas</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td><code>web</code></td>
+                    <td><code>nginx:1.25</code></td>
+                    <td class="nowrap">1</td>
+                </tr>
+                
+                <tr>
+                    <td><code>worker</code></td>
+                    <td><code>my-worker:latest</code></td>
+                    <td class="nowrap">${WORKER_REPLICAS}</td>
+                </tr>
+                
+            </tbody>
+        </table>
+        
+        
+        
+        
+
+    </div>
+
+    <div class="detail-side">
+        <div class="test-plan-card">
+            <h3>Previous runs</h3>
+            <p class="muted">
+                <a href="/ui/test-plan/00000000-0000-0000-0000-00000000000a?days_back=60" aria-label="Previous history window">&larr;</a>
+                1970-01-01 &ndash; 1969-12-31
+                
+                <a href="/ui/test-plan/00000000-0000-0000-0000-00000000000a?days_back=0" aria-label="Next history window">&rarr;</a>
+                
+            </p>
+            <canvas id="chart-status" height="170"></canvas>
+        </div>
+        <div class="test-plan-card">
+            <h3>Historic execution duration (mm:ss)</h3>
+            <p class="muted">
+                <a href="/ui/test-plan/00000000-0000-0000-0000-00000000000a?days_back=60" aria-label="Previous history window">&larr;</a>
+                0 runs in the last 30 days
+                
+                <a href="/ui/test-plan/00000000-0000-0000-0000-00000000000a?days_back=0" aria-label="Next history window">&rarr;</a>
+                
+            </p>
+            <canvas id="chart-duration" height="170"></canvas>
+        </div>
+    </div>
+</div>
