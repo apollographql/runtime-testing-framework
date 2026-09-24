@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3cba256e.js";
+            window.path_to_searchindex_js = "searchindex-56eabfb2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-9b5efe91.js"></script>
@@ -5358,24 +5358,37 @@ requests based on operations data obtained from the GraphOS API.</p>
 <p>Accepts duration strings like “30d”, “7d”, “12h”. Defaults to “30d” if unset.</p>
 </details>
 <h2 id="graphos-canned-operations-by-id"><a class="header" href="#graphos-canned-operations-by-id">GraphOS canned operations by ID</a></h2>
-<p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
-requests based on operations data obtained from the GraphOS API.</p>
+<p>The user specifies the graph ref and a set of operation IDs to be fetched from the GraphOS API for
+generating canned GraphQL requests.</p>
 <pre><code class="language-yaml">- name: canned_ops.json
   env_var: CANNED_OPS_FILE
   kind: graphos_canned_ops_by_id
   graph_ref: graph@variant
-  operation_ids:
-    - 5b1f8a2a1bd4be697559013a23fcbcb9186afe77
-    - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
-    - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
+  operation:
+    kind: inline
+    content: |
+      5b1f8a2a1bd4be697559013a23fcbcb9186afe77
+      3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
+      50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
 </code></pre>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_ref-1"><a class="header" href="#graph_ref-1"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull operations for.</p>
-<h3 id="operation_ids"><a class="header" href="#operation_ids"><code>operation_ids</code></a></h3>
-<p>Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
-<code>OperationInsightsListItem</code> in the Studio graphQL API.</p>
+<h3 id="operations"><a class="header" href="#operations"><code>operations</code></a></h3>
+<p>A text file provider containing the operation IDs from the Apollo studio API for the operations you
+want to work with as queried from an <code>OperationInsightsListItem</code> in the Studio graphQL API.
+Operations must be specified one per-line</p>
+<details>
+<summary>Variants</summary>
+<ul>
+<li><a href="#github-file">GitHub file</a></li>
+<li><a href="#inline-file">Inline file</a></li>
+<li><a href="#relative-path">Relative path</a></li>
+<li><a href="#required-file">Required file</a></li>
+<li><a href="#templated-file">Templated file</a></li>
+</ul>
+</details>
 </details>
 <h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS supergraph Router URL overrides</a></h2>
 <p>The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
