@@ -89,15 +89,6 @@ pub fn execution_with_parent() -> ExecutionTemplate {
     }
 }
 
-pub fn execution_without_parent() -> ExecutionTemplate {
-    let mut execution = mocks::sample_execution(id(1), id(2));
-    execution.test_run_id = None;
-
-    ExecutionTemplate {
-        execution: ExecutionDetailView::new(execution, &sample_config()),
-    }
-}
-
 pub fn execution_not_found() -> ExecutionNotFoundTemplate {
     ExecutionNotFoundTemplate {
         execution_id: id(404).to_string(),

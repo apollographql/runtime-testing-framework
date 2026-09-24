@@ -148,7 +148,7 @@
 
 <h2>Trigger a run</h2>
 
-{% call macros::error_banner(trigger_error) %}{% endcall %}
+{% call macros::error_message(trigger_error) %}{% endcall %}
 
 <form method="post" action="/ui/test-plan/{{ plan.uuid }}/trigger" id="trigger-form">
     <p class="trigger-actions">

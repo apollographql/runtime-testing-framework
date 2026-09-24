@@ -31,7 +31,6 @@ const PAGES: &[(&str, &str)] = &[
         "/ui/execution/with-parent",
         "Execution — linked to a parent run",
     ),
-    ("/ui/execution/without-parent", "Execution — no parent run"),
     ("/ui/execution/not-found", "Execution — not found"),
     ("/ui/test-plans", "Known test plans — list"),
     (
@@ -75,10 +74,6 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/ui/execution/with-parent",
             get(|| async { render(preview::execution_with_parent()) }),
-        )
-        .route(
-            "/ui/execution/without-parent",
-            get(|| async { render(preview::execution_without_parent()) }),
         )
         .route(
             "/ui/execution/not-found",

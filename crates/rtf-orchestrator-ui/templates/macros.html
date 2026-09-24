@@ -1,14 +1,6 @@
 {% macro error_message(message) %}
 {% match message %}
 {% when Some with (m) %}
-<p class="muted">{{ m }}</p>
-{% when None %}
-{% endmatch %}
-{% endmacro %}
-
-{% macro error_banner(message) %}
-{% match message %}
-{% when Some with (m) %}
 <p class="error-box">{{ m }}</p>
 {% when None %}
 {% endmatch %}
