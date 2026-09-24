@@ -89,15 +89,6 @@ pub fn execution_with_parent() -> ExecutionTemplate {
     }
 }
 
-pub fn execution_without_parent() -> ExecutionTemplate {
-    let mut execution = mocks::sample_execution(id(1), id(2));
-    execution.test_run_id = None;
-
-    ExecutionTemplate {
-        execution: ExecutionDetailView::new(execution, &sample_config()),
-    }
-}
-
 pub fn execution_not_found() -> ExecutionNotFoundTemplate {
     ExecutionNotFoundTemplate {
         execution_id: id(404).to_string(),
@@ -141,6 +132,33 @@ pub fn test_plan_detail() -> TestPlanDetailTemplate {
         days: DEFAULT_DAYS,
         trigger_variables: String::new(),
         trigger_error: None,
+    }
+}
+
+pub fn test_plan_detail_trigger_error() -> TestPlanDetailTemplate {
+    let uuid = id(10);
+    let runs = TestRunListResponse {
+        runs: vec![mocks::sample_summary(id(1), id(2), Status::Successful)],
+        total: 1,
+    };
+
+    TestPlanDetailTemplate {
+        plan: KnownTestPlanRowView::from(mocks::sample_known_test_plan(uuid)),
+        details: Some(TestPlanDetailsView::new(
+            mocks::sample_test_plan_details(uuid),
+            DEFAULT_DAYS_BACK,
+            DEFAULT_DAYS,
+        )),
+        details_error: None,
+        runs: Some(RunListView::for_known_test_plan(runs, 20, 0, uuid)),
+        runs_error: None,
+        trigger_git_ref: String::new(),
+        days_back: DEFAULT_DAYS_BACK,
+        days: DEFAULT_DAYS,
+        trigger_variables: r#"{"region": "us-east-1",}"#.to_owned(),
+        trigger_error: Some(
+            "Variables must be a JSON object: trailing comma at line 1 column 24".to_owned(),
+        ),
     }
 }
 

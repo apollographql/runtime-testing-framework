@@ -1,7 +1,7 @@
 {% macro error_message(message) %}
 {% match message %}
 {% when Some with (m) %}
-<p class="muted">{{ m }}</p>
+<p class="error-box">{{ m }}</p>
 {% when None %}
 {% endmatch %}
 {% endmacro %}

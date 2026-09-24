@@ -160,7 +160,7 @@
     <input type="hidden" name="days" value="{{ days }}" />
 </form>
 
-<details id="customize-trigger" class="test-plan-card" {% if !trigger_variables.is_empty() %}open{% endif %}>
+<details id="customize-trigger" class="test-plan-card" {% if trigger_error.is_some() || !trigger_variables.is_empty() %}open{% endif %}>
     <summary>Customize ref &amp; variables</summary>
 
     <form method="get" action="/ui/test-plan/{{ plan.uuid }}">
@@ -219,11 +219,11 @@
         {% endfor %}
     </div>
 
-    <details {% if !trigger_variables.is_empty() %}open{% endif %}>
+    <details {% if trigger_error.is_some() || !trigger_variables.is_empty() %}open{% endif %}>
         <summary>Advanced: raw variables JSON</summary>
         <p class="muted" style="margin-bottom:0.3rem;">Auto-generated from the fields above &mdash;
             edit directly for anything not covered by them.</p>
-        <textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60">{{ trigger_variables }}</textarea>
+        <textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60" {% if trigger_error.is_some() %}autofocus{% endif %}>{{ trigger_variables }}</textarea>
     </details>
 </details>
 

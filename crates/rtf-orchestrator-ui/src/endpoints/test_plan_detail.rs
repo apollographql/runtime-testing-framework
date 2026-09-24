@@ -529,6 +529,41 @@ mod tests {
             body.contains("{&#34;key&#34;: &#34;value&#34;}"),
             "expected the submitted variables to repopulate the form, got: {body}"
         );
+        assert!(
+            body.contains(r#"<p class="error-box">unknown test plan</p>"#),
+            "expected the trigger error to render in the error-box style, got: {body}"
+        );
+    }
+
+    #[test]
+    fn test_plan_detail_body_expands_and_focuses_the_variables_field_on_error_with_no_variables_submitted()
+     {
+        let uuid = Uuid::from_u128(1);
+        let (_, body) = test_plan_detail_body(
+            uuid,
+            TestPlanDetailResults {
+                plan: Ok(Some(sample_known_test_plan(uuid))),
+                runs: Ok(TestRunListResponse::default()),
+                details: Ok(Some(sample_test_plan_details(uuid))),
+            },
+            TestPlanDetailPage {
+                // An orchestrator-side rejection (e.g. a bad ref) can happen with no variables
+                // submitted at all - the customize/advanced sections should still expand and the
+                // variables field should still get focus so the error is visible.
+                trigger_variables: String::new(),
+                trigger_error: Some("unknown ref".to_owned()),
+                ..Default::default()
+            },
+        );
+
+        assert!(
+            body.contains(r#"<details id="customize-trigger" class="test-plan-card" open>"#),
+            "expected the customize section to expand on error even with no variables submitted, got: {body}"
+        );
+        assert!(
+            body.contains(r#"<textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60" autofocus>"#),
+            "expected the variables textarea to be focused on error, got: {body}"
+        );
     }
 
     #[tokio::test]
