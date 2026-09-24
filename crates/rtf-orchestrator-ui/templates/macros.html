@@ -6,6 +6,14 @@
 {% endmatch %}
 {% endmacro %}
 
+{% macro error_banner(message) %}
+{% match message %}
+{% when Some with (m) %}
+<p class="error-box">{{ m }}</p>
+{% when None %}
+{% endmatch %}
+{% endmacro %}
+
 {% macro status_pill(status) %}<span class="status {{ status.class }}">{{ status.label }}</span>{% endmacro %}
 
 {% macro copy_button(value, label) %}

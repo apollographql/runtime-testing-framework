@@ -72,7 +72,14 @@
         }
     }
 
-    function recompute() {
+    // `sync` is false only for the very first call made right after page load, and only when
+    // `seedFieldsFromInitialVariables()` couldn't fully reconstruct the textarea's starting value
+    // from the structured fields (invalid JSON, or a key with no matching field, e.g. a compound
+    // group) - in that case regenerating the textarea from field state would silently discard
+    // content the fields can't represent, which is exactly what a rejected trigger's raw JSON is
+    // being redisplayed for. Every later call (the user editing a field) passes the DOM event as
+    // `sync`, which is truthy, so normal auto-generation resumes as soon as they touch a field.
+    function recompute(sync = true) {
         let total = 1;
         const parts = [];
 
@@ -100,27 +107,34 @@
                 ? "A field with no values selected produces no executions"
                 : parts.join(" × ") || "1 execution";
 
-        syncVariablesJson();
+        if (sync) syncVariablesJson();
     }
 
     // Populates the structured fields from the raw variables JSON the server rendered into the
     // textarea (set when repopulating the form after a rejected trigger, or via the run page's
-    // "Re-run" link) - `recompute()` reads the fields back out, so this must run before it.
+    // "Re-run" link) - `recompute()` reads the fields back out, so this must run before it. Returns
+    // false when the textarea's JSON couldn't be fully reconstructed from the structured fields, so
+    // the caller can skip the initial `syncVariablesJson()` and leave that content alone instead of
+    // wiping it out.
     function seedFieldsFromInitialVariables() {
         const textarea = document.getElementById("variables");
-        if (!textarea || !textarea.value.trim()) return;
+        if (!textarea || !textarea.value.trim()) return true;
 
         let overrides;
         try {
             overrides = JSON.parse(textarea.value);
         } catch {
-            return; // invalid JSON can't be decomposed into fields; leave it for the raw textarea
+            return false; // invalid JSON can't be decomposed into fields; leave it for the raw textarea
         }
-        if (typeof overrides !== "object" || overrides === null || Array.isArray(overrides)) return;
+        if (typeof overrides !== "object" || overrides === null || Array.isArray(overrides)) return false;
 
+        let fullyReconstructed = true;
         Object.entries(overrides).forEach(([name, value]) => {
             const el = fieldFor(name);
-            if (!el) return;
+            if (!el) {
+                fullyReconstructed = false;
+                return;
+            }
             const values = (Array.isArray(value) ? value : [value]).map(String);
 
             if (el.tagName === "SELECT") {
@@ -129,6 +143,7 @@
                 el.value = values.join(", ");
             }
         });
+        return fullyReconstructed;
     }
 
     function attachFieldListeners() {
@@ -263,8 +278,8 @@
         attributeFilter: ["data-theme"],
     });
 
-    seedFieldsFromInitialVariables();
+    const seededFully = seedFieldsFromInitialVariables();
     attachFieldListeners();
-    recompute();
+    recompute(seededFully);
     renderCharts();
 })();
