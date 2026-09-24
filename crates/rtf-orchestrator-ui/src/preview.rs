@@ -144,6 +144,33 @@ pub fn test_plan_detail() -> TestPlanDetailTemplate {
     }
 }
 
+pub fn test_plan_detail_trigger_error() -> TestPlanDetailTemplate {
+    let uuid = id(10);
+    let runs = TestRunListResponse {
+        runs: vec![mocks::sample_summary(id(1), id(2), Status::Successful)],
+        total: 1,
+    };
+
+    TestPlanDetailTemplate {
+        plan: KnownTestPlanRowView::from(mocks::sample_known_test_plan(uuid)),
+        details: Some(TestPlanDetailsView::new(
+            mocks::sample_test_plan_details(uuid),
+            DEFAULT_DAYS_BACK,
+            DEFAULT_DAYS,
+        )),
+        details_error: None,
+        runs: Some(RunListView::for_known_test_plan(runs, 20, 0, uuid)),
+        runs_error: None,
+        trigger_git_ref: String::new(),
+        days_back: DEFAULT_DAYS_BACK,
+        days: DEFAULT_DAYS,
+        trigger_variables: r#"{"region": "us-east-1",}"#.to_owned(),
+        trigger_error: Some(
+            "Variables must be a JSON object: trailing comma at line 1 column 24".to_owned(),
+        ),
+    }
+}
+
 pub fn test_plan_detail_k8s() -> TestPlanDetailTemplate {
     let uuid = id(10);
     let runs = TestRunListResponse {
