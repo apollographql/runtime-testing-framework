@@ -24,9 +24,8 @@ pub async fn handler(
 ) -> Result<Json<TestRunSummary>, Error> {
     let user = state.identify_user(&headers).await?;
     let default_cluster = state.eq_state.default_cluster();
-    let conn = conn!();
     let cfg = Config::get();
-    let payload = PayloadWithMeta::resolve(trigger_payload, default_cluster, conn).await?;
+    let payload = PayloadWithMeta::resolve(trigger_payload, default_cluster, conn!()).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.cluster)?;
 
     let queued_executions = rate_limit::apply_rate_limits(
@@ -34,7 +33,7 @@ pub async fn handler(
         &per_user_cfg,
         &payload.cluster,
         &user,
-        conn,
+        conn!(),
     )
     .await?;
 
@@ -83,6 +82,7 @@ pub async fn handler(
         initiated_by,
         cluster,
         allow_k8s_write,
+        conn!(),
     )
     .await
     {
@@ -99,7 +99,7 @@ pub async fn handler(
             link.known_test_plan_id,
             test_run.id(),
             link.git_sha.as_deref(),
-            conn,
+            conn!(),
         )
         .await;
 
@@ -242,8 +242,8 @@ async fn init_run_and_build_summary(
     initiated_by: Option<String>,
     workload_cluster: ClusterId,
     allow_k8s_write: bool,
+    conn: &mut PgConnection,
 ) -> Result<(TestRun, TestRunSummary), Error> {
-    let conn = conn!();
     let test_run = TestRun::init(
         name,
         variables,
@@ -406,9 +406,15 @@ mod tests {
     #[tokio::test]
     async fn init_run_and_build_summary_persists_the_resolved_workload_cluster() -> Result<(), Error>
     {
-        let (test_run, _) =
-            init_run_and_build_summary("test", None, None, ClusterId::new("router_perf"), false)
-                .await?;
+        let (test_run, _) = init_run_and_build_summary(
+            "test",
+            None,
+            None,
+            ClusterId::new("router_perf"),
+            false,
+            conn!(),
+        )
+        .await?;
 
         assert_eq!(test_run.workload_cluster().as_str(), "router_perf");
 

@@ -12,9 +12,7 @@ pub async fn env_handler(
     Path(id): Path<Uuid>,
     State(ServerState { eq_state, .. }): State<ServerState>,
 ) -> Result<String> {
-    let conn = conn!();
-
-    let ex = match TestExecution::get_by_uuid(&id, conn).await? {
+    let ex = match TestExecution::get_by_uuid(&id, conn!()).await? {
         Some(ex) => ex,
         None => return Err(Error::Unauthorized),
     };
@@ -30,9 +28,7 @@ pub async fn scenario_handler(
     Path(id): Path<Uuid>,
     State(ServerState { eq_state, .. }): State<ServerState>,
 ) -> Result<String> {
-    let conn = conn!();
-
-    let ex = match TestExecution::get_by_uuid(&id, conn).await? {
+    let ex = match TestExecution::get_by_uuid(&id, conn!()).await? {
         Some(ex) => ex,
         None => return Err(Error::Unauthorized),
     };
@@ -48,8 +44,7 @@ pub async fn output_handler(
     Path(id): Path<Uuid>,
     State(ServerState { eq_state, .. }): State<ServerState>,
 ) -> Result<Json<OutputCollectionResponse>> {
-    let conn = conn!();
-    let ex = match TestExecution::get_by_uuid(&id, conn).await? {
+    let ex = match TestExecution::get_by_uuid(&id, conn!()).await? {
         Some(ex) => ex,
         None => return Err(Error::Unauthorized),
     };

@@ -15,9 +15,7 @@ pub async fn handler(
     State(ServerState { gcs_client, .. }): State<ServerState>,
     Json(_): Json<GenerateUploadUrlsPayload>,
 ) -> Result<Json<UploadUrls>> {
-    let conn = conn!();
-
-    let mut ex = match TestExecution::get_by_uuid(&id, conn).await? {
+    let mut ex = match TestExecution::get_by_uuid(&id, conn!()).await? {
         None => return Err(Error::Unauthorized),
         Some(ex) => ex,
     };
@@ -35,7 +33,7 @@ pub async fn handler(
         .signed_upload_url(ex.output_zip_gcs_object_name())
         .await?;
 
-    ex.mark_has_file_upload(conn).await?;
+    ex.mark_has_file_upload(conn!()).await?;
 
     Ok(Json(UploadUrls {
         log_file_url,
