@@ -15,7 +15,6 @@ use tracing::error;
 
 const DEFAULT_LIMIT: i64 = 20;
 
-/// Query params accepted by the home page.
 #[derive(Debug, serde::Deserialize)]
 pub struct IndexParams {
     initiated_by: Option<String>,
@@ -23,7 +22,6 @@ pub struct IndexParams {
     offset: Option<i64>,
 }
 
-/// A coarse time-range preset rather than a raw datetime
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StartedWithin {
     Hour,
@@ -33,7 +31,6 @@ enum StartedWithin {
 }
 
 impl StartedWithin {
-    /// Anything unrecognized is treated the same as absent rather than rejected.
     fn parse(value: &str) -> Option<Self> {
         match value {
             "hour" => Some(Self::Hour),
@@ -54,24 +51,18 @@ impl StartedWithin {
     }
 }
 
-/// `GET /ui` — the run-id lookup box plus a filterable table of recent runs.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Query(params): Query<IndexParams>,
 ) -> Response {
     let offset = params.offset.unwrap_or(0).max(0);
-    // Trim so a whitespace-only box (stray leading/trailing space) doesn't silently filter on a
-    // value nothing will ever match — an empty result then genuinely means "no filter applied."
+    // Untrimmed, a stray space would filter on a value that matches nothing.
     let initiated_by = params
         .initiated_by
         .as_deref()
         .unwrap_or("")
         .trim()
         .to_string();
-    // Kept as the raw string, not re-derived from `StartedWithin` — parsing it decides the actual
-    // `started_after` filter below, but the display/pagination-link copy doesn't need a second,
-    // separately-materialized value; an unrecognized value just passes through unchanged (the
-    // `<select>` has no matching `<option>` for it, so it renders as "Any time" regardless).
     let started_within = params.started_within.unwrap_or_default();
 
     let filter = RunListFilter {

@@ -8,9 +8,6 @@ use axum::{
 };
 use uuid::Uuid;
 
-/// `GET /ui/execution/{eid}/log.txt`
-///
-/// View the execution's log in the browser in plaintext.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Path(execution_id): Path<Uuid>,

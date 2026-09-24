@@ -16,13 +16,11 @@ use tracing::error;
 
 const DEFAULT_LIMIT: i64 = 20;
 
-/// Query params accepted by the known test plans page.
 #[derive(Debug, serde::Deserialize)]
 pub struct TestPlansParams {
     offset: Option<i64>,
 }
 
-/// `GET /ui/test-plans` — a paginated table of known test plans registered with the orchestrator.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Query(params): Query<TestPlansParams>,
@@ -43,8 +41,6 @@ pub async fn handler<C: Client>(
     ))
 }
 
-/// Maps the result of listing known test plans to the page's template. A fetch failure still
-/// renders the page, with an inline error in place of the table.
 fn test_plans_template(
     result: Result<KnownTestPlanListResponse, orchestrator::Error>,
     limit: i64,

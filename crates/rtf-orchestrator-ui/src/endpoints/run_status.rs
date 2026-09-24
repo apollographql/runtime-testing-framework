@@ -15,23 +15,14 @@ use rtf_orchestrator_shared::summary::TestRunSummary;
 use tracing::error;
 use uuid::Uuid;
 
-/// Query params accepted by the run status page.
 #[derive(Debug, Default, serde::Deserialize)]
 pub struct RunParams {
-    /// Restricts the executions table to this exact `current_status` `Display` value (e.g.
-    /// `"FAILED"`); absent/empty means no filter.
+    /// A `Status` display value, e.g. `"FAILED"`.
     execution_status: Option<String>,
 }
 
-/// `GET /ui/run/{id}` — overall status banner plus the executions table.
-///
-/// `id` is extracted as a [`Uuid`], so a malformed id is rejected before it reaches the provider.
-///
-/// This route also serves htmx's poll: the `#run` region carries `hx-get` back to this same URL with
-/// `hx-select="#run"`, so htmx fetches the full page and swaps in only that element rather than the
-/// UI needing a separate fragment-only route. Non-2xx responses are not swapped by htmx, so a
-/// transient orchestrator error (or a run that 404s mid-poll) simply leaves the previous content in
-/// place and retries on the next tick.
+/// Also serves the htmx poll of `#run`. htmx doesn't swap non-2xx responses, so a failed poll
+/// leaves the previous content in place.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Extension(links_cfg): Extension<LinksConfig>,

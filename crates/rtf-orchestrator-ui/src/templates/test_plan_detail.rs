@@ -1,8 +1,6 @@
 use crate::view::{EnvironmentDetailView, KnownTestPlanRowView, RunListView, TestPlanDetailsView};
 use askama::Template;
 
-/// The known test plan detail page: the plan's metadata (with a GitHub link) plus a paginated
-/// table of its recent runs.
 #[derive(Debug, Template)]
 #[template(
     path = "test_plan_detail.html",
@@ -22,7 +20,7 @@ pub struct TestPlanDetailTemplate {
 }
 
 impl TestPlanDetailTemplate {
-    /// Links to the plan file at the resolved sha when details loaded, falling back to `HEAD`.
+    /// Falls back to `HEAD` when details failed to load.
     pub fn github_url(&self) -> &str {
         self.details
             .as_ref()
@@ -37,8 +35,6 @@ impl TestPlanDetailTemplate {
         }
     }
 
-    /// Whether the customize and raw-JSON sections start expanded: after a failed trigger (even
-    /// with no variables submitted) or when re-populating submitted variables.
     pub fn customize_expanded(&self) -> bool {
         self.trigger_error.is_some() || !self.trigger_variables.is_empty()
     }
@@ -48,7 +44,6 @@ impl TestPlanDetailTemplate {
     }
 }
 
-/// Shown when a well-formed uuid does not correspond to any registered known test plan.
 #[derive(Debug, Template)]
 #[template(path = "test_plan_not_found.html")]
 pub struct TestPlanNotFoundTemplate {

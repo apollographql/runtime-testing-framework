@@ -1,4 +1,3 @@
-//! `GET`/`POST /ui/trigger` — trigger a run from a GitHub-hosted test plan.
 use crate::{
     endpoints::{parse_trigger_ref_and_variables, render_body, to_response},
     orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
@@ -18,14 +17,10 @@ use rtf_orchestrator_shared::{
 use serde::Deserialize;
 use tracing::error;
 
-/// `GET /ui/trigger` - the "trigger a run from a GitHub-hosted test plan" form.
 pub async fn get_handler() -> Response {
     to_response(render_body(StatusCode::OK, TriggerTemplate::default()))
 }
 
-/// `POST /ui/trigger` - builds a [`GitHubPayload`] from the submitted form and POSTs it to the
-/// orchestrator's `test-run/trigger` endpoint, forwarding the caller's IAP identity so the run's
-/// `initiated_by` reflects who submitted the form rather than `"unknown"`.
 pub async fn post_handler<C: Client>(
     State(orchestrator_client): State<C>,
     headers: HeaderMap,
@@ -55,7 +50,6 @@ pub async fn post_handler<C: Client>(
     trigger_result_response(form, result)
 }
 
-/// Form fields submitted by the "trigger a run from GitHub" form.
 #[derive(Debug, Default, Deserialize)]
 pub struct TriggerForm {
     org: String,
@@ -63,15 +57,11 @@ pub struct TriggerForm {
     path: String,
     #[serde(rename = "ref")]
     git_ref: String,
-    /// A JSON object of `HashMap<String, VariableOverride>` - a plain value templates a single
-    /// variable, an array value defines a matrix dimension. Blank means no overrides.
+    /// JSON object of variable overrides, where an array value defines a matrix dimension.
     variables: String,
 }
 
 impl TriggerForm {
-    /// Builds the orchestrator payload, or the message to show inline if `variables` isn't valid
-    /// JSON. Trims every field first, so stray leading/trailing whitespace doesn't turn into a
-    /// bogus org/repo/path or a spuriously "non-blank" variables box.
     fn try_into_payload(&self) -> Result<GitHubPayload, String> {
         let (git_ref, variables) = parse_trigger_ref_and_variables(&self.git_ref, &self.variables)?;
 
@@ -98,9 +88,6 @@ impl From<TriggerForm> for TriggerTemplate {
     }
 }
 
-/// Maps the result of triggering a run to a response: a redirect to the new run's status page on
-/// success, or the form re-rendered with its fields intact and an inline error otherwise. Kept
-/// free of the orchestrator [`Client`] so it's testable directly against hand-built results.
 fn trigger_result_response(
     form: TriggerForm,
     result: Result<TestRunSummary, orchestrator::Error>,
@@ -117,8 +104,6 @@ fn trigger_result_response(
     }
 }
 
-/// The status and re-populated form to show for a failed trigger: the orchestrator's own status and
-/// message for a rejected trigger, or a generic `502` for anything unexpected.
 fn trigger_error_template(
     form: TriggerForm,
     error: orchestrator::Error,
@@ -218,8 +203,7 @@ mod tests {
 
     #[test]
     fn trigger_error_template_falls_back_to_bad_gateway_on_an_unexpected_error() {
-        // `ListRuns` never actually comes back from `trigger` - it stands in here for any
-        // non-`Trigger` variant, to exercise the fallback arm of the match.
+        // Stands in for any non-`Trigger` error.
         let (status, t) = trigger_error_template(
             sample_form(),
             orchestrator::Error::ListRuns {

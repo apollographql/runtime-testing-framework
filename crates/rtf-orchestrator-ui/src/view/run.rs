@@ -14,9 +14,7 @@ use std::time::Duration;
 use url::form_urlencoded;
 use uuid::Uuid;
 
-/// Upper bound on how long a non-terminal run is auto-refreshed. A run that never reaches a
-/// terminal state (e.g. a stuck orchestrator) would otherwise be polled forever; past this age the
-/// UI stops polling and the user can refresh manually.
+/// Stops polling runs that never reach a terminal state.
 const MAX_POLL_AGE_SECS: i64 = 60 * 60;
 
 #[derive(Debug)]

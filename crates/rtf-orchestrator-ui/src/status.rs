@@ -1,6 +1,5 @@
 use rtf_orchestrator_shared::status::{Status, StatusCategory};
 
-/// CSS modifier class for a status, used to colour-code the UI.
 pub fn css_class(status: Status) -> &'static str {
     match status.category() {
         StatusCategory::Pending => "status--pending",
@@ -12,12 +11,7 @@ pub fn css_class(status: Status) -> &'static str {
     }
 }
 
-/// The exit code to display for a `Successful`/`Failed` entity. The orchestrator only persists an
-/// exit code on `Failed` (see `execution_status::post_handler`), even though `Successful` is
-/// guaranteed to mean exit code 0 by `Status::validate_update`'s invariant - so a missing exit code
-/// on a `Successful` row is inferred, not actually absent. Every other status's missing exit code
-/// reflects a row that genuinely never exited on its own terms (still running, or killed before it
-/// could report one), so it is left as `None` rather than guessing.
+/// The orchestrator only persists exit codes for `Failed`, but `Successful` always means 0.
 pub fn effective_exit_code(status: Status, exit_code: Option<i32>) -> Option<i32> {
     match (status, exit_code) {
         (Status::Successful, None) => Some(0),

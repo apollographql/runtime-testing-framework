@@ -1,14 +1,12 @@
 use crate::view::ExecutionDetailView;
 use askama::Template;
 
-/// The execution detail page: status-history timeline and metadata.
 #[derive(Debug, Template)]
 #[template(path = "execution.html", blocks = ["back_links", "banner", "history"])]
 pub struct ExecutionTemplate {
     pub execution: ExecutionDetailView,
 }
 
-/// Shown when no execution with the requested id exists.
 #[derive(Debug, Template)]
 #[template(path = "execution_not_found.html")]
 pub struct ExecutionNotFoundTemplate {

@@ -2,9 +2,6 @@ use crate::config::Config;
 use chrono::{DateTime, SecondsFormat, Utc};
 use url::form_urlencoded::byte_serialize;
 
-/// Configuration needed to build GCP Cloud Logging and Grafana deep links. Threaded through
-/// explicitly (rather than read from a global [Config]) so link-building stays testable without
-/// needing a populated environment.
 #[derive(Debug, Clone)]
 pub struct LinksConfig {
     pub gcp_project: String,
@@ -26,8 +23,7 @@ impl From<&Config> for LinksConfig {
     }
 }
 
-/// Build a Cloud Logging deep link scoped to one execution's workload namespace (namespace name
-/// == execution id) within `cluster`, with the time range narrowed to the execution's own window.
+/// Scoped to the execution's namespace (named after its id) over the execution's time window.
 pub fn gcp_logs(
     cfg: &LinksConfig,
     cluster: &str,
@@ -48,9 +44,7 @@ pub fn gcp_logs(
     )
 }
 
-/// Build a Grafana deep link to the dashboard configured in [LinksConfig], scoped to one
-/// execution's workload namespace (namespace name == execution id), with the time range narrowed
-/// to the execution's own window.
+/// Scoped to the execution's namespace (named after its id) over the execution's time window.
 pub fn grafana(
     cfg: &LinksConfig,
     namespace: &str,
@@ -70,7 +64,6 @@ pub fn grafana(
     )
 }
 
-/// Percent-encode `input` for embedding in a URL.
 fn percent_encode(input: &str) -> String {
     byte_serialize(input.as_bytes()).collect()
 }

@@ -14,11 +14,6 @@ use rtf_orchestrator_shared::summary::TestExecutionSummary;
 use tracing::error;
 use uuid::Uuid;
 
-/// `GET /ui/execution/{eid}` — one execution's detail: its status-history timeline (newest-first),
-/// exit code, and timestamps.
-///
-/// Fetches the execution status directly from the orchestrator rather than pulling the whole
-/// parent run.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Extension(links_cfg): Extension<LinksConfig>,

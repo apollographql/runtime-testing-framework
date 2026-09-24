@@ -1,8 +1,6 @@
-//! Preview how each page template is rendering without requiring a running orchestrator to provide
-//! the data.
+//! Serves every page template with canned data, no orchestrator required.
 //!
-//! Run with:
-//!   cargo run --example preview --features preview
+//! Run with: `cargo run --example preview`
 use askama::Template;
 use axum::{
     Router,

@@ -5,12 +5,10 @@ use axum::{
 };
 use rust_embed::RustEmbed;
 
-/// Vendored static assets (htmx, etc.) baked into the binary — no build step, no CDN dependency.
 #[derive(RustEmbed)]
 #[folder = "static/"]
 struct Assets;
 
-/// `GET /ui/static/{*path}`
 pub async fn serve(Path(path): Path<String>) -> Response {
     match Assets::get(&path) {
         Some(file) => (

@@ -1,14 +1,12 @@
 use crate::view::RunView;
 use askama::Template;
 
-/// The run status page: overall status banner plus the executions table.
 #[derive(Debug, Template)]
 #[template(path = "run.html", blocks = ["back_links", "run"])]
 pub struct RunTemplate {
     pub run: RunView,
 }
 
-/// Shown when a well-formed run id does not correspond to any known run.
 #[derive(Debug, Template)]
 #[template(path = "run_not_found.html")]
 pub struct RunNotFoundTemplate {
@@ -31,7 +29,7 @@ mod tests {
         Utc.with_ymd_and_hms(2024, 3, 15, 12, 30, 0).unwrap()
     }
 
-    /// A polling run with a known test plan, trigger variables, and an active execution filter.
+    /// Has a test plan, trigger variables and an active execution filter.
     fn running_run() -> RunTemplate {
         let started = Utc.with_ymd_and_hms(2024, 3, 15, 12, 0, 0).unwrap();
 
@@ -75,7 +73,6 @@ mod tests {
         }
     }
 
-    /// A completed run with no known test plan: no polling and no re-run link.
     fn terminal_run_without_test_plan() -> RunTemplate {
         let started = Utc.with_ymd_and_hms(2024, 3, 15, 9, 0, 0).unwrap();
         let completed = started + Duration::minutes(12);

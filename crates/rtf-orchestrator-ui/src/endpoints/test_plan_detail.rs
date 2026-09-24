@@ -22,13 +22,8 @@ use uuid::Uuid;
 
 const DEFAULT_LIMIT: i64 = 20;
 
-/// Query params accepted by the known test plan detail page. `trigger_ref`/`trigger_variables`/
-/// `trigger_error` are only ever set by [`redirect_with_trigger_error`] after a failed trigger
-/// submission, to re-populate the form and show the failure inline. `trigger_ref` doubles as the
-/// ref to preview details for: the trigger form's small "Preview" GET form re-submits the page at
-/// `?trigger_ref=...` to re-resolve variables/matrix/services/environment for that ref, and the
-/// POST trigger form carries the same value through as a hidden field so triggering always uses
-/// whatever ref is currently being previewed. `days_back`/`days` page the history charts.
+/// `trigger_variables`/`trigger_error` are only set by [`redirect_with_trigger_error`]. `trigger_ref`
+/// is also the ref that details are resolved for, and must be carried through to the trigger form.
 #[derive(Debug, Default, serde::Deserialize)]
 pub struct TestPlanDetailParams {
     offset: Option<i64>,
@@ -76,10 +71,6 @@ struct TestPlanDetailResults {
     details: Result<Option<TestPlanDetails>, orchestrator::Error>,
 }
 
-/// `GET /ui/test-plan/{uuid}` — the plan's metadata (with a GitHub link), the executions
-/// overview/services table/trigger form/history charts built from the orchestrator's details
-/// endpoint, and a paginated table of its recent runs. The plan, its details, and its runs are all
-/// fetched concurrently, since none of those three calls needs anything from either of the others.
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
     Path(uuid): Path<Uuid>,
@@ -207,13 +198,11 @@ fn select_template(
     }))
 }
 
-/// Form fields submitted by the trigger form embedded on the known test plan detail page.
 #[derive(Debug, Default, serde::Deserialize)]
 pub struct KnownTestPlanTriggerForm {
     #[serde(rename = "ref")]
     git_ref: String,
-    /// A JSON object of `HashMap<String, VariableOverride>` - a plain value templates a single
-    /// variable, an array value defines a matrix dimension. Blank means no overrides.
+    /// JSON object of variable overrides, where an array value defines a matrix dimension.
     variables: String,
     #[serde(default)]
     days_back: Option<u32>,
@@ -222,8 +211,6 @@ pub struct KnownTestPlanTriggerForm {
 }
 
 impl KnownTestPlanTriggerForm {
-    /// Builds the orchestrator payload for `uuid`, or the message to show inline if `variables`
-    /// isn't valid JSON. Trims both fields first, mirroring `trigger::TriggerForm::try_into_payload`.
     fn try_into_payload(&self, uuid: Uuid) -> Result<KnownTestPlanUuidPayload, String> {
         let (git_ref, variables) = parse_trigger_ref_and_variables(&self.git_ref, &self.variables)?;
 
@@ -235,12 +222,6 @@ impl KnownTestPlanTriggerForm {
     }
 }
 
-/// `POST /ui/test-plan/{uuid}/trigger` — builds a [`KnownTestPlanUuidPayload`] from the submitted
-/// form and POSTs it to the orchestrator's `test-run/trigger` endpoint, forwarding the caller's IAP
-/// identity as with the GitHub trigger form. On success, redirects to the new run's status page. On
-/// failure, redirects back to this plan's detail page with the submitted fields and the failure
-/// message carried as query params - simpler than re-rendering the whole detail page directly here,
-/// which would mean duplicating the `GET` handler's plan/runs fetching in the `POST` handler too.
 pub async fn post_trigger<C: Client>(
     State(orchestrator_client): State<C>,
     headers: HeaderMap,
@@ -272,9 +253,6 @@ pub async fn post_trigger<C: Client>(
     }
 }
 
-/// Redirects back to the plan's detail page carrying the submitted form fields and the failure
-/// message as query params, so the subsequent `GET` re-populates the form and shows the error
-/// inline.
 fn redirect_with_trigger_error(
     uuid: Uuid,
     form: &KnownTestPlanTriggerForm,

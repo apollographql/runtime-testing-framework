@@ -13,13 +13,9 @@ use rtf_orchestrator_shared::{
 use thiserror::Error;
 use uuid::Uuid;
 
-/// The header Google IAP attaches to an authenticated request, carrying the caller's identity as
-/// `prefix:email`. Forwarded on outbound trigger requests so the orchestrator can attribute
-/// `initiated_by` to the person who submitted the form, rather than recording every UI-triggered
-/// run as `"unknown"`.
+/// Set by Google IAP on authenticated requests, with a value of the form `prefix:email`.
 pub(crate) const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
 
-/// Errors produced when communicating with the orchestrator HTTP API.
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("orchestrator returned {status} fetching run id {id}")]
@@ -53,9 +49,7 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
 }
 
-/// Query filters accepted by the orchestrator's `GET /test-run` endpoint. Field names match the
-/// orchestrator's query params exactly, since this is serialized directly as the request's query
-/// string.
+/// Serialized directly as the `GET /test-run` query string, so field names must match its params.
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct RunListFilter {
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -66,18 +60,14 @@ pub struct RunListFilter {
     pub offset: i64,
 }
 
-/// Outcome of proxying a file download from the orchestrator.
 #[derive(Debug, Clone)]
 pub enum Download {
-    /// The artifact exists and was fetched successfully.
     Ready(Vec<u8>),
     /// The parent run/execution doesn't exist, or the artifact was never produced.
     NotFound,
-    /// The parent run/execution exists, but the artifact isn't ready to download yet.
+    /// The parent run/execution exists, but the artifact isn't ready yet.
     NotReady,
-    /// The orchestrator redirected (e.g. the output-zip endpoint's 307 to a signed GCS URL). The
-    /// caller relays this status and `Location` verbatim rather than following it here, so the UI
-    /// never downloads the artifact's bytes itself.
+    /// To be relayed to the browser verbatim rather than followed (e.g. a 307 to a signed GCS URL).
     Redirect {
         status: StatusCode,
         location: String,
@@ -95,52 +85,42 @@ pub trait Client: Send + Sync + Clone + 'static {
         id: Uuid,
     ) -> impl Future<Output = Result<Option<TestExecutionSummary>, Error>> + Send;
 
-    /// Fetch a single execution's log file.
     fn execution_log(&self, id: Uuid) -> impl Future<Output = Result<Download, Error>> + Send;
 
-    /// Fetch a single execution's zipped output directory.
     fn execution_output_zip(
         &self,
         id: Uuid,
     ) -> impl Future<Output = Result<Download, Error>> + Send;
 
-    /// List historic test runs matching `filter`, newest-first.
     fn list_runs(
         &self,
         filter: &RunListFilter,
     ) -> impl Future<Output = Result<TestRunListResponse, Error>> + Send;
 
-    /// List known test plans matching `filter`, ordered by name.
     fn list_known_test_plans(
         &self,
         filter: &KnownTestPlanListParams,
     ) -> impl Future<Output = Result<KnownTestPlanListResponse, Error>> + Send;
 
-    /// Fetch a single known test plan by UUID, or `None` if it isn't registered.
     fn known_test_plan_summary(
         &self,
         uuid: Uuid,
     ) -> impl Future<Output = Result<Option<KnownTestPlanSummary>, Error>> + Send;
 
-    /// Fetch the rich details (variables, matrix, environment, history) for a single known test
-    /// plan by UUID, or `None` if it isn't registered. Responses are cached for a short TTL (see
-    /// the `HttpClient` impl) since this is fetched on every load of the test plan detail page.
+    /// Cached for 5 minutes by [HttpClient].
     fn test_plan_details(
         &self,
         uuid: Uuid,
         params: &TestPlanDetailsParams,
     ) -> impl Future<Output = Result<Option<TestPlanDetails>, Error>> + Send;
 
-    /// List historic test runs for a single known test plan matching `filter`, newest-first.
     fn list_known_test_plan_runs(
         &self,
         uuid: Uuid,
         filter: &KnownTestPlanRunsParams,
     ) -> impl Future<Output = Result<TestRunListResponse, Error>> + Send;
 
-    /// Trigger a new test run. `initiated_by` is the caller's identity (the email portion of the
-    /// inbound `X-Goog-Authenticated-User-Email` header, if present), forwarded on so the
-    /// orchestrator can attribute the run to whoever submitted the form.
+    /// `initiated_by` is the raw [IAP_USER_EMAIL_HEADER] value from the inbound request, if any.
     fn trigger(
         &self,
         payload: &TriggerPayload,
@@ -155,12 +135,9 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
-    /// Creates a new [HttpClient] that will report updates to `orchestrator_url` for the test execution associated
-    /// with `execution_id`, authenticating requests with `execution_token` as a Bearer token.
     pub fn try_new(orchestrator_url: String) -> anyhow::Result<Self> {
         Ok(Self {
-            // Redirects (e.g. the output-zip endpoint's 307 to a signed GCS URL) must be
-            // surfaced to the caller, not followed here - see `fetch_download`.
+            // Redirects are relayed to the browser by `fetch_download`, not followed.
             client: reqwest::Client::builder()
                 .redirect(Policy::none())
                 .build()?,
@@ -296,8 +273,7 @@ impl Client for HttpClient {
             return Ok(response.json().await?);
         }
 
-        // The orchestrator's error body is `{"error": "...", "message": "..."}` - fall back to the
-        // bare status if the body isn't that shape (e.g. an intermediary proxy error).
+        // Non-orchestrator errors (e.g. from a proxy) won't have a `message` body.
         let message = response
             .json::<TriggerErrorBody>()
             .await
@@ -315,10 +291,7 @@ impl Client for HttpClient {
     }
 }
 
-// Cached for a 5-minute TTL, keyed on the uuid plus the params that change what the orchestrator
-// returns (git_ref, days_back, days) - the test plan detail page fetches this on every load, and a
-// short-lived cache avoids re-resolving the whole test plan (and re-querying run history) on every
-// request in that window.
+// The key must include every param that changes the response.
 #[cached(
     ttl_secs = 300,
     key = "String",
@@ -341,10 +314,6 @@ async fn fetch_test_plan_details(
 }
 
 impl HttpClient {
-    /// Fetch `path` from the orchestrator, mapping its response into a [`Download`] outcome. The
-    /// client has no redirect policy, so a 3xx response (e.g. the output-zip endpoint's 307 to a
-    /// signed GCS URL) is surfaced as [`Download::Redirect`] rather than followed here - the
-    /// caller relays it to the browser instead of downloading the artifact's bytes itself.
     async fn fetch_download(&self, path: &str) -> Result<Download, Error> {
         let url = self
             .orchestrator_url
@@ -427,7 +396,6 @@ pub(crate) mod mocks {
     };
     use std::collections::BTreeMap;
 
-    /// A single execution, carrying a status history so the detail view has something to render.
     pub(crate) fn sample_execution(run_id: Uuid, ex_id: Uuid) -> TestExecutionSummary {
         TestExecutionSummary {
             id: ex_id,
@@ -452,10 +420,7 @@ pub(crate) mod mocks {
         }
     }
 
-    /// A run that started "now", so whether it polls depends only on whether its status is
-    /// terminal (not on the stuck-run age guard, which is unit-tested in `view`). Its single
-    /// execution carries a status history so the detail view has something to render, but (as with
-    /// the real orchestrator) does not carry a `test_run_id`.
+    /// Starts at `Utc::now()`, so whether it polls depends only on `status`.
     pub(crate) fn sample_summary(run_id: Uuid, ex_id: Uuid, status: Status) -> TestRunSummary {
         TestRunSummary {
             id: run_id,
@@ -473,7 +438,6 @@ pub(crate) mod mocks {
         }
     }
 
-    /// A known test plan summary, echoing back the requested `uuid` so callers can assert on it.
     pub(crate) fn sample_known_test_plan(uuid: Uuid) -> KnownTestPlanSummary {
         KnownTestPlanSummary {
             uuid,
@@ -600,10 +564,6 @@ pub(crate) mod mocks {
         }
     }
 
-    /// The same test plan as [`sample_test_plan_details`], but with a k8s-based environment
-    /// instead of docker-compose: a mix of manifests with a resolvable GitHub location of their
-    /// own, and one inlined directly in the environment config, falling back to a link at that
-    /// config file.
     pub(crate) fn sample_k8s_test_plan_details(uuid: Uuid) -> TestPlanDetails {
         TestPlanDetails {
             environment: Some(EnvironmentSummary::K8s(K8sEnvironmentSummary {
@@ -627,10 +587,7 @@ pub(crate) mod mocks {
         }
     }
 
-    /// A client that always succeeds with a canned run/execution/known-test-plan summary. Since
-    /// the not-found and error branches are now covered directly by `endpoints::run_status_body`
-    /// and `execution_detail_body` (no client involved), this only needs to prove that a handler
-    /// calls its client and renders whatever comes back.
+    /// Always succeeds with canned data.
     #[cfg(test)]
     #[derive(Debug, Clone)]
     pub struct MockClient {
