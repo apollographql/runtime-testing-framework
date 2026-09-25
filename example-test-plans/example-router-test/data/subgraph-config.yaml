@@ -1,0 +1,23 @@
+# See example-config.yaml in the repo root for every option, including per-subgraph overrides.
+port: 8080
+cache_responses: true
+
+latency:
+  base: 1ms
+
+seed: 42
+
+response_generation:
+  null_ratio: [1, 2]
+  array:
+    min_length: 0
+    max_length: 10
+  scalars:
+    Id:
+      type: int
+      min: 0
+      max: 100
+    String:
+      type: string
+      min_len: 1
+      max_len: 10

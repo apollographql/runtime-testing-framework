@@ -1,0 +1,66 @@
+name: Example router environment
+description: |
+  Local docker compose environment running:
+  - The router, running the supergraph pulled from GraphOS with every subgraph URL rewritten to
+    point at subgraph-mock
+  - A single subgraph-mock serving the same supergraph
+
+  APOLLO_KEY is read from the shell running `rtf run` and passed straight through to the router,
+  which uses it to fetch its license and report usage.
+
+variable_definitions:
+  - name: graph_ref
+    description: "The GraphOS graph ref the router runs as"
+
+  - name: router_image
+    description: "The Docker image path for the router minus the tag"
+    default: "ghcr.io/apollographql/router"
+
+  - name: router_tag
+    description: "The router docker image tag being tested"
+
+  - name: subgraph_image
+    description: "The subgraph-mock docker image:tag"
+    default: "ghcr.io/apollographql/subgraph-mock:0.2.1"
+
+project_name: "example-router-test"
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: data/docker-compose.yaml
+
+file_providers:
+  - name: subgraph-config.yaml
+    env_var: SUBGRAPH_CONFIG_FILE
+    kind: relative_path
+    path: data/subgraph-config.yaml
+
+  - name: supergraph.graphql
+    env_var: SUPERGRAPH_SCHEMA
+    kind: graphos_supergraph
+    graph_ref: "{{ graph_ref }}"
+    # Routes each subgraph to subgraph-mock's /<subgraph name> endpoint, so per-subgraph
+    # overrides in data/subgraph-config.yaml apply.
+    with_subgraph_overrides:
+      custom:
+        base_url: "http://subgraph"
+        base_port: 8080
+        add_subgraph_route: true
+    # There's no connector mock, so connectors point at the RFC 2606 `.invalid` TLD, which never
+    # resolves: they fail fast instead of calling real endpoints.
+    with_connector_overrides:
+      custom:
+        base_url: "http://connector-mock.invalid"
+        base_port: 1
+
+  - name: router-config.yaml
+    env_var: ROUTER_CONFIG
+    kind: relative_path
+    path: data/router-config.yaml
+
+env_vars:
+  GRAPH_REF: "{{ graph_ref }}"
+  ROUTER_IMAGE: "{{ router_image }}"
+  ROUTER_TAG: "{{ router_tag }}"
+  SUBGRAPH_IMAGE: "{{ subgraph_image }}"

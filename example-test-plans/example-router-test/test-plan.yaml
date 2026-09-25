@@ -1,0 +1,35 @@
+name: example-router-test
+description: |
+  Example local router load test against a real GraphOS graph.
+
+  The supergraph is pulled from GraphOS with its subgraph URLs rewritten to a single subgraph-mock,
+  the router fetches its license from GraphOS using APOLLO_KEY, and k6 replays the graph's top
+  operations at a constant rate.
+
+  WARNING: this demonstrates the setup only - its results are NOT a valid performance
+  measurement, since every component shares one machine. See README.md.
+
+  WARNING: this is NOT isolated from GraphOS. The router sends usage reports and traces for
+  every request to the graph_ref's variant in GraphOS Studio. See README.md.
+
+  To run this test plan locally (from the repo root):
+    APOLLO_KEY=<graph_api_key> rtf run test-plans/example-router-test/test-plan.yaml --var 'graph_ref=<graph@variant>'
+
+variables:
+  router_tag: "v2.17.0"
+
+  # k6 configuration - kept low since everything runs on one machine
+  rps: 10
+  duration: "60s"
+  warmup_duration: "10s"
+  top_n: 10
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
