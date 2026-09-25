@@ -1,6 +1,10 @@
 use crate::{
-    Result, config::Config, db::TestRun, event_loop::EventQueueState, gcs::GCSClient,
-    iap_identity::extract_authenticated_user_email,
+    Result,
+    config::Config,
+    db::TestRun,
+    event_loop::EventQueueState,
+    gcs::GCSClient,
+    iap_identity::{extract_authenticated_user_email, try_extract_trigger_repo},
 };
 use axum::http::HeaderMap;
 use rtf_orchestrator_shared::payload::PreparedPayload;
@@ -67,13 +71,18 @@ impl ServerState {
             None => return Ok(UserType::Unknown),
         };
 
-        let admins = self.admins().await?;
+        let utype = if Config::get().automation_users.contains(&email) {
+            let (org, repo) = try_extract_trigger_repo(headers)
+                .unwrap_or_else(|| ("unknown".into(), "unknown".into()));
 
-        Ok(if admins.contains(&email) {
+            UserType::Automation { email, org, repo }
+        } else if self.admins().await?.contains(&email) {
             UserType::Admin(email)
         } else {
             UserType::User(email)
-        })
+        };
+
+        Ok(utype)
     }
 }
 
@@ -87,6 +96,11 @@ pub struct TestRunWithPayload {
 pub enum UserType {
     Admin(String),
     User(String),
+    Automation {
+        email: String,
+        org: String,
+        repo: String,
+    },
     Unknown,
 }
 
@@ -95,17 +109,13 @@ impl UserType {
         matches!(self, Self::Admin(_))
     }
 
-    pub fn email(&self) -> Option<&str> {
+    /// Full user identity string used as the per-user rate limit key and stored in the DB
+    pub fn user_identity(&self) -> Option<String> {
         match self {
-            Self::Admin(email) | Self::User(email) => Some(email),
-            Self::Unknown => None,
-        }
-    }
-
-    pub fn into_user_email(self) -> Option<String> {
-        match self {
-            Self::Admin(email) => Some(email),
-            Self::User(email) => Some(email),
+            Self::Admin(email) | Self::User(email) => Some(email.to_string()),
+            Self::Automation { email, org, repo } => {
+                Some(format!("automation:{email}:{org}:{repo}"))
+            }
             Self::Unknown => None,
         }
     }

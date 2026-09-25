@@ -7,6 +7,8 @@
 # binary spun up by Tilt.
 
 admins_path: dummy
+automation_users:
+  - automation@example.com
 
 db:
   host: localhost

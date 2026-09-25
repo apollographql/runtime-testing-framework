@@ -10,6 +10,7 @@ pub async fn handler(State(state): State<ServerState>, headers: HeaderMap) -> Re
     Ok(match user {
         UserType::Admin(email) => format!("admin: {email}"),
         UserType::User(email) => format!("user: {email}"),
+        UserType::Automation { email, org, repo } => format!("automation: {email} ({org}/{repo})"),
         UserType::Unknown => "unknown".to_owned(),
     })
 }

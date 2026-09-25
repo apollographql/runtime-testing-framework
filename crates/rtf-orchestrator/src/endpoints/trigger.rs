@@ -73,7 +73,7 @@ pub async fn handler(
         .as_ref()
         .map(|v| serde_json::to_value(v).expect("variables to serialize"));
 
-    let initiated_by = user.into_user_email();
+    let initiated_by = user.user_identity();
 
     debug!("initialising run");
     let (test_run, summary) = match init_run_and_build_summary(
