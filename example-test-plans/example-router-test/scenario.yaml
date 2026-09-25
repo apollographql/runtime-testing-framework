@@ -1,0 +1,65 @@
+name: example-router-test-k6
+description: |
+  Replays the top_n operations for graph_ref from GraphOS against the router at a constant rate,
+  after a linear warmup ramp. Each k6 iteration sends exactly one operation, so rps is the
+  offered requests/sec, and operations are sent round-robin.
+
+  Reports results only: request failures and GraphQL errors never fail the run.
+
+variable_definitions:
+  - name: graph_ref
+    description: "The GraphOS graph ref to pull operations for"
+
+  - name: top_n
+    description: "The number of operations to pull from GraphOS"
+    default: 10
+
+  - name: graphql_url
+    description: "GraphQL endpoint URL"
+    default: "http://router:4000"
+
+  - name: health_check_url
+    description: "URL polled for a 2xx response before load generation starts. Set to \"\" to skip"
+    default: "http://router:4000/health"
+
+  - name: rps
+    description: "Target requests per second"
+    default: 10
+
+  - name: duration
+    description: "Constant-rate duration, after the warmup (e.g. '60s', '5m')"
+    default: "60s"
+
+  - name: warmup_duration
+    description: "Duration of the linear ramp from 0 to rps"
+    default: "10s"
+
+  - name: max_vus
+    description: "VUs allocated up front for each of the warmup and load k6 scenarios"
+    default: 50
+
+docker:
+  image: grafana/k6
+  tag: latest
+  command: 'k6 run "$K6_SCRIPT"'
+
+env_vars:
+  GRAPHQL_URL: "{{ graphql_url }}"
+  HEALTH_CHECK_URL: "{{ health_check_url }}"
+  RPS: "{{ rps }}"
+  DURATION: "{{ duration }}"
+  WARMUP_DURATION: "{{ warmup_duration }}"
+  MAX_VUS: "{{ max_vus }}"
+
+file_providers:
+  - name: load-test.js
+    env_var: K6_SCRIPT
+    kind: relative_path
+    path: scripts/load-test.js
+
+  - name: canned_ops.json
+    env_var: CANNED_OPS_FILE
+    kind: graphos_canned_ops
+    graph_ref: "{{ graph_ref }}"
+    top_n: "{{ top_n }}"
+    skip_mutations: true

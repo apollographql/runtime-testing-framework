@@ -1,0 +1,27 @@
+supergraph:
+  listen: 0.0.0.0:4000
+  path: /{*wildcard}
+  defer_support: true
+
+health_check:
+  listen: 0.0.0.0:4000
+  enabled: true
+  path: /health
+
+headers:
+  all:
+    request:
+      - propagate:
+          matching: ".*"
+
+traffic_shaping:
+  all:
+    deduplicate_query: true
+  router:
+    timeout: 1s
+
+include_subgraph_errors:
+  all: true
+
+homepage:
+  enabled: false

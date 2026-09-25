@@ -1,0 +1,28 @@
+services:
+  router:
+    image: ${ROUTER_IMAGE}:${ROUTER_TAG}
+    labels:
+      rtf.io/file-providers: "true"
+    container_name: router
+    environment:
+      APOLLO_KEY: "${APOLLO_KEY:?APOLLO_KEY must be set in the shell running rtf}"
+      APOLLO_GRAPH_REF: "${GRAPH_REF}"
+    ports:
+      - "4000:4000"
+    # A local -s schema stops the router fetching one from Uplink; APOLLO_KEY and
+    # APOLLO_GRAPH_REF are still used to fetch its license.
+    command: -s ${SUPERGRAPH_SCHEMA} -c ${ROUTER_CONFIG}
+    restart: unless-stopped
+
+  subgraph:
+    image: ${SUBGRAPH_IMAGE}
+    labels:
+      rtf.io/file-providers: "true"
+    command:
+      - --schema
+      - ${SUPERGRAPH_SCHEMA}
+      - --config
+      - ${SUBGRAPH_CONFIG_FILE}
+    expose:
+      - "8080"
+    restart: unless-stopped
