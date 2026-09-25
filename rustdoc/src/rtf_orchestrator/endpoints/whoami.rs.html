@@ -10,7 +10,8 @@
 <a href=#10 id=10 data-nosnippet>10</a>    <span class="prelude-val">Ok</span>(<span class="kw">match </span>user {
 <a href=#11 id=11 data-nosnippet>11</a>        UserType::Admin(email) =&gt; <span class="macro">format!</span>(<span class="string">"admin: {email}"</span>),
 <a href=#12 id=12 data-nosnippet>12</a>        UserType::User(email) =&gt; <span class="macro">format!</span>(<span class="string">"user: {email}"</span>),
-<a href=#13 id=13 data-nosnippet>13</a>        UserType::Unknown =&gt; <span class="string">"unknown"</span>.to_owned(),
-<a href=#14 id=14 data-nosnippet>14</a>    })
-<a href=#15 id=15 data-nosnippet>15</a>}
+<a href=#13 id=13 data-nosnippet>13</a>        UserType::Automation { email, org, repo } =&gt; <span class="macro">format!</span>(<span class="string">"automation: {email} ({org}/{repo})"</span>),
+<a href=#14 id=14 data-nosnippet>14</a>        UserType::Unknown =&gt; <span class="string">"unknown"</span>.to_owned(),
+<a href=#15 id=15 data-nosnippet>15</a>    })
+<a href=#16 id=16 data-nosnippet>16</a>}
 </code></pre></div></section></main></body></html>

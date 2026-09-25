@@ -9,21 +9,21 @@
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">pub mod </span>test_plan_details;
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">pub mod </span>upload_urls;
 <a href=#11 id=11 data-nosnippet>11</a>
-<a href=#12 id=12 data-nosnippet>12</a><span class="kw">pub const </span>ORCHESTRATOR_URL_ENV_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"APOLLO_RTF_ORCHESTRATOR_URL"</span>;
-<a href=#13 id=13 data-nosnippet>13</a><span class="kw">pub const </span>EXECUTION_ID_ENV_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"APOLLO_RTF_ORCHESTRATOR_EXECUTION_ID"</span>;
-<a href=#14 id=14 data-nosnippet>14</a><span class="kw">pub const </span>EXECUTION_TOKEN_ENV_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"APOLLO_RTF_ORCHESTRATOR_EXECUTION_TOKEN"</span>;
-<a href=#15 id=15 data-nosnippet>15</a>
-<a href=#16 id=16 data-nosnippet>16</a><span class="kw">pub const </span>EXECUTION_ID_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"rtf.io/execution-id"</span>;
-<a href=#17 id=17 data-nosnippet>17</a>
-<a href=#18 id=18 data-nosnippet>18</a><span class="doccomment">/// Name of the Job the orchestrator creates to run the scenario container. `rtf-orchestrator-cli`
-<a href=#19 id=19 data-nosnippet>19</a>/// looks up this same Job by name to read its `.status.startTime`/`.status.completionTime`.
-<a href=#20 id=20 data-nosnippet>20</a></span><span class="kw">pub const </span>SCENARIO_JOB_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"scenario-execution"</span>;
-<a href=#21 id=21 data-nosnippet>21</a>
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">pub const </span>RTF_OTEL_COLLECTOR_GRPC_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"RTF_OTEL_COLLECTOR_GRPC"</span>;
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub const </span>RTF_OTEL_COLLECTOR_HTTP_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"RTF_OTEL_COLLECTOR_HTTP"</span>;
+<a href=#12 id=12 data-nosnippet>12</a><span class="comment">// Re-exported so other orchestrator crates do not need to depend directly on rtf-config
+<a href=#13 id=13 data-nosnippet>13</a></span><span class="kw">pub use </span>rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">pub const </span>ORCHESTRATOR_URL_ENV_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"APOLLO_RTF_ORCHESTRATOR_URL"</span>;
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">pub const </span>EXECUTION_ID_ENV_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"APOLLO_RTF_ORCHESTRATOR_EXECUTION_ID"</span>;
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">pub const </span>EXECUTION_TOKEN_ENV_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"APOLLO_RTF_ORCHESTRATOR_EXECUTION_TOKEN"</span>;
+<a href=#18 id=18 data-nosnippet>18</a>
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">pub const </span>EXECUTION_ID_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"rtf.io/execution-id"</span>;
+<a href=#20 id=20 data-nosnippet>20</a>
+<a href=#21 id=21 data-nosnippet>21</a><span class="doccomment">/// Name of the Job the orchestrator creates to run the scenario container. `rtf-orchestrator-cli`
+<a href=#22 id=22 data-nosnippet>22</a>/// looks up this same Job by name to read its `.status.startTime`/`.status.completionTime`.
+<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">pub const </span>SCENARIO_JOB_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"scenario-execution"</span>;
 <a href=#24 id=24 data-nosnippet>24</a>
-<a href=#25 id=25 data-nosnippet>25</a><span class="comment">// Re-exported so other orchestrator crates do not need to depend directly on rtf-config
-<a href=#26 id=26 data-nosnippet>26</a></span><span class="kw">pub use </span>rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
+<a href=#25 id=25 data-nosnippet>25</a><span class="kw">pub const </span>RTF_OTEL_COLLECTOR_GRPC_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"RTF_OTEL_COLLECTOR_GRPC"</span>;
+<a href=#26 id=26 data-nosnippet>26</a><span class="kw">pub const </span>RTF_OTEL_COLLECTOR_HTTP_VAR: <span class="kw-2">&amp;</span>str = <span class="string">"RTF_OTEL_COLLECTOR_HTTP"</span>;
 <a href=#27 id=27 data-nosnippet>27</a>
 <a href=#28 id=28 data-nosnippet>28</a><span class="doccomment">/// OTEL collector endpoints injected into workload pods by the orchestrator.
 <a href=#29 id=29 data-nosnippet>29</a></span><span class="attr">#[derive(Clone, Debug)]
