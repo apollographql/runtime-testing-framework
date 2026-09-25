@@ -63,15 +63,12 @@ fn build_routes(
     reload_handle: Option<Handle<EnvFilter, Registry>>,
 ) -> Router {
     use endpoints::{
-        admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
-        health, known_test_plans, list_runs, run_status, test_plan_details, trigger, whoami,
+        admin, event_queue_snapshot, execution_artifacts, execution_config, execution_status,
+        generate_upload_urls, health, known_test_plans, list_runs, run_status, test_plan_details,
+        trigger, whoami,
     };
 
     let mut router = Router::new()
-        .route(
-            "/admin/event-queue-snapshot",
-            get(admin::event_queue_snapshot_handler),
-        )
         .route(
             "/admin/test-plan/register",
             post(admin::register_known_test_plan::handler),
@@ -88,6 +85,7 @@ fn build_routes(
             "/admin/test-plan/{uuid}",
             put(admin::update_known_test_plan::handler),
         )
+        .route("/event-queue-snapshot", get(event_queue_snapshot::handler))
         .route("/health", get(health::handler))
         .route(
             "/test-execution/{id}/generate-upload-urls",

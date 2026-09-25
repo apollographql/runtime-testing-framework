@@ -27,9 +27,7 @@ mod event_queue;
 mod provision_environment;
 mod run_scenario;
 
-pub use event_queue::{
-    Claim, EventQueue, EventQueueState, ProvisioningHandle, Snapshot, SubmitError,
-};
+pub use event_queue::{Claim, EventQueue, EventQueueState, ProvisioningHandle, SubmitError};
 pub use provision_environment::MSG_ARGO_WAIT;
 pub(crate) use run_scenario::CreateJobConfig;
 pub use run_scenario::MSG_JOB_WAIT;
