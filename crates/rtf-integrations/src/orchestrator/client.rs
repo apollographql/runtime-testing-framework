@@ -1,7 +1,8 @@
 //! IAP-authenticated HTTP client for the RTF Orchestrator Service.
 use crate::orchestrator::{
     DEFAULT_ORCHESTRATOR_URL, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
-    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, ORCHESTRATOR_URL_ENV_VAR, Result,
+    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, ORCHESTRATOR_URL_ENV_VAR, Result, TRIGGER_REPO_ENV_VAR,
+    TRIGGER_REPO_HEADER,
     auth::{AdcCredentials, id_token},
 };
 use google_cloud_gax::error::rpc::Code;
@@ -18,6 +19,7 @@ pub struct OrchestratorClient {
     client_secret: String,
     http_client: Client,
     base_url: Url,
+    trigger_repo: Option<String>,
 }
 
 impl OrchestratorClient {
@@ -28,6 +30,7 @@ impl OrchestratorClient {
     pub async fn new() -> Result<Self> {
         Self::new_with_base_url(
             Url::from_str(DEFAULT_ORCHESTRATOR_URL).expect("default URL is valid"),
+            None,
         )
         .await
     }
@@ -42,15 +45,16 @@ impl OrchestratorClient {
             Ok(url) => Url::from_str(&url).map_err(|e| Error::InvalidUrl(e.to_string()))?,
             Err(_) => Url::from_str(DEFAULT_ORCHESTRATOR_URL).expect("default URL is valid"),
         };
+        let trigger_repo = env::var(TRIGGER_REPO_ENV_VAR).ok();
 
-        Self::new_with_base_url(base_url).await
+        Self::new_with_base_url(base_url, trigger_repo).await
     }
 
     /// Build a new client with a custom Orchestrator URL.
     ///
     /// Loads Application Default Credentials from disk and fetches the IAP
     /// OAuth client credentials from Secret Manager.
-    pub async fn new_with_base_url(base_url: Url) -> Result<Self> {
+    pub async fn new_with_base_url(base_url: Url, trigger_repo: Option<String>) -> Result<Self> {
         let adc = AdcCredentials::load()?;
 
         let (client_id, client_secret) = fetch_secrets().await?;
@@ -61,6 +65,7 @@ impl OrchestratorClient {
             client_secret,
             http_client: Client::new(),
             base_url,
+            trigger_repo,
         })
     }
 
@@ -72,7 +77,12 @@ impl OrchestratorClient {
             .join(endpoint)
             .map_err(|e| Error::InvalidUrl(e.to_string()))?;
 
-        Ok(self.http_client.request(method, url).bearer_auth(id_token))
+        let mut builder = self.http_client.request(method, url).bearer_auth(id_token);
+        if let Some(trigger_repo) = self.trigger_repo.as_ref() {
+            builder = builder.header(TRIGGER_REPO_HEADER, trigger_repo);
+        }
+
+        Ok(builder)
     }
 
     /// Make a GET request to the Orchestrator, deserializing the response body from JSON.

@@ -35,6 +35,12 @@ const IAP_OAUTH_CLIENT_ID_SECRET_NAME: &str = "iap-orchestrator-client-id";
 /// The Secret Manager secret name storing the IAP OAuth client secret.
 const IAP_OAUTH_CLIENT_SECRET_SECRET_NAME: &str = "iap-orchestrator-client-secret";
 
+/// If set, becomes the value of `x-rtf-trigger-repo` in requests to the Orchestrator.
+/// This is only checked for known automation users.
+pub const TRIGGER_REPO_ENV_VAR: &str = "APOLLO_RTF_TRIGGER_REPO";
+/// Used for identifying the repo that known automation users are submitting workloads from
+pub const TRIGGER_REPO_HEADER: &str = "x-rtf-trigger-repo";
+
 /// Errors that can occur when building or using an [`OrchestratorClient`].
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

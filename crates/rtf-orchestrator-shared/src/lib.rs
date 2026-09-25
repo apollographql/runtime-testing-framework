@@ -25,10 +25,6 @@ pub const SCENARIO_JOB_NAME: &str = "scenario-execution";
 pub const RTF_OTEL_COLLECTOR_GRPC_VAR: &str = "RTF_OTEL_COLLECTOR_GRPC";
 pub const RTF_OTEL_COLLECTOR_HTTP_VAR: &str = "RTF_OTEL_COLLECTOR_HTTP";
 
-// Used for identifying the repo that known automation users are submitting workloads from
-pub const TRIGGER_REPO_ENV_VAR: &str = "RTF_TRIGGER_REPO";
-pub const TRIGGER_REPO_HEADER: &str = "x-rtf-trigger-repo";
-
 /// OTEL collector endpoints injected into workload pods by the orchestrator.
 #[derive(Clone, Debug)]
 pub struct OtelConfig {

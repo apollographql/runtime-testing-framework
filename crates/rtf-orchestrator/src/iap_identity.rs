@@ -1,7 +1,7 @@
 //! Reads the caller's identity off the `X-Goog-Authenticated-User-Email` header that Google IAP
 //! attaches to every request once it authenticates the caller.
 use axum::http::HeaderMap;
-use rtf_orchestrator_shared::TRIGGER_REPO_HEADER;
+use rtf_integrations::orchestrator::TRIGGER_REPO_HEADER;
 use tracing::warn;
 
 pub const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email";
