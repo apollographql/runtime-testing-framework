@@ -6,6 +6,7 @@ use thiserror::Error;
 use tracing::error;
 use uuid::Uuid;
 
+pub mod cluster_history;
 mod known_test_plan;
 pub mod pool;
 mod status;

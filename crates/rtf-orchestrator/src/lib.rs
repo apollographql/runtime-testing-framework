@@ -63,9 +63,9 @@ fn build_routes(
     reload_handle: Option<Handle<EnvFilter, Registry>>,
 ) -> Router {
     use endpoints::{
-        admin, event_queue_snapshot, execution_artifacts, execution_config, execution_status,
-        generate_upload_urls, health, known_test_plans, list_runs, run_status, test_plan_details,
-        trigger, whoami,
+        admin, cluster_summary, event_queue_snapshot, execution_artifacts, execution_config,
+        execution_status, generate_upload_urls, health, known_test_plans, list_runs, run_status,
+        test_plan_details, trigger, whoami,
     };
 
     let mut router = Router::new()
@@ -85,6 +85,7 @@ fn build_routes(
             "/admin/test-plan/{uuid}",
             put(admin::update_known_test_plan::handler),
         )
+        .route("/cluster-summary", get(cluster_summary::handler))
         .route("/event-queue-snapshot", get(event_queue_snapshot::handler))
         .route("/health", get(health::handler))
         .route(
