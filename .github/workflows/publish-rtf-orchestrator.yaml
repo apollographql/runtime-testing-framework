@@ -22,7 +22,7 @@ permissions:
 jobs:
   publish-orchestrator-image:
     name: Build and publish RTF Orchestrator image
-    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@0164abcc44f36be7659ce0be5bc984e4f44614d1
     permissions:
       contents: read
       id-token: write
@@ -60,7 +60,7 @@ jobs:
       # from `.Chart.AppVersion` (values.yaml image.tag is null) — it must match the image published
       # by the build_and_publish job above, which tags with the full SHA.
       - name: "Publish Helm Chart"
-        uses: apollographql/release-tooling/release-helm-internal@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
+        uses: apollographql/release-tooling/release-helm-internal@0164abcc44f36be7659ce0be5bc984e4f44614d1
         with:
           chart_path: crates/rtf-orchestrator/helm/rtf-orchestrator
           commit_sha: ${{ steps.short_sha.outputs.sha }}
