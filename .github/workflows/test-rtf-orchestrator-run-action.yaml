@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: apollographql/release-tooling/rtf-orchestrator-run@5578f93e8a85bab43f372d520bc2ed6b8945d7e3
+      - uses: apollographql/release-tooling/rtf-orchestrator-run@0164abcc44f36be7659ce0be5bc984e4f44614d1
         with:
           test_plan_path: crates/rtf-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml
           verbose: true
