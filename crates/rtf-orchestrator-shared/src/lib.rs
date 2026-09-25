@@ -9,6 +9,9 @@ pub mod test_plan;
 pub mod test_plan_details;
 pub mod upload_urls;
 
+// Re-exported so other orchestrator crates do not need to depend directly on rtf-config
+pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
+
 pub const ORCHESTRATOR_URL_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_URL";
 pub const EXECUTION_ID_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_EXECUTION_ID";
 pub const EXECUTION_TOKEN_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_EXECUTION_TOKEN";
@@ -21,9 +24,6 @@ pub const SCENARIO_JOB_NAME: &str = "scenario-execution";
 
 pub const RTF_OTEL_COLLECTOR_GRPC_VAR: &str = "RTF_OTEL_COLLECTOR_GRPC";
 pub const RTF_OTEL_COLLECTOR_HTTP_VAR: &str = "RTF_OTEL_COLLECTOR_HTTP";
-
-// Re-exported so other orchestrator crates do not need to depend directly on rtf-config
-pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
 
 /// OTEL collector endpoints injected into workload pods by the orchestrator.
 #[derive(Clone, Debug)]

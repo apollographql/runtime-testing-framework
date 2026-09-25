@@ -36,12 +36,12 @@ pub async fn apply_rate_limits(
     user: &UserType,
     conn: &mut PgConnection,
 ) -> Result<usize, Error> {
-    let email = match user {
-        UserType::User(email) => email,
+    let identity = match user {
+        UserType::User(_) | UserType::Automation { .. } => user.user_identity().unwrap(),
         UserType::Admin(_) | UserType::Unknown => return Ok(0),
     };
 
-    let counts = eq_state.user_queue_counts(email, cluster).await;
+    let counts = eq_state.user_queue_counts(&identity, cluster).await;
 
     if counts.ongoing_runs >= per_user.max_concurrent_runs {
         return Err(Error::RateLimited {
@@ -62,7 +62,8 @@ pub async fn apply_rate_limits(
     }
 
     let since = Utc::now() - Duration::hours(1);
-    let started_in_last_hour = TestRun::started_since(email, cluster, since, conn).await? as usize;
+    let started_in_last_hour =
+        TestRun::started_since(&identity, cluster, since, conn).await? as usize;
 
     if started_in_last_hour >= per_user.max_runs_per_hour {
         return Err(Error::RateLimited {

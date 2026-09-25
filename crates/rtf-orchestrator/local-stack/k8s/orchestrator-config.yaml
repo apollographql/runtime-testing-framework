@@ -12,6 +12,8 @@ metadata:
 data:
   config.yaml: |
     admins_path: /etc/rtf-orchestrator/admins/members
+    automation_users:
+      - automation@example.com
 
     db:
       host: postgres

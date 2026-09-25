@@ -10,7 +10,7 @@ use rtf_config::{
 use rtf_core::variables::{self, ParsedVariables, VariableOverride};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem::take, sync::Arc};
-use tracing::info;
+use tracing::debug;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -113,7 +113,7 @@ impl PreparedPayload {
                 ctx.custom_provider_definitions(),
             );
 
-            info!("extracting relative file providers for matrix variant {i}/{n}");
+            debug!("extracting relative file providers for matrix variant {i}/{n}");
             variant.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
             try_extract_relative_files(&variant, &mut files, &ctx).await?;
         }

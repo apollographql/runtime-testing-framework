@@ -37,7 +37,9 @@ impl FromRequestParts<ServerState> for AdminUser {
     ) -> Result<Self, Self::Rejection> {
         match state.identify_user(&parts.headers).await? {
             UserType::Admin(email) => Ok(Self(email)),
-            UserType::User(_) | UserType::Unknown => Err(Error::Unauthorized),
+            UserType::User(_) | UserType::Automation { .. } | UserType::Unknown => {
+                Err(Error::Unauthorized)
+            }
         }
     }
 }

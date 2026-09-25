@@ -30,6 +30,7 @@ static CONFIG: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct Config {
     pub admins_path: String,
+    pub automation_users: Vec<String>,
     pub db: DbConfig,
     pub server: ServerConfig,
     pub workload_clusters: WorkloadClusters,
@@ -296,6 +297,7 @@ mod tests {
         pub fn for_test() -> Self {
             Self {
                 admins_path: "dummy".to_string(),
+                automation_users: Vec::new(),
                 db: DbConfig {
                     host: "localhost".to_string(),
                     port: 5432,
