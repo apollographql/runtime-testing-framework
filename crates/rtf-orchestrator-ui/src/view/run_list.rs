@@ -1,4 +1,4 @@
-use crate::view::{Pagination, StatusView, format_rfc3339};
+use crate::view::{Pagination, StatusView, format_initiator, format_rfc3339};
 use rtf_orchestrator_shared::summary::{TestRunListResponse, TestRunSummary};
 use url::form_urlencoded;
 use uuid::Uuid;
@@ -18,7 +18,7 @@ impl From<TestRunSummary> for RunListRowView {
             id: run.id,
             name: run.name,
             status: run.current_status.into(),
-            initiated_by: run.initiated_by,
+            initiated_by: format_initiator(run.initiated_by),
             started_at: format_rfc3339(run.started_at),
         }
     }

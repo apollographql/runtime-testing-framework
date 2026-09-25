@@ -2,7 +2,10 @@ use crate::status;
 use chrono::{DateTime, Utc};
 use humantime::format_rfc3339_seconds;
 use rtf_orchestrator_shared::status::Status;
-use std::time::{Duration, SystemTime};
+use std::{
+    array,
+    time::{Duration, SystemTime},
+};
 
 mod execution_detail;
 mod known_test_plan_list;
@@ -21,6 +24,17 @@ fn format_rfc3339(dt: DateTime<Utc>) -> String {
     let system_time = SystemTime::UNIX_EPOCH + Duration::from_secs(seconds_since_epoch);
 
     format_rfc3339_seconds(system_time).to_string()
+}
+
+fn format_initiator(initiator: String) -> String {
+    let mut parts = initiator.splitn(4, ':');
+
+    match array::from_fn(|_| parts.next()) {
+        [Some("automation"), Some(_email), Some(org), Some(repo)] => {
+            format!("automation:{org}:{repo}")
+        }
+        _ => initiator,
+    }
 }
 
 #[derive(Debug)]
@@ -85,8 +99,20 @@ impl Pagination {
 
 #[cfg(test)]
 mod tests {
-    use super::{Pagination, exit_code_label};
+    use super::{Pagination, exit_code_label, format_initiator};
     use simple_test_case::test_case;
+
+    #[test_case(
+        "automation:release-tooling-rtf@runtime-testing-framework.iam.gserviceaccount.com:ORG:REPO",
+        "automation:ORG:REPO";
+        "an automation initiator collapses to org and repo"
+    )]
+    #[test_case("someone@apollographql.com", "someone@apollographql.com"; "a bare email address is left unchanged")]
+    #[test_case("unknown", "unknown"; "unknown is left unchanged")]
+    #[test]
+    fn format_initiator_cases(initiator: &str, expected: &str) {
+        assert_eq!(format_initiator(initiator.to_owned()), expected);
+    }
 
     #[test_case(Some(0), "0"; "an exit code renders as its number")]
     #[test_case(None, "—"; "no exit code renders as an em dash")]
