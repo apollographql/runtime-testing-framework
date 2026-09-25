@@ -420,14 +420,18 @@ pub(crate) mod mocks {
         }
     }
 
-    /// Starts at `Utc::now()`, so whether it polls depends only on `status`.
-    pub(crate) fn sample_summary(run_id: Uuid, ex_id: Uuid, status: Status) -> TestRunSummary {
+    pub(crate) fn sample_summary_with_initiator(
+        run_id: Uuid,
+        ex_id: Uuid,
+        status: Status,
+        initiator: &str,
+    ) -> TestRunSummary {
         TestRunSummary {
             id: run_id,
             name: "my-test-run".to_owned(),
             cluster: "alpha".to_owned(),
             current_status: status,
-            initiated_by: "someone@apollographql.com".to_owned(),
+            initiated_by: initiator.to_owned(),
             started_at: Utc::now(),
             executions: vec![TestExecutionSummary {
                 test_run_id: None,
@@ -436,6 +440,11 @@ pub(crate) mod mocks {
             }],
             ..Default::default()
         }
+    }
+
+    /// Starts at `Utc::now()`, so whether it polls depends only on `status`.
+    pub(crate) fn sample_summary(run_id: Uuid, ex_id: Uuid, status: Status) -> TestRunSummary {
+        sample_summary_with_initiator(run_id, ex_id, status, "someone@apollographql.com")
     }
 
     pub(crate) fn sample_known_test_plan(uuid: Uuid) -> KnownTestPlanSummary {

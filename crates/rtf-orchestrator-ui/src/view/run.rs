@@ -1,7 +1,7 @@
 use crate::{
     links::{LinksConfig, gcp_logs, grafana},
     status,
-    view::{StatusView, exit_code_label, format_rfc3339},
+    view::{StatusView, exit_code_label, format_initiator, format_rfc3339},
 };
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
@@ -62,7 +62,7 @@ impl RunView {
             name: run.name,
             status: run.current_status.into(),
             trigger_variables: TriggerVariableView::from_raw(run.trigger_variables),
-            initiated_by: run.initiated_by,
+            initiated_by: format_initiator(run.initiated_by),
             started_at: format_rfc3339(run.started_at),
             updated_at: format_rfc3339(run.updated_at),
             completed_at: completed_at.map(format_rfc3339),

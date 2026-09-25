@@ -21,8 +21,13 @@ pub fn index() -> IndexTemplate {
     let response = TestRunListResponse {
         runs: vec![
             mocks::sample_summary(id(1), id(2), Status::Running),
-            mocks::sample_summary(id(3), id(4), Status::Successful),
-            mocks::sample_summary(id(5), id(6), Status::Failed),
+            mocks::sample_summary_with_initiator(
+                id(3),
+                id(4),
+                Status::Successful,
+                "automation:release-tooling-rtf@runtime-testing-framework.iam.gserviceaccount.com:ORG:REPO",
+            ),
+            mocks::sample_summary_with_initiator(id(5), id(6), Status::Failed, "unknown"),
             mocks::sample_summary(id(9), id(3), Status::Cancelled),
         ],
         total: 3,
