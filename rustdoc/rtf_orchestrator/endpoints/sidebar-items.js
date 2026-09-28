@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["admin","execution_artifacts","execution_config","execution_status","generate_upload_urls","health","known_test_plans","list_runs","run_status","test_plan_details","trigger","whoami"],"struct":["AdminUser","BearerToken"]};
+window.SIDEBAR_ITEMS = {"mod":["admin","cluster_summary","event_queue_snapshot","execution_artifacts","execution_config","execution_status","generate_upload_urls","health","known_test_plans","list_runs","run_status","test_plan_details","trigger","whoami"],"struct":["AdminUser","BearerToken"]};
