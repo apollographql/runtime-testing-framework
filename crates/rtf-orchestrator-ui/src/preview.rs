@@ -44,6 +44,12 @@ pub fn index() -> IndexTemplate {
             String::new(),
         )),
         list_error: None,
+        dashboard: Some(DashboardView::new(
+            mocks::sample_event_queue_snapshot(),
+            mocks::sample_cluster_summary(),
+            sample_config().cluster_roles_url,
+        )),
+        dashboard_error: None,
     }
 }
 

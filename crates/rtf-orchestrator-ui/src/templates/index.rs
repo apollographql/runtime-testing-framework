@@ -1,20 +1,22 @@
-use crate::view::RunListView;
+use crate::view::{DashboardView, RunListView};
 use askama::Template;
 
 #[derive(Template)]
-#[template(path = "index.html", blocks = ["filters", "runs"])]
+#[template(path = "index.html", blocks = ["filters", "runs", "dashboard"])]
 pub struct IndexTemplate {
     pub initiated_by: String,
     /// One of `""`, `"hour"`, `"day"`, `"week"` or `"month"`.
     pub started_within: String,
     pub list: Option<RunListView>,
     pub list_error: Option<String>,
+    pub dashboard: Option<DashboardView>,
+    pub dashboard_error: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{orchestrator::mocks::sample_summary, render_fragment};
+    use crate::{orchestrator::mocks::sample_summary, preview, render_fragment};
     use chrono::{TimeZone, Utc};
     use rtf_orchestrator_shared::{
         status::Status,
@@ -44,6 +46,8 @@ mod tests {
                 started_within.to_owned(),
             )),
             list_error: None,
+            dashboard: None,
+            dashboard_error: None,
         }
     }
 
@@ -70,5 +74,21 @@ mod tests {
             ..index("", "")
         };
         insta::assert_snapshot!(render_fragment!(t.as_runs()));
+    }
+
+    #[test]
+    fn dashboard_snapshot() {
+        insta::assert_snapshot!(render_fragment!(preview::index().as_dashboard()));
+    }
+
+    #[test]
+    fn dashboard_snapshot_loading_failed() {
+        let t = IndexTemplate {
+            dashboard_error: Some(
+                "Could not load the current service status from the orchestrator.".to_owned(),
+            ),
+            ..index("", "")
+        };
+        insta::assert_snapshot!(render_fragment!(t.as_dashboard()));
     }
 }

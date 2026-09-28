@@ -3,6 +3,8 @@
 
 {% block title %}RTF Status &middot; Recent runs{% endblock %}
 
+{% block main_class %} class="wide"{% endblock %}
+
 {% block content %}
 <div class="info-box">
     <p>
@@ -21,8 +23,8 @@
     </p>
 </div>
 
-<br>
-
+<div class="detail-grid">
+    <div class="detail-main">
 {% block filters %}
 <h2>Recent runs</h2>
 <form class="filter-form" method="get" action="/ui">
@@ -50,4 +52,83 @@
 {% when None %}
 {% endmatch %}
 {% endblock %}
+    </div>
+
+    <div class="detail-side">
+        {% block dashboard %}
+        {% match dashboard %}
+        {% when Some with (d) %}
+        <div class="test-plan-card">
+            <h3>Current Queue State</h3>
+            <div class="cluster-queue">
+                <div class="cluster-queue__header">
+                    <span>Queued executions</span>
+                    <span class="muted">{{ d.queued }} / {{ d.max_queued }}</span>
+                </div>
+                <div class="usage-bar" aria-hidden="true">
+                    <div class="usage-bar__fill {{ d.gauge_class }}" style="width: {{ d.gauge_percent }}%"></div>
+                </div>
+                <p class="muted">{{ d.running }} executions running</p>
+            </div>
+            <h3>Cluster Pools</h3>
+            {% for pool in d.pools %}
+            <h4 class="pool-name">{{ pool.name }}</h4>
+            {% for cluster in pool.clusters %}
+            <div class="cluster-queue">
+                <div class="cluster-queue__header">
+                    <code>{{ cluster.name }}</code>
+                    <span class="muted">{{ cluster.running }} / {{ cluster.max_concurrent }} running</span>
+                </div>
+                <div class="usage-bar" aria-hidden="true">
+                    <div class="usage-bar__fill" style="width: {{ cluster.utilisation_percent }}%"></div>
+                </div>
+                <p class="muted">
+                    {{ cluster.pending_provisions }} awaiting provisioning &middot;
+                    {{ cluster.pending_other }} other pending events
+                </p>
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="test-plan-card">
+            <h3>Recent Executions</h3>
+            <p class="muted">Started in the last 24 hours</p>
+            <canvas id="chart-executions" height="170"></canvas>
+        </div>
+
+        <div class="test-plan-card">
+            <h3>Workload clusters</h3>
+            <p class="muted">
+                <a href="{{ d.cluster_roles_url }}" target="_blank" rel="noopener noreferrer">
+                    View current scenario cluster roles in GitHub &#8599;
+                </a>
+            </p>
+            {% for pool in d.pools %}
+            <h4 class="pool-name">{{ pool.name }} pool</h4>
+            {% for cluster in pool.clusters %}
+            <details class="cluster-config">
+                <summary><code>{{ cluster.name }}</code></summary>
+                <dl>
+                    {% for (label, value) in cluster.config %}
+                    <dt>{{ label }}</dt>
+                    <dd>{{ value }}</dd>
+                    {% endfor %}
+                </dl>
+            </details>
+            {% endfor %}
+            {% endfor %}
+        </div>
+        {% when None %}
+        {% call macros::error_message(dashboard_error) %}{% endcall %}
+        {% endmatch %}
+        {% endblock %}
+    </div>
+</div>
+
+{% if let Some(d) = dashboard %}
+<script type="application/json" id="dashboard-data">{{ d.js_data()|json|safe }}</script>
+<script src="/ui/static/chart.min.js"></script>
+<script src="/ui/static/dashboard.js"></script>
+{% endif %}
 {% endblock %}

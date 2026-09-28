@@ -48,6 +48,8 @@ spec:
               value: {{ required "grafana.dashboardSlug is required" .Values.grafana.dashboardSlug | quote }}
             - name: RTF_UI_GRAFANA_DATASOURCE_UID
               value: {{ required "grafana.datasourceUid is required" .Values.grafana.datasourceUid | quote }}
+            - name: RTF_UI_CLUSTER_ROLES_URL
+              value: {{ required "githubLinks.clusterRolesUrl is required" .Values.githubLinks.clusterRolesUrl | quote }}
           startupProbe:
             httpGet:
               path: /ui/health
