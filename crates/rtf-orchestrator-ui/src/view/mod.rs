@@ -7,12 +7,14 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+mod dashboard;
 mod execution_detail;
 mod known_test_plan_list;
 mod run;
 mod run_list;
 mod test_plan_details;
 
+pub use dashboard::DashboardView;
 pub use execution_detail::ExecutionDetailView;
 pub use known_test_plan_list::{KnownTestPlanListView, KnownTestPlanRowView};
 pub use run::RunView;

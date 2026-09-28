@@ -14,12 +14,12 @@ pub struct Config {
     #[serde(default = "default_port")]
     pub port: u16,
     pub orchestrator_url: String,
-    /// The project the workload cluster runs in.
     pub gcp_project: String,
     pub grafana_base_url: String,
     pub grafana_dashboard_uid: String,
     pub grafana_dashboard_slug: String,
     pub grafana_datasource_uid: String,
+    pub cluster_roles_url: String,
 }
 
 impl Config {

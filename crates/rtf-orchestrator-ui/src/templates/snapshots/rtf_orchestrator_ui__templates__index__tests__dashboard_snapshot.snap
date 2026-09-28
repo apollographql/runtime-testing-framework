@@ -1,0 +1,157 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/index.rs
+expression: "render_fragment!(preview::index().as_dashboard())"
+---
+
+        
+        <div class="card">
+            <h3>Current Queue State</h3>
+            <div class="cluster-queue">
+                <div class="cluster-queue__header">
+                    <span>Queued executions</span>
+                    <span class="muted">4 / 20</span>
+                </div>
+                <div class="usage-bar" aria-hidden="true">
+                    <div class="usage-bar__fill " style="width: 20%"></div>
+                </div>
+                <p class="muted">3 executions running</p>
+            </div>
+            <h3>Cluster Pools</h3>
+            
+            <h4 class="pool-name">default</h4>
+            
+            <div class="cluster-queue">
+                <div class="cluster-queue__header">
+                    <code>alpha</code>
+                    <span class="muted">2 / 10 running</span>
+                </div>
+                <div class="usage-bar" aria-hidden="true">
+                    <div class="usage-bar__fill" style="width: 20%"></div>
+                </div>
+                <p class="muted">
+                    2 awaiting provisioning &middot;
+                    1 other pending events
+                </p>
+            </div>
+            
+            
+            <h4 class="pool-name">dedicated</h4>
+            
+            <div class="cluster-queue">
+                <div class="cluster-queue__header">
+                    <code>beta</code>
+                    <span class="muted">1 / 2 running</span>
+                </div>
+                <div class="usage-bar" aria-hidden="true">
+                    <div class="usage-bar__fill" style="width: 50%"></div>
+                </div>
+                <p class="muted">
+                    0 awaiting provisioning &middot;
+                    0 other pending events
+                </p>
+            </div>
+            
+            
+        </div>
+
+        <div class="card">
+            <h3>Recent Executions</h3>
+            <p class="muted">Started in the last 24 hours</p>
+            <canvas id="chart-executions" height="170"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>Workload clusters</h3>
+            <p class="muted">
+                <a href="https://github.com/org/repo/tree/main/cluster-roles" target="_blank" rel="noopener noreferrer">
+                    View current scenario cluster roles in GitHub &#8599;
+                </a>
+            </p>
+            
+            <h4 class="pool-name">default pool</h4>
+            
+            <details class="cluster-config">
+                <summary><code>alpha</code></summary>
+                <dl>
+                    
+                    <dt>Max concurrent executions</dt>
+                    <dd>10</dd>
+                    
+                    <dt>Exclusive nodes</dt>
+                    <dd>No</dd>
+                    
+                    <dt>Scenario node selector</dt>
+                    <dd>None</dd>
+                    
+                    <dt>Failed execution TTL</dt>
+                    <dd>1h</dd>
+                    
+                    <dt>Retry window</dt>
+                    <dd>5m</dd>
+                    
+                    <dt>Poll interval</dt>
+                    <dd>5s</dd>
+                    
+                    <dt>Namespace cleanup timeout</dt>
+                    <dd>1m 30s</dd>
+                    
+                    <dt>Max concurrent runs per user</dt>
+                    <dd>1</dd>
+                    
+                    <dt>Max queued runs per user</dt>
+                    <dd>5</dd>
+                    
+                    <dt>Max queued executions per user</dt>
+                    <dd>100</dd>
+                    
+                    <dt>Max runs per hour per user</dt>
+                    <dd>10</dd>
+                    
+                </dl>
+            </details>
+            
+            
+            <h4 class="pool-name">dedicated pool</h4>
+            
+            <details class="cluster-config">
+                <summary><code>beta</code></summary>
+                <dl>
+                    
+                    <dt>Max concurrent executions</dt>
+                    <dd>2</dd>
+                    
+                    <dt>Exclusive nodes</dt>
+                    <dd>Yes</dd>
+                    
+                    <dt>Scenario node selector</dt>
+                    <dd>rtf.io/node-pool=beta</dd>
+                    
+                    <dt>Failed execution TTL</dt>
+                    <dd>1h</dd>
+                    
+                    <dt>Retry window</dt>
+                    <dd>5m</dd>
+                    
+                    <dt>Poll interval</dt>
+                    <dd>5s</dd>
+                    
+                    <dt>Namespace cleanup timeout</dt>
+                    <dd>1m 30s</dd>
+                    
+                    <dt>Max concurrent runs per user</dt>
+                    <dd>1</dd>
+                    
+                    <dt>Max queued runs per user</dt>
+                    <dd>5</dd>
+                    
+                    <dt>Max queued executions per user</dt>
+                    <dd>100</dd>
+                    
+                    <dt>Max runs per hour per user</dt>
+                    <dd>10</dd>
+                    
+                </dl>
+            </details>
+            
+            
+        </div>

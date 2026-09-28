@@ -9,6 +9,7 @@ pub struct LinksConfig {
     pub grafana_dashboard_uid: String,
     pub grafana_dashboard_slug: String,
     pub grafana_datasource_uid: String,
+    pub cluster_roles_url: String,
 }
 
 impl From<&Config> for LinksConfig {
@@ -19,6 +20,7 @@ impl From<&Config> for LinksConfig {
             grafana_dashboard_uid: cfg.grafana_dashboard_uid.clone(),
             grafana_dashboard_slug: cfg.grafana_dashboard_slug.clone(),
             grafana_datasource_uid: cfg.grafana_datasource_uid.clone(),
+            cluster_roles_url: cfg.cluster_roles_url.clone(),
         }
     }
 }
@@ -75,6 +77,7 @@ pub(crate) fn sample_config() -> LinksConfig {
         grafana_dashboard_uid: "dash-uuid".to_owned(),
         grafana_dashboard_slug: "dash-slug".to_owned(),
         grafana_datasource_uid: "data-uuid".to_owned(),
+        cluster_roles_url: "https://github.com/org/repo/tree/main/cluster-roles".to_owned(),
     }
 }
 

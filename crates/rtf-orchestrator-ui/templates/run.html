@@ -121,7 +121,7 @@
     <br>
     <div class="execution-cards">
         {% for execution in run.executions %}
-        <div class="execution-card">
+        <div class="card execution-card">
             <div class="execution-card__header">
                 {% call macros::status_pill(execution.status) %}{% endcall %}
                 <h4><a href="/ui/execution/{{ execution.id }}">{{ execution.name }}</a></h4>

@@ -7,7 +7,7 @@
 <p><a href="/ui/test-plans">&larr; Back to known test plans</a></p>
 
 {% block plan_header %}
-<div class="test-plan-card">
+<div class="card">
     <h2>{{ plan.name }}</h2>
     {% if plan.description != "" %}
     <p>{{ plan.description }}</p>
@@ -118,7 +118,7 @@
     </div>
 
     <div class="detail-side">
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Previous runs</h3>
             <p class="muted">
                 <a href="{{ d.prev_history_href(trigger_git_ref) }}" aria-label="Previous history window">&larr;</a>
@@ -129,7 +129,7 @@
             </p>
             <canvas id="chart-status" height="170"></canvas>
         </div>
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Historic execution duration (mm:ss)</h3>
             <p class="muted">
                 <a href="{{ d.prev_history_href(trigger_git_ref) }}" aria-label="Previous history window">&larr;</a>
@@ -163,7 +163,7 @@
     <input type="hidden" name="days" value="{{ days }}" />
 </form>
 
-<details id="customize-trigger" class="test-plan-card" {% if self.customize_expanded() %}open{% endif %}>
+<details id="customize-trigger" class="card" {% if self.customize_expanded() %}open{% endif %}>
     <summary>Customize ref &amp; variables</summary>
 
     <form method="get" action="/ui/test-plan/{{ plan.uuid }}">

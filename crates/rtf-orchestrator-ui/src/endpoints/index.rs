@@ -1,16 +1,21 @@
 use crate::{
     endpoints::{render_body, to_response},
+    links::LinksConfig,
     orchestrator::{self, Client, RunListFilter},
     templates::IndexTemplate,
-    view::RunListView,
+    view::{DashboardView, RunListView},
 };
 use axum::{
+    Extension,
     extract::{Query, State},
     response::Response,
 };
 use chrono::{Duration, Utc};
 use reqwest::StatusCode;
-use rtf_orchestrator_shared::summary::TestRunListResponse;
+use rtf_orchestrator_shared::{
+    cluster_summary::ClusterSummaryResponse, event_queue::EventQueueSnapshot,
+    summary::TestRunListResponse,
+};
 use tracing::error;
 
 const DEFAULT_LIMIT: i64 = 20;
@@ -53,6 +58,7 @@ impl StartedWithin {
 
 pub async fn handler<C: Client>(
     State(orchestrator_client): State<C>,
+    Extension(links_cfg): Extension<LinksConfig>,
     Query(params): Query<IndexParams>,
 ) -> Response {
     let offset = params.offset.unwrap_or(0).max(0);
@@ -72,12 +78,16 @@ pub async fn handler<C: Client>(
         offset,
     };
 
-    let list = orchestrator_client.list_runs(&filter).await;
+    let (list, snapshot, summary) = tokio::join!(
+        orchestrator_client.list_runs(&filter),
+        orchestrator_client.event_queue_snapshot(),
+        orchestrator_client.cluster_summary(),
+    );
 
-    to_response(render_body(
-        StatusCode::OK,
-        index_template(list, DEFAULT_LIMIT, offset, initiated_by, started_within),
-    ))
+    let mut t = index_template(list, DEFAULT_LIMIT, offset, initiated_by, started_within);
+    (t.dashboard, t.dashboard_error) = dashboard(snapshot, summary, links_cfg.cluster_roles_url);
+
+    to_response(render_body(StatusCode::OK, t))
 }
 
 fn index_template(
@@ -99,15 +109,42 @@ fn index_template(
             list_error: None,
             initiated_by,
             started_within,
+            dashboard: None,
+            dashboard_error: None,
         },
         Err(error) => {
-            error!(%error, "failed to list runs from orchestrator");
+            error!(%error, "failed to list runs from Orchestrator");
             IndexTemplate {
                 initiated_by,
                 started_within,
                 list: None,
-                list_error: Some("Could not load recent runs from the orchestrator.".to_owned()),
+                list_error: Some("Could not load recent runs from Orchestrator.".to_owned()),
+                dashboard: None,
+                dashboard_error: None,
             }
+        }
+    }
+}
+
+fn dashboard(
+    snapshot: Result<EventQueueSnapshot, orchestrator::Error>,
+    summary: Result<ClusterSummaryResponse, orchestrator::Error>,
+    cluster_roles_url: String,
+) -> (Option<DashboardView>, Option<String>) {
+    match (snapshot, summary) {
+        (Ok(snapshot), Ok(summary)) => (
+            Some(DashboardView::new(snapshot, summary, cluster_roles_url)),
+            None,
+        ),
+        (snapshot, summary) => {
+            for error in [snapshot.err(), summary.err()].into_iter().flatten() {
+                error!(%error, "failed to load service status from Orchestrator");
+            }
+
+            (
+                None,
+                Some("Could not load the current service status from Orchestrator.".to_owned()),
+            )
         }
     }
 }
@@ -117,6 +154,7 @@ mod tests {
     use super::*;
     use crate::{
         endpoints::body_text,
+        links::sample_config,
         orchestrator::mocks::{MockClient, sample_summary},
     };
     use rtf_orchestrator_shared::status::Status;
@@ -167,6 +205,7 @@ mod tests {
                 Uuid::from_u128(2),
                 Status::Running,
             )),
+            Extension(sample_config()),
             Query(IndexParams {
                 initiated_by: Some("  testuser  ".to_owned()),
                 started_within: None,
@@ -190,6 +229,7 @@ mod tests {
                 Uuid::from_u128(2),
                 Status::Running,
             )),
+            Extension(sample_config()),
             Query(IndexParams {
                 initiated_by: None,
                 started_within: Some("decade".to_owned()),
@@ -202,6 +242,31 @@ mod tests {
             resp.status(),
             StatusCode::OK,
             "an unrecognized preset should not reject the request"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_still_lists_runs_when_service_status_fails() {
+        let resp = handler(
+            State(
+                MockClient::with_test_run(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running)
+                    .with_failing_service_status(),
+            ),
+            Extension(sample_config()),
+            Query(IndexParams {
+                initiated_by: None,
+                started_within: None,
+                offset: None,
+            }),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = body_text(resp).await;
+        assert!(body.contains("my-test-run"), "runs should still be listed");
+        assert!(
+            body.contains("Could not load the current service status"),
+            "the service status error should be shown"
         );
     }
 }

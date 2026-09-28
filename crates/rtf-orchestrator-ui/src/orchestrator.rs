@@ -2,6 +2,8 @@ use cached::cached;
 use chrono::{DateTime, Utc};
 use reqwest::{StatusCode, Url, header::LOCATION, redirect::Policy};
 use rtf_orchestrator_shared::{
+    cluster_summary::ClusterSummaryResponse,
+    event_queue::EventQueueSnapshot,
     known_test_plan::{
         KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanRunsParams,
         KnownTestPlanSummary,
@@ -38,6 +40,12 @@ pub enum Error {
 
     #[error("orchestrator returned {status} listing test runs for known test plan id {uuid}")]
     ListKnownTestPlanRuns { status: StatusCode, uuid: Uuid },
+
+    #[error("orchestrator returned {status} fetching the event queue snapshot")]
+    EventQueueSnapshot { status: StatusCode },
+
+    #[error("orchestrator returned {status} fetching the cluster summary")]
+    ClusterSummary { status: StatusCode },
 
     #[error("orchestrator returned unexpected status {status} fetching {path}")]
     Download { status: StatusCode, path: String },
@@ -119,6 +127,13 @@ pub trait Client: Send + Sync + Clone + 'static {
         uuid: Uuid,
         filter: &KnownTestPlanRunsParams,
     ) -> impl Future<Output = Result<TestRunListResponse, Error>> + Send;
+
+    fn event_queue_snapshot(
+        &self,
+    ) -> impl Future<Output = Result<EventQueueSnapshot, Error>> + Send;
+
+    fn cluster_summary(&self)
+    -> impl Future<Output = Result<ClusterSummaryResponse, Error>> + Send;
 
     /// `initiated_by` is the raw [IAP_USER_EMAIL_HEADER] value from the inbound request, if any.
     fn trigger(
@@ -252,6 +267,32 @@ impl Client for HttpClient {
         }
     }
 
+    async fn event_queue_snapshot(&self) -> Result<EventQueueSnapshot, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/event-queue-snapshot")
+            .expect("base url should be valid");
+        let response = self.client.get(url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::EventQueueSnapshot { status }),
+        }
+    }
+
+    async fn cluster_summary(&self) -> Result<ClusterSummaryResponse, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/cluster-summary")
+            .expect("base url should be valid");
+        let response = self.client.get(url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::ClusterSummary { status }),
+        }
+    }
+
     async fn trigger(
         &self,
         payload: &TriggerPayload,
@@ -380,12 +421,18 @@ fn test_plan_details_url(base_url: &Url, uuid: Uuid) -> Url {
 
 pub(crate) mod mocks {
     use super::*;
+    use chrono::TimeDelta;
     use chrono::Utc;
     use rtf_config::{
         formats::{EnvironmentService, ServiceReplicas},
         templating::Scalar,
     };
     use rtf_orchestrator_shared::{
+        cluster_summary::{
+            ClusterExecutionSummary, HourlyCount, PerUserExecutionSummary, WorkloadClusterSummary,
+            WorkloadPoolSummary,
+        },
+        event_queue::{ClusterQueueState, EventSummary, SnapshotSummary},
         status::{Status, StatusUpdate},
         summary::TestExecutionSummary,
         test_plan_details::{
@@ -596,12 +643,123 @@ pub(crate) mod mocks {
         }
     }
 
+    pub(crate) fn sample_event_queue_snapshot() -> EventQueueSnapshot {
+        let event = |n: u128, event: &str| EventSummary {
+            execution_id: Uuid::from_u128(n),
+            event: event.to_owned(),
+        };
+
+        EventQueueSnapshot {
+            summary: SnapshotSummary {
+                running: 3,
+                queued: 4,
+                pending_provisions: 2,
+                pending_non_provisions: 1,
+            },
+            clusters: BTreeMap::from([
+                (
+                    "alpha".to_owned(),
+                    ClusterQueueState {
+                        running_executions: vec![Uuid::from_u128(1), Uuid::from_u128(2)],
+                        pending_provisions: vec![
+                            event(3, "ResolveConfig"),
+                            event(4, "ResolveConfig"),
+                        ],
+                        pending_non_provisions: vec![event(1, "WaitForScenarioJob")],
+                    },
+                ),
+                (
+                    "beta".to_owned(),
+                    ClusterQueueState {
+                        running_executions: vec![Uuid::from_u128(5)],
+                        ..Default::default()
+                    },
+                ),
+            ]),
+            ..Default::default()
+        }
+    }
+
+    /// Hourly counts are for the 24 hours up to a fixed time so rendered output is stable.
+    pub(crate) fn sample_cluster_summary() -> ClusterSummaryResponse {
+        let last_hour = DateTime::parse_from_rfc3339("2026-01-01T12:00:00Z")
+            .unwrap()
+            .to_utc();
+        let hourly = |counts: [u64; 24]| {
+            counts
+                .into_iter()
+                .enumerate()
+                .map(|(i, count)| HourlyCount {
+                    hour: last_hour - TimeDelta::hours(23 - i as i64),
+                    count,
+                })
+                .collect()
+        };
+        let cluster = |name: &str, max_concurrent, counts| WorkloadClusterSummary {
+            name: name.to_owned(),
+            execution: ClusterExecutionSummary {
+                max_concurrent,
+                failed_execution_ttl_secs: 3600,
+                retry_window_secs: 300,
+                poll_interval_secs: 5,
+                exclusive_nodes: false,
+                scenario_node_selector: BTreeMap::new(),
+                namespace_cleanup_timeout_secs: 90,
+                per_user: PerUserExecutionSummary {
+                    max_concurrent_runs: 1,
+                    max_queued_runs: 5,
+                    max_queued_executions: 100,
+                    max_runs_per_hour: 10,
+                },
+            },
+            hourly_executions: hourly(counts),
+        };
+
+        ClusterSummaryResponse {
+            max_queued_executions: 20,
+            pools: vec![
+                WorkloadPoolSummary {
+                    name: "default".to_owned(),
+                    clusters: vec![cluster(
+                        "alpha",
+                        10,
+                        [
+                            0, 0, 1, 2, 4, 3, 5, 8, 6, 7, 9, 10, 8, 6, 5, 4, 6, 7, 5, 3, 2, 1, 0, 2,
+                        ],
+                    )],
+                },
+                WorkloadPoolSummary {
+                    name: "dedicated".to_owned(),
+                    clusters: vec![WorkloadClusterSummary {
+                        execution: ClusterExecutionSummary {
+                            exclusive_nodes: true,
+                            scenario_node_selector: BTreeMap::from([(
+                                "rtf.io/node-pool".to_owned(),
+                                "beta".to_owned(),
+                            )]),
+                            ..cluster("beta", 2, [0; 24]).execution
+                        },
+                        ..cluster(
+                            "beta",
+                            2,
+                            [
+                                0, 0, 0, 1, 1, 0, 0, 2, 1, 0, 0, 0, 1, 2, 2, 1, 0, 0, 0, 0, 1, 1,
+                                0, 0,
+                            ],
+                        )
+                    }],
+                },
+            ],
+        }
+    }
+
     /// Always succeeds with canned data.
     #[cfg(test)]
     #[derive(Debug, Clone)]
     pub struct MockClient {
         test_run_summary: TestRunSummary,
         test_execution_summary: TestExecutionSummary,
+        service_status_fails: bool,
     }
 
     #[cfg(test)]
@@ -610,6 +768,15 @@ pub(crate) mod mocks {
             Self {
                 test_run_summary: sample_summary(run_id, ex_id, status),
                 test_execution_summary: sample_execution(run_id, ex_id),
+                service_status_fails: false,
+            }
+        }
+
+        /// Fails the event queue snapshot and cluster summary requests.
+        pub fn with_failing_service_status(self) -> Self {
+            Self {
+                service_status_fails: true,
+                ..self
             }
         }
     }
@@ -676,6 +843,26 @@ pub(crate) mod mocks {
                 runs: vec![self.test_run_summary.clone()],
                 total: 1,
             })
+        }
+
+        async fn event_queue_snapshot(&self) -> Result<EventQueueSnapshot, Error> {
+            if self.service_status_fails {
+                return Err(Error::EventQueueSnapshot {
+                    status: StatusCode::BAD_GATEWAY,
+                });
+            }
+
+            Ok(sample_event_queue_snapshot())
+        }
+
+        async fn cluster_summary(&self) -> Result<ClusterSummaryResponse, Error> {
+            if self.service_status_fails {
+                return Err(Error::ClusterSummary {
+                    status: StatusCode::BAD_GATEWAY,
+                });
+            }
+
+            Ok(sample_cluster_summary())
         }
 
         async fn trigger(

@@ -1,8 +1,8 @@
 //! Admin routes are only accessible to users in the Orchestrator's "admins" configmap.
 //!
 //! See: <https://github.com/mdg-private/kanaveral/blob/main/management-cluster/orchestrator/admins.yaml>
-use crate::{Result, endpoints::AdminUser, event_loop::Snapshot, state::ServerState};
-use axum::{Extension, Json, extract::State, http::StatusCode};
+use crate::endpoints::AdminUser;
+use axum::{Extension, http::StatusCode};
 use std::str::FromStr;
 use tracing_subscriber::{EnvFilter, Registry, reload::Handle};
 
@@ -55,13 +55,4 @@ pub async fn set_logging_filter_handler(
             format!("unable to set logging filter: {e}\n\n{ENV_FILTER_DOCS}\n\n"),
         ),
     }
-}
-
-pub async fn event_queue_snapshot_handler(
-    _admin: AdminUser,
-    State(ServerState { eq_state, .. }): State<ServerState>,
-) -> Result<Json<Snapshot>> {
-    let snapshot = eq_state.event_queue_snapshot().await;
-
-    Ok(Json(snapshot))
 }

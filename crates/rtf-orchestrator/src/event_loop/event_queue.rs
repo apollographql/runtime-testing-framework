@@ -15,13 +15,13 @@ use rtf_config::{
 };
 use rtf_orchestrator_shared::{
     OutputCollectionResponse, PrometheusQueries,
+    event_queue::{ClusterQueueState, EventQueueSnapshot, EventSummary, SnapshotSummary},
     payload::PreparedPayload,
     test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
 };
-use serde::Serialize;
 use sqlx::PgConnection;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     sync::Arc,
 };
 use tokio::sync::{
@@ -876,57 +876,44 @@ impl EventQueueState {
         cluster_ids
     }
 
-    pub async fn event_queue_snapshot(&self) -> Snapshot {
-        let (pending_non_provisions, pending_provisions, running_executions) = {
+    pub async fn event_queue_snapshot(&self) -> EventQueueSnapshot {
+        let (clusters, mut summary) = {
             let inner = self.eq_inner.lock().await;
-            let pending_non_provisions: Vec<_> = inner
-                .pending_non_provisions
+            let mut clusters: BTreeMap<String, ClusterQueueState> = inner
+                .cluster_provision_order
                 .iter()
-                .map(|evt| EventSummary {
-                    execution_id: evt.test_execution.uuid(),
-                    cluster: evt.cluster.clone(),
-                    data: evt.data.clone(),
-                })
+                .map(|cid| (cid.to_string(), ClusterQueueState::default()))
                 .collect();
+            let mut summary = SnapshotSummary::default();
 
-            let pending_provisions: Vec<_> = inner
-                .pending_provisions
-                .values()
-                .flatten()
-                .map(|evt| EventSummary {
-                    execution_id: evt.test_execution.uuid(),
-                    cluster: evt.cluster.clone(),
-                    data: evt.data.clone(),
-                })
-                .collect();
+            for (cid, running) in inner.running_executions.iter() {
+                let state = clusters.entry(cid.to_string()).or_default();
+                state.running_executions.extend(running.iter().copied());
+                state.running_executions.sort_unstable();
+                summary.running += running.len();
+            }
 
-            let running_executions: Vec<_> = inner
-                .running_executions
-                .values()
-                .flatten()
-                .cloned()
-                .collect();
+            for evt in inner.pending_provisions.values().flatten() {
+                let state = clusters.entry(evt.cluster.to_string()).or_default();
+                state.pending_provisions.push(event_summary(evt));
+                summary.pending_provisions += 1;
+            }
 
-            (
-                pending_non_provisions,
-                pending_provisions,
-                running_executions,
-            )
+            for evt in inner.pending_non_provisions.iter() {
+                let state = clusters.entry(evt.cluster.to_string()).or_default();
+                state.pending_non_provisions.push(event_summary(evt));
+                summary.pending_non_provisions += 1;
+            }
+
+            (clusters, summary)
         };
 
         self.with_shared(|shared| {
-            let summary = SnapshotSummary {
-                running: running_executions.len(),
-                queued: shared.n_queued,
-                pending_provisions: pending_provisions.len(),
-                pending_non_provisions: pending_non_provisions.len(),
-            };
+            summary.queued = shared.n_queued;
 
-            Snapshot {
+            EventQueueSnapshot {
                 summary,
-                pending_non_provisions,
-                pending_provisions,
-                running_executions,
+                clusters,
                 cached_run_payloads: shared.runs.keys().cloned().collect(),
                 active_run_executions: shared
                     .runs
@@ -1197,30 +1184,11 @@ impl Shared {
     }
 }
 
-#[derive(Debug, Serialize)]
-pub struct Snapshot {
-    summary: SnapshotSummary,
-    pending_non_provisions: Vec<EventSummary>,
-    pending_provisions: Vec<EventSummary>,
-    running_executions: Vec<Uuid>,
-    cached_run_payloads: Vec<Uuid>,
-    active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
-    resolved_execution_cache: Vec<Uuid>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct EventSummary {
-    execution_id: Uuid,
-    cluster: ClusterId,
-    data: EventData,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SnapshotSummary {
-    running: usize,
-    queued: usize,
-    pending_provisions: usize,
-    pending_non_provisions: usize,
+fn event_summary(evt: &Event) -> EventSummary {
+    EventSummary {
+        execution_id: evt.test_execution.uuid(),
+        event: evt.data.name().to_string(),
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

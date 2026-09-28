@@ -7,11 +7,14 @@ config:
   logLevel: "info,rtf_orchestrator_ui=debug"
   orchestratorUrl: "http://rtf-orchestrator:8035"
 
-# Dummy values: the local/tilt stack has no route from this cluster to real GCP or Grafana
+# Dummy values: the local/tilt stack has no route from this cluster to real GCP, Grafana or GitHub
 # instances, so these links will never resolve locally. They only need to satisfy the chart's
 # `required` checks.
 gcpLinks:
   project: "local-dummy-project"
+
+githubLinks:
+  clusterRolesUrl: "http://local-dummy-github.invalid"
 
 grafana:
   baseUrl: "http://local-dummy-grafana.invalid"

@@ -1,6 +1,8 @@
 use rtf_config::formats::PrometheusQuery;
 use serde::{Deserialize, Serialize};
 
+pub mod cluster_summary;
+pub mod event_queue;
 pub mod known_test_plan;
 pub mod payload;
 pub mod status;

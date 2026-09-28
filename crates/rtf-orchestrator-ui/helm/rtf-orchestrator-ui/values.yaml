@@ -29,6 +29,12 @@ grafana:
   # -- UID of the datasource backing the dashboard. Required
   datasourceUid: ""
 
+# -- GitHub deep-link configuration, for the link to the workload cluster roles on the index
+# page. No default: every environment must supply real values.
+githubLinks:
+  # -- URL of the GitHub directory containing the cluster roles bound to scenario pods. Required
+  clusterRolesUrl: ""
+
 # -- Overrides the fully qualified app name
 fullnameOverride: ""
 

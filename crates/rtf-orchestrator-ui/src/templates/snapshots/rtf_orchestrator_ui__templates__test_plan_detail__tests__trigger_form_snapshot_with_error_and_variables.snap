@@ -22,7 +22,7 @@ expression: "render_fragment!(preview::test_plan_detail_trigger_error().as_trigg
     <input type="hidden" name="days" value="30" />
 </form>
 
-<details id="customize-trigger" class="test-plan-card" open>
+<details id="customize-trigger" class="card" open>
     <summary>Customize ref &amp; variables</summary>
 
     <form method="get" action="/ui/test-plan/00000000-0000-0000-0000-00000000000a">
