@@ -1,4 +1,7 @@
-/* Design tokens sourced from Apollo Studio's compiled CSS (Odyssey design system). */
+/* ==========================================================================
+   Design tokens
+   Sourced from Apollo Studio's compiled CSS (Odyssey design system).
+   ========================================================================== */
 
 :root {
     --font-heading: Inter, sans-serif;
@@ -77,6 +80,10 @@
     }
 }
 
+/* ==========================================================================
+   Element defaults
+   ========================================================================== */
+
 * {
     box-sizing: border-box;
 }
@@ -97,6 +104,53 @@ h1, h2, h3, h4 {
 a {
     color: var(--color-text-link);
 }
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th, td {
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--color-border-primary);
+}
+
+thead th {
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+dt {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+pre {
+    background: var(--color-bg-black);
+    color: var(--color-text-white);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+input, select, textarea, button {
+    font: inherit;
+    color: var(--color-text-primary);
+}
+
+input, select, textarea {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
 
 header {
     background: var(--color-bg-black);
@@ -181,18 +235,8 @@ header nav a:hover {
 }
 
 .run-lookup button {
-    background: rgba(255, 255, 255, 0.1);
-    color: inherit;
-    border: none;
-    border-radius: 4px;
-    padding: 0.4rem 0.7rem;
-    cursor: pointer;
     white-space: nowrap;
     transition: background-color 0.15s ease;
-}
-
-.run-lookup button:hover {
-    background: rgba(255, 255, 255, 0.2);
 }
 
 #theme-toggle {
@@ -222,6 +266,63 @@ main.wide {
     max-width: 1440px;
 }
 
+.detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 860px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.detail-main {
+    overflow-x: auto;
+}
+
+.detail-side {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* ==========================================================================
+   Components
+   ========================================================================== */
+
+/* Buttons */
+button[type="submit"], button.primary {
+    background: var(--color-btn-primary);
+    color: var(--color-btn-primary-text);
+    border: none;
+    border-radius: 4px;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover, button.primary:hover {
+    background: var(--color-btn-primary-hover);
+}
+
+.copy-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0.1rem 0.3rem;
+    vertical-align: middle;
+    display: inline-flex;
+    align-items: center;
+    color: inherit;
+}
+
+.copy-btn:hover {
+    opacity: 0.7;
+}
+
+/* Status pills */
 .status {
     display: inline-block;
     padding: 0.15rem 0.5rem;
@@ -237,6 +338,49 @@ main.wide {
 .status--unrunnable { background: var(--status-unrunnable-bg); color: var(--status-unrunnable-text); }
 .status--cancelled { background: var(--status-cancelled-bg); color: var(--status-cancelled-text); }
 
+/* Text helpers */
+.muted {
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+}
+
+.muted button {
+    margin-left: 0.5rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+.warn {
+    color: var(--status-failed-text);
+}
+
+.hint {
+    display: inline-block;
+    margin-left: 0.3rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    cursor: help;
+}
+
+[popover] {
+    border: 1px solid var(--color-border-primary);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    max-width: 32rem;
+    box-shadow: var(--shadow-popover);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}
+
+/* Boxes and cards */
 .banner {
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border-primary);
@@ -281,26 +425,19 @@ main.wide {
     font-weight: 600;
 }
 
-.test-plan-card {
+.card {
     border: 1px solid var(--color-border-primary);
     border-radius: 4px;
     padding: 0.85rem 1.1rem;
     margin-bottom: 0.75rem;
 }
 
-.test-plan-card h3 {
+.card h3 {
     margin: 0 0 0.35rem;
 }
 
-.test-plan-card .location {
+.card .location {
     overflow-wrap: anywhere;
-}
-
-.execution-card {
-    border: 1px solid var(--color-border-primary);
-    border-radius: 4px;
-    padding: 0.85rem 1.1rem;
-    margin-bottom: 0.75rem;
 }
 
 .execution-card__header {
@@ -353,48 +490,7 @@ main.wide {
     color: var(--color-text-secondary);
 }
 
-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-th, td {
-    text-align: left;
-    padding: 0.4rem 0.6rem;
-    border-bottom: 1px solid var(--color-border-primary);
-}
-
-thead th {
-    color: var(--color-text-secondary);
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
-.nowrap {
-    white-space: nowrap;
-}
-
-dt {
-    font-weight: 600;
-    color: var(--color-text-secondary);
-}
-
-.copy-btn {
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    padding: 0.1rem 0.3rem;
-    vertical-align: middle;
-    display: inline-flex;
-    align-items: center;
-    color: inherit;
-}
-
-.copy-btn:hover {
-    opacity: 0.7;
-}
-
+/* Lists and forms */
 .timeline {
     list-style: none;
     padding-left: 0;
@@ -415,72 +511,6 @@ dt {
     margin: 0.35rem 0 0;
 }
 
-.muted {
-    color: var(--color-text-secondary);
-    font-size: 0.85rem;
-}
-
-.muted button {
-    margin-left: 0.5rem;
-    font-size: 0.85rem;
-    cursor: pointer;
-}
-
-.hint {
-    display: inline-block;
-    margin-left: 0.3rem;
-    padding: 0 0.4rem;
-    border-radius: 999px;
-    border: 1px solid var(--color-border-primary);
-    color: var(--color-text-secondary);
-    font-size: 0.75rem;
-    line-height: 1.4;
-    cursor: help;
-}
-
-[popover] {
-    border: 1px solid var(--color-border-primary);
-    border-radius: 4px;
-    padding: 1rem 1.25rem;
-    max-width: 32rem;
-    box-shadow: var(--shadow-popover);
-    background: var(--color-bg-primary);
-    color: var(--color-text-primary);
-}
-
-pre {
-    background: var(--color-bg-black);
-    color: var(--color-text-white);
-    padding: 0.75rem 1rem;
-    border-radius: 4px;
-    overflow-x: auto;
-}
-
-input, select, textarea, button {
-    font: inherit;
-    color: var(--color-text-primary);
-}
-
-input, select, textarea {
-    background: var(--color-bg-primary);
-    border: 1px solid var(--color-border-primary);
-    border-radius: 4px;
-    padding: 0.4rem 0.6rem;
-}
-
-button[type="submit"], button.primary {
-    background: var(--color-btn-primary);
-    color: var(--color-btn-primary-text);
-    border: none;
-    border-radius: 4px;
-    padding: 0.45rem 0.9rem;
-    cursor: pointer;
-}
-
-button[type="submit"]:hover, button.primary:hover {
-    background: var(--color-btn-primary-hover);
-}
-
 .filter-form {
     display: flex;
     flex-wrap: wrap;
@@ -488,36 +518,71 @@ button[type="submit"]:hover, button.primary:hover {
     gap: 0.6rem;
 }
 
-.detail-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 1.5rem;
-    align-items: start;
+/* Usage bars */
+.usage-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-border-primary);
+    overflow: hidden;
 }
 
-@media (max-width: 860px) {
-    .detail-grid {
-        grid-template-columns: 1fr;
-    }
+.usage-bar__fill {
+    height: 100%;
+    background: var(--color-brand-accent);
 }
 
-.detail-main {
-    overflow-x: auto;
+.usage-bar__fill--warn {
+    background: var(--status-unrunnable-text);
 }
 
-.detail-side {
+.usage-bar__fill--full {
+    background: var(--status-failed-text);
+}
+
+/* ==========================================================================
+   Page: index (service status)
+   ========================================================================== */
+
+.pool-name {
+    margin: 0.9rem 0 0.4rem;
+    text-transform: capitalize;
+}
+
+.cluster-queue {
+    margin-bottom: 0.6rem;
+}
+
+.cluster-queue p {
+    margin: 0.25rem 0 0;
+}
+
+.cluster-queue__header {
     display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.25rem;
 }
+
+.cluster-config {
+    margin-bottom: 0.4rem;
+}
+
+.cluster-config dl {
+    margin: 0.4rem 0 0.6rem;
+    font-size: 0.85rem;
+}
+
+.cluster-config dd {
+    margin: 0 0 0.35rem;
+}
+
+/* ==========================================================================
+   Page: test plan detail
+   ========================================================================== */
 
 #stat-executions {
     font-size: 1.4rem;
     font-weight: 650;
-}
-
-.warn {
-    color: var(--status-failed-text);
 }
 
 .trigger-actions {
@@ -542,57 +607,4 @@ button[type="submit"]:hover, button.primary:hover {
 .var-field input,
 .var-field select {
     width: 100%;
-}
-
-.pool-name {
-    margin: 0.9rem 0 0.4rem;
-    text-transform: capitalize;
-}
-
-.cluster-queue {
-    margin-bottom: 0.6rem;
-}
-
-.cluster-queue p {
-    margin: 0.25rem 0 0;
-}
-
-.cluster-queue__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 0.25rem;
-}
-
-.usage-bar {
-    height: 6px;
-    border-radius: 3px;
-    background: var(--color-border-primary);
-    overflow: hidden;
-}
-
-.usage-bar__fill {
-    height: 100%;
-    background: var(--color-brand-accent);
-}
-
-.usage-bar__fill.gauge-warn {
-    background: var(--status-unrunnable-text);
-}
-
-.usage-bar__fill.gauge-full {
-    background: var(--status-failed-text);
-}
-
-.cluster-config {
-    margin-bottom: 0.4rem;
-}
-
-.cluster-config dl {
-    margin: 0.4rem 0 0.6rem;
-    font-size: 0.85rem;
-}
-
-.cluster-config dd {
-    margin: 0 0 0.35rem;
 }

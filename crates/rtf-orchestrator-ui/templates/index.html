@@ -58,7 +58,7 @@
         {% block dashboard %}
         {% match dashboard %}
         {% when Some with (d) %}
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Current Queue State</h3>
             <div class="cluster-queue">
                 <div class="cluster-queue__header">
@@ -66,7 +66,7 @@
                     <span class="muted">{{ d.queued }} / {{ d.max_queued }}</span>
                 </div>
                 <div class="usage-bar" aria-hidden="true">
-                    <div class="usage-bar__fill {{ d.gauge_class }}" style="width: {{ d.gauge_percent }}%"></div>
+                    <div class="usage-bar__fill {{ d.queue_fill_modifier }}" style="width: {{ d.queue_percent }}%"></div>
                 </div>
                 <p class="muted">{{ d.running }} executions running</p>
             </div>
@@ -91,13 +91,13 @@
             {% endfor %}
         </div>
 
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Recent Executions</h3>
             <p class="muted">Started in the last 24 hours</p>
             <canvas id="chart-executions" height="170"></canvas>
         </div>
 
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Workload clusters</h3>
             <p class="muted">
                 <a href="{{ d.cluster_roles_url }}" target="_blank" rel="noopener noreferrer">

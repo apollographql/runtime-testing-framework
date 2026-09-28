@@ -6,15 +6,15 @@ use rtf_orchestrator_shared::{
 };
 use std::time::Duration;
 
-const GAUGE_WARN_PERCENT: usize = 75;
+const QUEUE_WARN_PERCENT: usize = 75;
 
 #[derive(Debug)]
 pub struct DashboardView {
     pub queued: usize,
     pub max_queued: usize,
     pub running: usize,
-    pub gauge_percent: usize,
-    pub gauge_class: &'static str,
+    pub queue_percent: usize,
+    pub queue_fill_modifier: &'static str,
     pub pools: Vec<PoolView>,
     pub cluster_roles_url: String,
     hours: Vec<DateTime<Utc>>,
@@ -98,19 +98,19 @@ impl DashboardView {
 
         let queued = snapshot.summary.queued;
         let max_queued = summary.max_queued_executions;
-        let gauge_percent = percent(queued, max_queued);
-        let gauge_class = match gauge_percent {
-            100.. => "gauge-full",
-            GAUGE_WARN_PERCENT.. => "gauge-warn",
-            _ => "gauge-ok",
+        let queue_percent = percent(queued, max_queued);
+        let queue_fill_modifier = match queue_percent {
+            100.. => "usage-bar__fill--full",
+            QUEUE_WARN_PERCENT.. => "usage-bar__fill--warn",
+            _ => "",
         };
 
         Self {
             queued,
             max_queued,
             running: snapshot.summary.running,
-            gauge_percent,
-            gauge_class,
+            queue_percent,
+            queue_fill_modifier,
             pools,
             cluster_roles_url,
             hours,
@@ -133,7 +133,7 @@ impl DashboardView {
     }
 }
 
-/// Clamped to 100 so that over-subscription still renders as a full gauge.
+/// Clamped to 100 so that over-subscription still renders as a full bar.
 fn percent(n: usize, max: usize) -> usize {
     match max {
         0 if n == 0 => 0,
@@ -210,17 +210,17 @@ mod tests {
         assert_eq!(percent(n, max), expected);
     }
 
-    #[test_case(4, "gauge-ok"; "below warning threshold")]
-    #[test_case(15, "gauge-warn"; "at warning threshold")]
-    #[test_case(20, "gauge-full"; "at capacity")]
+    #[test_case(4, ""; "below warning threshold")]
+    #[test_case(15, "usage-bar__fill--warn"; "at warning threshold")]
+    #[test_case(20, "usage-bar__fill--full"; "at capacity")]
     #[test]
-    fn gauge_class_reflects_queue_depth(queued: usize, expected: &str) {
+    fn queue_fill_modifier_reflects_queue_depth(queued: usize, expected: &str) {
         let mut snapshot = sample_event_queue_snapshot();
         snapshot.summary.queued = queued;
 
         let d = DashboardView::new(snapshot, sample_cluster_summary(), String::new());
 
-        assert_eq!(d.gauge_class, expected);
+        assert_eq!(d.queue_fill_modifier, expected);
     }
 
     #[test]

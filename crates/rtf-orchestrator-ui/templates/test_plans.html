@@ -12,7 +12,7 @@
 {% match list %}
 {% when Some with (list) %}
 {% for row in list.rows %}
-<div class="test-plan-card">
+<div class="card">
     <h3><a href="/ui/test-plan/{{ row.uuid }}">{{ row.name }}</a></h3>
     {% if row.description != "" %}
     <p>{{ row.description }}</p>

@@ -77,7 +77,7 @@ expression: "render_fragment!(preview::test_plan_detail().as_overview())"
     </div>
 
     <div class="detail-side">
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Previous runs</h3>
             <p class="muted">
                 <a href="/ui/test-plan/00000000-0000-0000-0000-00000000000a?days_back=60" aria-label="Previous history window">&larr;</a>
@@ -88,7 +88,7 @@ expression: "render_fragment!(preview::test_plan_detail().as_overview())"
             </p>
             <canvas id="chart-status" height="170"></canvas>
         </div>
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Historic execution duration (mm:ss)</h3>
             <p class="muted">
                 <a href="/ui/test-plan/00000000-0000-0000-0000-00000000000a?days_back=60" aria-label="Previous history window">&larr;</a>

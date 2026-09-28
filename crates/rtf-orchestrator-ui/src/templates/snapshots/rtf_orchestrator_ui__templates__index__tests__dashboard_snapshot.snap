@@ -4,7 +4,7 @@ expression: "render_fragment!(preview::index().as_dashboard())"
 ---
 
         
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Current Queue State</h3>
             <div class="cluster-queue">
                 <div class="cluster-queue__header">
@@ -12,7 +12,7 @@ expression: "render_fragment!(preview::index().as_dashboard())"
                     <span class="muted">4 / 20</span>
                 </div>
                 <div class="usage-bar" aria-hidden="true">
-                    <div class="usage-bar__fill gauge-ok" style="width: 20%"></div>
+                    <div class="usage-bar__fill " style="width: 20%"></div>
                 </div>
                 <p class="muted">3 executions running</p>
             </div>
@@ -54,13 +54,13 @@ expression: "render_fragment!(preview::index().as_dashboard())"
             
         </div>
 
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Recent Executions</h3>
             <p class="muted">Started in the last 24 hours</p>
             <canvas id="chart-executions" height="170"></canvas>
         </div>
 
-        <div class="test-plan-card">
+        <div class="card">
             <h3>Workload clusters</h3>
             <p class="muted">
                 <a href="https://github.com/org/repo/tree/main/cluster-roles" target="_blank" rel="noopener noreferrer">

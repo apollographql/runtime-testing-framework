@@ -118,7 +118,7 @@ expression: render_fragment!(terminal_run_without_test_plan().as_run())
     <br>
     <div class="execution-cards">
         
-        <div class="execution-card">
+        <div class="card execution-card">
             <div class="execution-card__header">
                 <span class="status status--success">SUCCESSFUL</span>
                 <h4><a href="/ui/execution/00000000-0000-0000-0000-000000000003">exec-alpha</a></h4>

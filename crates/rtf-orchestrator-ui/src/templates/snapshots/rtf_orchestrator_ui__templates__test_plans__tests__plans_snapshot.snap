@@ -10,7 +10,7 @@ expression: render_fragment!(t.as_plans())
 
 
 
-<div class="test-plan-card">
+<div class="card">
     <h3><a href="/ui/test-plan/00000000-0000-0000-0000-000000000001">my-known-test-plan</a></h3>
     
     <p>a sample known test plan</p>

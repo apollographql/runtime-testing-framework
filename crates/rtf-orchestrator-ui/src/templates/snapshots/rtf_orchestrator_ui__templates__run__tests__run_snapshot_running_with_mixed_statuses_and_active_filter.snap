@@ -131,7 +131,7 @@ expression: render_fragment!(running_run().as_run())
     <br>
     <div class="execution-cards">
         
-        <div class="execution-card">
+        <div class="card execution-card">
             <div class="execution-card__header">
                 <span class="status status--failed">FAILED</span>
                 <h4><a href="/ui/execution/00000000-0000-0000-0000-000000000004">exec-broke</a></h4>
