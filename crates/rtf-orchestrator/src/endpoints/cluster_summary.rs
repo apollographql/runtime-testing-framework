@@ -34,7 +34,7 @@ async fn cached_hourly_execution_counts(
 // For now we are grouping into cluster pools here with a default pool for alpha and a second
 // "dedicate" pool for everything else. The changes proposed in RR-1175 will make this the native
 // representation in server config so this is a temporary shim to ensure that we don't need to
-// rework the UI side of things once we move over to acutally using pools.
+// rework the UI side of things once we move over to actually using pools.
 fn cluster_summary(
     clusters: &WorkloadClusters,
     mut hourly: HashMap<ClusterId, Vec<HourlyCount>>,
