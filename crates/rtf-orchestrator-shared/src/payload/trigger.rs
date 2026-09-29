@@ -4,7 +4,7 @@ use rtf_config::{
     context::ResolutionContext,
     formats::{self, CustomProviderDefinition, Sources},
     providers,
-    run::RunProviders,
+    run::ExtractRelativeFiles,
     templating::{self, CustomProviderDefinitions, Template, TemplateContext},
 };
 use rtf_core::variables::{self, ParsedVariables, VariableOverride};

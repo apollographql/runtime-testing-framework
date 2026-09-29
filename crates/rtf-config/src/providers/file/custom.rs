@@ -6,6 +6,7 @@ use crate::{
         self,
         file::{AsUtf8FileContent, StableSource, utility::FromCommand},
     },
+    run::ExtractRelativeFiles,
     templating::{self, ErrorKind, Errors, Field, Result, Scalar, Template, TemplateContext},
 };
 use schemars::JsonSchema;
@@ -240,6 +241,19 @@ impl Check for CustomProvider {
         panic!(
             "Should not be able to get here. Custom provider should have been expanded when templating the config."
         )
+    }
+}
+
+// Custom providers are always expanded into a `FromCommand` provider during templating (see
+// `NamedFileProvider::try_template`), before relative file extraction runs, so there are never any
+// nested relative files to resolve here directly.
+impl ExtractRelativeFiles for CustomProvider {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
     }
 }
 

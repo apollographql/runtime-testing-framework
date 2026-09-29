@@ -97,12 +97,29 @@ pub(crate) async fn try_read_relative_dir(
     Ok(())
 }
 
-pub(crate) trait ExtractRelativeFiles: Send + Sync {
+pub trait ExtractRelativeFiles: Send + Sync {
     fn try_extract_relative_files(
         &self,
         files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> impl Future<Output = providers::Result<()>> + Send;
+}
+
+#[macro_export]
+macro_rules! enum_impl_extract_relative_files {
+    ($enum:ident => $($variant:ident),+) => {
+        impl ExtractRelativeFiles for $enum {
+            async fn try_extract_relative_files(
+                &self,
+                files: &mut HashMap<(StableSource, String), String>,
+                ctx: &impl ResolutionContext,
+            ) -> $crate::providers::Result<()> {
+                match self {
+                    $(Self::$variant(inner) => inner.try_extract_relative_files(files, ctx).await,)+
+                }
+            }
+        }
+    }
 }
 
 pub trait ValidateEnvironment:
@@ -166,28 +183,6 @@ pub trait RunProviders: Inline + Send + Sync {
             .any(|(_, p)| p.is_custom_provider())
     }
 
-    fn try_extract_relative_files(
-        &self,
-        files: &mut HashMap<(StableSource, String), String>,
-        ctx: &impl ResolutionContext,
-    ) -> impl Future<Output = providers::Result<()>> + Send {
-        async move {
-            for (_, provider) in self.named_providers() {
-                match provider {
-                    Provider::File { fp } => fp.try_extract_relative_files(files, ctx).await?,
-                    Provider::Command { cmd, .. } => {
-                        cmd.try_extract_relative_files(files, ctx).await?
-                    }
-                    Provider::ComposeFile { fp } => {
-                        fp.try_extract_relative_files(files, ctx).await?
-                    }
-                }
-            }
-
-            Ok(())
-        }
-    }
-
     /// Run all of the [FileProviders][0] contained within this type and write out their file
     /// contents to the specified directory.
     ///
@@ -233,6 +228,37 @@ pub trait RunProviders: Inline + Send + Sync {
                 };
 
                 ctx.store_provider_output_path(provider, file_path);
+            }
+
+            Ok(())
+        }
+    }
+}
+
+impl<T> ExtractRelativeFiles for T
+where
+    T: RunProviders,
+{
+    #[expect(
+        clippy::manual_async_fn,
+        reason = "using async fn results in a cycle in the type checker"
+    )]
+    fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<(StableSource, String), String>,
+        ctx: &impl ResolutionContext,
+    ) -> impl Future<Output = providers::Result<()>> + Send {
+        async move {
+            for (_, provider) in self.named_providers() {
+                match provider {
+                    Provider::File { fp } => fp.try_extract_relative_files(files, ctx).await?,
+                    Provider::Command { cmd, .. } => {
+                        cmd.try_extract_relative_files(files, ctx).await?
+                    }
+                    Provider::ComposeFile { fp } => {
+                        fp.try_extract_relative_files(files, ctx).await?
+                    }
+                }
             }
 
             Ok(())

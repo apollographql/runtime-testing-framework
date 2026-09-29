@@ -2,10 +2,10 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    enum_impl_check,
+    enum_impl_check, enum_impl_extract_relative_files,
     inlining::{self, Inline, InlineMode, InlinedProvider, provider_cache_key},
     providers,
-    run::{ExtractRelativeFiles, RunProviders, try_read_relative_dir, try_read_relative_file},
+    run::{ExtractRelativeFiles, try_read_relative_dir, try_read_relative_file},
     templating::{self, Field, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -468,40 +468,6 @@ impl Inline for FileProvider {
     }
 }
 
-impl ExtractRelativeFiles for FileProvider {
-    async fn try_extract_relative_files(
-        &self,
-        files: &mut HashMap<(StableSource, String), String>,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
-        match self {
-            Self::RelativePath(p) => try_read_relative_file(p, files, ctx).await,
-            Self::RelativeDir(p) => try_read_relative_dir(p, files, ctx).await,
-            Self::FromCommand(p) => Box::pin(p.inner.try_extract_relative_files(files, ctx)).await,
-            Self::MergeYaml(p) => p.try_extract_relative_files(files, ctx).await,
-
-            // We deliberately list out every variant here so we are forced to think about whether
-            // or not new variants have internal relative files that we need to resolve.
-            Self::BuildRouterFromSource(_)
-            | Self::Conditional(_)
-            | Self::CustomProvider(_)
-            | Self::GithubFile(_)
-            | Self::GraphosCannedOps(_)
-            | Self::GraphosCannedOpsById(_)
-            | Self::GraphosSubgraphRouterUrlOverrides(_)
-            | Self::GraphosSubgraphs(_)
-            | Self::GraphosSubgraphNames(_)
-            | Self::GraphosSupergraph(_)
-            | Self::Inline(_)
-            | Self::InlineDir(_)
-            | Self::OfflineGraphosLicense(_)
-            | Self::Required(_)
-            | Self::RouterDownloadScript(_)
-            | Self::Templated(_) => Ok(()),
-        }
-    }
-}
-
 // Each time we add a new variant to the FileProvider enum above we need to remember to add it to
 // the macro invocation below in order to update the trait implementations for the enum. (You can't
 // really forget to do this as the compiler will complain about missing match arms if you do!)
@@ -509,6 +475,7 @@ macro_rules! enum_impl_file_provider {
     ($($variant:ident,)+) => {
         enum_impl_check!(FileProvider => $($variant),+);
         enum_impl_resolve_and_write!(FileProvider => $($variant),+);
+        enum_impl_extract_relative_files!(FileProvider => $($variant),+);
     };
 }
 
@@ -570,6 +537,16 @@ impl Check for InlineFile {
         _path: &mut Vec<String>,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
+        Ok(())
+    }
+}
+
+impl ExtractRelativeFiles for InlineFile {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
         Ok(())
     }
 }
@@ -642,6 +619,16 @@ impl Check for InlineDir {
         }
 
         errs.into_result(())
+    }
+}
+
+impl ExtractRelativeFiles for InlineDir {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
     }
 }
 
@@ -743,6 +730,16 @@ impl Check for RelativeFile {
                 path,
             )),
         }
+    }
+}
+
+impl ExtractRelativeFiles for RelativeFile {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<(StableSource, String), String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        try_read_relative_file(self, files, ctx).await
     }
 }
 
@@ -985,6 +982,16 @@ impl Check for RelativeDir {
     }
 }
 
+impl ExtractRelativeFiles for RelativeDir {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<(StableSource, String), String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        try_read_relative_dir(self, files, ctx).await
+    }
+}
+
 /// # Required file
 ///
 /// The only purpose of this file provider is to throw an error if it still exists
@@ -1029,6 +1036,16 @@ impl Check for RequiredFile {
     }
 }
 
+impl ExtractRelativeFiles for RequiredFile {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1036,7 +1053,10 @@ mod tests {
         context::Context,
         formats::Sources,
         mock_context::MockContext,
-        providers::test_helpers::{assert_file_content, create_temp_dir_with_file},
+        providers::{
+            command::{CommandProvider, CommandSection, CommandSpec},
+            test_helpers::{assert_file_content, create_temp_dir_with_file},
+        },
         templating::{ErrorKind, Scalar},
     };
     use assert_fs::{
@@ -2099,9 +2119,50 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn file_provider_extract_from_command_relative_path() {
-        use crate::providers::command::{CommandProvider, CommandSection, CommandSpec};
+    async fn file_provider_extract_graphos_canned_ops_by_id_relative_path() {
+        let expected_content = "OPERATION_ID_1\nOPERATION_ID_2";
+        let (temp, _) = create_temp_dir_with_file("ops.txt", expected_content);
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
 
+        let provider = FileProvider::GraphosCannedOpsById(apollo::GraphosCannedOpsById {
+            graph_ref: Field::Resolved("graph@variant".to_string()),
+            operations: utility::TextFileProvider::RelativePath(relative_file(
+                "ops.txt",
+                StableSource::TestPlan,
+            )),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "ops.txt".to_string())),
+            Some(&expected_content.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn file_provider_extract_graphos_canned_ops_by_id_inline_unchanged() {
+        let ctx = MockContext::with_http_client(&[]);
+
+        let provider = FileProvider::GraphosCannedOpsById(apollo::GraphosCannedOpsById {
+            graph_ref: Field::Resolved("graph@variant".to_string()),
+            operations: utility::TextFileProvider::Inline(InlineFile {
+                content: "OPERATION_ID_1".to_string(),
+            }),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(files.is_empty());
+    }
+
+    #[tokio::test]
+    async fn file_provider_extract_from_command_relative_path() {
         let file_content = "cmd content";
         let (temp, _) = create_temp_dir_with_file("script.sh", file_content);
         let mut ctx = Context::new();
@@ -2140,8 +2201,6 @@ mod tests {
 
     #[tokio::test]
     async fn file_provider_extract_from_command_inline_unchanged() {
-        use crate::providers::command::{CommandProvider, CommandSection, CommandSpec};
-
         let inner = CommandSection {
             command: CommandSpec {
                 name: "script.sh".to_string(),

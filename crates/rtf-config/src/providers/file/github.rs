@@ -1,14 +1,16 @@
 use crate::{
+    StableSource,
     checks::{self, Check},
     context::ResolutionContext,
     providers::{Result, file::AsUtf8FileContent},
+    run::ExtractRelativeFiles,
     templating::Field,
 };
 use rtf_derive::Template;
 use rtf_integrations::github::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 /// # GitHub file
 ///
@@ -70,6 +72,16 @@ impl Check for GithubFile {
             ));
         }
 
+        Ok(())
+    }
+}
+
+impl ExtractRelativeFiles for GithubFile {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> Result<()> {
         Ok(())
     }
 }
