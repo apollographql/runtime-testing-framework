@@ -85,6 +85,8 @@ pub struct PreparedPayload {
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
     #[serde(default)]
     pub variables: Option<HashMap<String, VariableOverride>>,
+    #[serde(default)]
+    pub variable_sources: HashMap<String, StableSource>,
 }
 
 impl PreparedPayload {
@@ -123,6 +125,7 @@ impl PreparedPayload {
             relative_files: SourceKeyedArrayMap::from_data(files),
             custom_providers: SourceKeyedArrayMap::empty(),
             variables,
+            variable_sources,
         };
         payload.set_custom_provider_definitions(Arc::unwrap_or_clone(
             ctx.custom_provider_definitions(),

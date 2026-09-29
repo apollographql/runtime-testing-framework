@@ -108,6 +108,7 @@ mod tests {
             test_plan,
             relative_files,
             custom_providers,
+            variable_sources,
             ..
         } = serde_json::from_value(payload).unwrap();
 
@@ -115,6 +116,7 @@ mod tests {
             Config::get(),
             relative_files,
             custom_providers,
+            variable_sources,
         );
 
         tss.state

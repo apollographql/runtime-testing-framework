@@ -7,18 +7,9 @@ use crate::{
     event_loop::{EventData, ProvisioningHandle},
     state::TestRunWithPayload,
 };
-use rtf_config::{
-    StableSource,
-    checks::Check,
-    context::ResolutionContext,
-    templating::{Template, TemplateContext},
-};
+use rtf_config::{StableSource, checks::Check, templating::Template};
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorTestPlan};
-use std::{
-    collections::{HashMap, VecDeque},
-    mem::take,
-    ops::ControlFlow,
-};
+use std::{collections::VecDeque, mem::take, ops::ControlFlow};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{error, warn};
 use uuid::Uuid;
@@ -202,8 +193,7 @@ where
     // Run full static checks up front before creating executions and pushing to the queue
     for (_, mut variant) in test_plan.try_iter_matrix_variants()? {
         let variables = take(&mut variant.variables);
-        let template_ctx =
-            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
+        let template_ctx = ctx.new_template_context(variables);
 
         variant
             .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
@@ -308,13 +298,19 @@ fn prepare_resolution(
         mut test_plan,
         relative_files,
         custom_providers,
+        variable_sources,
         ..
     } = payload;
 
-    let ctx = OrchestratorContext::new_from_inlined_files(cfg, relative_files, custom_providers);
+    let ctx = OrchestratorContext::new_from_inlined_files(
+        cfg,
+        relative_files,
+        custom_providers,
+        variable_sources,
+    );
 
     test_plan
-        .check_templating_will_work(&HashMap::new(), &ctx)
+        .check_templating_will_work(&ctx.variable_sources(), &ctx)
         .map_err(ResolverError::TemplatingCheck)?;
 
     Ok((ctx, test_plan))
@@ -343,6 +339,7 @@ mod tests {
         test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
     };
     use simple_test_case::test_case;
+    use std::collections::HashMap;
 
     fn alpha_cluster() -> ClusterId {
         ClusterId::new("alpha")
@@ -394,6 +391,7 @@ mod tests {
     fn empty_payload() -> PreparedPayload {
         PreparedPayload {
             variables: None,
+            variable_sources: HashMap::default(),
             test_plan: minimal_orchestrator_test_plan(vec![]),
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -404,6 +402,21 @@ mod tests {
                 data: vec![],
             },
         }
+    }
+
+    #[test]
+    fn prepare_resolution_carries_the_payloads_variable_sources_into_the_context() {
+        let cfg = Config::for_test();
+        let mut payload = empty_payload();
+        payload.variable_sources =
+            HashMap::from([("setup_subject".to_string(), StableSource::VariablesFile)]);
+
+        let (ctx, _) = prepare_resolution(&cfg, payload).unwrap();
+
+        assert_eq!(
+            ctx.variable_sources().get("setup_subject"),
+            Some(&StableSource::VariablesFile)
+        );
     }
 
     fn payload_with_conflicting_var() -> PreparedPayload {
@@ -424,6 +437,7 @@ mod tests {
 
         PreparedPayload {
             variables: None,
+            variable_sources: HashMap::default(),
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -447,6 +461,7 @@ mod tests {
 
         PreparedPayload {
             variables: None,
+            variable_sources: HashMap::default(),
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -482,6 +497,7 @@ mod tests {
                 keys: vec![],
                 data: vec![],
             },
+            HashMap::new(),
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
@@ -609,6 +625,7 @@ mod tests {
         let test_plan = minimal_orchestrator_test_plan(vec![required_compose]);
         let payload = PreparedPayload {
             variables: None,
+            variable_sources: HashMap::default(),
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],

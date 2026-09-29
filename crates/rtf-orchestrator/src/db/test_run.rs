@@ -759,6 +759,7 @@ mod tests {
     fn stub_payload() -> PreparedPayload {
         PreparedPayload {
             variables: None,
+            variable_sources: HashMap::default(),
             test_plan: OrchestratorTestPlan {
                 name: String::new(),
                 description: String::new(),
