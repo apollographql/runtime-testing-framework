@@ -10,7 +10,7 @@ use rtf_config::{
     inlining::InlinedProvider,
     providers,
     run::Provider,
-    templating::{CustomProviderDefinitions, Template, TemplateContext},
+    templating::{CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use rtf_integrations::{
     ReqwestClient, github,
@@ -32,6 +32,7 @@ pub struct OrchestratorContext {
     inner: Context,
     relative_files: SourceKeyedArrayMap<String>,
     custom_providers: Arc<CustomProviderDefinitions>,
+    variable_sources: HashMap<String, StableSource>,
     inline_cache: Arc<Mutex<HashMap<u64, InlinedProvider>>>,
 }
 
@@ -40,10 +41,12 @@ impl OrchestratorContext {
         cfg: &Config,
         relative_files: SourceKeyedArrayMap<String>,
         custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
+        variable_sources: HashMap<String, StableSource>,
     ) -> Self {
         let mut ctx = Self::new(cfg);
         ctx.relative_files = relative_files;
         ctx.custom_providers = Arc::new(custom_providers.into_custom_provider_definitions());
+        ctx.variable_sources = variable_sources;
 
         ctx
     }
@@ -53,12 +56,25 @@ impl OrchestratorContext {
             inner: cfg.server_context(),
             relative_files: SourceKeyedArrayMap::empty(),
             custom_providers: Arc::new(CustomProviderDefinitions::default()),
+            variable_sources: HashMap::new(),
             inline_cache: Default::default(),
         }
     }
 
     pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {
         self.inline_cache.clone()
+    }
+
+    pub fn variable_sources(&self) -> HashMap<String, StableSource> {
+        self.variable_sources.clone()
+    }
+
+    pub fn new_template_context(&self, variables: HashMap<String, Scalar>) -> TemplateContext {
+        TemplateContext::new(
+            variables,
+            self.variable_sources(),
+            self.custom_provider_definitions(),
+        )
     }
 
     /// Eagerly resolve and check all docker-compose providers within the given test plan to see if
@@ -105,11 +121,7 @@ impl OrchestratorContext {
         inline_cache: &mut HashMap<u64, InlinedProvider>,
     ) -> resolver::Result<FileProviderServices> {
         let variables = take(&mut variant.variables);
-        let template_ctx = TemplateContext::new(
-            variables,
-            HashMap::new(),
-            self.custom_provider_definitions(),
-        );
+        let template_ctx = self.new_template_context(variables);
 
         variant
             .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
@@ -268,5 +280,62 @@ impl ResolutionContext for OrchestratorContext {
 
     fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
         panic!("attempt to create dir")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    #[test]
+    fn new_from_inlined_files_stores_variable_sources() {
+        let cfg = Config::for_test();
+        let variable_sources =
+            HashMap::from([("setup_subject".to_string(), StableSource::VariablesFile)]);
+
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            SourceKeyedArrayMap::empty(),
+            SourceKeyedArrayMap::empty(),
+            variable_sources.clone(),
+        );
+
+        assert_eq!(ctx.variable_sources(), variable_sources);
+    }
+
+    #[test]
+    fn new_has_no_variable_sources() {
+        let ctx = OrchestratorContext::new(&Config::for_test());
+
+        assert!(ctx.variable_sources().is_empty());
+    }
+
+    #[test]
+    fn template_context_resolves_variables_against_their_stored_source() {
+        let cfg = Config::for_test();
+        let variable_sources =
+            HashMap::from([("setup_subject".to_string(), StableSource::VariablesFile)]);
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &cfg,
+            SourceKeyedArrayMap::empty(),
+            SourceKeyedArrayMap::empty(),
+            variable_sources,
+        );
+
+        let variables = HashMap::from([
+            ("setup_subject".to_string(), Scalar::from("fish")),
+            ("untracked_variable".to_string(), Scalar::from("chips")),
+        ]);
+        let template_ctx = ctx.new_template_context(variables);
+
+        assert_eq!(
+            template_ctx.get_with_source("setup_subject"),
+            Some((&StableSource::VariablesFile, &Scalar::from("fish")))
+        );
+        assert_eq!(
+            template_ctx.get_with_source("untracked_variable"),
+            Some((&StableSource::TestPlan, &Scalar::from("chips")))
+        );
     }
 }

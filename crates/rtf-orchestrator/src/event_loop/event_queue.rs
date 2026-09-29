@@ -9,9 +9,8 @@ use crate::{
 use rtf_config::{
     StableSource,
     checks::Check,
-    context::ResolutionContext,
     inlining::{Inline, InlineMode},
-    templating::{Template, TemplateContext},
+    templating::Template,
 };
 use rtf_orchestrator_shared::{
     OutputCollectionResponse, PrometheusQueries,
@@ -266,10 +265,15 @@ impl EventQueue {
                 test_plan,
                 relative_files,
                 custom_providers,
+                variable_sources,
                 ..
             } = payload;
-            let ctx =
-                OrchestratorContext::new_from_inlined_files(cfg, relative_files, custom_providers);
+            let ctx = OrchestratorContext::new_from_inlined_files(
+                cfg,
+                relative_files,
+                custom_providers,
+                variable_sources,
+            );
             h.cache_for_test_run(
                 run_uuid,
                 tr.initiated_by().map(|s| s.to_owned()),
@@ -635,11 +639,7 @@ impl ProvisioningHandle {
             .with_shared(|shared| shared.variant_with_context(ex))
             .await?;
 
-        let template_ctx = TemplateContext::new(
-            test_plan.variables.clone(),
-            HashMap::new(),
-            ctx.custom_provider_definitions(),
-        );
+        let template_ctx = ctx.new_template_context(test_plan.variables.clone());
 
         test_plan
             .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
@@ -1248,6 +1248,7 @@ mod tests {
             &cfg,
             empty_source_map(),
             empty_source_map(),
+            HashMap::new(),
         );
         ph.cache_for_test_run(run_uuid, None, false, ctx, stub_test_plan())
             .await;
@@ -1318,6 +1319,7 @@ mod tests {
             &cfg,
             empty_source_map(),
             empty_source_map(),
+            HashMap::new(),
         );
         ph.cache_for_test_run(
             run_uuid,
@@ -1370,6 +1372,7 @@ mod tests {
             &cfg,
             empty_source_map(),
             empty_source_map(),
+            HashMap::new(),
         );
 
         let mut ex_id = 1;
@@ -1423,6 +1426,7 @@ mod tests {
             &cfg,
             empty_source_map(),
             empty_source_map(),
+            HashMap::new(),
         );
         h.cache_for_test_run(run_uuid, None, false, ctx, stub_test_plan())
             .await;
@@ -1476,6 +1480,7 @@ mod tests {
             &Config::for_test(),
             empty_source_map(),
             empty_source_map(),
+            HashMap::new(),
         );
         h.cache_for_test_run(run_uuid, None, false, ctx, stub_test_plan())
             .await;
@@ -1867,6 +1872,7 @@ mod tests {
             &cfg,
             empty_source_map(),
             empty_source_map(),
+            HashMap::new(),
         );
         ph.cache_for_test_run(run_uuid, None, false, ctx, test_plan)
             .await;
@@ -2040,6 +2046,7 @@ mod tests {
     fn stub_trigger_payload() -> PreparedPayload {
         PreparedPayload {
             variables: None,
+            variable_sources: HashMap::default(),
             test_plan: stub_test_plan(),
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],

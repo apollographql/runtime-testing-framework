@@ -1,6 +1,7 @@
 // Unit tests for the parsing and validation of the providers in this file
 // are part of the suite of tests in the mod.rs file
 use crate::{
+    StableSource,
     checks::{self, Check},
     context::ResolutionContext,
     inlining::{self, Inline, InlineMode, InlinedProvider},
@@ -8,6 +9,7 @@ use crate::{
         self,
         file::{AsUtf8FileContent, DirFile, ResolveFileContent, utility::TextFileProvider},
     },
+    run::{ExtractRelativeFiles, try_read_relative_file},
     templating::Field,
 };
 use indoc::indoc;
@@ -78,6 +80,7 @@ impl GraphosSupergraph {
         sg.supergraph_sdl.clone()
     }
 }
+
 impl AsUtf8FileContent for GraphosSupergraph {
     async fn try_get_file_content(
         &self,
@@ -104,6 +107,16 @@ impl Check for GraphosSupergraph {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
+impl ExtractRelativeFiles for GraphosSupergraph {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
     }
 }
 
@@ -176,6 +189,16 @@ impl Check for GraphosSubgraphs {
     }
 }
 
+impl ExtractRelativeFiles for GraphosSubgraphs {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
+    }
+}
+
 /// # GraphOS subgraph names
 ///
 /// The user specifies the graph ref that should be used to fetch the names of
@@ -223,6 +246,16 @@ impl Check for GraphosSubgraphNames {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
+impl ExtractRelativeFiles for GraphosSubgraphNames {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
     }
 }
 
@@ -491,6 +524,16 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
     }
 }
 
+impl ExtractRelativeFiles for GraphosSubgraphRouterUrlOverrides {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
+    }
+}
+
 /// # GraphOS canned operations
 ///
 /// The user specifies the graph ref and parameters that should be used to
@@ -589,6 +632,16 @@ impl Check for GraphosCannedOps {
     }
 }
 
+impl ExtractRelativeFiles for GraphosCannedOps {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
+    }
+}
+
 /// # GraphOS canned operations by ID
 ///
 /// The user specifies the graph ref and a set of operation IDs to be fetched
@@ -653,7 +706,16 @@ impl Check for GraphosCannedOpsById {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+        let mut errs = checks::ErrorBuilder::new();
+
+        errs.append(validate_graph_ref_and_client(
+            self.graph_ref.as_resolved(),
+            path,
+            ctx,
+        ));
+        errs.append(self.operations.try_check(path, ctx));
+
+        errs.into_result(())
     }
 }
 
@@ -665,6 +727,20 @@ impl Inline for GraphosCannedOpsById {
         cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.operations.try_inline(mode, ctx, cache)
+    }
+}
+
+impl ExtractRelativeFiles for GraphosCannedOpsById {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<(StableSource, String), String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        if let TextFileProvider::RelativePath(p) = &self.operations {
+            try_read_relative_file(p, files, ctx).await?;
+        }
+
+        Ok(())
     }
 }
 
@@ -719,6 +795,16 @@ impl Check for OfflineGraphosLicense {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_client(path, ctx)
+    }
+}
+
+impl ExtractRelativeFiles for OfflineGraphosLicense {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
     }
 }
 
@@ -794,6 +880,16 @@ impl Check for RouterDownloadScript {
         _path: &mut Vec<String>,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
+        Ok(())
+    }
+}
+
+impl ExtractRelativeFiles for RouterDownloadScript {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
         Ok(())
     }
 }
@@ -884,6 +980,16 @@ impl Check for BuildRouterFromSource {
         _path: &mut Vec<String>,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
+        Ok(())
+    }
+}
+
+impl ExtractRelativeFiles for BuildRouterFromSource {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
         Ok(())
     }
 }

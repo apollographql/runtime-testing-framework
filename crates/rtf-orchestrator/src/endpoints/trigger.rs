@@ -53,6 +53,7 @@ pub async fn handler(
         cfg,
         payload.relative_files.clone(),
         payload.custom_providers.clone(),
+        payload.variable_sources.clone(),
     );
 
     debug!("validating test plan file provider usage");

@@ -111,6 +111,16 @@ impl Check for TemplatedFile {
     }
 }
 
+impl ExtractRelativeFiles for TemplatedFile {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
+    }
+}
+
 macro_rules! enum_impl_file_provider {
     ($name:ident; $($variant:ident),+) => {
         enum_impl_check!($name => $($variant),+);
@@ -564,6 +574,16 @@ impl Inline for FromCommand {
     }
 }
 
+impl ExtractRelativeFiles for FromCommand {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<(StableSource, String), String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Box::pin(self.inner.try_extract_relative_files(files, ctx)).await
+    }
+}
+
 /// # Conditional
 ///
 /// Conditionally run a file provider from an ordered list based on simple "where" clauses that
@@ -664,6 +684,19 @@ impl Check for Conditional {
         panic!(
             "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
         )
+    }
+}
+
+// Conditional providers are always collapsed into their chosen case's inner `FileProvider` during
+// templating (see `NamedFileProvider::try_template`), before relative file extraction runs, so
+// there is nothing to recurse into here directly.
+impl ExtractRelativeFiles for Conditional {
+    async fn try_extract_relative_files(
+        &self,
+        _files: &mut HashMap<(StableSource, String), String>,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        Ok(())
     }
 }
 
