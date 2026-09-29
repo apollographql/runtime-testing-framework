@@ -96,16 +96,19 @@ impl Variables {
                 match v {
                     VariableOverride::Scalar(s) => {
                         variables.insert(k.clone(), s);
+                        variable_sources.insert(k, source.clone());
                     }
                     VariableOverride::Array(arr) => {
                         matrix_dimensions.insert(k.clone(), arr);
+                        variable_sources.insert(k, source.clone());
                     }
                     VariableOverride::Compound(entries) => {
+                        for sub_k in entries[0].keys() {
+                            variable_sources.insert(sub_k.clone(), source.clone());
+                        }
                         compound_dimensions.insert(k.clone(), entries);
                     }
                 }
-
-                variable_sources.insert(k, source.clone());
             }
         }
 
@@ -162,12 +165,13 @@ pub struct ParsedVariables {
 }
 
 impl ParsedVariables {
+    /// Construct a new [ParsedVariables] from an explicit map without setting any variable
+    /// sources. Any relative paths specified within `flat` will be resolved relative to the
+    /// location of the test plan.
     pub fn from_flat(flat: HashMap<String, VariableOverride>) -> Self {
         let mut vars = Self::default();
 
         for (k, v) in flat.into_iter() {
-            vars.variable_sources.insert(k.clone(), StableSource::Cli);
-
             match v {
                 VariableOverride::Scalar(s) => {
                     vars.variables.insert(k, s);
@@ -408,6 +412,99 @@ mod tests {
                 variables_map!("setup_subject" => "bread", "scenario_subject" => "butter"),
             ])
         );
+    }
+
+    #[test]
+    fn parse_inner_records_variable_source_for_scalar_override() {
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({ "foo": 42 }),
+            )))
+            .unwrap();
+
+        assert_eq!(
+            parsed.variable_sources.get("foo"),
+            Some(&StableSource::VariablesFile)
+        );
+    }
+
+    #[test]
+    fn parse_inner_records_variable_source_for_array_override() {
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({ "tier": [1, 2, 3] }),
+            )))
+            .unwrap();
+
+        assert_eq!(
+            parsed.variable_sources.get("tier"),
+            Some(&StableSource::VariablesFile)
+        );
+    }
+
+    #[test]
+    fn parse_inner_records_variable_source_for_each_compound_sub_key() {
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "subjects": [
+                        {"setup_subject": "fish", "scenario_subject": "chips"},
+                        {"setup_subject": "bread", "scenario_subject": "butter"}
+                    ]
+                }),
+            )))
+            .unwrap();
+
+        for key in ["setup_subject", "scenario_subject"] {
+            assert_eq!(
+                parsed.variable_sources.get(key),
+                Some(&StableSource::VariablesFile),
+                "no source found for {key:?}"
+            );
+        }
+
+        // compound dimensions should not have been assigned a source
+        assert_eq!(parsed.variable_sources.get("subjects"), None);
+        assert_eq!(parsed.variable_sources.get("locations"), None);
+    }
+
+    #[test]
+    fn from_flat_leaves_variable_sources_empty() {
+        let flat = HashMap::from([
+            ("foo".to_string(), VariableOverride::Scalar(42.into())),
+            (
+                "tier".to_string(),
+                VariableOverride::Array(vec![1.into(), 2.into()]),
+            ),
+            (
+                "subjects".to_string(),
+                VariableOverride::Compound(vec![variables_map!(
+                    "setup_subject" => "fish", "scenario_subject" => "chips"
+                )]),
+            ),
+        ]);
+
+        let parsed = ParsedVariables::from_flat(flat);
+
+        assert!(parsed.variable_sources.is_empty());
     }
 
     #[test]
