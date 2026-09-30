@@ -714,6 +714,7 @@ pub(crate) mod mocks {
                 },
             },
             hourly_executions: hourly(counts),
+            nodes: None,
         };
 
         ClusterSummaryResponse {

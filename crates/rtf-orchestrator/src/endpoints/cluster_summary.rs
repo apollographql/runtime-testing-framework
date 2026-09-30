@@ -1,24 +1,31 @@
 //! Summary of the configured workload clusters along with their recent execution counts.
 use crate::{
     Result,
-    config::{ClusterExecutionConfig, Config, PerUserExecutionConfig, WorkloadClusters},
+    config::{
+        ClusterExecutionConfig, Config, PerUserExecutionConfig, WorkloadClusterConfig,
+        WorkloadClusters,
+    },
     conn,
     db::{ClusterId, cluster_history::hourly_execution_counts},
+    k8s,
 };
 use axum::Json;
 use cached::proc_macro::cached;
 use chrono::Utc;
+use futures::future::join_all;
 use rtf_orchestrator_shared::cluster_summary::{
-    ClusterExecutionSummary, ClusterSummaryResponse, HourlyCount, PerUserExecutionSummary,
-    WorkloadClusterSummary, WorkloadPoolSummary,
+    ClusterExecutionSummary, ClusterSummaryResponse, HourlyCount, NodesSummary,
+    PerUserExecutionSummary, WorkloadClusterSummary, WorkloadPoolSummary,
 };
 use std::collections::HashMap;
+use tracing::warn;
 
 pub async fn handler() -> Result<Json<ClusterSummaryResponse>> {
     let clusters = &Config::get().workload_clusters;
     let hourly = cached_hourly_execution_counts(clusters.available_clusters()).await?;
+    let nodes = cached_node_summaries(clusters.available_clusters()).await;
 
-    Ok(Json(cluster_summary(clusters, hourly)))
+    Ok(Json(cluster_summary(clusters, hourly, nodes)))
 }
 
 #[cached(ttl_secs = 600)]
@@ -28,9 +35,34 @@ async fn cached_hourly_execution_counts(
     Ok(hourly_execution_counts(&clusters, Utc::now(), conn!()).await?)
 }
 
+#[cached(ttl_secs = 600)]
+async fn cached_node_summaries(clusters: Vec<ClusterId>) -> HashMap<ClusterId, NodesSummary> {
+    let per_cluster = Config::get().workload_clusters.per_cluster_config();
+
+    let fetches = clusters.iter().filter_map(|id| {
+        per_cluster.get(id).map(|cfg| async move {
+            cluster_node_summary(cfg)
+                .await
+                .map(|summary| (id.clone(), summary))
+        })
+    });
+
+    join_all(fetches).await.into_iter().flatten().collect()
+}
+
+/// `None` when the cluster's nodes could not be fetched (e.g. it is unreachable) - a single
+/// broken cluster should not take down the whole summary.
+async fn cluster_node_summary(cfg: &WorkloadClusterConfig) -> Option<NodesSummary> {
+    k8s::workload_cluster_nodes_summary(&cfg.kubeconfig_path(), &cfg.workload_context)
+        .await
+        .inspect_err(|e| warn!(cluster = %cfg.name, %e, "failed to fetch node summary"))
+        .ok()
+}
+
 fn cluster_summary(
     clusters: &WorkloadClusters,
     mut hourly: HashMap<ClusterId, Vec<HourlyCount>>,
+    mut nodes: HashMap<ClusterId, NodesSummary>,
 ) -> ClusterSummaryResponse {
     let pools = clusters
         .cluster_pools
@@ -52,6 +84,7 @@ fn cluster_summary(
                     hourly_executions: hourly
                         .remove(&ClusterId::new(&cfg.name))
                         .unwrap_or_default(),
+                    nodes: nodes.remove(&ClusterId::new(&cfg.name)),
                 })
                 .collect(),
         })
@@ -128,7 +161,7 @@ mod tests {
             additional,
         };
 
-        let resp = cluster_summary(&clusters, HashMap::new());
+        let resp = cluster_summary(&clusters, HashMap::new(), HashMap::new());
         let expected: Vec<_> = expected.iter().map(|(p, cs)| (*p, cs.to_vec())).collect();
 
         assert_eq!(pool_layout(&resp), expected);

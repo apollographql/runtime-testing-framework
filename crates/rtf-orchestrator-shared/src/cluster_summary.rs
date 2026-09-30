@@ -20,6 +20,13 @@ pub struct WorkloadClusterSummary {
     pub name: String,
     pub execution: ClusterExecutionSummary,
     pub hourly_executions: Vec<HourlyCount>,
+    /// `None` when this cluster's node data could not be fetched (e.g. it is unreachable).
+    pub nodes: Option<NodesSummary>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodesSummary {
+    pub by_instance_type: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
