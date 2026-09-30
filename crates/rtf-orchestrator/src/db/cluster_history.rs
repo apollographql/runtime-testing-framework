@@ -22,15 +22,14 @@ pub async fn hourly_execution_counts(
     let rows: Vec<HourRow> = sqlx::query_as(
         r#"
         SELECT
-          tr.workload_cluster                          AS cluster,
+          te.workload_cluster                          AS cluster,
           date_trunc('hour', te.started_at, 'UTC')     AS hour,
           COUNT(*)                                     AS count
         FROM
           test_execution te
-        JOIN test_run tr
-          ON tr.id = te.test_run_id
         WHERE
           te.started_at >= $1
+          AND te.workload_cluster IS NOT NULL
         GROUP BY
           cluster, hour;
     "#,
@@ -71,8 +70,9 @@ struct HourRow {
 mod tests {
     use super::*;
     use crate::{
+        config::DEFAULT_POOL,
         conn,
-        db::{PoolId, Queryable, TestRun},
+        db::{Queryable, TestRun},
     };
     use uuid::Uuid;
 
@@ -85,12 +85,13 @@ mod tests {
         hours_ago: i32,
         conn: &mut PgConnection,
     ) -> Result<()> {
-        let pool = PoolId::new(cluster.as_str());
         let tr =
-            TestRun::init_unknown_initiator(&Uuid::new_v4().to_string(), None, &pool, conn).await?;
-        let ex = tr
+            TestRun::init_unknown_initiator(&Uuid::new_v4().to_string(), None, &DEFAULT_POOL, conn)
+                .await?;
+        let mut ex = tr
             .init_execution(&Uuid::new_v4().to_string(), 0, conn)
             .await?;
+        ex.set_workload_cluster(cluster, conn).await?;
 
         sqlx::query(
             "UPDATE test_execution SET started_at = NOW() - make_interval(hours => $1) WHERE id = $2",
@@ -142,6 +143,20 @@ mod tests {
 
         let counts = hourly_execution_counts(std::slice::from_ref(&cid), Utc::now(), c).await?;
 
+        assert_eq!(counts_for(&counts, &cid), vec![0; 24]);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn hourly_execution_counts_ignores_executions_without_a_cluster() -> Result<()> {
+        let c = conn!();
+        let cid = unique_cluster();
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
+        tr.init_execution("unassigned", 0, c).await?;
+
+        let counts = hourly_execution_counts(std::slice::from_ref(&cid), Utc::now(), c).await?;
         assert_eq!(counts_for(&counts, &cid), vec![0; 24]);
 
         Ok(())

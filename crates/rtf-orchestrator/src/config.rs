@@ -312,7 +312,7 @@ pub struct ClusterPools {
 }
 
 impl ClusterPools {
-    fn iter(&self) -> impl Iterator<Item = (&str, &PoolConfig)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &PoolConfig)> {
         iter::once((DEFAULT_POOL_NAME, &self.default))
             .chain(self.additional.iter().map(|p| (p.name.as_str(), &p.config)))
     }

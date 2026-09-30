@@ -1,9 +1,7 @@
 //! Summary of the configured workload clusters along with their recent execution counts.
 use crate::{
     Result,
-    config::{
-        ClusterExecutionConfig, Config, DEFAULT_POOL, PerUserExecutionConfig, WorkloadClusters,
-    },
+    config::{ClusterExecutionConfig, Config, PerUserExecutionConfig, WorkloadClusters},
     conn,
     db::{ClusterId, cluster_history::hourly_execution_counts},
 };
@@ -30,63 +28,44 @@ async fn cached_hourly_execution_counts(
     Ok(hourly_execution_counts(&clusters, Utc::now(), conn!()).await?)
 }
 
-// For now we are grouping into cluster pools here with a default pool for alpha and a second
-// "dedicate" pool for everything else. The changes proposed in RR-1175 will make this the native
-// representation in server config so this is a temporary shim to ensure that we don't need to
-// rework the UI side of things once we move over to actually using pools.
 fn cluster_summary(
     clusters: &WorkloadClusters,
     mut hourly: HashMap<ClusterId, Vec<HourlyCount>>,
 ) -> ClusterSummaryResponse {
-    let mut default_pool = WorkloadPoolSummary {
-        name: DEFAULT_POOL.to_string(),
-        clusters: Vec::new(),
-    };
-    let mut perf_pool = WorkloadPoolSummary {
-        name: "perf".to_string(),
-        clusters: Vec::new(),
-    };
-
-    for cfg in clusters.available_clusters.iter() {
-        let summary = WorkloadClusterSummary {
-            name: cfg.name.clone(),
-            execution: execution_summary(
-                &cfg.execution,
-                clusters
-                    .cluster_pools
-                    .pool_config_for_cluster(&cfg.name)
-                    .map(|pool| pool.per_user.clone())
-                    .unwrap_or_default(),
-            ),
-            hourly_executions: hourly
-                .remove(&ClusterId::new(&cfg.name))
-                .unwrap_or_default(),
-        };
-
-        if clusters
-            .cluster_pools
-            .default
-            .available_clusters
-            .contains(&cfg.name)
-        {
-            default_pool.clusters.push(summary);
-        } else {
-            perf_pool.clusters.push(summary);
-        }
-    }
+    let pools = clusters
+        .cluster_pools
+        .iter()
+        .map(|(name, pool)| WorkloadPoolSummary {
+            name: name.to_string(),
+            clusters: pool
+                .available_clusters
+                .iter()
+                .filter_map(|cluster| {
+                    clusters
+                        .available_clusters
+                        .iter()
+                        .find(|c| c.name == *cluster)
+                })
+                .map(|cfg| WorkloadClusterSummary {
+                    name: cfg.name.clone(),
+                    execution: execution_summary(&cfg.execution, &pool.per_user),
+                    hourly_executions: hourly
+                        .remove(&ClusterId::new(&cfg.name))
+                        .unwrap_or_default(),
+                })
+                .collect(),
+        })
+        .collect();
 
     ClusterSummaryResponse {
         max_queued_executions: clusters.max_queued_executions,
-        pools: [default_pool, perf_pool]
-            .into_iter()
-            .filter(|pool| !pool.clusters.is_empty())
-            .collect(),
+        pools,
     }
 }
 
 fn execution_summary(
     cfg: &ClusterExecutionConfig,
-    per_user: PerUserExecutionConfig,
+    per_user: &PerUserExecutionConfig,
 ) -> ClusterExecutionSummary {
     ClusterExecutionSummary {
         max_concurrent: cfg.max_concurrent,
@@ -108,6 +87,7 @@ fn execution_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{ClusterPools, NamedPoolConfig, PoolConfig};
     use simple_test_case::test_case;
 
     fn pool_layout(resp: &ClusterSummaryResponse) -> Vec<(&str, Vec<&str>)> {
@@ -120,21 +100,33 @@ mod tests {
             .collect()
     }
 
-    #[test_case("alpha", &["alpha"], &[("default", &["alpha"])]; "default only")]
+    fn pool(clusters: &[&str]) -> PoolConfig {
+        PoolConfig {
+            dedicated: false,
+            available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
+            per_user: Default::default(),
+        }
+    }
+
+    #[test_case(pool(&["a"]), vec![], &[("default", &["a"])]; "default only")]
     #[test_case(
-        "alpha",
-        &["alpha", "beta", "other"],
-        &[("default", &["alpha"]), ("perf", &["beta", "other"])];
-        "default and perf"
+        pool(&["a"]),
+        vec![NamedPoolConfig { name: "perf".into(), config: pool(&["b", "c"]) }],
+        &[("default", &["a"]), ("perf", &["b", "c"])];
+        "default and an additional pool with several clusters"
     )]
     #[test]
-    fn cluster_summary_groups_clusters_into_pools(
-        default_cluster: &str,
-        names: &[&str],
+    fn cluster_summary_follows_the_configured_pools(
+        default: PoolConfig,
+        additional: Vec<NamedPoolConfig>,
         expected: &[(&str, &[&str])],
     ) {
-        let clusters =
-            WorkloadClusters::for_test_with_available_clusters(10, default_cluster, names);
+        let mut clusters =
+            WorkloadClusters::for_test_with_available_clusters(10, "a", &["a", "b", "c"]);
+        clusters.cluster_pools = ClusterPools {
+            default,
+            additional,
+        };
 
         let resp = cluster_summary(&clusters, HashMap::new());
         let expected: Vec<_> = expected.iter().map(|(p, cs)| (*p, cs.to_vec())).collect();
