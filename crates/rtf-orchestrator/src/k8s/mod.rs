@@ -12,14 +12,14 @@ mod workflow;
 #[cfg(test)]
 pub mod mock_client;
 
+use crate::k8s::client::nodes::NodeAllocationError;
 pub use client::ClusterClients;
 pub(crate) use job::scenario_job;
+use rtf_orchestrator_shared::cluster_summary::NodesSummary;
 pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
     WorkflowToolboxSettings,
 };
-use crate::k8s::client::nodes::NodeAllocationError;
-use rtf_orchestrator_shared::cluster_summary::NodesSummary;
 
 /// Binary name of the RTF Orchestrator CLI, available on `PATH` inside the rtf-toolbox image.
 const CLI_BINARY: &str = "rtf-orchestrator-cli";
@@ -42,7 +42,7 @@ pub enum Error {
     InCluster(#[from] InClusterError),
 
     #[error("Node allocation error: {0}")]
-    NodeAllocation(#[from] NodeAllocationError)
+    NodeAllocation(#[from] NodeAllocationError),
 }
 
 impl Error {

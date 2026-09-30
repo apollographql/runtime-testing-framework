@@ -1,8 +1,8 @@
 use crate::k8s::client::NODE_LABEL_PREFIX;
+use crate::k8s::client::nodes::NodeAllocationError::{Unsatisfiable, WeightOverflow, ZeroWeights};
 use k8s_openapi::api::core::v1::Node;
 use kube::ResourceExt;
 use std::collections::HashMap;
-use crate::k8s::client::nodes::NodeAllocationError::{Unsatisfiable, WeightOverflow, ZeroWeights};
 
 // Not wired up yet - pending the node-allocation feature work that will call this.
 #[allow(dead_code)]
@@ -27,7 +27,7 @@ impl NodeAllocationPlan {
         // If somehow we try to allocate 0 weight then just stop because it will make other
         // calculations nonsensical.
         if allocation_total == 0 {
-            return Err(ZeroWeights)
+            return Err(ZeroWeights);
         }
 
         // Use checked multiply here so we don't fall victim to overflows (or at least we can
@@ -48,7 +48,10 @@ impl NodeAllocationPlan {
         for (label, amount) in proposed_node_totals {
             for _ in 0..amount {
                 let node = nodes.pop().unwrap();
-                inner.insert(node.name_any(), (NODE_LABEL_PREFIX.to_string(), label.clone()));
+                inner.insert(
+                    node.name_any(),
+                    (NODE_LABEL_PREFIX.to_string(), label.clone()),
+                );
             }
         }
 
@@ -96,7 +99,10 @@ mod test {
     fn summary(plan: &NodeAllocationPlan) -> HashMap<String, u32> {
         let mut summary = HashMap::new();
         for (_, label) in plan.inner.values() {
-            summary.entry(label.clone()).and_modify(|counter| *counter += 1).or_insert(1);
+            summary
+                .entry(label.clone())
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
         }
 
         summary

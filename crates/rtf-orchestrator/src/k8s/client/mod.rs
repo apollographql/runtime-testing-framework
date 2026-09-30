@@ -276,7 +276,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     #[allow(dead_code)]
     /// Take a given allocation (i.e. a set of label and weight pairs) and try and apply
     /// that on top of the nodes that come back from the cluster. Errors indicate either
-    /// data could not be gathered that is necessary to plan the allocation or 
+    /// data could not be gathered that is necessary to plan the allocation or
     /// that its impossible to apply that particular allocation to the set of nodes
     async fn plan_node_label_allocation(
         &mut self,
@@ -296,8 +296,8 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     ) -> Result<()> {
         let node_allocation_plan = self.plan_node_label_allocation(allocation).await?;
         let api = self.cluster_api::<Node>();
-        
-        // Do this using futures so that we can submit the requests in parallel rather than 
+
+        // Do this using futures so that we can submit the requests in parallel rather than
         // via a for-loop
         let patches = node_allocation_plan.into_iter().map(|(node_id, (k, v))| {
             let api = api.clone();
@@ -323,7 +323,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         let nodes = self.get_nodes().await?;
         let api = self.cluster_api::<Node>();
 
-        // Do this using futures so that we can submit the requests in parallel rather than 
+        // Do this using futures so that we can submit the requests in parallel rather than
         // via a for-loop
         let patches = nodes.into_iter().map(|node| {
             let api = api.clone();
