@@ -4,6 +4,9 @@ use kube::ResourceExt;
 use std::collections::HashMap;
 use crate::k8s::client::nodes::NodeAllocationError::{Unsatisfiable, WeightOverflow, ZeroWeights};
 
+// Not wired up yet - pending the node-allocation feature work that will call this.
+#[allow(dead_code)]
+/// A struct to represent an allocation of node labels to nodes
 #[derive(Debug)]
 pub(crate) struct NodeAllocationPlan {
     // Map of node ID to the label (key, value) to apply to it
@@ -11,6 +14,8 @@ pub(crate) struct NodeAllocationPlan {
 }
 
 impl NodeAllocationPlan {
+    #[allow(dead_code)]
+    /// Create an allocation, testing whether it's valid throughout
     pub(crate) fn try_new(
         mut nodes: Vec<Node>,
         allocation: HashMap<String, u32>,
@@ -19,10 +24,14 @@ impl NodeAllocationPlan {
 
         let allocation_total: u32 = allocation.values().sum();
 
+        // If somehow we try to allocate 0 weight then just stop because it will make other
+        // calculations nonsensical.
         if allocation_total == 0 {
             return Err(ZeroWeights)
         }
 
+        // Use checked multiply here so we don't fall victim to overflows (or at least we can
+        // be alerted when they happen).
         let proposed_node_totals: HashMap<String, u32> = allocation
             .into_iter()
             .map(|(k, v)| {
@@ -39,23 +48,11 @@ impl NodeAllocationPlan {
         for (label, amount) in proposed_node_totals {
             for _ in 0..amount {
                 let node = nodes.pop().unwrap();
-                inner.insert(
-                    node.name_any(),
-                    (format!("{NODE_LABEL_PREFIX}/{label}"), String::from("true")),
-                );
+                inner.insert(node.name_any(), (NODE_LABEL_PREFIX.to_string(), label.clone()));
             }
         }
 
         Ok(NodeAllocationPlan { inner })
-    }
-
-    fn summary(&self) -> HashMap<String, u32> {
-        let mut summary = HashMap::new();
-        for (_, (a, _)) in self.inner.iter() {
-            summary.entry(a.clone()).and_modify(|counter| *counter += 1).or_insert(1);
-        }
-
-        summary
     }
 }
 
@@ -96,6 +93,15 @@ mod test {
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use simple_test_case::test_case;
 
+    fn summary(plan: &NodeAllocationPlan) -> HashMap<String, u32> {
+        let mut summary = HashMap::new();
+        for (_, label) in plan.inner.values() {
+            summary.entry(label.clone()).and_modify(|counter| *counter += 1).or_insert(1);
+        }
+
+        summary
+    }
+
     fn generate_nodes(nodes: Vec<&str>) -> Vec<Node> {
         nodes
             .into_iter()
@@ -113,17 +119,17 @@ mod test {
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3"]),
         HashMap::from([(String::from("a"), 1), (String::from("b"), 1), (String::from("c"), 1)]),
-        HashMap::from([(format!("{NODE_LABEL_PREFIX}/a"), 1), (format!("{NODE_LABEL_PREFIX}/b"), 1), (format!("{NODE_LABEL_PREFIX}/c"), 1)]);
+        HashMap::from([(String::from("a"), 1), (String::from("b"), 1), (String::from("c"), 1)]);
         "three way split")]
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3"]),
         HashMap::from([(String::from("a"), 1), (String::from("b"), 2)]),
-        HashMap::from([(format!("{NODE_LABEL_PREFIX}/a"), 1), (format!("{NODE_LABEL_PREFIX}/b"), 2)]);
+        HashMap::from([(String::from("a"), 1), (String::from("b"), 2)]);
         "lop-sided split")]
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3", "node-4"]),
         HashMap::from([(String::from("only"), 1)]),
-        HashMap::from([(format!("{NODE_LABEL_PREFIX}/only"), 4)]);
+        HashMap::from([(String::from("only"), 4)]);
         "single bucket takes all nodes")]
     #[test]
     fn test_generates_correct_node_split(
@@ -132,7 +138,7 @@ mod test {
         expected_summary: HashMap<String, u32>,
     ) {
         let actual = NodeAllocationPlan::try_new(nodes, allocation).unwrap();
-        let proportions = actual.summary();
+        let proportions = summary(&actual);
         assert_eq!(proportions, expected_summary);
     }
 

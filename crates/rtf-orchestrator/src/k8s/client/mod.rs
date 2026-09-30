@@ -10,6 +10,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Duration, Utc};
+use futures::future::try_join_all;
 use k8s_openapi::ClusterResourceScope;
 use k8s_openapi::api::core::v1::Node;
 use k8s_openapi::api::{
@@ -32,7 +33,10 @@ use tokio::time::sleep;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
+// Not wired up yet - pending the node-allocation feature work that will call these.
+#[allow(dead_code)]
 const MANAGER_NAME: &str = "rtf-orchestrator";
+#[allow(dead_code)]
 const NODE_LABEL_PREFIX: &str = "rtf.io/node-allocation";
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
 // exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
@@ -268,6 +272,12 @@ impl<M> ClusterClients<M, AvailableWorkload> {
             .map_err(|err| err.into())
     }
 
+    // Not wired up yet - pending the node-allocation feature work that will call these.
+    #[allow(dead_code)]
+    /// Take a given allocation (i.e. a set of label and weight pairs) and try and apply
+    /// that on top of the nodes that come back from the cluster. Errors indicate either
+    /// data could not be gathered that is necessary to plan the allocation or 
+    /// that its impossible to apply that particular allocation to the set of nodes
     async fn plan_node_label_allocation(
         &mut self,
         allocation: HashMap<String, u32>,
@@ -277,43 +287,66 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         NodeAllocationPlan::try_new(nodes, allocation).map_err(|err| err.into())
     }
 
+    #[allow(dead_code)]
+    /// Take a given allocation and actually re-label the nodes such that they correspond to the
+    /// given allocation.
     async fn apply_node_label_allocation(
         &mut self,
         allocation: HashMap<String, u32>,
     ) -> Result<()> {
         let node_allocation_plan = self.plan_node_label_allocation(allocation).await?;
-        for (node_id, (k, v)) in node_allocation_plan {
-            self.cluster_api::<Node>()
-                .patch(
+        let api = self.cluster_api::<Node>();
+        
+        // Do this using futures so that we can submit the requests in parallel rather than 
+        // via a for-loop
+        let patches = node_allocation_plan.into_iter().map(|(node_id, (k, v))| {
+            let api = api.clone();
+            async move {
+                api.patch(
                     &node_id,
                     &PatchParams::apply(MANAGER_NAME),
                     &Patch::Merge(json!({"metadata": {"labels": {k : v}}})),
                 )
-                .await?;
-        }
+                .await
+            }
+        });
+
+        try_join_all(patches).await?;
 
         Ok(())
     }
 
+    #[allow(dead_code)]
+    /// Remove from the node all the labels that have our prefix on them so we can reset a
+    /// cluster after using it
     async fn remove_all_prefixed_labels(&mut self) -> Result<()> {
         let nodes = self.get_nodes().await?;
-        for node in nodes {
-            let node_name = node.name_any().clone();
-            let filtered_labels : BTreeMap<String, String> = node
-                .metadata
-                .labels
-                .unwrap_or(BTreeMap::new())
-                .into_iter()
-                .filter(|(k, _)| !k.starts_with(NODE_LABEL_PREFIX))
-                .collect();
-            self.cluster_api::<Node>()
-                .patch(
+        let api = self.cluster_api::<Node>();
+
+        // Do this using futures so that we can submit the requests in parallel rather than 
+        // via a for-loop
+        let patches = nodes.into_iter().map(|node| {
+            let api = api.clone();
+            async move {
+                let node_name = node.name_any();
+                let filtered_labels: BTreeMap<String, String> = node
+                    .metadata
+                    .labels
+                    .unwrap_or(BTreeMap::new())
+                    .into_iter()
+                    .filter(|(k, _)| !k.starts_with(NODE_LABEL_PREFIX))
+                    .collect();
+
+                api.patch(
                     &node_name,
                     &PatchParams::apply(MANAGER_NAME),
                     &Patch::Merge(json!({"metadata": {"labels": filtered_labels}})),
                 )
-                .await?;
-        }
+                .await
+            }
+        });
+
+        try_join_all(patches).await?;
 
         Ok(())
     }
