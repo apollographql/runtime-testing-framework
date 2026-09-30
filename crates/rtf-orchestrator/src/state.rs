@@ -90,6 +90,7 @@ impl ServerState {
 pub struct TestRunWithPayload {
     pub test_run: TestRun,
     pub payload: PreparedPayload,
+    pub requires_dedicated: bool,
 }
 
 #[derive(Debug)]

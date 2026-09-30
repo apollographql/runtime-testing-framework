@@ -1,5 +1,5 @@
 use crate::db::{
-    Queryable, Result,
+    ClusterId, Queryable, Result,
     status::{Status, StatusTracked},
     test_run::TestRun,
 };
@@ -29,6 +29,7 @@ pub struct TestExecution {
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
     has_file_upload: bool,
+    workload_cluster: Option<String>,
 }
 
 impl Queryable for TestExecution {
@@ -107,6 +108,31 @@ impl TestExecution {
         self.test_run_id
     }
 
+    pub fn workload_cluster(&self) -> Option<ClusterId> {
+        self.workload_cluster.as_ref().map(ClusterId::new)
+    }
+
+    #[cfg(test)]
+    pub fn set_in_memory_workload_cluster(&mut self, cluster: &ClusterId) {
+        self.workload_cluster = Some(cluster.to_string());
+    }
+
+    pub async fn set_workload_cluster(
+        &mut self,
+        cluster: &ClusterId,
+        conn: &mut PgConnection,
+    ) -> Result<()> {
+        conn.execute(
+            sqlx::query("UPDATE test_execution SET workload_cluster = $1 WHERE id = $2;")
+                .bind(cluster.as_str())
+                .bind(self.id),
+        )
+        .await?;
+        self.workload_cluster = Some(cluster.to_string());
+
+        Ok(())
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, test_run_id: i32, index: usize, name: &str) -> Self {
         Self {
@@ -120,6 +146,7 @@ impl TestExecution {
             started_at: Utc::now(),
             completed_at: None,
             has_file_upload: false,
+            workload_cluster: None,
         }
     }
 
@@ -141,7 +168,7 @@ impl TestExecution {
         let ex: TestExecution = sqlx::query_as(
             "INSERT INTO test_execution (test_run_id, test_plan_index, name)
              VALUES ($1, $2, $3)
-             RETURNING id, uuid, test_run_id, test_plan_index, name, token, exit_code, started_at, completed_at, has_file_upload;
+             RETURNING id, uuid, test_run_id, test_plan_index, name, token, exit_code, started_at, completed_at, has_file_upload, workload_cluster;
             ",
         )
         .bind(test_run_id)
@@ -338,6 +365,25 @@ mod tests {
 
         let queried = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
         assert!(queried.has_file_upload, "queried struct: {queried:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn set_workload_cluster_persists_value() -> Result<()> {
+        let c = conn!();
+
+        let tr = TestRun::init_unknown_initiator("A", None, &DEFAULT_POOL, c).await?;
+        let mut ex = TestExecution::init("a", tr.id(), 0, c).await?;
+        assert_eq!(ex.workload_cluster(), None);
+
+        let cluster = ClusterId::new("beta");
+        ex.set_workload_cluster(&cluster, c).await?;
+        assert_eq!(ex.workload_cluster(), Some(cluster.clone()));
+
+        let queried = TestExecution::get_by_id_unchecked(ex.id, c).await?;
+        assert_eq!(queried.workload_cluster(), Some(cluster));
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use crate::{
     db::{TestExecution, UpdateHandle},
-    event_loop::{ClusterId, Error, Event, EventData, EventLoopConfig, Result},
+    event_loop::{ClusterId, Error, Event, EventData, EventLoopConfig, QueueEvent, Result},
     k8s::{FullClient, ManagementClient, WatchOutcome, WorkflowSpec, WorkflowToolboxSettings},
 };
 use rtf_orchestrator_shared::test_plan::OrchestratorEnvironment;
@@ -73,7 +73,7 @@ pub(super) async fn wait_for_workflow<K, H>(
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
-    etx: UnboundedSender<Event>,
+    etx: UnboundedSender<QueueEvent>,
     clients: K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
@@ -104,23 +104,19 @@ where
 }
 
 async fn wait_and_update<K>(
-    test_execution: TestExecution,
+    ex: TestExecution,
     cluster: ClusterId,
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
-    etx: &UnboundedSender<Event>,
+    etx: &UnboundedSender<QueueEvent>,
     mut clients: K,
 ) where
     K: FullClient,
 {
-    let execution_id = test_execution.uuid();
+    let execution_id = ex.uuid();
     let to_send = match clients
-        .wait_for_workflow(
-            &test_execution.uuid(),
-            poll_interval_secs,
-            retry_window_secs,
-        )
+        .wait_for_workflow(&ex.uuid(), poll_interval_secs, retry_window_secs)
         .await
     {
         WatchOutcome::Succeeded => {
@@ -157,11 +153,11 @@ async fn wait_and_update<K>(
     };
 
     for data in to_send.into_iter() {
-        let _ = etx.send(Event {
-            test_execution: test_execution.clone(),
-            cluster: cluster.clone(),
+        let _ = etx.send(QueueEvent::Other(Event::new(
+            ex.clone(),
+            cluster.clone(),
             data,
-        });
+        )));
     }
 }
 
@@ -333,10 +329,10 @@ mod tests {
         wait_and_update(ex, alpha_cluster(), 600, 10, 300, &etx, clients).await;
 
         // should get two events: workflow complete and create scenario configmap
-        let evt = erx.try_recv().unwrap();
+        let evt = erx.try_recv().unwrap().unwrap_ongoing();
         assert_matches!(evt.data, EventData::ArgoWorkflowComplete, "{evt:?}");
 
-        let evt = erx.try_recv().unwrap();
+        let evt = erx.try_recv().unwrap().unwrap_ongoing();
         assert_matches!(evt.data, EventData::CreateScenarioJob, "{evt:?}");
     }
 
@@ -356,8 +352,8 @@ mod tests {
 
         wait_and_update(ex, alpha_cluster(), 600, 10, 300, &etx, clients).await;
 
-        let first = erx.try_recv().unwrap();
-        let second = erx.try_recv().unwrap();
+        let first = erx.try_recv().unwrap().unwrap_ongoing();
+        let second = erx.try_recv().unwrap().unwrap_ongoing();
         assert_matches!(
             first.data,
             EventData::MarkUnrunnable(_),

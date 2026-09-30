@@ -259,13 +259,6 @@ impl WorkloadClusters {
             .collect()
     }
 
-    /// Pools are assumed to hold a single cluster until scheduling is reworked around them.
-    pub fn cluster_for_pool(&self, pool: &PoolId) -> Option<ClusterId> {
-        let pool = self.cluster_pools.pool_config(pool)?;
-
-        pool.available_clusters.first().map(ClusterId::new)
-    }
-
     /// Pools that dedicated clusters can be claimed from.
     pub fn dedicated_pools(&self) -> HashSet<PoolId> {
         self.cluster_pools

@@ -11,7 +11,7 @@
 use crate::{
     config::{ClusterRoles, Config, WorkloadClusterConfig},
     conn,
-    db::{ClusterId, TestExecution, UpdateHandle},
+    db::{ClusterId, PoolId, TestExecution, UpdateHandle},
     event_loop::provision_environment::MSG_ARGO_COMPLETE,
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
@@ -21,6 +21,7 @@ use serde::Serialize;
 use std::{collections::HashMap, time::Duration};
 use tokio::{spawn, time::sleep};
 use tracing::{Instrument, error, info_span, warn};
+use uuid::Uuid;
 
 mod cleanup_namespace;
 mod event_queue;
@@ -138,6 +139,8 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum EventData {
     ResolveConfig,
+    AcquireCluster,
+    ReleaseCluster,
     CreateEnvArgoWorkflow,
     WaitForEnvArgoWorkflow,
     ArgoWorkflowComplete,
@@ -157,6 +160,8 @@ impl EventData {
     fn name(&self) -> &'static str {
         match self {
             Self::ResolveConfig => "ResolveConfig",
+            Self::AcquireCluster => "AcquireCluster",
+            Self::ReleaseCluster => "ReleaseCluster",
             Self::CreateEnvArgoWorkflow => "CreateEnvArgoWorkflow",
             Self::WaitForEnvArgoWorkflow => "WaitForEnvArgoWorkflow",
             Self::ArgoWorkflowComplete => "ArgoWorkflowComplete",
@@ -184,8 +189,39 @@ impl EventData {
     }
 }
 
-/// Raw event data paired with an associated [TestExecution] so we can track the status of the
-/// execution as we process it, and the [ClusterId] of the workload cluster it runs in.
+#[derive(Debug, Clone, PartialEq)]
+pub enum QueueEvent {
+    Provision(PoolId, PendingProvision),
+    Other(Event),
+}
+
+#[cfg(test)]
+impl QueueEvent {
+    fn unwrap_ongoing(self) -> Event {
+        match self {
+            Self::Other(evt) => evt,
+            other => panic!("expected an ongoing event, got {other:?}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PendingProvision {
+    pub test_execution: TestExecution,
+    pub run_uuid: Uuid,
+    pub requires_dedicated: bool,
+}
+
+impl PendingProvision {
+    pub fn new(test_execution: TestExecution, run_uuid: Uuid, requires_dedicated: bool) -> Self {
+        Self {
+            test_execution,
+            run_uuid,
+            requires_dedicated,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
     pub test_execution: TestExecution,
@@ -194,20 +230,43 @@ pub struct Event {
 }
 
 impl Event {
+    pub fn new(test_execution: TestExecution, cluster: ClusterId, data: EventData) -> Self {
+        Self {
+            test_execution,
+            cluster,
+            data,
+        }
+    }
+
     async fn handle(self, event_queue: &mut EventQueue, cfg: &EventLoopConfig<'_>) -> Result<()> {
         let conn = conn!();
         let cleanup_on_error = self.data.requires_cleanup_on_error();
 
         let res = match self.data {
             EventData::ResolveConfig => {
-                if let Err(e) = event_queue.send_to_resolver(ResolverInput::ResolveConfig(
-                    self.test_execution,
-                    self.cluster,
-                )) {
+                let mut test_execution = self.test_execution;
+                if let Err(e) = test_execution
+                    .set_workload_cluster(&self.cluster, conn)
+                    .await
+                {
+                    error!(%e, "unable to record the workload cluster for an execution");
+                }
+
+                if let Err(e) = event_queue
+                    .send_to_resolver(ResolverInput::ResolveConfig(test_execution, self.cluster))
+                {
                     error!(%e, "resolver channel closed during ResolveEnvConfig dispatch");
                 }
 
                 return Ok(());
+            }
+
+            EventData::AcquireCluster => Ok(Some(EventData::ResolveConfig)),
+
+            EventData::ReleaseCluster => {
+                event_queue.clear_cluster_claims_for(&self.cluster).await;
+
+                Ok(None)
             }
 
             EventData::CreateEnvArgoWorkflow => {
@@ -351,11 +410,11 @@ impl Event {
 
                 spawn(async move {
                     sleep(Duration::from_secs(ttl_secs)).await;
-                    _ = tx.send(Event {
+                    _ = tx.send(QueueEvent::Other(Event::new(
                         test_execution,
                         cluster,
-                        data: EventData::CleanupNamespace,
-                    });
+                        EventData::CleanupNamespace,
+                    )));
                 });
 
                 Ok(None)
@@ -409,6 +468,9 @@ impl Event {
                     .await
                 {
                     conn.clear_cached_payload_for_run(run_uuid).await;
+                    event_queue
+                        .schedule_cluster_release(run_uuid, &self.test_execution)
+                        .await;
                 }
 
                 Ok(None)
@@ -438,11 +500,11 @@ impl Event {
 
         match res {
             Ok(Some(next_event_data)) => {
-                let _ = event_queue.tx().send(Event {
-                    test_execution: self.test_execution,
-                    cluster: self.cluster,
-                    data: next_event_data,
-                });
+                let _ = event_queue.tx().send(QueueEvent::Other(Event::new(
+                    self.test_execution,
+                    self.cluster,
+                    next_event_data,
+                )));
             }
 
             Ok(None) => (),
@@ -453,11 +515,11 @@ impl Event {
 
                 if cleanup_on_error {
                     let ttl_secs = cfg.failed_execution_ttl_secs(&self.cluster);
-                    let _ = event_queue.tx().send(Event {
-                        test_execution: self.test_execution,
-                        cluster: self.cluster,
-                        data: EventData::CleanupNamespaceAfter(ttl_secs),
-                    });
+                    let _ = event_queue.tx().send(QueueEvent::Other(Event::new(
+                        self.test_execution,
+                        self.cluster,
+                        EventData::CleanupNamespaceAfter(ttl_secs),
+                    )));
                 }
             }
         };

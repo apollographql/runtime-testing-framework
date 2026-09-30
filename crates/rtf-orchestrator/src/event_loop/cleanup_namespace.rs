@@ -1,6 +1,6 @@
 use crate::{
     db::TestExecution,
-    event_loop::{ClusterId, Error, Event, EventData, Result},
+    event_loop::{ClusterId, Error, Event, EventData, QueueEvent, Result},
     k8s::{self, WorkloadClient},
 };
 use tokio::sync::mpsc::UnboundedSender;
@@ -34,7 +34,7 @@ pub(super) async fn wait_for_deletion<K>(
     cluster: ClusterId,
     poll_interval_secs: u64,
     timeout_secs: u64,
-    etx: UnboundedSender<Event>,
+    etx: UnboundedSender<QueueEvent>,
     clients: K,
 ) -> Result<Option<EventData>>
 where
@@ -64,7 +64,7 @@ async fn wait_and_notify<K>(
     cluster: ClusterId,
     poll_interval_secs: u64,
     timeout_secs: u64,
-    etx: &UnboundedSender<Event>,
+    etx: &UnboundedSender<QueueEvent>,
     mut clients: K,
 ) where
     K: WorkloadClient,
@@ -81,17 +81,18 @@ async fn wait_and_notify<K>(
         );
     }
 
-    let _ = etx.send(Event {
+    let _ = etx.send(QueueEvent::Other(Event::new(
         test_execution,
         cluster,
-        data: EventData::MarkExecutionComplete,
-    });
+        EventData::MarkExecutionComplete,
+    )));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::k8s::mock_client::{MockClient, Resp};
+    use std::assert_matches;
     use tokio::sync::mpsc;
 
     fn alpha_cluster() -> ClusterId {
@@ -118,7 +119,7 @@ mod tests {
 
         let res = try_run(ex, &mut clients).await;
 
-        assert!(matches!(res, Err(Error::DeleteNamespace { .. })));
+        assert_matches!(res, Err(Error::DeleteNamespace { .. }));
     }
 
     #[tokio::test]
@@ -154,11 +155,8 @@ mod tests {
 
         wait_and_notify("test-namespace", ex, alpha_cluster(), 10, 90, &etx, clients).await;
 
-        let evt = erx.try_recv().unwrap();
-        assert!(
-            matches!(evt.data, EventData::MarkExecutionComplete),
-            "{evt:?}"
-        );
+        let evt = erx.try_recv().unwrap().unwrap_ongoing();
+        assert_matches!(evt.data, EventData::MarkExecutionComplete, "{evt:?}");
     }
 
     #[tokio::test]
@@ -174,10 +172,7 @@ mod tests {
 
         wait_and_notify("test-namespace", ex, alpha_cluster(), 10, 90, &etx, clients).await;
 
-        let evt = erx.try_recv().unwrap();
-        assert!(
-            matches!(evt.data, EventData::MarkExecutionComplete),
-            "{evt:?}"
-        );
+        let evt = erx.try_recv().unwrap().unwrap_ongoing();
+        assert_matches!(evt.data, EventData::MarkExecutionComplete, "{evt:?}");
     }
 }

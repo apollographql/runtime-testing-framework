@@ -42,39 +42,40 @@ pub async fn handler(
     )
     .await?;
 
-    let (pool, allow_k8s_write, known_link, payload) = payload.finish(cfg).await?;
+    let meta = payload.finish(cfg).await?;
 
     // The max queued executions limit can only be enforced once we have the actual test plan and
     // can check the number of executions it will result in.
     rate_limit::check_queued_executions(
         &per_user_cfg,
-        &pool,
+        &meta.pool,
         &user,
         queued_executions,
-        payload.test_plan.matrix.n_variants(),
+        meta.payload.test_plan.matrix.n_variants(),
     )?;
 
     let ctx = OrchestratorContext::new_from_inlined_files(
         cfg,
-        payload.relative_files.clone(),
-        payload.custom_providers.clone(),
-        payload.variable_sources.clone(),
+        meta.payload.relative_files.clone(),
+        meta.payload.custom_providers.clone(),
+        meta.payload.variable_sources.clone(),
     );
 
     debug!("validating test plan file provider usage");
-    ctx.validate_environment_file_provider_usage(&payload.test_plan)
+    ctx.validate_environment_file_provider_usage(&meta.payload.test_plan)
         .await?;
 
     debug!("reserving pending executions");
     let claim = state
         .eq_state
-        .try_reserve_pending_executions(&payload.test_plan)
+        .try_reserve_pending_executions(&meta.payload.test_plan)
         .await
         .ok_or(Error::InsufficientCapacity)?;
 
     // Capture any runtime variable overrides before creating the run so the run is born with the
     // correct variables_id (NULL iff there were no overrides).
-    let variables = payload
+    let variables = meta
+        .payload
         .variables
         .as_ref()
         .map(|v| serde_json::to_value(v).expect("variables to serialize"));
@@ -82,24 +83,16 @@ pub async fn handler(
     let initiated_by = user.user_identity();
 
     debug!("initialising run");
-    let (test_run, summary) = match init_run_and_build_summary(
-        &payload.test_plan.name,
-        variables,
-        initiated_by,
-        pool,
-        allow_k8s_write,
-        conn!(),
-    )
-    .await
-    {
-        Ok((tr, s)) => (tr, s),
-        Err(e) => {
-            state.eq_state.release_pending_execution_claim(claim).await;
-            return Err(e);
-        }
-    };
+    let (test_run, summary) =
+        match init_run_and_build_summary(&meta, variables, initiated_by, conn!()).await {
+            Ok((tr, s)) => (tr, s),
+            Err(e) => {
+                state.eq_state.release_pending_execution_claim(claim).await;
+                return Err(e);
+            }
+        };
 
-    if let Some(link) = known_link {
+    if let Some(link) = meta.link {
         debug!("linking run to known test plan");
         let res = KnownTestPlanRun::link(
             link.known_test_plan_id,
@@ -118,7 +111,14 @@ pub async fn handler(
     debug!("submitting test plan");
     match state
         .eq_state
-        .try_submit_test_plan(claim, test_run, payload)
+        .try_submit_test_plan(
+            claim,
+            crate::state::TestRunWithPayload {
+                test_run,
+                payload: meta.payload,
+                requires_dedicated: meta.requires_dedicated_cluster,
+            },
+        )
         .await
     {
         Ok(()) => Ok(Json(summary)),
@@ -144,15 +144,15 @@ struct KnownTestPlanLink {
     git_sha: Option<String>,
 }
 
-struct PayloadWithMeta {
+struct PayloadWithMeta<T> {
     pool: PoolId,
     allow_k8s_write: bool,
     requires_dedicated_cluster: bool,
-    payload: PreparedOrGitHub,
+    payload: T,
     link: Option<KnownTestPlanLink>,
 }
 
-impl PayloadWithMeta {
+impl PayloadWithMeta<PreparedOrGitHub> {
     async fn resolve(
         trigger_payload: TriggerPayload,
         default_pool: &PoolId,
@@ -226,42 +226,42 @@ impl PayloadWithMeta {
         })
     }
 
-    async fn finish(
-        self,
-        cfg: &Config,
-    ) -> Result<(PoolId, bool, Option<KnownTestPlanLink>, PreparedPayload), Error> {
+    async fn finish(self, cfg: &Config) -> Result<PayloadWithMeta<PreparedPayload>, Error> {
         Ok(match self.payload {
-            PreparedOrGitHub::Prepared(payload) => {
-                (self.pool, self.allow_k8s_write, self.link, payload)
-            }
+            PreparedOrGitHub::Prepared(payload) => PayloadWithMeta {
+                pool: self.pool,
+                allow_k8s_write: self.allow_k8s_write,
+                requires_dedicated_cluster: self.requires_dedicated_cluster,
+                link: self.link,
+                payload,
+            },
 
             PreparedOrGitHub::GitHub(payload) => {
                 info!("attempting to pull test plan details from GitHub");
-                (
-                    self.pool,
-                    self.allow_k8s_write,
-                    self.link,
-                    payload.into_prepared(cfg.server_context()).await?,
-                )
+                PayloadWithMeta {
+                    pool: self.pool,
+                    allow_k8s_write: self.allow_k8s_write,
+                    requires_dedicated_cluster: self.requires_dedicated_cluster,
+                    link: self.link,
+                    payload: payload.into_prepared(cfg.server_context()).await?,
+                }
             }
         })
     }
 }
 
 async fn init_run_and_build_summary(
-    name: &str,
+    meta: &PayloadWithMeta<PreparedPayload>,
     variables: Option<Value>,
     initiated_by: Option<String>,
-    workload_pool: PoolId,
-    allow_k8s_write: bool,
     conn: &mut PgConnection,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let test_run = TestRun::init(
-        name,
+        &meta.payload.test_plan.name,
         variables,
         initiated_by.as_deref(),
-        &workload_pool,
-        allow_k8s_write,
+        &meta.pool,
+        meta.allow_k8s_write,
         conn,
     )
     .await?;
@@ -276,7 +276,7 @@ async fn init_run_and_build_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::TestServerState;
+    use crate::test_helpers::{TestServerState, stub_payload};
     use reqwest::StatusCode;
     use rtf_orchestrator_shared::known_test_plan::UpdateKnownTestPlanRequest;
     use rtf_orchestrator_shared::status::Status;
@@ -419,11 +419,15 @@ mod tests {
     #[tokio::test]
     async fn init_run_and_build_summary_persists_the_resolved_workload_pool() -> Result<(), Error> {
         let (test_run, _) = init_run_and_build_summary(
-            "test",
+            &PayloadWithMeta {
+                pool: PoolId::new("router_perf"),
+                allow_k8s_write: false,
+                requires_dedicated_cluster: false,
+                link: None,
+                payload: stub_payload(),
+            },
             None,
             None,
-            PoolId::new("router_perf"),
-            false,
             conn!(),
         )
         .await?;

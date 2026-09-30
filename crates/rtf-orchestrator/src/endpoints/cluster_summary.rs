@@ -63,7 +63,12 @@ fn cluster_summary(
                 .unwrap_or_default(),
         };
 
-        if clusters.cluster_for_pool(&DEFAULT_POOL).as_ref() == Some(&ClusterId::new(&cfg.name)) {
+        if clusters
+            .cluster_pools
+            .default
+            .available_clusters
+            .contains(&cfg.name)
+        {
             default_pool.clusters.push(summary);
         } else {
             perf_pool.clusters.push(summary);

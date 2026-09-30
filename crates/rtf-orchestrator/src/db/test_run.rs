@@ -467,7 +467,7 @@ impl CachedPayload {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{
         config::DEFAULT_POOL,
@@ -476,21 +476,11 @@ mod tests {
             KnownTestPlan, KnownTestPlanRun,
             status::{Status, StatusTracked},
         },
+        test_helpers::stub_payload,
     };
     use Status::*;
     use chrono::Duration;
-    use rtf_config::{
-        formats::{
-            ComposeResources, DockerCommand, DockerComposeEnvironment, DockerScenario,
-            EnvironmentConfig, OutputCollection, ScenarioConfig,
-        },
-        templating::Field,
-    };
-    use rtf_orchestrator_shared::{
-        known_test_plan::UpdateKnownTestPlanRequest,
-        payload::SourceKeyedArrayMap,
-        test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
-    };
+    use rtf_orchestrator_shared::known_test_plan::UpdateKnownTestPlanRequest;
     use serde_json::json;
     use simple_test_case::test_case;
 
@@ -772,53 +762,6 @@ mod tests {
         assert_eq!(new_status, expected);
 
         Ok(())
-    }
-
-    fn stub_payload() -> PreparedPayload {
-        PreparedPayload {
-            variables: None,
-            variable_sources: HashMap::default(),
-            test_plan: OrchestratorTestPlan {
-                name: String::new(),
-                description: String::new(),
-                variables: Default::default(),
-                matrix: Default::default(),
-                custom_providers: vec![],
-                scenario: ScenarioConfig {
-                    name: String::new(),
-                    description: String::new(),
-                    variable_definitions: vec![],
-                    custom_providers: vec![],
-                    execution: DockerScenario {
-                        docker: DockerCommand {
-                            image: Field::Resolved("nginx".into()),
-                            tag: None,
-                            command: Field::Resolved("echo test".into()),
-                        },
-                        env_vars: Default::default(),
-                        file_providers: vec![],
-                        output_collection: OutputCollection { prometheus: vec![] },
-                    },
-                },
-                environment: EnvironmentConfig {
-                    name: String::new(),
-                    description: String::new(),
-                    variable_definitions: vec![],
-                    custom_providers: vec![],
-                    execution: OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
-                        resources: ComposeResources {
-                            project_name: None,
-                            compose_files: vec![],
-                        },
-                        file_providers: vec![],
-                        env_vars: Default::default(),
-                        output_collection: OutputCollection { prometheus: vec![] },
-                    }),
-                },
-            },
-            relative_files: SourceKeyedArrayMap::from_data(HashMap::new()),
-            custom_providers: SourceKeyedArrayMap::from_data(HashMap::new()),
-        }
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
