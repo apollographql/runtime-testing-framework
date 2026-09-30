@@ -1,7 +1,7 @@
 //! Summary of the configured workload clusters along with their recent execution counts.
 use crate::{
     Result,
-    config::{ClusterExecutionConfig, Config, WorkloadClusters},
+    config::{ClusterExecutionConfig, Config, PerUserExecutionConfig, WorkloadClusters},
     conn,
     db::{ClusterId, cluster_history::hourly_execution_counts},
 };
@@ -51,13 +51,16 @@ fn cluster_summary(
     for cfg in clusters.available_clusters.iter() {
         let summary = WorkloadClusterSummary {
             name: cfg.name.clone(),
-            execution: execution_summary(&cfg.execution),
+            execution: execution_summary(
+                &cfg.execution,
+                clusters.per_user_config(&cfg.name).unwrap_or_default(),
+            ),
             hourly_executions: hourly
                 .remove(&ClusterId::new(&cfg.name))
                 .unwrap_or_default(),
         };
 
-        if cfg.name == clusters.default_cluster {
+        if cfg.name == clusters.default_workload_cluster().as_str() {
             default.clusters.push(summary);
         } else {
             dedicated.clusters.push(summary);
@@ -73,7 +76,10 @@ fn cluster_summary(
     }
 }
 
-fn execution_summary(cfg: &ClusterExecutionConfig) -> ClusterExecutionSummary {
+fn execution_summary(
+    cfg: &ClusterExecutionConfig,
+    per_user: PerUserExecutionConfig,
+) -> ClusterExecutionSummary {
     ClusterExecutionSummary {
         max_concurrent: cfg.max_concurrent,
         failed_execution_ttl_secs: cfg.failed_execution_ttl_secs,
@@ -83,10 +89,10 @@ fn execution_summary(cfg: &ClusterExecutionConfig) -> ClusterExecutionSummary {
         scenario_node_selector: cfg.scenario_node_selector.clone(),
         namespace_cleanup_timeout_secs: cfg.namespace_cleanup_timeout_secs,
         per_user: PerUserExecutionSummary {
-            max_concurrent_runs: cfg.per_user.max_concurrent_runs,
-            max_queued_runs: cfg.per_user.max_queued_runs,
-            max_queued_executions: cfg.per_user.max_queued_executions,
-            max_runs_per_hour: cfg.per_user.max_runs_per_hour,
+            max_concurrent_runs: per_user.max_concurrent_runs,
+            max_queued_runs: per_user.max_queued_runs,
+            max_queued_executions: per_user.max_queued_executions,
+            max_runs_per_hour: per_user.max_runs_per_hour,
         },
     }
 }
