@@ -61,9 +61,9 @@ pub async fn output_handler(
 mod tests {
     use super::*;
     use crate::{
-        config::Config,
+        config::{Config, DEFAULT_POOL},
         context::OrchestratorContext,
-        db::{ClusterId, TestRun},
+        db::TestRun,
         test_helpers::TestServerState,
     };
     use axum::http::{HeaderValue, header::AUTHORIZATION};
@@ -71,10 +71,6 @@ mod tests {
     use rtf_config::formats::{OutputCollection, PrometheusQuery};
     use rtf_orchestrator_shared::payload::PreparedPayload;
     use simple_test_case::test_case;
-
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
-    }
 
     fn bearer(token: Uuid) -> HeaderValue {
         HeaderValue::from_str(&format!("Bearer {token}")).unwrap()
@@ -144,7 +140,7 @@ mod tests {
         let tss = TestServerState::new();
         let (ex_uuid, token) = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 
@@ -173,7 +169,7 @@ mod tests {
     async fn handlers_returns_403_without_token(endpoint: &str) -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
         let ex_uuid = tr.init_execution("test", 0, conn).await?.uuid();
 
         let resp = tss
@@ -213,7 +209,7 @@ mod tests {
         let tss = TestServerState::new();
         let ex_uuid = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuid = ex.uuid();
 
@@ -239,7 +235,7 @@ mod tests {
         let tss = TestServerState::new();
         let (ex_uuid, token) = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 
@@ -284,7 +280,7 @@ mod tests {
 
         let (ex_uuid, token) = {
             let conn = conn!();
-            let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+            let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 

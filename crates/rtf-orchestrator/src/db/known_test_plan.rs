@@ -1,4 +1,4 @@
-use crate::db::{self, ClusterId, Queryable, Result};
+use crate::db::{self, PoolId, Queryable, Result};
 use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, UpdateKnownTestPlanRequest};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
@@ -51,8 +51,8 @@ impl KnownTestPlan {
         &self.path
     }
 
-    pub fn pinned_workload_cluster(&self) -> Option<ClusterId> {
-        self.pinned_workload_cluster.as_ref().map(ClusterId::new)
+    pub fn pinned_workload_pool(&self) -> Option<PoolId> {
+        self.pinned_workload_cluster.as_ref().map(PoolId::new)
     }
 
     pub fn allow_k8s_write(&self) -> bool {
@@ -256,16 +256,12 @@ impl KnownTestPlanFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{conn, db::TestRun};
+    use crate::{config::DEFAULT_POOL, conn, db::TestRun};
     use std::assert_matches;
     use uuid::Uuid;
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
-    }
-
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -345,7 +341,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &DEFAULT_POOL, c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), Some("abc123"), c).await?;
 
@@ -363,7 +359,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &DEFAULT_POOL, c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
 

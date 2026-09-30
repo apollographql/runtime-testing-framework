@@ -7,7 +7,7 @@
 //! Gated to admins only (see [AdminUser]).
 use crate::{
     Error, Result, conn,
-    db::{ClusterId, KnownTestPlan},
+    db::{KnownTestPlan, PoolId},
     endpoints::AdminUser,
     state::ServerState,
 };
@@ -24,11 +24,13 @@ pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
     Json(req): Json<UpdateKnownTestPlanRequest>,
 ) -> Result<Json<KnownTestPlanSummary>> {
+    // RR-1176 is moving all of this over to a different structure so we'll make a single breaking
+    // change there instead of altering the payload field name at this time.
     if let Some(Some(cluster)) = &req.pinned_cluster {
-        let requested = ClusterId::new(cluster);
-        if !eq_state.available_clusters().await.contains(&requested) {
-            return Err(Error::UnknownWorkloadCluster {
-                cluster: cluster.clone(),
+        let requested = PoolId::new(cluster);
+        if !eq_state.available_pools().contains(&requested) {
+            return Err(Error::UnknownWorkloadPool {
+                pool: cluster.clone(),
             });
         }
     }
@@ -49,7 +51,9 @@ pub async fn handler(
 mod tests {
     use super::*;
     use crate::{
-        config::Config, iap_identity::IAP_USER_EMAIL_HEADER, test_helpers::TestServerState,
+        config::{Config, DEFAULT_POOL, NamedPoolConfig, PoolConfig},
+        iap_identity::IAP_USER_EMAIL_HEADER,
+        test_helpers::TestServerState,
     };
     use reqwest::StatusCode;
     use sqlx::PgConnection;
@@ -72,16 +76,27 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn admin_can_pin_and_unpin_a_configured_cluster() -> anyhow::Result<()> {
+    async fn admin_can_pin_and_unpin_a_configured_pool() -> anyhow::Result<()> {
         let mut cfg = Config::get().clone();
         let mut cluster_cfg = cfg.workload_clusters.available_clusters[0].clone();
         cluster_cfg.name = "beta".into();
         cfg.workload_clusters.available_clusters.push(cluster_cfg);
+        cfg.workload_clusters
+            .cluster_pools
+            .additional
+            .push(NamedPoolConfig {
+                name: "beta".into(),
+                config: PoolConfig {
+                    dedicated: false,
+                    available_clusters: vec!["beta".into()],
+                    per_user: Default::default(),
+                },
+            });
 
         let tss = TestServerState::new_with_config_and_admins(&cfg, &[ADMIN_EMAIL]);
 
         let plan = register_plan(conn!()).await;
-        assert_eq!(plan.pinned_workload_cluster(), None);
+        assert_eq!(plan.pinned_workload_pool(), None);
 
         let resp = tss
             .test_server
@@ -116,7 +131,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn pin_to_unconfigured_cluster_is_rejected() -> anyhow::Result<()> {
+    async fn pin_to_unconfigured_pool_is_rejected() -> anyhow::Result<()> {
         let tss = TestServerState::new_with_admins(&[ADMIN_EMAIL]);
         let plan = register_plan(conn!()).await;
 
@@ -140,7 +155,7 @@ mod tests {
         let fetched = KnownTestPlan::get_by_uuid(&plan.uuid(), conn!())
             .await?
             .expect("plan should still exist");
-        assert_eq!(fetched.pinned_workload_cluster(), None);
+        assert_eq!(fetched.pinned_workload_pool(), None);
 
         Ok(())
     }
@@ -276,7 +291,7 @@ mod tests {
             .put(&format!("/admin/test-plan/{}", Uuid::new_v4()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some("alpha".to_owned())),
+                pinned_cluster: Some(Some(DEFAULT_POOL.to_string())),
                 ..Default::default()
             })
             .await;
@@ -300,7 +315,7 @@ mod tests {
                 "accounts.google.com:someone@my-project.iam.gserviceaccount.com",
             )
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some("alpha".to_owned())),
+                pinned_cluster: Some(Some(DEFAULT_POOL.to_string())),
                 ..Default::default()
             })
             .await;
@@ -320,7 +335,7 @@ mod tests {
             .test_server
             .put(&format!("/admin/test-plan/{}", plan.uuid()))
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some("alpha".to_owned())),
+                pinned_cluster: Some(Some(DEFAULT_POOL.to_string())),
                 ..Default::default()
             })
             .await;

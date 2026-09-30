@@ -45,6 +45,9 @@ pub enum ResolverError {
     #[error("{0} is not a known run ID")]
     UnknownRun(Uuid),
 
+    #[error("{0} is not a configured workload cluster pool")]
+    UnknownPool(String),
+
     #[error("static checks failed: {0}")]
     VariantCheck(#[from] rtf_config::checks::Errors),
 
@@ -204,6 +207,12 @@ where
 
     let expanded_matrix = test_plan.matrix.try_expand(&test_plan.variables)?;
 
+    let pool = test_run.workload_pool();
+    let cluster = cfg
+        .workload_clusters
+        .cluster_for_pool(&pool)
+        .ok_or_else(|| ResolverError::UnknownPool(pool.to_string()))?;
+
     update_handle
         .cache_payload_for_run(test_run, &payload)
         .await;
@@ -222,13 +231,7 @@ where
 
     for (i, (name, _)) in expanded_matrix.iter().enumerate() {
         let res = prov_handle
-            .request_provisioning(
-                test_run,
-                name,
-                i,
-                test_run.workload_cluster(),
-                update_handle,
-            )
+            .request_provisioning(test_run, name, i, cluster.clone(), update_handle)
             .await;
 
         match res {

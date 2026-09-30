@@ -123,18 +123,15 @@ fn substring_pattern(term: &str) -> String {
 mod tests {
     use super::*;
     use crate::{
+        config::DEFAULT_POOL,
         conn,
-        db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable},
+        db::{KnownTestPlan, KnownTestPlanRun, Queryable},
     };
     use chrono::Duration;
     use uuid::Uuid;
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
-    }
-
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
     }
 
     #[test]
@@ -154,8 +151,8 @@ mod tests {
     async fn runs_matching_filters_by_name() -> Result<()> {
         let c = conn!();
         let name = unique("match-me");
-        TestRun::init_unknown_initiator(&name, None, &alpha_cluster(), c).await?;
-        TestRun::init_unknown_initiator(&unique("not-this-one"), None, &alpha_cluster(), c).await?;
+        TestRun::init_unknown_initiator(&name, None, &DEFAULT_POOL, c).await?;
+        TestRun::init_unknown_initiator(&unique("not-this-one"), None, &DEFAULT_POOL, c).await?;
 
         let filter = TestRunFilter {
             name: Some(name.clone()),
@@ -175,8 +172,8 @@ mod tests {
         let c = conn!();
         let alice = unique("alice");
         let bob = unique("bob");
-        TestRun::init("a", None, Some(&alice), &alpha_cluster(), false, c).await?;
-        TestRun::init("b", None, Some(&bob), &alpha_cluster(), false, c).await?;
+        TestRun::init("a", None, Some(&alice), &DEFAULT_POOL, false, c).await?;
+        TestRun::init("b", None, Some(&bob), &DEFAULT_POOL, false, c).await?;
 
         let filter = TestRunFilter {
             initiated_by: Some(alice.clone()),
@@ -196,8 +193,8 @@ mod tests {
         let c = conn!();
         let alice = unique("alice");
         let bob = unique("bob");
-        TestRun::init("a", None, Some(&alice), &alpha_cluster(), false, c).await?;
-        TestRun::init("b", None, Some(&bob), &alpha_cluster(), false, c).await?;
+        TestRun::init("a", None, Some(&alice), &DEFAULT_POOL, false, c).await?;
+        TestRun::init("b", None, Some(&bob), &DEFAULT_POOL, false, c).await?;
 
         // A substring of `alice`'s unique value, not the full value.
         let needle = &alice[..alice.len() - 4];
@@ -218,7 +215,7 @@ mod tests {
     async fn runs_matching_filters_by_initiated_by_case_insensitively() -> Result<()> {
         let c = conn!();
         let alice = unique("alice");
-        TestRun::init("a", None, Some(&alice), &alpha_cluster(), false, c).await?;
+        TestRun::init("a", None, Some(&alice), &DEFAULT_POOL, false, c).await?;
 
         let filter = TestRunFilter {
             initiated_by: Some(alice.to_uppercase()),
@@ -243,8 +240,8 @@ mod tests {
             "user1name-{}",
             &user_name[user_name.rfind('-').unwrap() + 1..]
         );
-        TestRun::init("a", None, Some(&user_name), &alpha_cluster(), false, c).await?;
-        TestRun::init("b", None, Some(&user1name), &alpha_cluster(), false, c).await?;
+        TestRun::init("a", None, Some(&user_name), &DEFAULT_POOL, false, c).await?;
+        TestRun::init("b", None, Some(&user1name), &DEFAULT_POOL, false, c).await?;
 
         let filter = TestRunFilter {
             initiated_by: Some(user_name.clone()),
@@ -263,7 +260,7 @@ mod tests {
     async fn runs_matching_initiated_by_treats_a_missing_initiator_as_unknown() -> Result<()> {
         let c = conn!();
         let name = unique("no-initiator");
-        TestRun::init_unknown_initiator(&name, None, &alpha_cluster(), c).await?;
+        TestRun::init_unknown_initiator(&name, None, &DEFAULT_POOL, c).await?;
 
         // Scoped by `name` (unique to this test) since every other test's `init_unknown_initiator`
         // rows in this shared dev database would otherwise also match "unknown".
@@ -285,7 +282,7 @@ mod tests {
     -> Result<()> {
         let c = conn!();
         let name = unique("no-initiator-substring");
-        TestRun::init_unknown_initiator(&name, None, &alpha_cluster(), c).await?;
+        TestRun::init_unknown_initiator(&name, None, &DEFAULT_POOL, c).await?;
 
         let filter = TestRunFilter {
             name: Some(name.clone()),
@@ -305,7 +302,7 @@ mod tests {
     -> Result<()> {
         let c = conn!();
         let name = unique("no-initiator-unrelated");
-        TestRun::init_unknown_initiator(&name, None, &alpha_cluster(), c).await?;
+        TestRun::init_unknown_initiator(&name, None, &DEFAULT_POOL, c).await?;
 
         let filter = TestRunFilter {
             name: Some(name.clone()),
@@ -324,17 +321,9 @@ mod tests {
     async fn runs_matching_filters_by_time_range() -> Result<()> {
         let c = conn!();
         let initiated_by = unique("time-range");
-        let old =
-            TestRun::init("old", None, Some(&initiated_by), &alpha_cluster(), false, c).await?;
-        let recent = TestRun::init(
-            "recent",
-            None,
-            Some(&initiated_by),
-            &alpha_cluster(),
-            false,
-            c,
-        )
-        .await?;
+        let old = TestRun::init("old", None, Some(&initiated_by), &DEFAULT_POOL, false, c).await?;
+        let recent =
+            TestRun::init("recent", None, Some(&initiated_by), &DEFAULT_POOL, false, c).await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 days' WHERE id = $1")
             .bind(old.id())
@@ -360,7 +349,7 @@ mod tests {
         let c = conn!();
         let initiated_by = unique("pagination");
         for name in ["a", "b", "c"] {
-            TestRun::init(name, None, Some(&initiated_by), &alpha_cluster(), false, c).await?;
+            TestRun::init(name, None, Some(&initiated_by), &DEFAULT_POOL, false, c).await?;
         }
 
         let filter = TestRunFilter {
@@ -380,24 +369,9 @@ mod tests {
     async fn runs_matching_orders_newest_first() -> Result<()> {
         let c = conn!();
         let initiated_by = unique("ordering");
-        let first = TestRun::init(
-            "first",
-            None,
-            Some(&initiated_by),
-            &alpha_cluster(),
-            false,
-            c,
-        )
-        .await?;
-        TestRun::init(
-            "second",
-            None,
-            Some(&initiated_by),
-            &alpha_cluster(),
-            false,
-            c,
-        )
-        .await?;
+        let first =
+            TestRun::init("first", None, Some(&initiated_by), &DEFAULT_POOL, false, c).await?;
+        TestRun::init("second", None, Some(&initiated_by), &DEFAULT_POOL, false, c).await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
             .bind(first.id())
@@ -424,8 +398,8 @@ mod tests {
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
         let linked =
-            TestRun::init_unknown_initiator(&unique("linked"), None, &alpha_cluster(), c).await?;
-        TestRun::init_unknown_initiator(&unique("unlinked"), None, &alpha_cluster(), c).await?;
+            TestRun::init_unknown_initiator(&unique("linked"), None, &DEFAULT_POOL, c).await?;
+        TestRun::init_unknown_initiator(&unique("unlinked"), None, &DEFAULT_POOL, c).await?;
         KnownTestPlanRun::link(known.id(), linked.id(), None, c).await?;
 
         let filter = TestRunFilter {
@@ -448,7 +422,7 @@ mod tests {
         let name = unique("plan-by-name");
         let known = KnownTestPlan::register(&name, None, "org", "repo", &unique("path"), c).await?;
         let linked =
-            TestRun::init_unknown_initiator(&unique("linked"), None, &alpha_cluster(), c).await?;
+            TestRun::init_unknown_initiator(&unique("linked"), None, &DEFAULT_POOL, c).await?;
         KnownTestPlanRun::link(known.id(), linked.id(), None, c).await?;
 
         let filter = TestRunFilter {
@@ -471,7 +445,7 @@ mod tests {
         // applied unconditionally).
         let c = conn!();
         let name = unique("no-filter-applied");
-        TestRun::init_unknown_initiator(&name, None, &alpha_cluster(), c).await?;
+        TestRun::init_unknown_initiator(&name, None, &DEFAULT_POOL, c).await?;
 
         let filter = TestRunFilter {
             name: Some(name),

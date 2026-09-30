@@ -72,7 +72,7 @@ mod tests {
     use super::*;
     use crate::{
         conn,
-        db::{Queryable, TestRun},
+        db::{PoolId, Queryable, TestRun},
     };
     use uuid::Uuid;
 
@@ -85,8 +85,9 @@ mod tests {
         hours_ago: i32,
         conn: &mut PgConnection,
     ) -> Result<()> {
-        let tr = TestRun::init_unknown_initiator(&Uuid::new_v4().to_string(), None, cluster, conn)
-            .await?;
+        let pool = PoolId::new(cluster.as_str());
+        let tr =
+            TestRun::init_unknown_initiator(&Uuid::new_v4().to_string(), None, &pool, conn).await?;
         let ex = tr
             .init_execution(&Uuid::new_v4().to_string(), 0, conn)
             .await?;

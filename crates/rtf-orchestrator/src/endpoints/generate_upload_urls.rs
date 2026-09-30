@@ -45,7 +45,8 @@ pub async fn handler(
 mod tests {
     use super::*;
     use crate::{
-        db::{ClusterId, Queryable, TestRun},
+        config::DEFAULT_POOL,
+        db::{Queryable, TestRun},
         test_helpers::TestServerState,
     };
     use axum::http::{HeaderValue, header::AUTHORIZATION};
@@ -55,16 +56,12 @@ mod tests {
         HeaderValue::from_str(&format!("Bearer {token}")).unwrap()
     }
 
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
-    }
-
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn handler_marks_file_upload_as_requested() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
         let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
@@ -93,7 +90,7 @@ mod tests {
     async fn handle_returns_400_to_second_upload_request() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
         let ex = tr.init_execution("test", 0, conn).await?;
 
         for (i, expected) in [StatusCode::OK, StatusCode::BAD_REQUEST].iter().enumerate() {
@@ -155,7 +152,7 @@ mod tests {
     async fn handler_returns_403_without_token() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
         let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
@@ -177,7 +174,7 @@ mod tests {
     async fn handler_returns_403_with_wrong_token() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
         let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
@@ -200,7 +197,7 @@ mod tests {
     async fn handler_accepts_valid_token() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), conn).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, conn).await?;
         let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss

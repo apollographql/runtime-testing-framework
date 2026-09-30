@@ -1,5 +1,5 @@
 use crate::db::{
-    self, ClusterId, Queryable, Result,
+    self, PoolId, Queryable, Result,
     status::{Status, StatusTracked, StatusUpdate},
     test_execution::TestExecution,
 };
@@ -65,8 +65,8 @@ impl TestRun {
         self.initiated_by.as_deref()
     }
 
-    pub fn workload_cluster(&self) -> ClusterId {
-        ClusterId::new(&self.workload_cluster)
+    pub fn workload_pool(&self) -> PoolId {
+        PoolId::new(&self.workload_cluster)
     }
 
     pub fn allow_k8s_write(&self) -> bool {
@@ -83,7 +83,7 @@ impl TestRun {
             started_at: Utc::now(),
             completed_at: None,
             variables_id: None,
-            workload_cluster: "alpha".into(),
+            workload_cluster: "default".into(),
             allow_k8s_write: false,
         }
     }
@@ -97,7 +97,7 @@ impl TestRun {
 
     pub async fn started_since(
         initiated_by: &str,
-        cluster: &ClusterId,
+        pool: &PoolId,
         since: DateTime<Utc>,
         conn: &mut PgConnection,
     ) -> Result<i64> {
@@ -115,7 +115,7 @@ impl TestRun {
               started_at >= $3;"#,
         )
         .bind(initiated_by)
-        .bind(cluster.as_str())
+        .bind(pool.as_str())
         .bind(since)
         .fetch_one(conn)
         .await?)
@@ -125,7 +125,7 @@ impl TestRun {
         name: &str,
         variables: Option<Value>,
         initiated_by: Option<&str>,
-        workload_cluster: &ClusterId,
+        workload_pool: &PoolId,
         allow_k8s_write: bool,
         conn: &mut PgConnection,
     ) -> Result<Self> {
@@ -143,7 +143,7 @@ impl TestRun {
         .bind(name)
         .bind(variables_id)
         .bind(initiated_by)
-        .bind(workload_cluster.as_str())
+        .bind(workload_pool.as_str())
         .bind(allow_k8s_write)
         .fetch_one(&mut *conn)
         .await?;
@@ -157,10 +157,10 @@ impl TestRun {
     pub async fn init_unknown_initiator(
         name: &str,
         variables: Option<Value>,
-        workload_cluster: &ClusterId,
+        workload_pool: &PoolId,
         conn: &mut PgConnection,
     ) -> Result<Self> {
-        Self::init(name, variables, None, workload_cluster, false, conn).await
+        Self::init(name, variables, None, workload_pool, false, conn).await
     }
 
     pub async fn init_execution(
@@ -450,6 +450,7 @@ impl CachedPayload {
 mod tests {
     use super::*;
     use crate::{
+        config::DEFAULT_POOL,
         conn,
         db::{
             KnownTestPlan, KnownTestPlanRun,
@@ -472,12 +473,8 @@ mod tests {
     use serde_json::json;
     use simple_test_case::test_case;
 
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
-    }
-
-    fn perf_cluster() -> ClusterId {
-        ClusterId::new("router_perf")
+    fn perf_pool() -> PoolId {
+        PoolId::new("perf")
     }
 
     fn unique(label: &str) -> String {
@@ -488,7 +485,7 @@ mod tests {
     #[tokio::test]
     async fn init_creates_run_with_initialising_status() -> Result<()> {
         let c = conn!();
-        let res = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await;
+        let res = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await;
         assert!(res.is_ok(), "{res:?}");
 
         let tr = res.unwrap();
@@ -504,7 +501,7 @@ mod tests {
     #[tokio::test]
     async fn init_leaves_variables_id_null() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         assert_eq!(tr.variables_id, None);
 
         // Persisted as NULL too, not just on the returned struct.
@@ -518,7 +515,7 @@ mod tests {
     #[tokio::test]
     async fn init_leaves_initiated_by_none_by_default() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         assert_eq!(tr.initiated_by, None);
 
         // Persisted as a real NULL, not just on the returned struct.
@@ -532,12 +529,12 @@ mod tests {
     #[tokio::test]
     async fn init_persists_workload_cluster() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &perf_cluster(), c).await?;
-        assert_eq!(tr.workload_cluster(), perf_cluster());
+        let tr = TestRun::init_unknown_initiator("test", None, &perf_pool(), c).await?;
+        assert_eq!(tr.workload_pool(), perf_pool());
 
         // Persisted, not just present on the returned struct.
         let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
-        assert_eq!(fetched.workload_cluster(), perf_cluster());
+        assert_eq!(fetched.workload_pool(), perf_pool());
 
         Ok(())
     }
@@ -546,7 +543,7 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_reports_a_none_initiator_as_unknown() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
 
         let summary = tr.try_into_summary(c).await?;
         assert_eq!(summary.initiated_by, "unknown");
@@ -560,8 +557,8 @@ mod tests {
         let c = conn!();
         let vars = json!({ "region": "us", "tier": [1, 2, 3] });
 
-        let tr = TestRun::init_unknown_initiator("test", Some(vars.clone()), &alpha_cluster(), c)
-            .await?;
+        let tr =
+            TestRun::init_unknown_initiator("test", Some(vars.clone()), &DEFAULT_POOL, c).await?;
         let captured = tr.variables_id;
         assert!(
             captured.is_some(),
@@ -587,7 +584,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let tr2 = TestRun::get_by_id(tr1.id, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -599,7 +596,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_unchecked_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let tr2 = TestRun::get_by_id_unchecked(tr1.id, c).await?;
 
         assert_eq!(tr1, tr2);
@@ -611,7 +608,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_uuid_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr1 = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let tr2 = TestRun::get_by_uuid(&tr1.uuid, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -624,7 +621,7 @@ mod tests {
     async fn executions_returns_all_associated_executions() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::init_unknown_initiator("A", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("A", None, &DEFAULT_POOL, c).await?;
         let ex1 = tr.init_execution("a", 0, c).await?;
         let ex2 = tr.init_execution("b", 1, c).await?;
 
@@ -647,7 +644,7 @@ mod tests {
     #[tokio::test]
     async fn set_status_and_current_status_match(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
 
         tr.set_status(status, None, c).await?;
         let current = tr.current_status(c).await?;
@@ -661,7 +658,7 @@ mod tests {
     #[tokio::test]
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?; // sets Status::Initialising
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?; // sets Status::Initialising
         tr.set_status(Status::Running, None, c).await?;
         tr.set_status(Status::Successful, None, c).await?;
 
@@ -681,7 +678,7 @@ mod tests {
     #[tokio::test]
     async fn set_terminal_status_sets_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -699,7 +696,7 @@ mod tests {
     #[tokio::test]
     async fn set_non_terminal_status_does_not_set_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -807,8 +804,8 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_returns_cached_plans() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("run-a", None, &alpha_cluster(), c).await?;
-        let tr2 = TestRun::init_unknown_initiator("run-b", None, &alpha_cluster(), c).await?;
+        let tr1 = TestRun::init_unknown_initiator("run-a", None, &DEFAULT_POOL, c).await?;
+        let tr2 = TestRun::init_unknown_initiator("run-b", None, &DEFAULT_POOL, c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
@@ -828,7 +825,7 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_partitions_malformed_json() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let uuid = tr.uuid();
 
         // We don't expose an API for storing an arbitrary JSON blob like this, but we need to
@@ -854,7 +851,7 @@ mod tests {
     #[tokio::test]
     async fn clear_cached_payload_removes_the_entry() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let run_id = tr.id;
 
         // should be present in the cache after caching
@@ -882,8 +879,8 @@ mod tests {
     #[ignore = "races with other tests that use the test plan cache"]
     async fn clear_test_plan_cache_removes_all_entries() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init_unknown_initiator("run-a", None, &alpha_cluster(), c).await?;
-        let tr2 = TestRun::init_unknown_initiator("run-b", None, &alpha_cluster(), c).await?;
+        let tr1 = TestRun::init_unknown_initiator("run-a", None, &DEFAULT_POOL, c).await?;
+        let tr2 = TestRun::init_unknown_initiator("run-b", None, &DEFAULT_POOL, c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
@@ -912,7 +909,7 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_leaves_executions_empty() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         tr.init_execution("exec", 0, c).await?;
 
         let uuid = tr.uuid();
@@ -929,13 +926,9 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_returns_trigger_variables() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator(
-            "test",
-            Some(json!({"foo": "bar"})),
-            &alpha_cluster(),
-            c,
-        )
-        .await?;
+        let tr =
+            TestRun::init_unknown_initiator("test", Some(json!({"foo": "bar"})), &DEFAULT_POOL, c)
+                .await?;
         tr.init_execution("exec", 0, c).await?;
 
         let uuid = tr.uuid();
@@ -951,7 +944,7 @@ mod tests {
     #[tokio::test]
     async fn try_into_summary_with_executions_includes_executions() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         tr.init_execution("exec", 0, c).await?;
 
         let summary = tr.try_into_summary_with_executions(c).await?;
@@ -964,7 +957,7 @@ mod tests {
     #[tokio::test]
     async fn test_plan_uuid_returns_none_for_unlinked_run() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
 
         assert_eq!(tr.test_plan_uuid(c).await?, None);
 
@@ -978,7 +971,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("run"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
 
         assert_eq!(tr.test_plan_uuid(c).await?, Some(known.uuid()));
@@ -992,8 +985,8 @@ mod tests {
         let c = conn!();
         let user = unique("user");
 
-        let old = TestRun::init("old", None, Some(&user), &alpha_cluster(), false, c).await?;
-        TestRun::init("recent", None, Some(&user), &alpha_cluster(), false, c).await?;
+        let old = TestRun::init("old", None, Some(&user), &DEFAULT_POOL, false, c).await?;
+        TestRun::init("recent", None, Some(&user), &DEFAULT_POOL, false, c).await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 hours' WHERE id = $1")
             .bind(old.id())
@@ -1001,7 +994,7 @@ mod tests {
             .await?;
 
         let count =
-            TestRun::started_since(&user, &alpha_cluster(), Utc::now() - Duration::hours(1), c)
+            TestRun::started_since(&user, &DEFAULT_POOL, Utc::now() - Duration::hours(1), c)
                 .await?;
 
         assert_eq!(count, 1);
@@ -1017,27 +1010,19 @@ mod tests {
         let other_user = unique("other-user");
         let since = Utc::now() - Duration::hours(1);
 
-        TestRun::init("mine", None, Some(&user), &alpha_cluster(), false, c).await?;
+        TestRun::init("mine", None, Some(&user), &DEFAULT_POOL, false, c).await?;
         TestRun::init(
             "someone-elses",
             None,
             Some(&other_user),
-            &alpha_cluster(),
+            &DEFAULT_POOL,
             false,
             c,
         )
         .await?;
-        TestRun::init(
-            "wrong-cluster",
-            None,
-            Some(&user),
-            &perf_cluster(),
-            false,
-            c,
-        )
-        .await?;
+        TestRun::init("wrong-cluster", None, Some(&user), &perf_pool(), false, c).await?;
 
-        let count = TestRun::started_since(&user, &alpha_cluster(), since, c).await?;
+        let count = TestRun::started_since(&user, &DEFAULT_POOL, since, c).await?;
 
         assert_eq!(count, 1);
 

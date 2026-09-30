@@ -1,7 +1,9 @@
 //! Summary of the configured workload clusters along with their recent execution counts.
 use crate::{
     Result,
-    config::{ClusterExecutionConfig, Config, PerUserExecutionConfig, WorkloadClusters},
+    config::{
+        ClusterExecutionConfig, Config, DEFAULT_POOL, PerUserExecutionConfig, WorkloadClusters,
+    },
     conn,
     db::{ClusterId, cluster_history::hourly_execution_counts},
 };
@@ -13,9 +15,6 @@ use rtf_orchestrator_shared::cluster_summary::{
     WorkloadClusterSummary, WorkloadPoolSummary,
 };
 use std::collections::HashMap;
-
-const DEFAULT_POOL: &str = "default";
-const DEDICATED_POOL: &str = "dedicated";
 
 pub async fn handler() -> Result<Json<ClusterSummaryResponse>> {
     let clusters = &Config::get().workload_clusters;
@@ -39,12 +38,12 @@ fn cluster_summary(
     clusters: &WorkloadClusters,
     mut hourly: HashMap<ClusterId, Vec<HourlyCount>>,
 ) -> ClusterSummaryResponse {
-    let mut default = WorkloadPoolSummary {
+    let mut default_pool = WorkloadPoolSummary {
         name: DEFAULT_POOL.to_string(),
         clusters: Vec::new(),
     };
-    let mut dedicated = WorkloadPoolSummary {
-        name: DEDICATED_POOL.to_string(),
+    let mut perf_pool = WorkloadPoolSummary {
+        name: "perf".to_string(),
         clusters: Vec::new(),
     };
 
@@ -53,23 +52,27 @@ fn cluster_summary(
             name: cfg.name.clone(),
             execution: execution_summary(
                 &cfg.execution,
-                clusters.per_user_config(&cfg.name).unwrap_or_default(),
+                clusters
+                    .cluster_pools
+                    .pool_config_for_cluster(&cfg.name)
+                    .map(|pool| pool.per_user.clone())
+                    .unwrap_or_default(),
             ),
             hourly_executions: hourly
                 .remove(&ClusterId::new(&cfg.name))
                 .unwrap_or_default(),
         };
 
-        if cfg.name == clusters.default_workload_cluster().as_str() {
-            default.clusters.push(summary);
+        if clusters.cluster_for_pool(&DEFAULT_POOL).as_ref() == Some(&ClusterId::new(&cfg.name)) {
+            default_pool.clusters.push(summary);
         } else {
-            dedicated.clusters.push(summary);
+            perf_pool.clusters.push(summary);
         }
     }
 
     ClusterSummaryResponse {
         max_queued_executions: clusters.max_queued_executions,
-        pools: [default, dedicated]
+        pools: [default_pool, perf_pool]
             .into_iter()
             .filter(|pool| !pool.clusters.is_empty())
             .collect(),
@@ -115,15 +118,9 @@ mod tests {
     #[test_case("alpha", &["alpha"], &[("default", &["alpha"])]; "default only")]
     #[test_case(
         "alpha",
-        &["alpha", "router_perf", "other"],
-        &[("default", &["alpha"]), ("dedicated", &["router_perf", "other"])];
-        "default and dedicated"
-    )]
-    #[test_case(
-        "router_perf",
-        &["alpha", "router_perf"],
-        &[("default", &["router_perf"]), ("dedicated", &["alpha"])];
-        "default not listed first"
+        &["alpha", "beta", "other"],
+        &[("default", &["alpha"]), ("perf", &["beta", "other"])];
+        "default and perf"
     )]
     #[test]
     fn cluster_summary_groups_clusters_into_pools(

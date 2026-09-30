@@ -1,5 +1,5 @@
 use crate::{
-    db::{self, ClusterId},
+    db::{self, PoolId},
     rate_limit::RateLimitError,
     resolver::ResolverError,
 };
@@ -57,9 +57,9 @@ pub enum Error {
     #[error("manual file provider volume mounts are not supported. Invalid services: {services:?}")]
     InvalidFileProviderUsage { services: Vec<String> },
 
-    #[error("{reason} on cluster {cluster} for this user")]
+    #[error("{reason} in pool {pool} for this user")]
     RateLimited {
-        cluster: ClusterId,
+        pool: PoolId,
         reason: RateLimitError,
     },
 
@@ -78,8 +78,8 @@ pub enum Error {
     #[error("{identifier} is not a registered test plan")]
     UnknownTestPlan { identifier: String },
 
-    #[error("{cluster} is not a configured workload cluster")]
-    UnknownWorkloadCluster { cluster: String },
+    #[error("{pool} is not a configured workload cluster pool")]
+    UnknownWorkloadPool { pool: String },
 }
 
 impl IntoResponse for Error {
@@ -89,7 +89,7 @@ impl IntoResponse for Error {
         let raw = match self {
             Self::FileUploadAlreadyRequested
             | Self::InvalidFileProviderUsage { .. }
-            | Self::UnknownWorkloadCluster { .. }
+            | Self::UnknownWorkloadPool { .. }
             | Self::Prepare(_)
             | Self::Db(db::Error::MissingExitCode)
             | Self::Db(db::Error::InvalidFailedExitCode)
@@ -114,10 +114,10 @@ impl IntoResponse for Error {
                 Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": msg })),
             ),
 
-            Self::RateLimited { cluster, reason } => (
+            Self::RateLimited { pool, reason } => (
                 StatusCode::TOO_MANY_REQUESTS,
                 Json(
-                    json!({ "error": "TOO_MANY_REQUESTS", "message": msg, "cluster": cluster,  "reason": reason }),
+                    json!({ "error": "TOO_MANY_REQUESTS", "message": msg, "pool": pool,  "reason": reason }),
                 ),
             ),
 

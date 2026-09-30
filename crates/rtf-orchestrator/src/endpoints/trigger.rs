@@ -1,8 +1,8 @@
 use crate::{
-    config::Config,
+    config::{Config, DEFAULT_POOL},
     conn,
     context::OrchestratorContext,
-    db::{ClusterId, KnownTestPlan, KnownTestPlanRun, Queryable, TestRun},
+    db::{KnownTestPlan, KnownTestPlanRun, PoolId, Queryable, TestRun},
     error::Error,
     event_loop::SubmitError,
     rate_limit,
@@ -23,27 +23,26 @@ pub async fn handler(
     Json(trigger_payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
     let user = state.identify_user(&headers).await?;
-    let default_cluster = state.eq_state.default_cluster();
     let cfg = Config::get();
-    let payload = PayloadWithMeta::resolve(trigger_payload, default_cluster, conn!()).await?;
-    let per_user_cfg = cfg.per_user_execution_config(&payload.cluster)?;
+    let payload = PayloadWithMeta::resolve(trigger_payload, &DEFAULT_POOL, conn!()).await?;
+    let per_user_cfg = cfg.per_user_execution_config(&payload.pool)?;
 
     let queued_executions = rate_limit::apply_rate_limits(
         &state.eq_state,
         &per_user_cfg,
-        &payload.cluster,
+        &payload.pool,
         &user,
         conn!(),
     )
     .await?;
 
-    let (cluster, allow_k8s_write, known_link, payload) = payload.finish(cfg).await?;
+    let (pool, allow_k8s_write, known_link, payload) = payload.finish(cfg).await?;
 
     // The max queued executions limit can only be enforced once we have the actual test plan and
     // can check the number of executions it will result in.
     rate_limit::check_queued_executions(
         &per_user_cfg,
-        &cluster,
+        &pool,
         &user,
         queued_executions,
         payload.test_plan.matrix.n_variants(),
@@ -81,7 +80,7 @@ pub async fn handler(
         &payload.test_plan.name,
         variables,
         initiated_by,
-        cluster,
+        pool,
         allow_k8s_write,
         conn!(),
     )
@@ -140,7 +139,7 @@ struct KnownTestPlanLink {
 }
 
 struct PayloadWithMeta {
-    cluster: ClusterId,
+    pool: PoolId,
     allow_k8s_write: bool,
     payload: PreparedOrGitHub,
     link: Option<KnownTestPlanLink>,
@@ -149,12 +148,13 @@ struct PayloadWithMeta {
 impl PayloadWithMeta {
     async fn resolve(
         trigger_payload: TriggerPayload,
-        default_cluster: &ClusterId,
+        default_pool: &PoolId,
         conn: &mut PgConnection,
     ) -> Result<Self, Error> {
         let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
-            let pinned = known.pinned_workload_cluster();
-            let cluster = pinned.clone().unwrap_or_else(|| default_cluster.clone());
+            let pool = known
+                .pinned_workload_pool()
+                .unwrap_or_else(|| default_pool.clone());
             let allow_k8s_write = known.allow_k8s_write();
             let known_link = KnownTestPlanLink {
                 known_test_plan_id: known.id(),
@@ -169,7 +169,7 @@ impl PayloadWithMeta {
             };
 
             Self {
-                cluster,
+                pool,
                 allow_k8s_write,
                 payload: PreparedOrGitHub::GitHub(payload),
                 link: Some(known_link),
@@ -178,14 +178,14 @@ impl PayloadWithMeta {
 
         Ok(match trigger_payload {
             TriggerPayload::Prepared(payload) => Self {
-                cluster: default_cluster.clone(),
+                pool: default_pool.clone(),
                 allow_k8s_write: false,
                 link: None,
                 payload: PreparedOrGitHub::Prepared(payload),
             },
 
             TriggerPayload::GitHub(payload) => Self {
-                cluster: default_cluster.clone(),
+                pool: default_pool.clone(),
                 allow_k8s_write: false,
                 link: None,
                 payload: PreparedOrGitHub::GitHub(payload),
@@ -218,16 +218,16 @@ impl PayloadWithMeta {
     async fn finish(
         self,
         cfg: &Config,
-    ) -> Result<(ClusterId, bool, Option<KnownTestPlanLink>, PreparedPayload), Error> {
+    ) -> Result<(PoolId, bool, Option<KnownTestPlanLink>, PreparedPayload), Error> {
         Ok(match self.payload {
             PreparedOrGitHub::Prepared(payload) => {
-                (self.cluster, self.allow_k8s_write, self.link, payload)
+                (self.pool, self.allow_k8s_write, self.link, payload)
             }
 
             PreparedOrGitHub::GitHub(payload) => {
                 info!("attempting to pull test plan details from GitHub");
                 (
-                    self.cluster,
+                    self.pool,
                     self.allow_k8s_write,
                     self.link,
                     payload.into_prepared(cfg.server_context()).await?,
@@ -241,7 +241,7 @@ async fn init_run_and_build_summary(
     name: &str,
     variables: Option<Value>,
     initiated_by: Option<String>,
-    workload_cluster: ClusterId,
+    workload_pool: PoolId,
     allow_k8s_write: bool,
     conn: &mut PgConnection,
 ) -> Result<(TestRun, TestRunSummary), Error> {
@@ -249,7 +249,7 @@ async fn init_run_and_build_summary(
         name,
         variables,
         initiated_by.as_deref(),
-        &workload_cluster,
+        &workload_pool,
         allow_k8s_write,
         conn,
     )
@@ -334,7 +334,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn handler_defaults_new_run_to_the_configured_default_cluster() -> anyhow::Result<()> {
+    async fn handler_defaults_new_run_to_the_default_pool() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let payload = tss.minimal_trigger_payload();
 
@@ -350,7 +350,7 @@ mod tests {
             .await?
             .expect("test run should be in the DB");
 
-        assert_eq!(tr.workload_cluster().as_str(), "alpha");
+        assert_eq!(tr.workload_pool(), DEFAULT_POOL);
 
         Ok(())
     }
@@ -405,25 +405,24 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn init_run_and_build_summary_persists_the_resolved_workload_cluster() -> Result<(), Error>
-    {
+    async fn init_run_and_build_summary_persists_the_resolved_workload_pool() -> Result<(), Error> {
         let (test_run, _) = init_run_and_build_summary(
             "test",
             None,
             None,
-            ClusterId::new("router_perf"),
+            PoolId::new("router_perf"),
             false,
             conn!(),
         )
         .await?;
 
-        assert_eq!(test_run.workload_cluster().as_str(), "router_perf");
+        assert_eq!(test_run.workload_pool().as_str(), "router_perf");
 
         let fetched = TestRun::get_by_uuid(&test_run.uuid(), conn!())
             .await
             .unwrap()
             .expect("test run should be in the DB");
-        assert_eq!(fetched.workload_cluster().as_str(), "router_perf");
+        assert_eq!(fetched.workload_pool().as_str(), "router_perf");
 
         Ok(())
     }
@@ -445,7 +444,7 @@ mod tests {
                 "prior",
                 None,
                 Some(&bare_email),
-                &ClusterId::new("alpha"),
+                &DEFAULT_POOL,
                 false,
                 conn!(),
             )
@@ -469,7 +468,7 @@ mod tests {
         assert_eq!(body["reason"]["kind"], "runs_per_hour");
         assert_eq!(body["reason"]["current"], 10);
         assert_eq!(body["reason"]["max"], 10);
-        assert_eq!(body["cluster"], "alpha");
+        assert_eq!(body["pool"], "default");
 
         Ok(())
     }

@@ -5,14 +5,13 @@
 //! behaviour.
 use crate::{
     Error, Result,
-    config::Config,
+    config::{Config, DEFAULT_POOL},
     conn,
-    db::{ClusterId, KnownTestPlan},
-    state::ServerState,
+    db::{KnownTestPlan, PoolId},
 };
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Path, Query},
 };
 use cached::cached;
 use chrono::Utc;
@@ -28,7 +27,6 @@ use rtf_orchestrator_shared::{
 use uuid::Uuid;
 
 pub async fn handler(
-    State(ServerState { eq_state, .. }): State<ServerState>,
     Path(uuid): Path<Uuid>,
     Query(params): Query<TestPlanDetailsParams>,
 ) -> Result<Json<TestPlanDetails>> {
@@ -42,14 +40,14 @@ pub async fn handler(
     let history = known
         .test_plan_history(params.history_window(Utc::now()), conn)
         .await?;
-    let cluster = known
-        .pinned_workload_cluster()
-        .unwrap_or_else(|| eq_state.default_cluster().clone());
+    let pool = known
+        .pinned_workload_pool()
+        .unwrap_or_else(|| DEFAULT_POOL.clone());
 
     build_details(
         &known,
         params.git_ref,
-        cluster,
+        pool,
         history,
         Config::get().server_context(),
     )
@@ -60,7 +58,7 @@ pub async fn handler(
 async fn build_details(
     known: &KnownTestPlan,
     git_ref: Option<String>,
-    cluster: ClusterId,
+    pool: PoolId,
     history: TestPlanHistory,
     ctx: impl ResolutionContext,
 ) -> Result<TestPlanDetails> {
@@ -73,7 +71,7 @@ async fn build_details(
         .await?;
 
     let mut details = build_details_without_history(known, git_ref, sha, ctx).await?;
-    details.cluster = cluster.to_string();
+    details.cluster = pool.to_string();
     details.history = history;
 
     Ok(details)

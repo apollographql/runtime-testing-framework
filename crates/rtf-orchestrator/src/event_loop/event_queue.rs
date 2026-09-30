@@ -1,7 +1,8 @@
 use crate::{
+    Error,
     config::{Config, WorkloadClusters},
     context::OrchestratorContext,
-    db::{self, ClusterId, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
+    db::{self, ClusterId, PoolId, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
     event_loop::{Event, EventData},
     resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
@@ -91,7 +92,7 @@ impl EventQueue {
             shared: eq.shared.clone(),
             eq_inner: Arc::clone(&eq.inner),
             tx_resolve,
-            default_cluster: cfg.default_workload_cluster(),
+            pool_clusters: cfg.pool_clusters(),
         };
 
         (eq, ph, eqs, rx_resolve)
@@ -285,7 +286,14 @@ impl EventQueue {
 
             let executions = conn.executions_for_run(&tr).await?;
             let mut n_in_flight = 0;
-            let cluster = tr.workload_cluster();
+
+            let pool = tr.workload_pool();
+            let cluster = cfg
+                .workload_clusters
+                .cluster_for_pool(&pool)
+                .ok_or_else(|| Error::UnknownWorkloadPool {
+                    pool: pool.to_string(),
+                })?;
 
             for ex in executions.into_iter() {
                 let events = self
@@ -794,7 +802,7 @@ pub struct EventQueueState {
     shared: Arc<Mutex<Shared>>,
     eq_inner: Arc<Mutex<EventQueueInner>>,
     tx_resolve: UnboundedSender<ResolverInput>,
-    default_cluster: ClusterId,
+    pool_clusters: HashMap<PoolId, Vec<ClusterId>>,
 }
 
 impl EventQueueState {
@@ -805,25 +813,29 @@ impl EventQueueState {
         f(&mut *self.shared.lock().await)
     }
 
-    pub fn default_cluster(&self) -> &ClusterId {
-        &self.default_cluster
-    }
-
-    pub async fn user_queue_counts(&self, user: &str, cluster: &ClusterId) -> UserQueueCounts {
+    /// Counts across all of the clusters in `pool`.
+    pub async fn user_queue_counts(&self, user: &str, pool: &PoolId) -> UserQueueCounts {
+        let clusters = self
+            .pool_clusters
+            .get(pool)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
         let (queued, running) = {
             let inner = self.eq_inner.lock().await;
-            (
-                inner
-                    .pending_provisions
-                    .get(cluster)
-                    .map(|q| q.iter().map(|evt| evt.test_execution.uuid()).collect())
-                    .unwrap_or_else(Vec::new),
-                inner
-                    .running_executions
-                    .get(cluster)
-                    .cloned()
-                    .unwrap_or_default(),
-            )
+            let queued: Vec<Uuid> = clusters
+                .iter()
+                .filter_map(|c| inner.pending_provisions.get(c))
+                .flatten()
+                .map(|evt| evt.test_execution.uuid())
+                .collect();
+            let running: HashSet<Uuid> = clusters
+                .iter()
+                .filter_map(|c| inner.running_executions.get(c))
+                .flatten()
+                .copied()
+                .collect();
+
+            (queued, running)
         };
 
         self.with_shared(|shared| {
@@ -862,18 +874,11 @@ impl EventQueueState {
         .await
     }
 
-    pub async fn available_clusters(&self) -> Vec<ClusterId> {
-        let mut cluster_ids: Vec<_> = self
-            .eq_inner
-            .lock()
-            .await
-            .cluster_provision_order
-            .iter()
-            .cloned()
-            .collect();
-        cluster_ids.sort_unstable();
+    pub fn available_pools(&self) -> Vec<PoolId> {
+        let mut pool_ids: Vec<_> = self.pool_clusters.keys().cloned().collect();
+        pool_ids.sort_unstable();
 
-        cluster_ids
+        pool_ids
     }
 
     pub async fn event_queue_snapshot(&self) -> EventQueueSnapshot {
@@ -1212,7 +1217,7 @@ impl UserQueueCounts {
 mod tests {
     use super::*;
     use crate::{
-        config::Config,
+        config::{Config, DEFAULT_POOL},
         conn,
         context::OrchestratorContext,
         db::{MockUpdateHandle, Queryable},
@@ -1356,7 +1361,7 @@ mod tests {
     #[test_case(&[("alice", "a", &[true])], UserQueueCounts::new(1, 0, 0); "single ongoing run")]
     #[test_case(&[("alice", "a", &[false, false])], UserQueueCounts::new(0, 1, 2); "one run with two queued executions")]
     #[test_case(&[("alice", "a", &[true, false])], UserQueueCounts::new(1, 0, 1); "single ongoing execution marks run ongoing")]
-    #[test_case(&[("alice", "b", &[false])], UserQueueCounts::new(0, 0, 0); "runs for another cluster are ignored")]
+    #[test_case(&[("alice", "b", &[false])], UserQueueCounts::new(0, 0, 0); "runs for another pool are ignored")]
     #[test_case(&[("alice", "a", &[false]), ("bob", "a", &[false])], UserQueueCounts::new(0, 1, 1); "runs for another user are ignored")]
     #[tokio::test]
     async fn user_queue_counts_reflects_live_queue_state(
@@ -1409,8 +1414,45 @@ mod tests {
         }
 
         assert_eq!(
-            state.user_queue_counts("alice", &ClusterId::new("a")).await,
+            state.user_queue_counts("alice", &DEFAULT_POOL).await,
             expected
+        );
+    }
+
+    #[tokio::test]
+    async fn user_queue_counts_sums_across_the_clusters_in_a_pool() {
+        let mut clusters = WorkloadClusters::for_test_with_available_clusters(10, "a", &["a", "b"]);
+        clusters.cluster_pools.default.available_clusters = vec!["a".into(), "b".into()];
+        clusters.cluster_pools.additional.clear();
+
+        let (mut eq, ph, state, _) = EventQueue::new(&clusters);
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &Config::for_test(),
+            empty_source_map(),
+            empty_source_map(),
+            HashMap::new(),
+        );
+        let run_uuid = Uuid::new_v4();
+        ph.cache_for_test_run(
+            run_uuid,
+            Some("alice".to_string()),
+            false,
+            ctx,
+            stub_test_plan(),
+        )
+        .await;
+
+        for (i, cluster) in ["a", "b"].into_iter().enumerate() {
+            let ex = TestExecution::create_stub(i as i32 + 1, 1, i, "test");
+            ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
+                .await;
+            eq.push_event(resolve_config_event(&ex, ClusterId::new(cluster)))
+                .await;
+        }
+
+        assert_eq!(
+            state.user_queue_counts("alice", &DEFAULT_POOL).await,
+            UserQueueCounts::new(0, 1, 2)
         );
     }
 
@@ -2198,7 +2240,7 @@ mod tests {
         is_running: bool,
     ) -> db::Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex = tr.init_execution("test", 0, c).await?;
         let ex_id = ex.uuid();
         let tr_id = tr.uuid();
@@ -2269,7 +2311,7 @@ mod tests {
     #[tokio::test]
     async fn purge_run_cancels_and_purges_non_terminal_executions() -> db::Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex_1 = tr.init_execution("queued", 0, c).await?;
         let ex_2 = tr.init_execution("running", 1, c).await?;
         let ex_3 = tr.init_execution("done", 2, c).await?;
@@ -2335,7 +2377,7 @@ mod tests {
     #[tokio::test]
     async fn request_provisioning_sees_purged_runs() -> db::Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
 
         let cfg = Config::for_test();
         let (_eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);

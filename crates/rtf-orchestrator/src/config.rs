@@ -1,4 +1,7 @@
-use crate::{Error, db::ClusterId};
+use crate::{
+    Error,
+    db::{ClusterId, PoolId},
+};
 use rtf_config::context::Context;
 use serde::Deserialize;
 use std::{
@@ -9,12 +12,14 @@ use std::{
 };
 use thiserror::Error;
 
+const DEFAULT_POOL_NAME: &str = "default";
+pub const DEFAULT_POOL: PoolId = PoolId::new_static(DEFAULT_POOL_NAME);
+
 const APOLLO_KEY_VAR: &str = "RTF_APOLLO_KEY";
 const CONFIG_PATH_VAR: &str = "RTF_CONFIG_PATH";
 const GH_APP_ID_VAR: &str = "RTF_GITHUB_APP_ID";
 const GH_PEM_VAR: &str = "RTF_GITHUB_APP_PRIVATE_KEY_PEM";
 const KUBECONFIG_MOUNT_ROOT: &str = "/etc/rtf-orchestrator/kubeconfigs";
-const DEFAULT_POOL_NAME: &str = "default";
 
 // Default values for the per-user execution config options.
 //
@@ -138,12 +143,14 @@ impl Config {
 
     pub fn per_user_execution_config(
         &self,
-        cluster_id: &ClusterId,
+        pool: &PoolId,
     ) -> Result<PerUserExecutionConfig, Error> {
         self.workload_clusters
-            .per_user_config(cluster_id.as_str())
-            .ok_or_else(|| Error::UnknownWorkloadCluster {
-                cluster: cluster_id.to_string(),
+            .cluster_pools
+            .pool_config(pool)
+            .map(|p| p.per_user.clone())
+            .ok_or_else(|| Error::UnknownWorkloadPool {
+                pool: pool.to_string(),
             })
     }
 }
@@ -245,20 +252,29 @@ impl WorkloadClusters {
             .collect()
     }
 
-    pub fn default_workload_cluster(&self) -> ClusterId {
-        ClusterId::new(&self.cluster_pools.default.available_clusters[0])
+    pub fn available_pools(&self) -> Vec<PoolId> {
+        self.cluster_pools
+            .iter()
+            .map(|(name, _)| PoolId::new(name))
+            .collect()
     }
 
-    pub fn per_user_config(&self, cluster: &str) -> Option<PerUserExecutionConfig> {
-        let cluster_cfg = self.available_clusters.iter().find(|c| c.name == cluster)?;
-        let pool = self.cluster_pools.pool_config_for_cluster(cluster)?;
+    /// Pools are assumed to hold a single cluster until scheduling is reworked around them.
+    pub fn cluster_for_pool(&self, pool: &PoolId) -> Option<ClusterId> {
+        let pool = self.cluster_pools.pool_config(pool)?;
 
-        Some(PerUserExecutionConfig {
-            max_concurrent_runs: pool.per_user.max_concurrent_runs,
-            max_queued_runs: pool.per_user.max_queued_runs,
-            max_runs_per_hour: pool.per_user.max_runs_per_hour,
-            max_queued_executions: cluster_cfg.execution.per_user.max_queued_executions,
-        })
+        pool.available_clusters.first().map(ClusterId::new)
+    }
+
+    /// The clusters that make up each pool.
+    pub fn pool_clusters(&self) -> HashMap<PoolId, Vec<ClusterId>> {
+        self.cluster_pools
+            .iter()
+            .map(|(name, pool)| {
+                let clusters = pool.available_clusters.iter().map(ClusterId::new).collect();
+                (PoolId::new(name), clusters)
+            })
+            .collect()
     }
 
     pub fn per_cluster_config(&self) -> HashMap<ClusterId, WorkloadClusterConfig> {
@@ -294,9 +310,15 @@ pub struct ClusterPools {
 }
 
 impl ClusterPools {
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &PoolConfig)> {
+    fn iter(&self) -> impl Iterator<Item = (&str, &PoolConfig)> {
         iter::once((DEFAULT_POOL_NAME, &self.default))
             .chain(self.additional.iter().map(|p| (p.name.as_str(), &p.config)))
+    }
+
+    fn pool_config(&self, pool: &PoolId) -> Option<&PoolConfig> {
+        self.iter()
+            .find(|(name, _)| *name == pool.as_str())
+            .map(|(_, config)| config)
     }
 
     pub fn pool_config_for_cluster(&self, cluster: &str) -> Option<&PoolConfig> {
@@ -319,7 +341,7 @@ pub struct PoolConfig {
     pub dedicated: bool,
     pub available_clusters: Vec<String>,
     #[serde(default)]
-    pub per_user: PerUserPoolConfig,
+    pub per_user: PerUserExecutionConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -355,56 +377,21 @@ pub struct ClusterExecutionConfig {
     /// be removed before freeing its concurrency slot.
     #[serde(default = "namespace_cleanup_timeout_secs")]
     pub namespace_cleanup_timeout_secs: u64,
-    #[serde(default)]
-    pub per_user: PerUserClusterConfig,
 }
 
 fn namespace_cleanup_timeout_secs() -> u64 {
     90
 }
 
-/// Per-user limits on runs, applied across all of the clusters in a pool.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct PerUserPoolConfig {
+pub struct PerUserExecutionConfig {
     #[serde(default = "max_concurrent_runs")]
     pub max_concurrent_runs: usize,
     #[serde(default = "max_queued_runs")]
     pub max_queued_runs: usize,
-    #[serde(default = "max_runs_per_hour")]
-    pub max_runs_per_hour: usize,
-}
-
-impl Default for PerUserPoolConfig {
-    fn default() -> Self {
-        Self {
-            max_concurrent_runs: max_concurrent_runs(),
-            max_queued_runs: max_queued_runs(),
-            max_runs_per_hour: max_runs_per_hour(),
-        }
-    }
-}
-
-/// Per-user limits on the execution queue of a single cluster.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct PerUserClusterConfig {
     #[serde(default = "max_queued_executions")]
     pub max_queued_executions: usize,
-}
-
-impl Default for PerUserClusterConfig {
-    fn default() -> Self {
-        Self {
-            max_queued_executions: max_queued_executions(),
-        }
-    }
-}
-
-/// Combined details from [PerUserPoolConfig] and [PerUserClusterConfig]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PerUserExecutionConfig {
-    pub max_concurrent_runs: usize,
-    pub max_queued_runs: usize,
-    pub max_queued_executions: usize,
+    #[serde(default = "max_runs_per_hour")]
     pub max_runs_per_hour: usize,
 }
 
@@ -559,7 +546,6 @@ mod tests {
                             failed_execution_ttl_secs: 600,
                             retry_window_secs: 5 * 60,
                             poll_interval_secs: 10,
-                            per_user: Default::default(),
                             exclusive_nodes: false,
                             scenario_node_selector: BTreeMap::new(),
                             namespace_cleanup_timeout_secs: 90,
@@ -658,32 +644,5 @@ mod tests {
     #[test]
     fn validate_rejects_invalid_config(wc: WorkloadClusters, expected: Vec<ConfigError>) {
         assert_eq!(wc.validate().unwrap_err(), expected);
-    }
-
-    #[test]
-    fn per_user_config_combines_pool_and_cluster_limits() {
-        let mut wc = WorkloadClusters::for_test_with_available_clusters(10, "alpha", &["alpha"]);
-        wc.cluster_pools.default.per_user = PerUserPoolConfig {
-            max_concurrent_runs: 2,
-            max_queued_runs: 3,
-            max_runs_per_hour: 4,
-        };
-        wc.available_clusters[0]
-            .execution
-            .per_user
-            .max_queued_executions = 5;
-
-        let cfg = wc.per_user_config("alpha").unwrap();
-
-        assert_eq!(
-            cfg,
-            PerUserExecutionConfig {
-                max_concurrent_runs: 2,
-                max_queued_runs: 3,
-                max_queued_executions: 5,
-                max_runs_per_hour: 4,
-            }
-        );
-        assert_eq!(wc.per_user_config("unknown"), None);
     }
 }
