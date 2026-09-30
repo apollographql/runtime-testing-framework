@@ -354,6 +354,26 @@ impl TestRun {
         .await?)
     }
 
+    /// Whether this run is for a known test plan that requires a dedicated cluster.
+    pub async fn requires_dedicated_cluster(&self, conn: &mut PgConnection) -> Result<bool> {
+        Ok(sqlx::query_scalar(
+            r#"SELECT
+               ktp.requires_dedicated_cluster
+             FROM
+               known_test_plan ktp
+             JOIN
+               known_test_plan_run ktpr
+             ON
+               ktpr.known_test_plan_id = ktp.id
+             WHERE
+               ktpr.test_run_id = $1;"#,
+        )
+        .bind(self.id)
+        .fetch_optional(conn)
+        .await?
+        .unwrap_or(false))
+    }
+
     async fn variables(&self, conn: &mut PgConnection) -> Result<Option<Value>> {
         let id = match self.variables_id {
             Some(id) => id,
@@ -467,6 +487,7 @@ mod tests {
         templating::Field,
     };
     use rtf_orchestrator_shared::{
+        known_test_plan::UpdateKnownTestPlanRequest,
         payload::SourceKeyedArrayMap,
         test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
     };
@@ -975,6 +996,38 @@ mod tests {
         KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
 
         assert_eq!(tr.test_plan_uuid(c).await?, Some(known.uuid()));
+
+        Ok(())
+    }
+
+    #[test_case(None, false; "unlinked run")]
+    #[test_case(Some(false), false; "linked plan without the requirement")]
+    #[test_case(Some(true), true; "linked plan with the requirement")]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn requires_dedicated_cluster_follows_the_linked_known_test_plan(
+        plan_requires: Option<bool>,
+        expected: bool,
+    ) -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
+
+        if let Some(requires) = plan_requires {
+            let known =
+                KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
+                    .await?
+                    .update(
+                        UpdateKnownTestPlanRequest {
+                            requires_dedicated_cluster: Some(requires),
+                            ..Default::default()
+                        },
+                        c,
+                    )
+                    .await?;
+            KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
+        }
+
+        assert_eq!(tr.requires_dedicated_cluster(c).await?, expected);
 
         Ok(())
     }

@@ -16,6 +16,7 @@ pub struct KnownTestPlan {
     path: String,
     pinned_workload_cluster: Option<String>,
     allow_k8s_write: bool,
+    requires_dedicated_cluster: bool,
 }
 
 impl Queryable for KnownTestPlan {
@@ -59,6 +60,10 @@ impl KnownTestPlan {
         self.allow_k8s_write
     }
 
+    pub fn requires_dedicated_cluster(&self) -> bool {
+        self.requires_dedicated_cluster
+    }
+
     /// Register a new known test plan.
     ///
     /// `name` and `(org, repo, path)` are each `UNIQUE` in the DB: attempting to register a
@@ -79,7 +84,8 @@ impl KnownTestPlan {
             VALUES
               ($1, $2, $3, $4, $5)
             RETURNING
-              id, uuid, name, description, org, repo, path, pinned_workload_cluster, allow_k8s_write;
+              id, uuid, name, description, org, repo, path, pinned_workload_cluster, allow_k8s_write,
+              requires_dedicated_cluster;
             "#,
         )
         .bind(name)
@@ -127,6 +133,11 @@ impl KnownTestPlan {
             push_if_some!(sep, update.path, "path = ");
             push_if_some!(sep, update.pinned_cluster, "pinned_workload_cluster = ");
             push_if_some!(sep, update.allow_k8s_write, "allow_k8s_write = ");
+            push_if_some!(
+                sep,
+                update.requires_dedicated_cluster,
+                "requires_dedicated_cluster = "
+            );
         }
         qb.push(" WHERE id = ").push_bind(self.id);
 
@@ -169,6 +180,7 @@ impl KnownTestPlan {
             path: self.path,
             pinned_workload_cluster: self.pinned_workload_cluster,
             allow_k8s_write: self.allow_k8s_write,
+            requires_dedicated_cluster: self.requires_dedicated_cluster,
         }
     }
 }

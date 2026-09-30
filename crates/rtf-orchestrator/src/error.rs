@@ -80,6 +80,9 @@ pub enum Error {
 
     #[error("{pool} is not a configured workload cluster pool")]
     UnknownWorkloadPool { pool: String },
+
+    #[error("this test plan requires a dedicated cluster but pool {pool} does not support them")]
+    DedicatedClusterNotSupported { pool: String },
 }
 
 impl IntoResponse for Error {
@@ -90,6 +93,7 @@ impl IntoResponse for Error {
             Self::FileUploadAlreadyRequested
             | Self::InvalidFileProviderUsage { .. }
             | Self::UnknownWorkloadPool { .. }
+            | Self::DedicatedClusterNotSupported { .. }
             | Self::Prepare(_)
             | Self::Db(db::Error::MissingExitCode)
             | Self::Db(db::Error::InvalidFailedExitCode)

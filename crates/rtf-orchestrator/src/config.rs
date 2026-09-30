@@ -266,6 +266,15 @@ impl WorkloadClusters {
         pool.available_clusters.first().map(ClusterId::new)
     }
 
+    /// Pools that dedicated clusters can be claimed from.
+    pub fn dedicated_pools(&self) -> HashSet<PoolId> {
+        self.cluster_pools
+            .iter()
+            .filter(|(_, pool)| pool.dedicated)
+            .map(|(name, _)| PoolId::new(name))
+            .collect()
+    }
+
     /// The clusters that make up each pool.
     pub fn pool_clusters(&self) -> HashMap<PoolId, Vec<ClusterId>> {
         self.cluster_pools

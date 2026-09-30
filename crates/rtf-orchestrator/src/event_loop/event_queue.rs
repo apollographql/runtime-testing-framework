@@ -93,6 +93,7 @@ impl EventQueue {
             eq_inner: Arc::clone(&eq.inner),
             tx_resolve,
             pool_clusters: cfg.pool_clusters(),
+            dedicated_pools: cfg.dedicated_pools(),
         };
 
         (eq, ph, eqs, rx_resolve)
@@ -803,6 +804,7 @@ pub struct EventQueueState {
     eq_inner: Arc<Mutex<EventQueueInner>>,
     tx_resolve: UnboundedSender<ResolverInput>,
     pool_clusters: HashMap<PoolId, Vec<ClusterId>>,
+    dedicated_pools: HashSet<PoolId>,
 }
 
 impl EventQueueState {
@@ -872,6 +874,10 @@ impl EventQueueState {
             }
         })
         .await
+    }
+
+    pub fn supports_dedicated(&self, pool: &PoolId) -> bool {
+        self.dedicated_pools.contains(pool)
     }
 
     pub fn available_pools(&self) -> Vec<PoolId> {

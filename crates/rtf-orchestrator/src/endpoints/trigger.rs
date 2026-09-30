@@ -27,6 +27,12 @@ pub async fn handler(
     let payload = PayloadWithMeta::resolve(trigger_payload, &DEFAULT_POOL, conn!()).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.pool)?;
 
+    if payload.requires_dedicated_cluster && !state.eq_state.supports_dedicated(&payload.pool) {
+        return Err(Error::DedicatedClusterNotSupported {
+            pool: payload.pool.to_string(),
+        });
+    }
+
     let queued_executions = rate_limit::apply_rate_limits(
         &state.eq_state,
         &per_user_cfg,
@@ -141,6 +147,7 @@ struct KnownTestPlanLink {
 struct PayloadWithMeta {
     pool: PoolId,
     allow_k8s_write: bool,
+    requires_dedicated_cluster: bool,
     payload: PreparedOrGitHub,
     link: Option<KnownTestPlanLink>,
 }
@@ -156,6 +163,7 @@ impl PayloadWithMeta {
                 .pinned_workload_pool()
                 .unwrap_or_else(|| default_pool.clone());
             let allow_k8s_write = known.allow_k8s_write();
+            let requires_dedicated_cluster = known.requires_dedicated_cluster();
             let known_link = KnownTestPlanLink {
                 known_test_plan_id: known.id(),
                 git_sha: git_ref.clone(),
@@ -171,6 +179,7 @@ impl PayloadWithMeta {
             Self {
                 pool,
                 allow_k8s_write,
+                requires_dedicated_cluster,
                 payload: PreparedOrGitHub::GitHub(payload),
                 link: Some(known_link),
             }
@@ -180,6 +189,7 @@ impl PayloadWithMeta {
             TriggerPayload::Prepared(payload) => Self {
                 pool: default_pool.clone(),
                 allow_k8s_write: false,
+                requires_dedicated_cluster: false,
                 link: None,
                 payload: PreparedOrGitHub::Prepared(payload),
             },
@@ -187,6 +197,7 @@ impl PayloadWithMeta {
             TriggerPayload::GitHub(payload) => Self {
                 pool: default_pool.clone(),
                 allow_k8s_write: false,
+                requires_dedicated_cluster: false,
                 link: None,
                 payload: PreparedOrGitHub::GitHub(payload),
             },
@@ -267,6 +278,7 @@ mod tests {
     use super::*;
     use crate::test_helpers::TestServerState;
     use reqwest::StatusCode;
+    use rtf_orchestrator_shared::known_test_plan::UpdateKnownTestPlanRequest;
     use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
@@ -469,6 +481,44 @@ mod tests {
         assert_eq!(body["reason"]["current"], 10);
         assert_eq!(body["reason"]["max"], 10);
         assert_eq!(body["pool"], "default");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_rejects_dedicated_plans_pinned_to_pools_without_dedicated_support()
+    -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let plan = KnownTestPlan::register(
+            &format!("plan-{}", Uuid::new_v4()),
+            None,
+            "org",
+            "repo",
+            &format!("path-{}", Uuid::new_v4()),
+            conn!(),
+        )
+        .await?
+        .update(
+            UpdateKnownTestPlanRequest {
+                requires_dedicated_cluster: Some(true),
+                ..Default::default()
+            },
+            conn!(),
+        )
+        .await?;
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .json(&serde_json::json!({ "test_plan_uuid": plan.uuid() }))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST);
+        assert!(
+            tss.resolver_rx.is_empty(),
+            "should not have submitted the test plan"
+        );
 
         Ok(())
     }

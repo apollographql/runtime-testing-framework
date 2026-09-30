@@ -6,7 +6,9 @@
 //!
 //! Gated to admins only (see [AdminUser]).
 use crate::{
-    Error, Result, conn,
+    Error, Result,
+    config::DEFAULT_POOL,
+    conn,
     db::{KnownTestPlan, PoolId},
     endpoints::AdminUser,
     state::ServerState,
@@ -42,6 +44,21 @@ pub async fn handler(
             identifier: uuid.to_string(),
         })?;
 
+    let pool = match &req.pinned_cluster {
+        Some(Some(cluster)) => PoolId::new(cluster),
+        Some(None) => DEFAULT_POOL,
+        None => known.pinned_workload_pool().unwrap_or(DEFAULT_POOL),
+    };
+    let requires_dedicated = req
+        .requires_dedicated_cluster
+        .unwrap_or_else(|| known.requires_dedicated_cluster());
+
+    if requires_dedicated && !eq_state.supports_dedicated(&pool) {
+        return Err(Error::DedicatedClusterNotSupported {
+            pool: pool.to_string(),
+        });
+    }
+
     let updated = known.update(req, conn).await?;
 
     Ok(Json(updated.into_summary()))
@@ -51,7 +68,7 @@ pub async fn handler(
 mod tests {
     use super::*;
     use crate::{
-        config::{Config, DEFAULT_POOL, NamedPoolConfig, PoolConfig},
+        config::{Config, NamedPoolConfig, PoolConfig},
         iap_identity::IAP_USER_EMAIL_HEADER,
         test_helpers::TestServerState,
     };
@@ -341,6 +358,43 @@ mod tests {
             .await;
 
         assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    async fn put_update(
+        tss: &TestServerState,
+        plan: &KnownTestPlan,
+        req: UpdateKnownTestPlanRequest,
+    ) -> axum_test::TestResponse {
+        tss.test_server
+            .put(&format!("/admin/test-plan/{}", plan.uuid()))
+            .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
+            .json(&req)
+            .await
+    }
+
+    fn requires_dedicated(value: bool) -> UpdateKnownTestPlanRequest {
+        UpdateKnownTestPlanRequest {
+            requires_dedicated_cluster: Some(value),
+            ..Default::default()
+        }
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn requires_dedicated_cluster_is_rejected_on_a_pool_without_support() -> anyhow::Result<()>
+    {
+        let tss = TestServerState::new_with_admins(&[ADMIN_EMAIL]);
+        let plan = register_plan(conn!()).await;
+
+        let resp = put_update(&tss, &plan, requires_dedicated(true)).await;
+
+        assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST);
+        let fetched = KnownTestPlan::get_by_uuid(&plan.uuid(), conn!())
+            .await?
+            .expect("plan should still exist");
+        assert!(!fetched.requires_dedicated_cluster());
 
         Ok(())
     }
