@@ -147,8 +147,8 @@ impl EventQueue {
         self.rx.sender_strong_count() > 1
     }
 
-    /// Returns the next [OngoingEvent] to be processed, prioritising ongoing events over
-    /// provisioning new namespaces.
+    /// Returns the next [Event] to be processed, prioritising ongoing events over provisioning new
+    /// namespaces.
     ///
     /// We buffer events internally and fully drain the channel of any events received since the
     /// last call to `next_event`. This method blocks when there are no internally buffered events
