@@ -1,5 +1,6 @@
 use crate::config::ClusterRoles;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
+use kube::ResourceExt;
 use kube::config::{InClusterError, KubeconfigError};
 use std::fmt;
 use uuid::Uuid;
@@ -17,6 +18,8 @@ pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
     WorkflowToolboxSettings,
 };
+use crate::k8s::client::nodes::NodeAllocationError;
+use rtf_orchestrator_shared::cluster_summary::NodesSummary;
 
 /// Binary name of the RTF Orchestrator CLI, available on `PATH` inside the rtf-toolbox image.
 const CLI_BINARY: &str = "rtf-orchestrator-cli";
@@ -37,6 +40,9 @@ pub enum Error {
 
     #[error("In-cluster config error: {0}")]
     InCluster(#[from] InClusterError),
+
+    #[error("Node allocation error: {0}")]
+    NodeAllocation(#[from] NodeAllocationError)
 }
 
 impl Error {
@@ -155,6 +161,28 @@ pub fn workflow_name(execution_id: &Uuid) -> String {
 
 pub fn env_configmap_name(execution_id: &Uuid) -> String {
     format!("environment-config-{execution_id}")
+}
+
+/// Summarise the nodes of a workload cluster by instance type, building a fresh client from the
+/// kubeconfig at `workload_path` for `workload_context`.
+pub(crate) async fn workload_cluster_nodes_summary(
+    workload_path: &str,
+    workload_context: &str,
+) -> Result<NodesSummary> {
+    let mut clients = ClusterClients::try_new_workload(workload_path, workload_context).await?;
+    let nodes = clients.get_nodes().await?;
+
+    let mut by_instance_type = std::collections::BTreeMap::new();
+    for node in &nodes {
+        let instance_type = node
+            .labels()
+            .get("node.kubernetes.io/instance-type")
+            .cloned()
+            .unwrap_or_else(|| "unknown".to_string());
+        *by_instance_type.entry(instance_type).or_insert(0) += 1;
+    }
+
+    Ok(NodesSummary { by_instance_type })
 }
 
 #[cfg(test)]

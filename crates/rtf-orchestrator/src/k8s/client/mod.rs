@@ -1,3 +1,6 @@
+pub(crate) mod nodes;
+
+use crate::k8s::client::nodes::NodeAllocationPlan;
 use crate::{
     config::ClusterRoles,
     k8s::{
@@ -7,23 +10,30 @@ use crate::{
     },
 };
 use chrono::{DateTime, Duration, Utc};
+use k8s_openapi::ClusterResourceScope;
+use k8s_openapi::api::core::v1::Node;
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
     core::v1::{Namespace, Pod, ServiceAccount},
     rbac::v1::{ClusterRoleBinding, RoleBinding, RoleRef, Subject},
 };
+use kube::api::{Patch, PatchParams};
 use kube::{
-    Client, Config, Resource,
+    Client, Config, Resource, ResourceExt,
     api::{Api, ListParams, ObjectMeta, PostParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
 use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
+use serde_json::json;
+use std::collections::HashMap;
 use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
+const MANAGER_NAME: &str = "rtf-orchestrator";
+const NODE_LABEL_PREFIX: &str = "rtf.io/node-allocation";
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
 // exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
 //
@@ -150,6 +160,14 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         Api::namespaced(self.workload_client(), ns)
     }
 
+    fn cluster_api<K>(&mut self) -> Api<K>
+    where
+        K: Resource<Scope = ClusterResourceScope>,
+        <K as Resource>::DynamicType: Default,
+    {
+        Api::all(self.workload_client())
+    }
+
     fn workload_client(&mut self) -> Client {
         self.workload.client.clone()
     }
@@ -235,6 +253,64 @@ impl<M> ClusterClients<M, AvailableWorkload> {
                 .create(
                     &PostParams::default(),
                     &role_binding(&cluster_roles.namespace_write),
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) async fn get_nodes(&mut self) -> Result<Vec<Node>> {
+        self.cluster_api::<Node>()
+            .list(&ListParams::default())
+            .await
+            .map(|list| list.items)
+            .map_err(|err| err.into())
+    }
+
+    async fn plan_node_label_allocation(
+        &mut self,
+        allocation: HashMap<String, u32>,
+    ) -> Result<NodeAllocationPlan> {
+        let nodes = self.get_nodes().await?;
+
+        NodeAllocationPlan::try_new(nodes, allocation).map_err(|err| err.into())
+    }
+
+    async fn apply_node_label_allocation(
+        &mut self,
+        allocation: HashMap<String, u32>,
+    ) -> Result<()> {
+        let node_allocation_plan = self.plan_node_label_allocation(allocation).await?;
+        for (node_id, (k, v)) in node_allocation_plan {
+            self.cluster_api::<Node>()
+                .patch(
+                    &node_id,
+                    &PatchParams::apply(MANAGER_NAME),
+                    &Patch::Merge(json!({"metadata": {"labels": {k : v}}})),
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn remove_all_prefixed_labels(&mut self) -> Result<()> {
+        let nodes = self.get_nodes().await?;
+        for node in nodes {
+            let node_name = node.name_any().clone();
+            let filtered_labels : BTreeMap<String, String> = node
+                .metadata
+                .labels
+                .unwrap_or(BTreeMap::new())
+                .into_iter()
+                .filter(|(k, _)| !k.starts_with(NODE_LABEL_PREFIX))
+                .collect();
+            self.cluster_api::<Node>()
+                .patch(
+                    &node_name,
+                    &PatchParams::apply(MANAGER_NAME),
+                    &Patch::Merge(json!({"metadata": {"labels": filtered_labels}})),
                 )
                 .await?;
         }
