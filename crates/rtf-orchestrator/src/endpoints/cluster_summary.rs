@@ -53,7 +53,13 @@ async fn cached_node_summaries(clusters: Vec<ClusterId>) -> HashMap<ClusterId, N
 /// `None` when the cluster's nodes could not be fetched (e.g. it is unreachable) - a single
 /// broken cluster should not take down the whole summary.
 async fn cluster_node_summary(cfg: &WorkloadClusterConfig) -> Option<NodesSummary> {
-    k8s::workload_cluster_nodes_summary(&cfg.kubeconfig_path(), &cfg.workload_context)
+    let clients =
+        k8s::ClusterClients::try_new_workload(&cfg.kubeconfig_path(), &cfg.workload_context)
+            .await
+            .inspect_err(|e| warn!(cluster = %cfg.name, %e, "failed to build workload client"))
+            .ok()?;
+
+    k8s::workload_cluster_nodes_summary(clients)
         .await
         .inspect_err(|e| warn!(cluster = %cfg.name, %e, "failed to fetch node summary"))
         .ok()

@@ -1,37 +1,38 @@
-pub(crate) mod nodes;
-
-use crate::k8s::client::nodes::NodeAllocationPlan;
 use crate::{
     config::ClusterRoles,
     k8s::{
         Error, FullClient, ManagementClient, ORCHESTRATOR_NAMESPACE, Result,
         SCENARIO_RUNNER_CONTAINER, SCENARIO_SA_NAME, WatchOutcome, Workflow, WorkflowSpec,
-        WorkloadClient, workflow_name,
+        WorkloadClient, client::nodes::NodeAllocationPlan, workflow_name,
     },
 };
 use chrono::{DateTime, Duration, Utc};
 use futures::future::try_join_all;
-use k8s_openapi::ClusterResourceScope;
-use k8s_openapi::api::core::v1::Node;
-use k8s_openapi::api::{
-    batch::v1::{Job, JobSpec},
-    core::v1::{Namespace, Pod, ServiceAccount},
-    rbac::v1::{ClusterRoleBinding, RoleBinding, RoleRef, Subject},
+use k8s_openapi::{
+    ClusterResourceScope,
+    api::{
+        batch::v1::{Job, JobSpec},
+        core::v1::{Namespace, Node, Pod, ServiceAccount},
+        rbac::v1::{ClusterRoleBinding, RoleBinding, RoleRef, Subject},
+    },
 };
-use kube::api::{Patch, PatchParams};
 use kube::{
     Client, Config, Resource, ResourceExt,
-    api::{Api, ListParams, ObjectMeta, PostParams},
+    api::{Api, ListParams, ObjectMeta, Patch, PatchParams, PostParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
 use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
 use serde_json::json;
-use std::collections::HashMap;
-use std::{collections::BTreeMap, time};
+use std::{
+    collections::{BTreeMap, HashMap},
+    time,
+};
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
+
+pub(crate) mod nodes;
 
 // Not wired up yet - pending the node-allocation feature work that will call these.
 #[expect(dead_code)]
@@ -266,11 +267,12 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     }
 
     pub(crate) async fn get_nodes(&mut self) -> Result<Vec<Node>> {
-        self.cluster_api::<Node>()
+        let list = self
+            .cluster_api::<Node>()
             .list(&ListParams::default())
-            .await
-            .map(|list| list.items)
-            .map_err(|err| err.into())
+            .await?;
+
+        Ok(list.items)
     }
 
     // Not wired up yet - pending the node-allocation feature work that will call these.
@@ -285,7 +287,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     ) -> Result<NodeAllocationPlan> {
         let nodes = self.get_nodes().await?;
 
-        NodeAllocationPlan::try_new(nodes, allocation).map_err(|err| err.into())
+        Ok(NodeAllocationPlan::try_new(nodes, allocation)?)
     }
 
     #[expect(dead_code)]
@@ -324,8 +326,6 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         let nodes = self.get_nodes().await?;
         let api = self.cluster_api::<Node>();
 
-        // Do this using futures so that we can submit the requests in parallel rather than
-        // via a for-loop
         let patches = nodes.into_iter().map(|node| {
             let api = api.clone();
             async move {
@@ -509,6 +509,10 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
                 return false;
             }
         }
+    }
+
+    async fn get_nodes(&mut self) -> Result<Vec<Node>> {
+        self.get_nodes().await
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::k8s::client::NODE_LABEL_PREFIX;
-use crate::k8s::client::nodes::NodeAllocationError::{Unsatisfiable, WeightOverflow, ZeroWeights};
 use k8s_openapi::api::core::v1::Node;
 use kube::ResourceExt;
 use std::collections::HashMap;
@@ -21,6 +20,8 @@ impl NodeAllocationPlan {
         mut nodes: Vec<Node>,
         allocation: HashMap<String, u32>,
     ) -> Result<Self, NodeAllocationError> {
+        use NodeAllocationError::{Unsatisfiable, WeightOverflow, ZeroWeights};
+
         let node_total: u32 = nodes.len() as u32;
 
         let allocation_total: u32 = allocation.values().sum();
@@ -123,30 +124,37 @@ mod test {
             .collect()
     }
 
+    fn allocation_map(weights: &[(&str, u32)]) -> HashMap<String, u32> {
+        weights.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
+
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3"]),
-        HashMap::from([(String::from("a"), 1), (String::from("b"), 1), (String::from("c"), 1)]),
-        HashMap::from([(String::from("a"), 1), (String::from("b"), 1), (String::from("c"), 1)]);
-        "three way split")]
+        &[("a", 1), ("b", 1), ("c", 1)],
+        &[("a", 1), ("b", 1), ("c", 1)];
+        "three way split"
+    )]
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3"]),
-        HashMap::from([(String::from("a"), 1), (String::from("b"), 2)]),
-        HashMap::from([(String::from("a"), 1), (String::from("b"), 2)]);
-        "lop-sided split")]
+        &[("a", 1), ("b", 2)],
+        &[("a", 1), ("b", 2)];
+        "lop-sided split"
+    )]
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3", "node-4"]),
-        HashMap::from([(String::from("only"), 1)]),
-        HashMap::from([(String::from("only"), 4)]);
-        "single bucket takes all nodes")]
+        &[("only", 1)],
+        &[("only", 4)];
+        "single bucket takes all nodes"
+    )]
     #[test]
     fn test_generates_correct_node_split(
         nodes: Vec<Node>,
-        allocation: HashMap<String, u32>,
-        expected_summary: HashMap<String, u32>,
+        allocation: &[(&str, u32)],
+        expected_summary: &[(&str, u32)],
     ) {
-        let actual = NodeAllocationPlan::try_new(nodes, allocation).unwrap();
+        let actual = NodeAllocationPlan::try_new(nodes, allocation_map(allocation)).unwrap();
         let proportions = summary(&actual);
-        assert_eq!(proportions, expected_summary);
+        assert_eq!(proportions, allocation_map(expected_summary));
     }
 
     #[test_case(
@@ -154,31 +162,35 @@ mod test {
             "node-1", "node-2", "node-3", "node-4", "node-5",
             "node-6", "node-7", "node-8", "node-9", "node-10",
         ]),
-        HashMap::from([(String::from("a"), 1), (String::from("b"), 3)]),
+        &[("a", 1), ("b", 3)],
         NodeAllocationError::Unsatisfiable;
-        "ratio not exactly divisible by node count")]
+        "ratio not exactly divisible by node count"
+    )]
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3"]),
-        HashMap::new(),
+        &[],
         NodeAllocationError::ZeroWeights;
-        "no allocation weights supplied")]
+        "no allocation weights supplied"
+    )]
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3"]),
-        HashMap::from([(String::from("a"), 0), (String::from("b"), 0)]),
+        &[("a", 0), ("b", 0)],
         NodeAllocationError::ZeroWeights;
-        "all weights are zero")]
+        "all weights are zero"
+    )]
     #[test_case(
         generate_nodes(vec!["node-1", "node-2", "node-3"]),
-        HashMap::from([(String::from("a"), u32::MAX)]),
+        &[("a", u32::MAX)],
         NodeAllocationError::WeightOverflow;
-        "weight too large to scale against node count")]
+        "weight too large to scale against node count"
+    )]
     #[test]
     fn test_returns_expected_error(
         nodes: Vec<Node>,
-        allocation: HashMap<String, u32>,
+        allocation: &[(&str, u32)],
         expected_error: NodeAllocationError,
     ) {
-        let actual = NodeAllocationPlan::try_new(nodes, allocation);
+        let actual = NodeAllocationPlan::try_new(nodes, allocation_map(allocation));
         assert_eq!(actual, Err(expected_error));
     }
 }
