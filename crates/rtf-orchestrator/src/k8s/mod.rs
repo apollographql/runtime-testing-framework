@@ -31,6 +31,7 @@ const CLI_BINARY: &str = "rtf-orchestrator-cli";
 pub(crate) const SCENARIO_SA_NAME: &str = "scenario-sa";
 pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";
 pub const ORCHESTRATOR_NAMESPACE: &str = "orchestrator";
+const NODE_INSTANCE_TYPE_LABEL: &str = "node.kubernetes.io/instance-type";
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -122,6 +123,25 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
 
     /// Fetch all nodes in the workload cluster.
     fn get_nodes(&mut self) -> impl Future<Output = Result<Vec<Node>>> + Send;
+
+    /// Summarise the nodes of the workload cluster by instance type.
+    fn nodes_summary(&mut self) -> impl Future<Output = Result<NodesSummary>> + Send {
+        async {
+            let nodes = self.get_nodes().await?;
+
+            let mut by_instance_type = std::collections::BTreeMap::new();
+            for node in &nodes {
+                let instance_type = node
+                    .labels()
+                    .get(NODE_INSTANCE_TYPE_LABEL)
+                    .cloned()
+                    .unwrap_or_else(|| "unknown".to_string());
+                *by_instance_type.entry(instance_type).or_insert(0) += 1;
+            }
+
+            Ok(NodesSummary { by_instance_type })
+        }
+    }
 }
 
 /// Kubernetes API actions that interact with both the management and workload clusters.
@@ -169,25 +189,6 @@ pub fn workflow_name(execution_id: &Uuid) -> String {
 
 pub fn env_configmap_name(execution_id: &Uuid) -> String {
     format!("environment-config-{execution_id}")
-}
-
-/// Summarise the nodes of a workload cluster by instance type.
-pub(crate) async fn workload_cluster_nodes_summary(
-    mut clients: impl WorkloadClient,
-) -> Result<NodesSummary> {
-    let nodes = clients.get_nodes().await?;
-
-    let mut by_instance_type = std::collections::BTreeMap::new();
-    for node in &nodes {
-        let instance_type = node
-            .labels()
-            .get("node.kubernetes.io/instance-type")
-            .cloned()
-            .unwrap_or_else(|| "unknown".to_string());
-        *by_instance_type.entry(instance_type).or_insert(0) += 1;
-    }
-
-    Ok(NodesSummary { by_instance_type })
 }
 
 #[cfg(test)]

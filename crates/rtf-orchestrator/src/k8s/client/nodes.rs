@@ -3,10 +3,10 @@ use k8s_openapi::api::core::v1::Node;
 use kube::ResourceExt;
 use std::collections::HashMap;
 
-// Not wired up yet - pending the node-allocation feature work that will call this. Exercised by
-// tests, so `expect(dead_code)` would be unfulfilled outside a test build.
-#[allow(dead_code)]
 /// A struct to represent an allocation of node labels to nodes
+// Not wired up yet - pending the node-allocation feature work that will call this, only used in
+// tests
+#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Debug)]
 pub(crate) struct NodeAllocationPlan {
     // Map of node ID to the label (key, value) to apply to it
@@ -14,7 +14,7 @@ pub(crate) struct NodeAllocationPlan {
 }
 
 impl NodeAllocationPlan {
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     /// Create an allocation, testing whether it's valid throughout
     pub(crate) fn try_new(
         mut nodes: Vec<Node>,

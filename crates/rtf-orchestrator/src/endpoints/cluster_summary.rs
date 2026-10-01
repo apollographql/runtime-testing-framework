@@ -7,7 +7,7 @@ use crate::{
     },
     conn,
     db::{ClusterId, cluster_history::hourly_execution_counts},
-    k8s,
+    k8s::{self, WorkloadClient},
 };
 use axum::Json;
 use cached::proc_macro::cached;
@@ -53,13 +53,14 @@ async fn cached_node_summaries(clusters: Vec<ClusterId>) -> HashMap<ClusterId, N
 /// `None` when the cluster's nodes could not be fetched (e.g. it is unreachable) - a single
 /// broken cluster should not take down the whole summary.
 async fn cluster_node_summary(cfg: &WorkloadClusterConfig) -> Option<NodesSummary> {
-    let clients =
+    let mut clients =
         k8s::ClusterClients::try_new_workload(&cfg.kubeconfig_path(), &cfg.workload_context)
             .await
             .inspect_err(|e| warn!(cluster = %cfg.name, %e, "failed to build workload client"))
             .ok()?;
 
-    k8s::workload_cluster_nodes_summary(clients)
+    clients
+        .nodes_summary()
         .await
         .inspect_err(|e| warn!(cluster = %cfg.name, %e, "failed to fetch node summary"))
         .ok()

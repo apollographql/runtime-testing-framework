@@ -37,8 +37,9 @@ pub(crate) mod nodes;
 // Not wired up yet - pending the node-allocation feature work that will call these.
 #[expect(dead_code)]
 const MANAGER_NAME: &str = "rtf-orchestrator";
-// Exercised by nodes.rs's tests, so `expect(dead_code)` would be unfulfilled outside a test build.
-#[allow(dead_code)]
+// Not wired up yet - pending the node-allocation feature work that will call this. Already
+// exercised by nodes.rs's tests, so the dead_code lint only applies outside test builds.
+#[cfg_attr(not(test), expect(dead_code))]
 const NODE_LABEL_PREFIX: &str = "rtf.io/node-allocation";
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
 // exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
