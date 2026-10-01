@@ -24,10 +24,7 @@ use kube::{
 };
 use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
 use serde_json::json;
-use std::{
-    collections::{BTreeMap, HashMap},
-    time,
-};
+use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
@@ -284,7 +281,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     /// that its impossible to apply that particular allocation to the set of nodes
     async fn plan_node_label_allocation(
         &mut self,
-        allocation: HashMap<String, u32>,
+        allocation: Vec<(String, u32)>,
     ) -> Result<NodeAllocationPlan> {
         let nodes = self.get_nodes().await?;
 
@@ -294,10 +291,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     #[expect(dead_code)]
     /// Take a given allocation and actually re-label the nodes such that they correspond to the
     /// given allocation.
-    async fn apply_node_label_allocation(
-        &mut self,
-        allocation: HashMap<String, u32>,
-    ) -> Result<()> {
+    async fn apply_node_label_allocation(&mut self, allocation: Vec<(String, u32)>) -> Result<()> {
         let node_allocation_plan = self.plan_node_label_allocation(allocation).await?;
         let api = self.cluster_api::<Node>();
 
