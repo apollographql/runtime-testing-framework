@@ -1,4 +1,4 @@
-use crate::db::{self, ClusterId, Queryable, Result};
+use crate::db::{self, PoolId, Queryable, Result};
 use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, UpdateKnownTestPlanRequest};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use uuid::Uuid;
@@ -16,6 +16,7 @@ pub struct KnownTestPlan {
     path: String,
     pinned_workload_cluster: Option<String>,
     allow_k8s_write: bool,
+    requires_dedicated_cluster: bool,
 }
 
 impl Queryable for KnownTestPlan {
@@ -51,12 +52,16 @@ impl KnownTestPlan {
         &self.path
     }
 
-    pub fn pinned_workload_cluster(&self) -> Option<ClusterId> {
-        self.pinned_workload_cluster.as_ref().map(ClusterId::new)
+    pub fn pinned_workload_pool(&self) -> Option<PoolId> {
+        self.pinned_workload_cluster.as_ref().map(PoolId::new)
     }
 
     pub fn allow_k8s_write(&self) -> bool {
         self.allow_k8s_write
+    }
+
+    pub fn requires_dedicated_cluster(&self) -> bool {
+        self.requires_dedicated_cluster
     }
 
     /// Register a new known test plan.
@@ -79,7 +84,8 @@ impl KnownTestPlan {
             VALUES
               ($1, $2, $3, $4, $5)
             RETURNING
-              id, uuid, name, description, org, repo, path, pinned_workload_cluster, allow_k8s_write;
+              id, uuid, name, description, org, repo, path, pinned_workload_cluster, allow_k8s_write,
+              requires_dedicated_cluster;
             "#,
         )
         .bind(name)
@@ -127,6 +133,11 @@ impl KnownTestPlan {
             push_if_some!(sep, update.path, "path = ");
             push_if_some!(sep, update.pinned_cluster, "pinned_workload_cluster = ");
             push_if_some!(sep, update.allow_k8s_write, "allow_k8s_write = ");
+            push_if_some!(
+                sep,
+                update.requires_dedicated_cluster,
+                "requires_dedicated_cluster = "
+            );
         }
         qb.push(" WHERE id = ").push_bind(self.id);
 
@@ -169,6 +180,7 @@ impl KnownTestPlan {
             path: self.path,
             pinned_workload_cluster: self.pinned_workload_cluster,
             allow_k8s_write: self.allow_k8s_write,
+            requires_dedicated_cluster: self.requires_dedicated_cluster,
         }
     }
 }
@@ -256,16 +268,12 @@ impl KnownTestPlanFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{conn, db::TestRun};
+    use crate::{config::DEFAULT_POOL, conn, db::TestRun};
     use std::assert_matches;
     use uuid::Uuid;
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
-    }
-
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -345,7 +353,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &DEFAULT_POOL, c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), Some("abc123"), c).await?;
 
@@ -363,7 +371,7 @@ mod tests {
         let known =
             KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                 .await?;
-        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator(&unique("run"), None, &DEFAULT_POOL, c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
 

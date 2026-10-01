@@ -1,12 +1,19 @@
-use crate::{Error, db::ClusterId};
+use crate::{
+    Error,
+    db::{ClusterId, PoolId},
+};
 use rtf_config::context::Context;
 use serde::Deserialize;
 use std::{
-    collections::{BTreeMap, HashMap},
-    env, fs,
+    collections::{BTreeMap, HashMap, HashSet},
+    env, fs, iter,
     net::SocketAddr,
     sync::LazyLock,
 };
+use thiserror::Error;
+
+const DEFAULT_POOL_NAME: &str = "default";
+pub const DEFAULT_POOL: PoolId = PoolId::new_static(DEFAULT_POOL_NAME);
 
 const APOLLO_KEY_VAR: &str = "RTF_APOLLO_KEY";
 const CONFIG_PATH_VAR: &str = "RTF_CONFIG_PATH";
@@ -24,8 +31,36 @@ const DEFAULT_MAX_RUNS_PER_HOUR: usize = 10;
 
 static CONFIG: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_env() {
     Ok(cfg) => cfg,
-    Err(e) => panic!("invalid config file: {e}"),
+    Err(errors) => {
+        let errors: Vec<_> = errors.iter().map(|e| format!("  - {e}")).collect();
+        panic!("invalid config file:\n{}", errors.join("\n"))
+    }
 });
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ConfigError {
+    #[error("invalid YAML: {inner}")]
+    Yaml { inner: String },
+
+    #[error("duplicate cluster name: {name}")]
+    DuplicateClusterName { name: String },
+
+    #[error("duplicate pool name: {name}")]
+    DuplicatePoolName { name: String },
+
+    #[error("empty pool: {pool}")]
+    EmptyPool { pool: String },
+
+    #[error("pool {pool} contains unknown cluster: {cluster}")]
+    UnknownCluster { pool: String, cluster: String },
+
+    #[error("cluster {cluster} appears in multiple pools: {first}, {second}")]
+    ClusterInMultiplePools {
+        cluster: String,
+        first: String,
+        second: String,
+    },
+}
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct Config {
@@ -51,7 +86,7 @@ impl Config {
     /// - `APOLLO_KEY_VAR`
     /// - `GH_APP_ID_VAR`
     /// - `GH_PEM_VAR`
-    pub fn try_parse_from_env() -> Result<Self, serde_yaml::Error> {
+    pub fn try_parse_from_env() -> Result<Self, Vec<ConfigError>> {
         let expect_env = |var| env::var(var).unwrap_or_else(|_| panic!("{var} not set"));
 
         let mut cfg = match fs::read_to_string(expect_env(CONFIG_PATH_VAR)) {
@@ -68,8 +103,15 @@ impl Config {
         Ok(cfg)
     }
 
-    fn try_parse(text: &str) -> Result<Self, serde_yaml::Error> {
-        serde_yaml::from_str(text)
+    fn try_parse(text: &str) -> Result<Self, Vec<ConfigError>> {
+        let cfg: Self = serde_yaml::from_str(text).map_err(|e| {
+            vec![ConfigError::Yaml {
+                inner: e.to_string(),
+            }]
+        })?;
+        cfg.workload_clusters.validate()?;
+
+        Ok(cfg)
     }
 
     pub fn get() -> &'static Self {
@@ -101,18 +143,15 @@ impl Config {
 
     pub fn per_user_execution_config(
         &self,
-        cluster_id: &ClusterId,
+        pool: &PoolId,
     ) -> Result<PerUserExecutionConfig, Error> {
-        Ok(self
-            .workload_clusters
-            .per_cluster_config()
-            .get(cluster_id)
-            .ok_or_else(|| Error::UnknownWorkloadCluster {
-                cluster: cluster_id.to_string(),
-            })?
-            .execution
-            .per_user
-            .clone())
+        self.workload_clusters
+            .cluster_pools
+            .pool_config(pool)
+            .map(|p| p.per_user_limits.clone())
+            .ok_or_else(|| Error::UnknownWorkloadPool {
+                pool: pool.to_string(),
+            })
     }
 }
 
@@ -142,13 +181,70 @@ pub struct ServerConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct WorkloadClusters {
-    pub default_cluster: String,
     pub max_queued_executions: usize,
     pub cluster_roles: ClusterRoles,
     pub available_clusters: Vec<WorkloadClusterConfig>,
+    pub cluster_pools: ClusterPools,
 }
 
 impl WorkloadClusters {
+    pub fn validate(&self) -> Result<(), Vec<ConfigError>> {
+        let mut errors = Vec::new();
+        let mut cluster_names = HashSet::new();
+        let mut pool_names = HashSet::new();
+        let mut pool_members: HashMap<&str, &str> = HashMap::new();
+
+        // Ensure that cluster names are unique
+        for c in self.available_clusters.iter() {
+            if !cluster_names.insert(c.name.as_str()) {
+                errors.push(ConfigError::DuplicateClusterName {
+                    name: c.name.clone(),
+                });
+            }
+        }
+
+        for (pool_name, pool) in self.cluster_pools.iter() {
+            // Ensure that pool names are unique
+            if !pool_names.insert(pool_name) {
+                errors.push(ConfigError::DuplicatePoolName {
+                    name: pool_name.to_string(),
+                });
+            }
+            // Ensure that pools have at least one cluster
+            if pool.available_clusters.is_empty() {
+                errors.push(ConfigError::EmptyPool {
+                    pool: pool_name.to_string(),
+                });
+            }
+
+            for cluster in pool.available_clusters.iter() {
+                // Ensure that pools only contain known clusters
+                if !cluster_names.contains(cluster.as_str()) {
+                    errors.push(ConfigError::UnknownCluster {
+                        pool: pool_name.to_string(),
+                        cluster: cluster.to_string(),
+                    });
+                    continue;
+                }
+
+                // Ensure clusters are only in a single pool
+                if let Some(other) = pool_members.insert(cluster, pool_name) {
+                    errors.push(ConfigError::ClusterInMultiplePools {
+                        cluster: cluster.to_string(),
+                        first: other.to_string(),
+                        second: pool_name.to_string(),
+                    });
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
     pub fn available_clusters(&self) -> Vec<ClusterId> {
         self.available_clusters
             .iter()
@@ -156,8 +252,29 @@ impl WorkloadClusters {
             .collect()
     }
 
-    pub fn default_workload_cluster(&self) -> ClusterId {
-        ClusterId::new(&self.default_cluster)
+    pub fn available_pools(&self) -> Vec<PoolId> {
+        self.cluster_pools
+            .iter()
+            .map(|(name, _)| PoolId::new(name))
+            .collect()
+    }
+
+    pub fn dedicated_pools(&self) -> HashSet<PoolId> {
+        self.cluster_pools
+            .iter()
+            .filter(|(_, pool)| pool.supports_dedicated)
+            .map(|(name, _)| PoolId::new(name))
+            .collect()
+    }
+
+    pub fn pool_clusters(&self) -> HashMap<PoolId, Vec<ClusterId>> {
+        self.cluster_pools
+            .iter()
+            .map(|(name, pool)| {
+                let clusters = pool.available_clusters.iter().map(ClusterId::new).collect();
+                (PoolId::new(name), clusters)
+            })
+            .collect()
     }
 
     pub fn per_cluster_config(&self) -> HashMap<ClusterId, WorkloadClusterConfig> {
@@ -183,6 +300,48 @@ pub struct ClusterRoles {
     pub cluster_read: String,
     pub namespace_read: String,
     pub namespace_write: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ClusterPools {
+    pub default: PoolConfig,
+    #[serde(default)]
+    pub additional: Vec<NamedPoolConfig>,
+}
+
+impl ClusterPools {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &PoolConfig)> {
+        iter::once((DEFAULT_POOL_NAME, &self.default))
+            .chain(self.additional.iter().map(|p| (p.name.as_str(), &p.config)))
+    }
+
+    fn pool_config(&self, pool: &PoolId) -> Option<&PoolConfig> {
+        self.iter()
+            .find(|(name, _)| *name == pool.as_str())
+            .map(|(_, config)| config)
+    }
+
+    pub fn pool_config_for_cluster(&self, cluster: &str) -> Option<&PoolConfig> {
+        self.iter()
+            .map(|(_, pool)| pool)
+            .find(|pool| pool.available_clusters.iter().any(|c| c == cluster))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct NamedPoolConfig {
+    pub name: String,
+    #[serde(flatten)]
+    pub config: PoolConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct PoolConfig {
+    #[serde(default)]
+    pub supports_dedicated: bool,
+    pub available_clusters: Vec<String>,
+    #[serde(default)]
+    pub per_user_limits: PerUserExecutionConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -218,8 +377,6 @@ pub struct ClusterExecutionConfig {
     /// be removed before freeing its concurrency slot.
     #[serde(default = "namespace_cleanup_timeout_secs")]
     pub namespace_cleanup_timeout_secs: u64,
-    #[serde(default)]
-    pub per_user: PerUserExecutionConfig,
 }
 
 fn namespace_cleanup_timeout_secs() -> u64 {
@@ -292,6 +449,7 @@ pub struct GcsConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use simple_test_case::test_case;
 
     impl Config {
         pub fn for_test() -> Self {
@@ -352,7 +510,25 @@ mod tests {
             names: &[&str],
         ) -> Self {
             Self {
-                default_cluster: default_cluster.to_string(),
+                cluster_pools: ClusterPools {
+                    default: PoolConfig {
+                        supports_dedicated: false,
+                        available_clusters: vec![default_cluster.to_string()],
+                        per_user_limits: Default::default(),
+                    },
+                    additional: names
+                        .iter()
+                        .filter(|name| **name != default_cluster)
+                        .map(|name| NamedPoolConfig {
+                            name: name.to_string(),
+                            config: PoolConfig {
+                                supports_dedicated: false,
+                                available_clusters: vec![name.to_string()],
+                                per_user_limits: Default::default(),
+                            },
+                        })
+                        .collect(),
+                },
                 max_queued_executions: 100,
                 cluster_roles: ClusterRoles {
                     cluster_read: "scenario-cluster-read".into(),
@@ -370,7 +546,6 @@ mod tests {
                             failed_execution_ttl_secs: 600,
                             retry_window_secs: 5 * 60,
                             poll_interval_secs: 10,
-                            per_user: Default::default(),
                             exclusive_nodes: false,
                             scenario_node_selector: BTreeMap::new(),
                             namespace_cleanup_timeout_secs: 90,
@@ -386,5 +561,88 @@ mod tests {
         let raw = include_str!("../resources/local-config.yaml");
 
         Config::try_parse(raw).expect("local config used in tests should parse");
+    }
+
+    fn pool(clusters: &[&str]) -> PoolConfig {
+        PoolConfig {
+            supports_dedicated: false,
+            available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
+            per_user_limits: Default::default(),
+        }
+    }
+
+    fn named_pool(name: &str, clusters: &[&str]) -> NamedPoolConfig {
+        NamedPoolConfig {
+            name: name.to_string(),
+            config: pool(clusters),
+        }
+    }
+
+    fn with_pools(
+        clusters: &[&str],
+        default: PoolConfig,
+        additional: Vec<NamedPoolConfig>,
+    ) -> WorkloadClusters {
+        let mut wc = WorkloadClusters::for_test_with_available_clusters(1, clusters[0], clusters);
+        wc.cluster_pools = ClusterPools {
+            default,
+            additional,
+        };
+
+        wc
+    }
+
+    #[test]
+    fn validate_accepts_valid_config() {
+        let wc = with_pools(
+            &["alpha", "beta", "gamma"],
+            pool(&["alpha"]),
+            vec![named_pool("perf", &["beta", "gamma"])],
+        );
+
+        assert!(wc.validate().is_ok());
+    }
+
+    #[test_case(
+        with_pools(&["a", "a"], pool(&["a"]), vec![]),
+        vec![ConfigError::DuplicateClusterName { name: "a".into() }];
+        "duplicate cluster names"
+    )]
+    #[test_case(
+        with_pools(&["a", "b"], pool(&["a"]), vec![named_pool("default", &["b"])]),
+        vec![ConfigError::DuplicatePoolName { name: "default".into() }];
+        "additional pool named default"
+    )]
+    #[test_case(
+        with_pools(&["a", "b", "c"], pool(&["a"]), vec![named_pool("X", &["b"]), named_pool("X", &["c"])]),
+        vec![ConfigError::DuplicatePoolName { name: "X".into() }];
+        "duplicate pool names"
+    )]
+    #[test_case(
+        with_pools(&["a"], pool(&["a"]), vec![named_pool("X", &[])]),
+        vec![ConfigError::EmptyPool { pool: "X".into() }];
+        "empty pool"
+    )]
+    #[test_case(
+        with_pools(&["a"], pool(&["a", "b"]), vec![]),
+        vec![ConfigError::UnknownCluster { pool: "default".into(), cluster: "b".into() }];
+        "unknown cluster"
+    )]
+    #[test_case(
+        with_pools(&["a"], pool(&["a"]), vec![named_pool("X", &["a"])]),
+        vec![ConfigError::ClusterInMultiplePools { cluster: "a".into(), first: "default".into(), second: "X".into() }];
+        "cluster in multiple pools"
+    )]
+    #[test_case(
+        with_pools(&["a"], pool(&["a", "b"]), vec![named_pool("X", &[])]),
+        vec![
+            ConfigError::UnknownCluster { pool: "default".into(), cluster: "b".into() },
+            ConfigError::EmptyPool { pool: "X".into() }
+        ];
+        "multiple errors are returned together"
+    )]
+    #[test]
+    fn validate_rejects_invalid_config(wc: WorkloadClusters, expected: Vec<ConfigError>) {
+        assert_eq!(wc.validate().unwrap_err(), expected);
     }
 }

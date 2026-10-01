@@ -3,7 +3,7 @@ use crate::{
     config::Config,
     conn,
     context::OrchestratorContext,
-    db::{ClusterId, TestExecution, TestRun, UpdateHandle},
+    db::{ClusterId, TestExecution, UpdateHandle},
     event_loop::{EventData, ProvisioningHandle},
     state::TestRunWithPayload,
 };
@@ -45,6 +45,9 @@ pub enum ResolverError {
     #[error("{0} is not a known run ID")]
     UnknownRun(Uuid),
 
+    #[error("{0} is not a configured workload cluster pool")]
+    UnknownPool(String),
+
     #[error("static checks failed: {0}")]
     VariantCheck(#[from] rtf_config::checks::Errors),
 
@@ -73,11 +76,8 @@ pub async fn resolver_task(
 
     while let Some(input) = queue.next_input().await {
         match input {
-            ResolverInput::TestRun(boxed) => {
-                let TestRunWithPayload { test_run, payload } = *boxed;
-                match resolve_test_plan(test_run, payload, Config::get(), conn!(), &prov_handle)
-                    .await
-                {
+            ResolverInput::TestRun(boxed_trp) => {
+                match resolve_test_plan(&boxed_trp, Config::get(), conn!(), &prov_handle).await {
                     ControlFlow::Break(_) => break,
                     ControlFlow::Continue(_) => continue,
                 }
@@ -147,15 +147,14 @@ impl ResolverQueue {
     }
 }
 
-#[tracing::instrument(skip_all, fields(test_run_id = %test_run.uuid(), name = %test_run.name()))]
+#[tracing::instrument(skip_all, fields(test_run_id = %trp.test_run.uuid(), name = %trp.test_run.name()))]
 async fn resolve_test_plan<H: UpdateHandle>(
-    test_run: TestRun,
-    payload: PreparedPayload,
+    trp: &TestRunWithPayload,
     cfg: &Config,
     update_handle: &mut H,
     prov_handle: &ProvisioningHandle,
 ) -> ControlFlow<()> {
-    if let Err(e) = try_resolve(&test_run, payload, update_handle, cfg, prov_handle).await {
+    if let Err(e) = try_resolve(trp, update_handle, cfg, prov_handle).await {
         match e {
             ResolverError::EventChannelClosed => {
                 error!(%e);
@@ -165,7 +164,7 @@ async fn resolve_test_plan<H: UpdateHandle>(
             _ => {
                 warn!(%e, "test plan resolution failed");
                 update_handle
-                    .mark_run_as_unrunnable(&test_run, e.to_string())
+                    .mark_run_as_unrunnable(&trp.test_run, e.to_string())
                     .await;
             }
         }
@@ -175,8 +174,11 @@ async fn resolve_test_plan<H: UpdateHandle>(
 }
 
 async fn try_resolve<H>(
-    test_run: &TestRun,
-    payload: PreparedPayload,
+    TestRunWithPayload {
+        test_run,
+        payload,
+        requires_dedicated,
+    }: &TestRunWithPayload,
     update_handle: &mut H,
     cfg: &Config,
     prov_handle: &ProvisioningHandle,
@@ -204,14 +206,18 @@ where
 
     let expanded_matrix = test_plan.matrix.try_expand(&test_plan.variables)?;
 
-    update_handle
-        .cache_payload_for_run(test_run, &payload)
-        .await;
+    let pool = test_run.workload_pool();
+    if !cfg.workload_clusters.available_pools().contains(&pool) {
+        return Err(ResolverError::UnknownPool(pool.to_string()));
+    }
+
+    update_handle.cache_payload_for_run(test_run, payload).await;
     prov_handle
         .cache_for_test_run(
             test_run.uuid(),
             test_run.initiated_by().map(|s| s.to_owned()),
             test_run.allow_k8s_write(),
+            *requires_dedicated,
             ctx,
             test_plan,
         )
@@ -222,13 +228,7 @@ where
 
     for (i, (name, _)) in expanded_matrix.iter().enumerate() {
         let res = prov_handle
-            .request_provisioning(
-                test_run,
-                name,
-                i,
-                test_run.workload_cluster(),
-                update_handle,
-            )
+            .request_provisioning(test_run, name, i, pool.clone(), update_handle)
             .await;
 
         match res {
@@ -320,7 +320,7 @@ fn prepare_resolution(
 mod tests {
     use super::*;
     use crate::{
-        config::Config,
+        config::{Config, DEFAULT_POOL},
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
         event_loop::{EventData, EventQueue},
         state::TestRunWithPayload,
@@ -339,7 +339,7 @@ mod tests {
         test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
     };
     use simple_test_case::test_case;
-    use std::collections::HashMap;
+    use std::{assert_matches, collections::HashMap};
 
     fn alpha_cluster() -> ClusterId {
         ClusterId::new("alpha")
@@ -501,8 +501,9 @@ mod tests {
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(tr.uuid(), None, false, ctx, tp).await;
-        ph.request_provisioning(&tr, "test", 0, alpha_cluster(), &mut mock)
+        ph.cache_for_test_run(tr.uuid(), None, false, false, ctx, tp)
+            .await;
+        ph.request_provisioning(&tr, "test", 0, DEFAULT_POOL, &mut mock)
             .await
             .unwrap();
         // drain the ResolveEnvConfig sent by request_provisioning
@@ -551,6 +552,14 @@ mod tests {
         );
     }
 
+    fn trp(test_run: TestRun, payload: PreparedPayload) -> TestRunWithPayload {
+        TestRunWithPayload {
+            test_run,
+            payload,
+            requires_dedicated: false,
+        }
+    }
+
     #[tokio::test]
     async fn resolve_test_plan_set_resolving_fails_exits_early() {
         let test_run = TestRun::create_stub(1, "test");
@@ -559,7 +568,7 @@ mod tests {
         let cfg = Config::for_test();
         let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
-        _ = resolve_test_plan(test_run, empty_payload(), &cfg, &mut handle, &ph).await;
+        _ = resolve_test_plan(&trp(test_run, empty_payload()), &cfg, &mut handle, &ph).await;
 
         assert_eq!(handle.status_updates, vec![]);
     }
@@ -576,7 +585,7 @@ mod tests {
         let cfg = Config::for_test();
         let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
-        _ = resolve_test_plan(test_run.clone(), payload, &cfg, &mut handle, &ph).await;
+        _ = resolve_test_plan(&trp(test_run, payload), &cfg, &mut handle, &ph).await;
 
         let run_updates: Vec<_> = handle
             .status_updates
@@ -589,8 +598,8 @@ mod tests {
             "expected Resolving + Unrunnable: {:?}",
             run_updates
         );
-        assert!(
-            matches!(run_updates[0], TaggedStatusUpdate::Run(_, s) if s.status == Status::Resolving)
+        assert_matches!(
+            run_updates[0], TaggedStatusUpdate::Run(_, s) if s.status == Status::Resolving
         );
 
         let unrunnable = match run_updates[1] {
@@ -637,7 +646,7 @@ mod tests {
             },
         };
 
-        _ = resolve_test_plan(test_run.clone(), payload, &cfg, &mut handle, &ph).await;
+        _ = resolve_test_plan(&trp(test_run.clone(), payload), &cfg, &mut handle, &ph).await;
 
         let run_updates: Vec<_> = handle
             .status_updates
@@ -645,9 +654,7 @@ mod tests {
             .filter(|u| matches!(u, TaggedStatusUpdate::Run(_, _)))
             .collect();
         assert_eq!(run_updates.len(), 2, "{run_updates:?}");
-        assert!(
-            matches!(run_updates[0], TaggedStatusUpdate::Run(_, s) if s.status == Status::Resolving)
-        );
+        assert_matches!(run_updates[0], TaggedStatusUpdate::Run(_, s) if s.status == Status::Resolving);
         let TaggedStatusUpdate::Run(_, unrunnable) = run_updates[1] else {
             panic!("expected Run update at index 1");
         };
@@ -689,15 +696,24 @@ mod tests {
             .try_reserve_pending_executions(&payload.test_plan)
             .await
             .unwrap();
-        eqs.try_submit_test_plan(claim, tr.clone(), payload)
-            .await
-            .unwrap();
+        eqs.try_submit_test_plan(
+            claim,
+            TestRunWithPayload {
+                test_run: tr.clone(),
+                payload,
+                requires_dedicated: false,
+            },
+        )
+        .await
+        .unwrap();
         let ResolverInput::TestRun(boxed) = rx.recv().await.unwrap() else {
             panic!("expected TestRun input");
         };
-        let TestRunWithPayload { test_run, payload } = *boxed;
+        let TestRunWithPayload {
+            test_run, payload, ..
+        } = *boxed;
 
-        _ = resolve_test_plan(test_run, payload, &cfg, &mut handle, &ph).await;
+        _ = resolve_test_plan(&trp(test_run, payload), &cfg, &mut handle, &ph).await;
 
         // TestRun status set to Resolving
         let run_updates: Vec<_> = handle
@@ -748,7 +764,7 @@ mod tests {
         let cfg = Config::for_test();
         let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
-        _ = resolve_test_plan(tr.clone(), empty_payload(), &cfg, &mut handle, &ph).await;
+        _ = resolve_test_plan(&trp(tr.clone(), empty_payload()), &cfg, &mut handle, &ph).await;
 
         assert_eq!(handle.test_executions, vec![]);
         assert_eq!(handle.cleared_payload_caches, vec![tr.uuid()]);
@@ -771,27 +787,19 @@ mod tests {
             .try_reserve_pending_executions(&payload.test_plan)
             .await
             .unwrap();
-        eqs.try_submit_test_plan(claim, tr.clone(), payload)
+        eqs.try_submit_test_plan(claim, trp(tr.clone(), payload))
             .await
             .unwrap();
         let ResolverInput::TestRun(boxed) = rx.recv().await.unwrap() else {
             panic!("expected TestRun input");
         };
-        let TestRunWithPayload { test_run, payload } = *boxed;
 
-        let res = resolve_test_plan(test_run, payload, &cfg, &mut handle, &ph).await;
+        let res = resolve_test_plan(&boxed, &cfg, &mut handle, &ph).await;
         assert_eq!(
             res,
             ControlFlow::Break(()),
             "expected ControlFlow::Break to be returned"
         )
-    }
-
-    fn boxed_test_run(name: &str) -> Box<TestRunWithPayload> {
-        Box::new(TestRunWithPayload {
-            test_run: TestRun::create_stub(1, name),
-            payload: empty_payload(),
-        })
     }
 
     #[tokio::test]
@@ -802,8 +810,12 @@ mod tests {
         let env_ex = TestExecution::create_stub(1, 1, 0, "env");
 
         // Submit in reverse priority
-        tx.send(ResolverInput::TestRun(boxed_test_run("tr")))
-            .unwrap();
+        tx.send(ResolverInput::TestRun(Box::new(TestRunWithPayload {
+            test_run: TestRun::create_stub(1, "tr"),
+            payload: empty_payload(),
+            requires_dedicated: false,
+        })))
+        .unwrap();
         tx.send(ResolverInput::ResolveConfig(
             env_ex.clone(),
             alpha_cluster(),

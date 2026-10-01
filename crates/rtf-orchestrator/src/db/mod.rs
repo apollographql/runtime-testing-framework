@@ -1,7 +1,7 @@
 use rtf_orchestrator_shared::payload::PreparedPayload;
 use serde::Serialize;
 use sqlx::{AssertSqlSafe, Database, FromRow, PgConnection, Postgres};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 use thiserror::Error;
 use tracing::error;
 use uuid::Uuid;
@@ -76,6 +76,29 @@ impl ClusterId {
 }
 
 impl fmt::Display for ClusterId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct PoolId(Cow<'static, str>);
+
+impl PoolId {
+    pub const fn new_static(s: &'static str) -> Self {
+        Self(Cow::Borrowed(s))
+    }
+
+    pub fn new(s: impl Into<String>) -> Self {
+        Self(Cow::Owned(s.into()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for PoolId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -361,6 +384,17 @@ pub trait UpdateHandle: Send + Sync {
     ) -> impl Future<Output = ()> + Send;
 
     fn clear_cached_payload_for_run(&mut self, run_uuid: Uuid) -> impl Future<Output = ()> + Send;
+
+    fn run_requires_dedicated_cluster(
+        &mut self,
+        tr: &TestRun,
+    ) -> impl Future<Output = crate::Result<bool>> + Send;
+
+    fn set_execution_workload_cluster(
+        &mut self,
+        ex: &mut TestExecution,
+        cluster: &ClusterId,
+    ) -> impl Future<Output = crate::Result<()>> + Send;
 }
 
 impl UpdateHandle for PgConnection {
@@ -420,6 +454,18 @@ impl UpdateHandle for PgConnection {
             error!(%run_uuid, %err, "Unable to evict cached payload for run");
         }
     }
+
+    async fn run_requires_dedicated_cluster(&mut self, tr: &TestRun) -> crate::Result<bool> {
+        Ok(tr.requires_dedicated_cluster(self).await?)
+    }
+
+    async fn set_execution_workload_cluster(
+        &mut self,
+        ex: &mut TestExecution,
+        cluster: &ClusterId,
+    ) -> crate::Result<()> {
+        Ok(ex.set_workload_cluster(cluster, self).await?)
+    }
 }
 
 #[cfg(test)]
@@ -473,6 +519,7 @@ mod update_handle {
         pub status_updates: Vec<TaggedStatusUpdate>,
         pub cached_payloads: Vec<Uuid>,
         pub cleared_payload_caches: Vec<Uuid>,
+        pub dedicated_runs: Vec<i32>,
     }
 
     impl MockUpdateHandle {
@@ -596,6 +643,27 @@ mod update_handle {
 
         async fn clear_cached_payload_for_run(&mut self, run_uuid: Uuid) {
             self.cleared_payload_caches.push(run_uuid);
+        }
+
+        async fn run_requires_dedicated_cluster(&mut self, tr: &TestRun) -> crate::Result<bool> {
+            Ok(self.dedicated_runs.contains(&tr.id()))
+        }
+
+        async fn set_execution_workload_cluster(
+            &mut self,
+            ex: &mut TestExecution,
+            cluster: &ClusterId,
+        ) -> crate::Result<()> {
+            for known_ex in self.test_executions.iter_mut() {
+                if known_ex.id() == ex.id() {
+                    known_ex.set_in_memory_workload_cluster(cluster);
+                    ex.set_in_memory_workload_cluster(cluster);
+
+                    return Ok(());
+                }
+            }
+
+            Err(Error::UnknownTestExecution { id: ex.uuid() })
         }
     }
 }

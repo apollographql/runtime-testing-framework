@@ -5,7 +5,7 @@
 use crate::{
     Error,
     config::PerUserExecutionConfig,
-    db::{ClusterId, TestRun},
+    db::{PoolId, TestRun},
     event_loop::EventQueueState,
     state::UserType,
 };
@@ -32,7 +32,7 @@ pub enum RateLimitError {
 pub async fn apply_rate_limits(
     eq_state: &EventQueueState,
     per_user: &PerUserExecutionConfig,
-    cluster: &ClusterId,
+    pool: &PoolId,
     user: &UserType,
     conn: &mut PgConnection,
 ) -> Result<usize, Error> {
@@ -41,11 +41,11 @@ pub async fn apply_rate_limits(
         UserType::Admin(_) | UserType::Unknown => return Ok(0),
     };
 
-    let counts = eq_state.user_queue_counts(&identity, cluster).await;
+    let counts = eq_state.user_queue_counts(&identity, pool).await;
 
     if counts.ongoing_runs >= per_user.max_concurrent_runs {
         return Err(Error::RateLimited {
-            cluster: cluster.clone(),
+            pool: pool.clone(),
             reason: RateLimitError::ConcurrentRuns {
                 current: counts.ongoing_runs as u64,
                 max: per_user.max_concurrent_runs as u64,
@@ -53,7 +53,7 @@ pub async fn apply_rate_limits(
         });
     } else if counts.queued_runs >= per_user.max_queued_runs {
         return Err(Error::RateLimited {
-            cluster: cluster.clone(),
+            pool: pool.clone(),
             reason: RateLimitError::QueuedRuns {
                 current: counts.queued_runs as u64,
                 max: per_user.max_queued_runs as u64,
@@ -62,12 +62,11 @@ pub async fn apply_rate_limits(
     }
 
     let since = Utc::now() - Duration::hours(1);
-    let started_in_last_hour =
-        TestRun::started_since(&identity, cluster, since, conn).await? as usize;
+    let started_in_last_hour = TestRun::started_since(&identity, pool, since, conn).await? as usize;
 
     if started_in_last_hour >= per_user.max_runs_per_hour {
         return Err(Error::RateLimited {
-            cluster: cluster.clone(),
+            pool: pool.clone(),
             reason: RateLimitError::RunsPerHour {
                 current: started_in_last_hour as u64,
                 max: per_user.max_runs_per_hour as u64,
@@ -80,7 +79,7 @@ pub async fn apply_rate_limits(
 
 pub fn check_queued_executions(
     per_user: &PerUserExecutionConfig,
-    cluster: &ClusterId,
+    pool: &PoolId,
     user: &UserType,
     current_queued_executions: usize,
     n_variants: usize,
@@ -93,7 +92,7 @@ pub fn check_queued_executions(
 
     if projected > per_user.max_queued_executions {
         return Err(Error::RateLimited {
-            cluster: cluster.clone(),
+            pool: pool.clone(),
             reason: RateLimitError::QueuedExecutions {
                 current: current_queued_executions as u64,
                 max: per_user.max_queued_executions as u64,
@@ -107,11 +106,8 @@ pub fn check_queued_executions(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::DEFAULT_POOL;
     use std::assert_matches;
-
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
-    }
 
     #[test]
     fn check_queued_executions_rejects_only_once_the_projected_total_exceeds_max() {
@@ -121,10 +117,10 @@ mod tests {
         };
         let user = UserType::User("alice".to_string());
 
-        let at_max = check_queued_executions(&per_user, &alpha_cluster(), &user, 3, 2);
+        let at_max = check_queued_executions(&per_user, &DEFAULT_POOL, &user, 3, 2);
         assert!(at_max.is_ok(), "{at_max:?}");
 
-        let over_max = check_queued_executions(&per_user, &alpha_cluster(), &user, 4, 2);
+        let over_max = check_queued_executions(&per_user, &DEFAULT_POOL, &user, 4, 2);
         assert_matches!(
             over_max,
             Err(Error::RateLimited {
@@ -144,7 +140,7 @@ mod tests {
 
         let res = check_queued_executions(
             &per_user,
-            &alpha_cluster(),
+            &DEFAULT_POOL,
             &UserType::Admin("alice".to_string()),
             100,
             100,

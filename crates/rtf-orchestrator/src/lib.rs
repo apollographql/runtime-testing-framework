@@ -147,6 +147,17 @@ mod test_helpers {
     use super::*;
     use crate::{event_loop::ProvisioningHandle, resolver::ResolverInput};
     use axum_test::TestServer;
+    use rtf_config::{
+        formats::{
+            ComposeResources, DockerCommand, DockerComposeEnvironment, DockerScenario,
+            EnvironmentConfig, OutputCollection, ScenarioConfig,
+        },
+        templating::Field,
+    };
+    use rtf_orchestrator_shared::{
+        payload::{PreparedPayload, SourceKeyedArrayMap},
+        test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
+    };
     use tokio::sync::mpsc::UnboundedReceiver;
 
     /// A wrapper around the top level state needed for writing tests of the overall server
@@ -235,6 +246,53 @@ mod test_helpers {
                 "../resources/trigger-payloads/invalid-compose.json"
             ))
             .unwrap()
+        }
+    }
+
+    pub fn stub_payload() -> PreparedPayload {
+        PreparedPayload {
+            variables: None,
+            variable_sources: Default::default(),
+            test_plan: OrchestratorTestPlan {
+                name: String::new(),
+                description: String::new(),
+                variables: Default::default(),
+                matrix: Default::default(),
+                custom_providers: vec![],
+                scenario: ScenarioConfig {
+                    name: String::new(),
+                    description: String::new(),
+                    variable_definitions: vec![],
+                    custom_providers: vec![],
+                    execution: DockerScenario {
+                        docker: DockerCommand {
+                            image: Field::Resolved("nginx".into()),
+                            tag: None,
+                            command: Field::Resolved("echo test".into()),
+                        },
+                        env_vars: Default::default(),
+                        file_providers: vec![],
+                        output_collection: OutputCollection { prometheus: vec![] },
+                    },
+                },
+                environment: EnvironmentConfig {
+                    name: String::new(),
+                    description: String::new(),
+                    variable_definitions: vec![],
+                    custom_providers: vec![],
+                    execution: OrchestratorEnvironment::DockerCompose(DockerComposeEnvironment {
+                        resources: ComposeResources {
+                            project_name: None,
+                            compose_files: vec![],
+                        },
+                        file_providers: vec![],
+                        env_vars: Default::default(),
+                        output_collection: OutputCollection { prometheus: vec![] },
+                    }),
+                },
+            },
+            relative_files: SourceKeyedArrayMap::empty(),
+            custom_providers: SourceKeyedArrayMap::empty(),
         }
     }
 }

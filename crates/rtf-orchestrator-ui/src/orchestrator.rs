@@ -504,6 +504,7 @@ pub(crate) mod mocks {
             path: "test-plans/example.yaml".to_owned(),
             pinned_workload_cluster: None,
             allow_k8s_write: false,
+            requires_dedicated_cluster: false,
         }
     }
 

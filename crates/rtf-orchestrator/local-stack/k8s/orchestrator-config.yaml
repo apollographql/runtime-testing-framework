@@ -29,7 +29,6 @@ data:
       orchestrator_url: __ORCHESTRATOR_URL__
 
     workload_clusters:
-      default_cluster: alpha
       max_queued_executions: 100
       cluster_roles:
         cluster_read: scenario-cluster-read
@@ -44,6 +43,10 @@ data:
             failed_execution_ttl_secs: 60
             retry_window_secs: 300
             poll_interval_secs: 10
+      cluster_pools:
+        default:
+          available_clusters:
+            - alpha
 
     toolbox:
       pull_policy: IfNotPresent

@@ -1,7 +1,7 @@
 use crate::{
     config::ClusterRoles,
     db::{TestExecution, UpdateHandle},
-    event_loop::{ClusterId, Error, Event, EventData, Result},
+    event_loop::{ClusterId, Error, Event, EventData, QueueEvent, Result},
     k8s::{WatchOutcome, WorkloadClient, scenario_job},
 };
 use rtf_orchestrator_shared::SCENARIO_JOB_NAME;
@@ -79,7 +79,7 @@ pub(super) async fn wait_for_job<K, H>(
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
-    etx: UnboundedSender<Event>,
+    etx: UnboundedSender<QueueEvent>,
     clients: K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
@@ -114,25 +114,20 @@ where
 #[expect(clippy::too_many_arguments)]
 async fn wait_and_update<K>(
     namespace: &str,
-    test_execution: TestExecution,
+    ex: TestExecution,
     cluster: ClusterId,
     failed_execution_ttl_seconds: u64,
     poll_interval_secs: u64,
     retry_window_secs: u64,
-    etx: &UnboundedSender<Event>,
+    etx: &UnboundedSender<QueueEvent>,
     mut clients: K,
 ) where
     K: WorkloadClient,
 {
-    let execution_id = test_execution.uuid();
+    let execution_id = ex.uuid();
 
     let to_send = match clients
-        .wait_for_job(
-            namespace,
-            &test_execution.uuid(),
-            poll_interval_secs,
-            retry_window_secs,
-        )
+        .wait_for_job(namespace, &ex.uuid(), poll_interval_secs, retry_window_secs)
         .await
     {
         WatchOutcome::Succeeded => {
@@ -167,11 +162,11 @@ async fn wait_and_update<K>(
     };
 
     for data in to_send.into_iter() {
-        let _ = etx.send(Event {
-            test_execution: test_execution.clone(),
-            cluster: cluster.clone(),
+        let _ = etx.send(QueueEvent::Other(Event::new(
+            ex.clone(),
+            cluster.clone(),
             data,
-        });
+        )));
     }
 }
 
@@ -186,6 +181,7 @@ mod tests {
         },
     };
     use simple_test_case::test_case;
+    use std::assert_matches;
     use tokio::sync::mpsc;
 
     fn alpha_cluster() -> ClusterId {
@@ -272,7 +268,7 @@ mod tests {
         )
         .await;
 
-        assert!(matches!(res, Err(Error::CreateJob { .. })));
+        assert_matches!(res, Err(Error::CreateJob { .. }));
         assert_eq!(
             &handle.status_updates,
             &[TaggedStatusUpdate::execution(
@@ -304,8 +300,8 @@ mod tests {
         )
         .await;
 
-        let evt = erx.try_recv().unwrap();
-        assert!(matches!(evt.data, EventData::CleanupNamespace), "{evt:?}");
+        let evt = erx.try_recv().unwrap().unwrap_other();
+        assert_matches!(evt.data, EventData::CleanupNamespace, "{evt:?}");
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]
@@ -334,14 +330,16 @@ mod tests {
         )
         .await;
 
-        let first = erx.try_recv().unwrap();
-        let second = erx.try_recv().unwrap();
-        assert!(
-            matches!(first.data, EventData::MarkUnrunnable(_)),
+        let first = erx.try_recv().unwrap().unwrap_other();
+        let second = erx.try_recv().unwrap().unwrap_other();
+        assert_matches!(
+            first.data,
+            EventData::MarkUnrunnable(_),
             "first event: {first:?}"
         );
-        assert!(
-            matches!(second.data, EventData::CleanupNamespaceAfter(600)),
+        assert_matches!(
+            second.data,
+            EventData::CleanupNamespaceAfter(600),
             "second event: {second:?}"
         );
     }

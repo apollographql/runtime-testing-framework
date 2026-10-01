@@ -1,5 +1,5 @@
 use crate::db::{
-    Queryable, Result,
+    ClusterId, Queryable, Result,
     status::{Status, StatusTracked},
     test_run::TestRun,
 };
@@ -29,6 +29,7 @@ pub struct TestExecution {
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
     has_file_upload: bool,
+    workload_cluster: Option<String>,
 }
 
 impl Queryable for TestExecution {
@@ -107,6 +108,31 @@ impl TestExecution {
         self.test_run_id
     }
 
+    pub fn workload_cluster(&self) -> Option<ClusterId> {
+        self.workload_cluster.as_ref().map(ClusterId::new)
+    }
+
+    #[cfg(test)]
+    pub fn set_in_memory_workload_cluster(&mut self, cluster: &ClusterId) {
+        self.workload_cluster = Some(cluster.to_string());
+    }
+
+    pub async fn set_workload_cluster(
+        &mut self,
+        cluster: &ClusterId,
+        conn: &mut PgConnection,
+    ) -> Result<()> {
+        conn.execute(
+            sqlx::query("UPDATE test_execution SET workload_cluster = $1 WHERE id = $2;")
+                .bind(cluster.as_str())
+                .bind(self.id),
+        )
+        .await?;
+        self.workload_cluster = Some(cluster.to_string());
+
+        Ok(())
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, test_run_id: i32, index: usize, name: &str) -> Self {
         Self {
@@ -120,6 +146,7 @@ impl TestExecution {
             started_at: Utc::now(),
             completed_at: None,
             has_file_upload: false,
+            workload_cluster: None,
         }
     }
 
@@ -141,7 +168,7 @@ impl TestExecution {
         let ex: TestExecution = sqlx::query_as(
             "INSERT INTO test_execution (test_run_id, test_plan_index, name)
              VALUES ($1, $2, $3)
-             RETURNING id, uuid, test_run_id, test_plan_index, name, token, exit_code, started_at, completed_at, has_file_upload;
+             RETURNING id, uuid, test_run_id, test_plan_index, name, token, exit_code, started_at, completed_at, has_file_upload, workload_cluster;
             ",
         )
         .bind(test_run_id)
@@ -209,7 +236,7 @@ impl TestExecution {
         let tr = self.test_run(conn).await?;
         let test_run_id = tr.uuid();
         let test_plan_id = tr.test_plan_uuid(conn).await?;
-        let cluster = tr.workload_cluster().to_string();
+        let cluster = tr.workload_pool().to_string();
         let status_history = self.status_history(conn).await?;
         let mut summary = self.try_into_summary(conn).await?;
 
@@ -226,23 +253,17 @@ impl TestExecution {
 mod tests {
     use super::*;
     use crate::{
+        config::DEFAULT_POOL,
         conn,
-        db::{
-            ClusterId,
-            status::{Status, StatusTracked},
-        },
+        db::status::{Status, StatusTracked},
     };
     use simple_test_case::test_case;
-
-    fn alpha_cluster() -> ClusterId {
-        ClusterId::new("alpha")
-    }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn init_creates_execution_with_initialising_status() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let res = TestExecution::init("test", tr.id(), 0, c).await;
         assert!(res.is_ok(), "{res:?}");
 
@@ -257,7 +278,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_returns_matching_execution() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex1 = TestExecution::init("test", tr.id(), 0, c).await?;
         let ex2 = TestExecution::get_by_id(ex1.id, c).await?;
 
@@ -270,7 +291,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_unchecked_returns_matching_execution() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex1 = TestExecution::init("test", tr.id(), 0, c).await?;
         let ex2 = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
 
@@ -283,7 +304,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_uuid_returns_matching_execution() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex1 = TestExecution::init("test", tr.id(), 0, c).await?;
         let ex2 = TestExecution::get_by_uuid(&ex1.uuid, c).await?;
 
@@ -297,7 +318,7 @@ mod tests {
     async fn test_run_returns_parent_run() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::init_unknown_initiator("A", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("A", None, &DEFAULT_POOL, c).await?;
         let ex1 = TestExecution::init("a", tr.id(), 0, c).await?;
         let ex2 = TestExecution::init("b", tr.id(), 0, c).await?;
 
@@ -315,7 +336,7 @@ mod tests {
     async fn set_exit_code_persists_value() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::init_unknown_initiator("A", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("A", None, &DEFAULT_POOL, c).await?;
         let mut ex1 = TestExecution::init("a", tr.id(), 0, c).await?;
 
         assert!(ex1.exit_code.is_none(), "after init: {ex1:?}");
@@ -334,7 +355,7 @@ mod tests {
     async fn mark_has_file_upload_persists_value() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::init_unknown_initiator("A", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("A", None, &DEFAULT_POOL, c).await?;
         let mut ex1 = TestExecution::init("a", tr.id(), 0, c).await?;
 
         assert!(!ex1.has_file_upload, "after init: {ex1:?}");
@@ -344,6 +365,25 @@ mod tests {
 
         let queried = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
         assert!(queried.has_file_upload, "queried struct: {queried:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn set_workload_cluster_persists_value() -> Result<()> {
+        let c = conn!();
+
+        let tr = TestRun::init_unknown_initiator("A", None, &DEFAULT_POOL, c).await?;
+        let mut ex = TestExecution::init("a", tr.id(), 0, c).await?;
+        assert_eq!(ex.workload_cluster(), None);
+
+        let cluster = ClusterId::new("beta");
+        ex.set_workload_cluster(&cluster, c).await?;
+        assert_eq!(ex.workload_cluster(), Some(cluster.clone()));
+
+        let queried = TestExecution::get_by_id_unchecked(ex.id, c).await?;
+        assert_eq!(queried.workload_cluster(), Some(cluster));
 
         Ok(())
     }
@@ -358,7 +398,7 @@ mod tests {
     #[tokio::test]
     async fn set_status_and_current_status_match(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex = TestExecution::init("test", tr.id(), 0, c).await?;
 
         ex.set_status(status, None, c).await?;
@@ -373,7 +413,7 @@ mod tests {
     #[tokio::test]
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex = TestExecution::init("test", tr.id(), 0, c).await?; // sets Status::Initialising
         ex.set_status(Status::Running, None, c).await?;
         ex.set_status(Status::Successful, None, c).await?;
@@ -394,7 +434,7 @@ mod tests {
     #[tokio::test]
     async fn set_terminal_status_sets_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex = TestExecution::init("test", tr.id(), 0, c).await?;
         assert!(ex.completed_at.is_none());
 
@@ -412,7 +452,7 @@ mod tests {
     #[tokio::test]
     async fn set_non_terminal_status_does_not_set_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex = TestExecution::init("test", tr.id(), 0, c).await?;
         assert!(ex.completed_at.is_none());
 
@@ -433,7 +473,7 @@ mod tests {
         execution_status: Status,
     ) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         if let Some(s) = run_status {
             tr.set_status(s, None, c).await?;
         }
@@ -452,7 +492,7 @@ mod tests {
     #[tokio::test]
     async fn execution_provisioning_and_running_are_high_water_mark(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         tr.set_status(status, None, c).await?;
         let ex = tr.init_execution("test", 0, c).await?;
 
@@ -476,7 +516,7 @@ mod tests {
     #[tokio::test]
     async fn single_execution_terminal_status_propagates_immediately(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex = tr.init_execution("test", 0, c).await?;
         ex.set_status(status, None, c).await?;
 
@@ -490,7 +530,7 @@ mod tests {
     #[tokio::test]
     async fn terminal_status_propagation_requires_all_executions() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init_unknown_initiator("test", None, &alpha_cluster(), c).await?;
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
         let ex1 = tr.init_execution("a", 0, c).await?;
         let ex2 = tr.init_execution("b", 1, c).await?;
         let ex3 = tr.init_execution("c", 2, c).await?;
