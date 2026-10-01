@@ -34,8 +34,9 @@ use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 // Not wired up yet - pending the node-allocation feature work that will call these.
-#[allow(dead_code)]
+#[expect(dead_code)]
 const MANAGER_NAME: &str = "rtf-orchestrator";
+// Exercised by nodes.rs's tests, so `expect(dead_code)` would be unfulfilled outside a test build.
 #[allow(dead_code)]
 const NODE_LABEL_PREFIX: &str = "rtf.io/node-allocation";
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
@@ -273,7 +274,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
     }
 
     // Not wired up yet - pending the node-allocation feature work that will call these.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     /// Take a given allocation (i.e. a set of label and weight pairs) and try and apply
     /// that on top of the nodes that come back from the cluster. Errors indicate either
     /// data could not be gathered that is necessary to plan the allocation or
@@ -287,7 +288,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         NodeAllocationPlan::try_new(nodes, allocation).map_err(|err| err.into())
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     /// Take a given allocation and actually re-label the nodes such that they correspond to the
     /// given allocation.
     async fn apply_node_label_allocation(
@@ -316,7 +317,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         Ok(())
     }
 
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     /// Remove from the node all the labels that have our prefix on them so we can reset a
     /// cluster after using it
     async fn remove_all_prefixed_labels(&mut self) -> Result<()> {

@@ -4,7 +4,8 @@ use k8s_openapi::api::core::v1::Node;
 use kube::ResourceExt;
 use std::collections::HashMap;
 
-// Not wired up yet - pending the node-allocation feature work that will call this.
+// Not wired up yet - pending the node-allocation feature work that will call this. Exercised by
+// tests, so `expect(dead_code)` would be unfulfilled outside a test build.
 #[allow(dead_code)]
 /// A struct to represent an allocation of node labels to nodes
 #[derive(Debug)]
