@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ClusterExecutionConfig","ClusterRoles","Config","DbConfig","GcsConfig","GithubConfig","OtelConfig","PerUserExecutionConfig","ServerConfig","ToolboxConfig","WorkloadClusterConfig","WorkloadClusters"]};
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_POOL"],"enum":["ConfigError"],"struct":["ClusterExecutionConfig","ClusterPools","ClusterRoles","Config","DbConfig","GcsConfig","GithubConfig","NamedPoolConfig","OtelConfig","PerUserExecutionConfig","PoolConfig","ServerConfig","ToolboxConfig","WorkloadClusterConfig","WorkloadClusters"]};
