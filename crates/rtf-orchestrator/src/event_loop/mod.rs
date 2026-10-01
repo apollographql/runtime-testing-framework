@@ -197,10 +197,10 @@ pub enum QueueEvent {
 
 #[cfg(test)]
 impl QueueEvent {
-    fn unwrap_ongoing(self) -> Event {
+    fn unwrap_other(self) -> Event {
         match self {
             Self::Other(evt) => evt,
-            other => panic!("expected an ongoing event, got {other:?}"),
+            pending => panic!("expected non-provisioning, got {pending:?}"),
         }
     }
 }

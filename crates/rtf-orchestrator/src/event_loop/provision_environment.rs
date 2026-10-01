@@ -329,10 +329,10 @@ mod tests {
         wait_and_update(ex, alpha_cluster(), 600, 10, 300, &etx, clients).await;
 
         // should get two events: workflow complete and create scenario configmap
-        let evt = erx.try_recv().unwrap().unwrap_ongoing();
+        let evt = erx.try_recv().unwrap().unwrap_other();
         assert_matches!(evt.data, EventData::ArgoWorkflowComplete, "{evt:?}");
 
-        let evt = erx.try_recv().unwrap().unwrap_ongoing();
+        let evt = erx.try_recv().unwrap().unwrap_other();
         assert_matches!(evt.data, EventData::CreateScenarioJob, "{evt:?}");
     }
 
@@ -352,8 +352,8 @@ mod tests {
 
         wait_and_update(ex, alpha_cluster(), 600, 10, 300, &etx, clients).await;
 
-        let first = erx.try_recv().unwrap().unwrap_ongoing();
-        let second = erx.try_recv().unwrap().unwrap_ongoing();
+        let first = erx.try_recv().unwrap().unwrap_other();
+        let second = erx.try_recv().unwrap().unwrap_other();
         assert_matches!(
             first.data,
             EventData::MarkUnrunnable(_),

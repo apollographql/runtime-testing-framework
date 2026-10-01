@@ -259,7 +259,6 @@ impl WorkloadClusters {
             .collect()
     }
 
-    /// Pools that dedicated clusters can be claimed from.
     pub fn dedicated_pools(&self) -> HashSet<PoolId> {
         self.cluster_pools
             .iter()
@@ -268,7 +267,6 @@ impl WorkloadClusters {
             .collect()
     }
 
-    /// The clusters that make up each pool.
     pub fn pool_clusters(&self) -> HashMap<PoolId, Vec<ClusterId>> {
         self.cluster_pools
             .iter()

@@ -155,7 +155,7 @@ mod tests {
 
         wait_and_notify("test-namespace", ex, alpha_cluster(), 10, 90, &etx, clients).await;
 
-        let evt = erx.try_recv().unwrap().unwrap_ongoing();
+        let evt = erx.try_recv().unwrap().unwrap_other();
         assert_matches!(evt.data, EventData::MarkExecutionComplete, "{evt:?}");
     }
 
@@ -172,7 +172,7 @@ mod tests {
 
         wait_and_notify("test-namespace", ex, alpha_cluster(), 10, 90, &etx, clients).await;
 
-        let evt = erx.try_recv().unwrap().unwrap_ongoing();
+        let evt = erx.try_recv().unwrap().unwrap_other();
         assert_matches!(evt.data, EventData::MarkExecutionComplete, "{evt:?}");
     }
 }

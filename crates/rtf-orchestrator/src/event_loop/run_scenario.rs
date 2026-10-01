@@ -300,7 +300,7 @@ mod tests {
         )
         .await;
 
-        let evt = erx.try_recv().unwrap().unwrap_ongoing();
+        let evt = erx.try_recv().unwrap().unwrap_other();
         assert_matches!(evt.data, EventData::CleanupNamespace, "{evt:?}");
     }
 
@@ -330,8 +330,8 @@ mod tests {
         )
         .await;
 
-        let first = erx.try_recv().unwrap().unwrap_ongoing();
-        let second = erx.try_recv().unwrap().unwrap_ongoing();
+        let first = erx.try_recv().unwrap().unwrap_other();
+        let second = erx.try_recv().unwrap().unwrap_other();
         assert_matches!(
             first.data,
             EventData::MarkUnrunnable(_),

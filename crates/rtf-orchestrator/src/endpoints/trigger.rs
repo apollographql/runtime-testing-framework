@@ -24,7 +24,7 @@ pub async fn handler(
 ) -> Result<Json<TestRunSummary>, Error> {
     let user = state.identify_user(&headers).await?;
     let cfg = Config::get();
-    let payload = PayloadWithMeta::resolve(trigger_payload, &DEFAULT_POOL, conn!()).await?;
+    let payload = PayloadWithMeta::resolve(trigger_payload, conn!()).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.pool)?;
 
     if payload.requires_dedicated_cluster && !state.eq_state.supports_dedicated(&payload.pool) {
@@ -155,13 +155,12 @@ struct PayloadWithMeta<T> {
 impl PayloadWithMeta<PreparedOrGitHub> {
     async fn resolve(
         trigger_payload: TriggerPayload,
-        default_pool: &PoolId,
         conn: &mut PgConnection,
     ) -> Result<Self, Error> {
         let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
             let pool = known
                 .pinned_workload_pool()
-                .unwrap_or_else(|| default_pool.clone());
+                .unwrap_or_else(|| DEFAULT_POOL.clone());
             let allow_k8s_write = known.allow_k8s_write();
             let requires_dedicated_cluster = known.requires_dedicated_cluster();
             let known_link = KnownTestPlanLink {
@@ -187,7 +186,7 @@ impl PayloadWithMeta<PreparedOrGitHub> {
 
         Ok(match trigger_payload {
             TriggerPayload::Prepared(payload) => Self {
-                pool: default_pool.clone(),
+                pool: DEFAULT_POOL.clone(),
                 allow_k8s_write: false,
                 requires_dedicated_cluster: false,
                 link: None,
@@ -195,7 +194,7 @@ impl PayloadWithMeta<PreparedOrGitHub> {
             },
 
             TriggerPayload::GitHub(payload) => Self {
-                pool: default_pool.clone(),
+                pool: DEFAULT_POOL.clone(),
                 allow_k8s_write: false,
                 requires_dedicated_cluster: false,
                 link: None,
