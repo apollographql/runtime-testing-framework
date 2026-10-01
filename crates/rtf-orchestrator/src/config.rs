@@ -148,7 +148,7 @@ impl Config {
         self.workload_clusters
             .cluster_pools
             .pool_config(pool)
-            .map(|p| p.per_user.clone())
+            .map(|p| p.per_user_limits.clone())
             .ok_or_else(|| Error::UnknownWorkloadPool {
                 pool: pool.to_string(),
             })
@@ -262,7 +262,7 @@ impl WorkloadClusters {
     pub fn dedicated_pools(&self) -> HashSet<PoolId> {
         self.cluster_pools
             .iter()
-            .filter(|(_, pool)| pool.dedicated)
+            .filter(|(_, pool)| pool.supports_dedicated)
             .map(|(name, _)| PoolId::new(name))
             .collect()
     }
@@ -338,10 +338,10 @@ pub struct NamedPoolConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PoolConfig {
     #[serde(default)]
-    pub dedicated: bool,
+    pub supports_dedicated: bool,
     pub available_clusters: Vec<String>,
     #[serde(default)]
-    pub per_user: PerUserExecutionConfig,
+    pub per_user_limits: PerUserExecutionConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -512,9 +512,9 @@ mod tests {
             Self {
                 cluster_pools: ClusterPools {
                     default: PoolConfig {
-                        dedicated: false,
+                        supports_dedicated: false,
                         available_clusters: vec![default_cluster.to_string()],
-                        per_user: Default::default(),
+                        per_user_limits: Default::default(),
                     },
                     additional: names
                         .iter()
@@ -522,9 +522,9 @@ mod tests {
                         .map(|name| NamedPoolConfig {
                             name: name.to_string(),
                             config: PoolConfig {
-                                dedicated: false,
+                                supports_dedicated: false,
                                 available_clusters: vec![name.to_string()],
-                                per_user: Default::default(),
+                                per_user_limits: Default::default(),
                             },
                         })
                         .collect(),
@@ -565,9 +565,9 @@ mod tests {
 
     fn pool(clusters: &[&str]) -> PoolConfig {
         PoolConfig {
-            dedicated: false,
+            supports_dedicated: false,
             available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
-            per_user: Default::default(),
+            per_user_limits: Default::default(),
         }
     }
 

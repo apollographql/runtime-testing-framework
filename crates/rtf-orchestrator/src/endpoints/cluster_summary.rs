@@ -48,7 +48,7 @@ fn cluster_summary(
                 })
                 .map(|cfg| WorkloadClusterSummary {
                     name: cfg.name.clone(),
-                    execution: execution_summary(&cfg.execution, &pool.per_user),
+                    execution: execution_summary(&cfg.execution, &pool.per_user_limits),
                     hourly_executions: hourly
                         .remove(&ClusterId::new(&cfg.name))
                         .unwrap_or_default(),
@@ -102,9 +102,9 @@ mod tests {
 
     fn pool(clusters: &[&str]) -> PoolConfig {
         PoolConfig {
-            dedicated: false,
+            supports_dedicated: false,
             available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
-            per_user: Default::default(),
+            per_user_limits: Default::default(),
         }
     }
 

@@ -2657,7 +2657,7 @@ mod tests {
         let mut clusters =
             WorkloadClusters::for_test_with_available_clusters(max_concurrent, "a", &["a", "b"]);
         clusters.cluster_pools.default.available_clusters = vec!["a".into(), "b".into()];
-        clusters.cluster_pools.default.dedicated = dedicated;
+        clusters.cluster_pools.default.supports_dedicated = dedicated;
         clusters.cluster_pools.additional.clear();
 
         clusters

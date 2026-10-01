@@ -104,9 +104,9 @@ mod tests {
             .push(NamedPoolConfig {
                 name: "beta".into(),
                 config: PoolConfig {
-                    dedicated: false,
+                    supports_dedicated: false,
                     available_clusters: vec!["beta".into()],
-                    per_user: Default::default(),
+                    per_user_limits: Default::default(),
                 },
             });
 
