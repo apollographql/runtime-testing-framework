@@ -611,7 +611,7 @@ mod tests {
     #[test_case(
         with_pools(&["a", "b"], pool(&["a"]), vec![named_pool("default", &["b"])]),
         vec![ConfigError::DuplicatePoolName { name: "default".into() }];
-        "additional cluster named default"
+        "additional pool named default"
     )]
     #[test_case(
         with_pools(&["a", "b", "c"], pool(&["a"]), vec![named_pool("X", &["b"]), named_pool("X", &["c"])]),

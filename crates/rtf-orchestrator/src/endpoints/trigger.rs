@@ -6,7 +6,7 @@ use crate::{
     error::Error,
     event_loop::SubmitError,
     rate_limit,
-    state::ServerState,
+    state::{ServerState, TestRunWithPayload},
 };
 use axum::{Json, extract::State, http::HeaderMap};
 use rtf_orchestrator_shared::{
@@ -113,7 +113,7 @@ pub async fn handler(
         .eq_state
         .try_submit_test_plan(
             claim,
-            crate::state::TestRunWithPayload {
+            TestRunWithPayload {
                 test_run,
                 payload: meta.payload,
                 requires_dedicated: meta.requires_dedicated_cluster,
@@ -277,8 +277,7 @@ mod tests {
     use super::*;
     use crate::test_helpers::{TestServerState, stub_payload};
     use reqwest::StatusCode;
-    use rtf_orchestrator_shared::known_test_plan::UpdateKnownTestPlanRequest;
-    use rtf_orchestrator_shared::status::Status;
+    use rtf_orchestrator_shared::{known_test_plan::UpdateKnownTestPlanRequest, status::Status};
     use uuid::Uuid;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]

@@ -48,9 +48,6 @@ pub enum ResolverError {
     #[error("{0} is not a configured workload cluster pool")]
     UnknownPool(String),
 
-    #[error("unable to check whether a dedicated cluster is required: {0}")]
-    DedicatedRequirement(String),
-
     #[error("static checks failed: {0}")]
     VariantCheck(#[from] rtf_config::checks::Errors),
 

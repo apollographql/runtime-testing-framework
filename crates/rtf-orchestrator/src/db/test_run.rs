@@ -467,7 +467,7 @@ impl CachedPayload {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
     use crate::{
         config::DEFAULT_POOL,
