@@ -14,7 +14,7 @@
 <a href=#14 id=14 data-nosnippet>14</a>    org: String,
 <a href=#15 id=15 data-nosnippet>15</a>    repo: String,
 <a href=#16 id=16 data-nosnippet>16</a>    path: String,
-<a href=#17 id=17 data-nosnippet>17</a>    pinned_workload_cluster: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#17 id=17 data-nosnippet>17</a>    pinned_workload_pool: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#18 id=18 data-nosnippet>18</a>    allow_k8s_write: bool,
 <a href=#19 id=19 data-nosnippet>19</a>    requires_dedicated_cluster: bool,
 <a href=#20 id=20 data-nosnippet>20</a>}
@@ -53,7 +53,7 @@
 <a href=#53 id=53 data-nosnippet>53</a>    }
 <a href=#54 id=54 data-nosnippet>54</a>
 <a href=#55 id=55 data-nosnippet>55</a>    <span class="kw">pub fn </span>pinned_workload_pool(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;PoolId&gt; {
-<a href=#56 id=56 data-nosnippet>56</a>        <span class="self">self</span>.pinned_workload_cluster.as_ref().map(PoolId::new)
+<a href=#56 id=56 data-nosnippet>56</a>        <span class="self">self</span>.pinned_workload_pool.as_ref().map(PoolId::new)
 <a href=#57 id=57 data-nosnippet>57</a>    }
 <a href=#58 id=58 data-nosnippet>58</a>
 <a href=#59 id=59 data-nosnippet>59</a>    <span class="kw">pub fn </span>allow_k8s_write(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -84,7 +84,7 @@
 <a href=#84 id=84 data-nosnippet>84</a>            VALUES
 <a href=#85 id=85 data-nosnippet>85</a>              ($1, $2, $3, $4, $5)
 <a href=#86 id=86 data-nosnippet>86</a>            RETURNING
-<a href=#87 id=87 data-nosnippet>87</a>              id, uuid, name, description, org, repo, path, pinned_workload_cluster, allow_k8s_write,
+<a href=#87 id=87 data-nosnippet>87</a>              id, uuid, name, description, org, repo, path, pinned_workload_pool, allow_k8s_write,
 <a href=#88 id=88 data-nosnippet>88</a>              requires_dedicated_cluster;
 <a href=#89 id=89 data-nosnippet>89</a>            "#</span>,
 <a href=#90 id=90 data-nosnippet>90</a>        )
@@ -131,7 +131,7 @@
 <a href=#131 id=131 data-nosnippet>131</a>            <span class="macro">push_if_some!</span>(sep, update.org, <span class="string">"org = "</span>);
 <a href=#132 id=132 data-nosnippet>132</a>            <span class="macro">push_if_some!</span>(sep, update.repo, <span class="string">"repo = "</span>);
 <a href=#133 id=133 data-nosnippet>133</a>            <span class="macro">push_if_some!</span>(sep, update.path, <span class="string">"path = "</span>);
-<a href=#134 id=134 data-nosnippet>134</a>            <span class="macro">push_if_some!</span>(sep, update.pinned_cluster, <span class="string">"pinned_workload_cluster = "</span>);
+<a href=#134 id=134 data-nosnippet>134</a>            <span class="macro">push_if_some!</span>(sep, update.pinned_workload_pool, <span class="string">"pinned_workload_pool = "</span>);
 <a href=#135 id=135 data-nosnippet>135</a>            <span class="macro">push_if_some!</span>(sep, update.allow_k8s_write, <span class="string">"allow_k8s_write = "</span>);
 <a href=#136 id=136 data-nosnippet>136</a>            <span class="macro">push_if_some!</span>(
 <a href=#137 id=137 data-nosnippet>137</a>                sep,
@@ -178,7 +178,7 @@
 <a href=#178 id=178 data-nosnippet>178</a>            org: <span class="self">self</span>.org,
 <a href=#179 id=179 data-nosnippet>179</a>            repo: <span class="self">self</span>.repo,
 <a href=#180 id=180 data-nosnippet>180</a>            path: <span class="self">self</span>.path,
-<a href=#181 id=181 data-nosnippet>181</a>            pinned_workload_cluster: <span class="self">self</span>.pinned_workload_cluster,
+<a href=#181 id=181 data-nosnippet>181</a>            pinned_workload_pool: <span class="self">self</span>.pinned_workload_pool,
 <a href=#182 id=182 data-nosnippet>182</a>            allow_k8s_write: <span class="self">self</span>.allow_k8s_write,
 <a href=#183 id=183 data-nosnippet>183</a>            requires_dedicated_cluster: <span class="self">self</span>.requires_dedicated_cluster,
 <a href=#184 id=184 data-nosnippet>184</a>        }

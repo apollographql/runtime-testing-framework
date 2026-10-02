@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>    <span class="kw">pub </span>org: String,
 <a href=#13 id=13 data-nosnippet>13</a>    <span class="kw">pub </span>repo: String,
 <a href=#14 id=14 data-nosnippet>14</a>    <span class="kw">pub </span>path: String,
-<a href=#15 id=15 data-nosnippet>15</a>    <span class="kw">pub </span>pinned_workload_cluster: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#15 id=15 data-nosnippet>15</a>    <span class="kw">pub </span>pinned_workload_pool: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#16 id=16 data-nosnippet>16</a>    <span class="kw">pub </span>allow_k8s_write: bool,
 <a href=#17 id=17 data-nosnippet>17</a>    <span class="kw">pub </span>requires_dedicated_cluster: bool,
 <a href=#18 id=18 data-nosnippet>18</a>}
@@ -57,7 +57,7 @@
 <a href=#57 id=57 data-nosnippet>57</a>        skip_serializing_if = <span class="string">"Option::is_none"</span>,
 <a href=#58 id=58 data-nosnippet>58</a>        deserialize_with = <span class="string">"explicit_null"
 <a href=#59 id=59 data-nosnippet>59</a>    </span>)]
-<a href=#60 id=60 data-nosnippet>60</a>    </span><span class="kw">pub </span>pinned_cluster: <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt;,
+<a href=#60 id=60 data-nosnippet>60</a>    </span><span class="kw">pub </span>pinned_workload_pool: <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt;,
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
 <a href=#62 id=62 data-nosnippet>62</a>    </span><span class="kw">pub </span>allow_k8s_write: <span class="prelude-ty">Option</span>&lt;bool&gt;,
 <a href=#63 id=63 data-nosnippet>63</a>    <span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]

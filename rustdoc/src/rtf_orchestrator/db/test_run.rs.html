@@ -31,7 +31,7 @@
 <a href=#31 id=31 data-nosnippet>31</a>    started_at: DateTime&lt;Utc&gt;,
 <a href=#32 id=32 data-nosnippet>32</a>    completed_at: <span class="prelude-ty">Option</span>&lt;DateTime&lt;Utc&gt;&gt;,
 <a href=#33 id=33 data-nosnippet>33</a>    variables_id: <span class="prelude-ty">Option</span>&lt;i32&gt;,
-<a href=#34 id=34 data-nosnippet>34</a>    workload_cluster: String,
+<a href=#34 id=34 data-nosnippet>34</a>    workload_pool: String,
 <a href=#35 id=35 data-nosnippet>35</a>    allow_k8s_write: bool,
 <a href=#36 id=36 data-nosnippet>36</a>}
 <a href=#37 id=37 data-nosnippet>37</a>
@@ -66,7 +66,7 @@
 <a href=#66 id=66 data-nosnippet>66</a>    }
 <a href=#67 id=67 data-nosnippet>67</a>
 <a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">pub fn </span>workload_pool(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PoolId {
-<a href=#69 id=69 data-nosnippet>69</a>        PoolId::new(<span class="kw-2">&amp;</span><span class="self">self</span>.workload_cluster)
+<a href=#69 id=69 data-nosnippet>69</a>        PoolId::new(<span class="kw-2">&amp;</span><span class="self">self</span>.workload_pool)
 <a href=#70 id=70 data-nosnippet>70</a>    }
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="kw">pub fn </span>allow_k8s_write(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -83,7 +83,7 @@
 <a href=#83 id=83 data-nosnippet>83</a>            started_at: Utc::now(),
 <a href=#84 id=84 data-nosnippet>84</a>            completed_at: <span class="prelude-val">None</span>,
 <a href=#85 id=85 data-nosnippet>85</a>            variables_id: <span class="prelude-val">None</span>,
-<a href=#86 id=86 data-nosnippet>86</a>            workload_cluster: <span class="string">"default"</span>.into(),
+<a href=#86 id=86 data-nosnippet>86</a>            workload_pool: <span class="string">"default"</span>.into(),
 <a href=#87 id=87 data-nosnippet>87</a>            allow_k8s_write: <span class="bool-val">false</span>,
 <a href=#88 id=88 data-nosnippet>88</a>        }
 <a href=#89 id=89 data-nosnippet>89</a>    }
@@ -110,7 +110,7 @@
 <a href=#110 id=110 data-nosnippet>110</a>            WHERE
 <a href=#111 id=111 data-nosnippet>111</a>              initiated_by = $1
 <a href=#112 id=112 data-nosnippet>112</a>            AND
-<a href=#113 id=113 data-nosnippet>113</a>              workload_cluster = $2
+<a href=#113 id=113 data-nosnippet>113</a>              workload_pool = $2
 <a href=#114 id=114 data-nosnippet>114</a>            AND
 <a href=#115 id=115 data-nosnippet>115</a>              started_at &gt;= $3;"#</span>,
 <a href=#116 id=116 data-nosnippet>116</a>        )
@@ -135,9 +135,9 @@
 <a href=#135 id=135 data-nosnippet>135</a>        };
 <a href=#136 id=136 data-nosnippet>136</a>
 <a href=#137 id=137 data-nosnippet>137</a>        <span class="kw">let </span>tr: TestRun = sqlx::query_as(
-<a href=#138 id=138 data-nosnippet>138</a>            <span class="string">"INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_cluster, allow_k8s_write)
+<a href=#138 id=138 data-nosnippet>138</a>            <span class="string">"INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_pool, allow_k8s_write)
 <a href=#139 id=139 data-nosnippet>139</a>             VALUES ($1, NOW(), $2, $3, $4, $5)
-<a href=#140 id=140 data-nosnippet>140</a>             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_cluster, allow_k8s_write;
+<a href=#140 id=140 data-nosnippet>140</a>             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_pool, allow_k8s_write;
 <a href=#141 id=141 data-nosnippet>141</a>            "</span>,
 <a href=#142 id=142 data-nosnippet>142</a>        )
 <a href=#143 id=143 data-nosnippet>143</a>        .bind(name)
@@ -219,7 +219,7 @@
 <a href=#219 id=219 data-nosnippet>219</a>            id: <span class="self">self</span>.uuid,
 <a href=#220 id=220 data-nosnippet>220</a>            test_plan_id,
 <a href=#221 id=221 data-nosnippet>221</a>            name: <span class="self">self</span>.name,
-<a href=#222 id=222 data-nosnippet>222</a>            cluster: <span class="self">self</span>.workload_cluster,
+<a href=#222 id=222 data-nosnippet>222</a>            pool: <span class="self">self</span>.workload_pool,
 <a href=#223 id=223 data-nosnippet>223</a>            trigger_variables,
 <a href=#224 id=224 data-nosnippet>224</a>            current_status: current.status.into(),
 <a href=#225 id=225 data-nosnippet>225</a>            initiated_by: <span class="self">self
@@ -538,7 +538,7 @@
 <a href=#538 id=538 data-nosnippet>538</a>
 <a href=#539 id=539 data-nosnippet>539</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#540 id=540 data-nosnippet>540</a>    #[tokio::test]
-<a href=#541 id=541 data-nosnippet>541</a>    </span><span class="kw">async fn </span>init_persists_workload_cluster() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#541 id=541 data-nosnippet>541</a>    </span><span class="kw">async fn </span>init_persists_workload_pool() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#542 id=542 data-nosnippet>542</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#543 id=543 data-nosnippet>543</a>        <span class="kw">let </span>tr = TestRun::init_unknown_initiator(<span class="string">"test"</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>perf_pool(), c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#544 id=544 data-nosnippet>544</a>        <span class="macro">assert_eq!</span>(tr.workload_pool(), perf_pool());
