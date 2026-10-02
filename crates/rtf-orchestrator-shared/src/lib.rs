@@ -12,7 +12,10 @@ pub mod test_plan_details;
 pub mod upload_urls;
 
 // Re-exported so other orchestrator crates do not need to depend directly on rtf-config
-pub use rtf_config::{FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL};
+pub use rtf_config::{
+    FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, NODE_ALLOCATION_LABEL, OTEL_LABEL,
+    REQUIRED_NODE_LABEL_KEY, REQUIRED_NODE_LABEL_VALUE,
+};
 
 pub const ORCHESTRATOR_URL_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_URL";
 pub const EXECUTION_ID_ENV_VAR: &str = "APOLLO_RTF_ORCHESTRATOR_EXECUTION_ID";

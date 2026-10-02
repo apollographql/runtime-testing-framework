@@ -37,6 +37,9 @@ pub use providers::file::{CustomProviderSection, DirFile, SourceDir, StableSourc
 pub const LOG_COLLECTION_LABEL: &str = "rtf.io/log-collection";
 pub const FILE_PROVIDERS_LABEL: &str = "rtf.io/file-providers";
 pub const OTEL_LABEL: &str = "rtf.io/otel";
+pub const REQUIRED_NODE_LABEL_KEY: &str = "rtf.io/required-node-label-key";
+pub const REQUIRED_NODE_LABEL_VALUE: &str = "rtf.io/required-node-label-value";
+pub const NODE_ALLOCATION_LABEL: &str = "rtf.io/node-allocation";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct VariableDefinition {
