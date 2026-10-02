@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, DEFAULT_POOL},
+    config::{Config, DEFAULT_POOL, DEFAULT_POOL_NAME},
     conn,
     context::OrchestratorContext,
     db::{KnownTestPlan, KnownTestPlanRun, PoolId, Queryable, TestRun},
@@ -12,6 +12,7 @@ use axum::{Json, extract::State, http::HeaderMap};
 use rtf_orchestrator_shared::{
     payload::{GitHubPayload, PreparedPayload, TriggerPayload},
     summary::TestRunSummary,
+    workload_config::{WorkloadConfig, WorkloadConfigPatch},
 };
 use serde_json::Value;
 use sqlx::PgConnection;
@@ -27,11 +28,26 @@ pub async fn handler(
     let payload = PayloadWithMeta::resolve(trigger_payload, conn!()).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.pool)?;
 
-    if payload.requires_dedicated_cluster && !state.eq_state.supports_dedicated(&payload.pool) {
-        return Err(Error::DedicatedClusterNotSupported {
+    payload.workload_config_patch.validate(
+        payload
+            .pinned_pool
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or_else(|| DEFAULT_POOL_NAME),
+        payload.pinned_pool.is_some(),
+        payload.requires_dedicated_cluster,
+        |pool| state.eq_state.supports_dedicated(pool),
+    )?;
+
+    let workload_config = cfg
+        .workload_clusters
+        .pool_workload_config(&payload.pool)
+        .ok_or_else(|| Error::UnknownWorkloadPool {
             pool: payload.pool.to_string(),
-        });
-    }
+        })?
+        .clone()
+        .patched(&payload.workload_config_patch);
+    workload_config.validate()?;
 
     let queued_executions = rate_limit::apply_rate_limits(
         &state.eq_state,
@@ -84,7 +100,9 @@ pub async fn handler(
 
     debug!("initialising run");
     let (test_run, summary) =
-        match init_run_and_build_summary(&meta, variables, initiated_by, conn!()).await {
+        match init_run_and_build_summary(&meta, variables, initiated_by, &workload_config, conn!())
+            .await
+        {
             Ok((tr, s)) => (tr, s),
             Err(e) => {
                 state.eq_state.release_pending_execution_claim(claim).await;
@@ -117,6 +135,7 @@ pub async fn handler(
                 test_run,
                 payload: meta.payload,
                 requires_dedicated: meta.requires_dedicated_cluster,
+                workload_config,
             },
         )
         .await
@@ -146,7 +165,8 @@ struct KnownTestPlanLink {
 
 struct PayloadWithMeta<T> {
     pool: PoolId,
-    allow_k8s_write: bool,
+    pinned_pool: Option<PoolId>,
+    workload_config_patch: WorkloadConfigPatch,
     requires_dedicated_cluster: bool,
     payload: T,
     link: Option<KnownTestPlanLink>,
@@ -158,10 +178,9 @@ impl PayloadWithMeta<PreparedOrGitHub> {
         conn: &mut PgConnection,
     ) -> Result<Self, Error> {
         let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
-            let pool = known
-                .pinned_workload_pool()
-                .unwrap_or_else(|| DEFAULT_POOL.clone());
-            let allow_k8s_write = known.allow_k8s_write();
+            let pinned_pool = known.pinned_workload_pool();
+            let pool = pinned_pool.clone().unwrap_or_else(|| DEFAULT_POOL.clone());
+            let workload_config_patch = known.workload_config_patch()?;
             let requires_dedicated_cluster = known.requires_dedicated_cluster();
             let known_link = KnownTestPlanLink {
                 known_test_plan_id: known.id(),
@@ -175,19 +194,21 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                 variables,
             };
 
-            Self {
+            Ok::<_, Error>(Self {
                 pool,
-                allow_k8s_write,
+                pinned_pool,
+                workload_config_patch,
                 requires_dedicated_cluster,
                 payload: PreparedOrGitHub::GitHub(payload),
                 link: Some(known_link),
-            }
+            })
         };
 
         Ok(match trigger_payload {
             TriggerPayload::Prepared(payload) => Self {
                 pool: DEFAULT_POOL.clone(),
-                allow_k8s_write: false,
+                pinned_pool: None,
+                workload_config_patch: Default::default(),
                 requires_dedicated_cluster: false,
                 link: None,
                 payload: PreparedOrGitHub::Prepared(payload),
@@ -195,7 +216,8 @@ impl PayloadWithMeta<PreparedOrGitHub> {
 
             TriggerPayload::GitHub(payload) => Self {
                 pool: DEFAULT_POOL.clone(),
-                allow_k8s_write: false,
+                pinned_pool: None,
+                workload_config_patch: Default::default(),
                 requires_dedicated_cluster: false,
                 link: None,
                 payload: PreparedOrGitHub::GitHub(payload),
@@ -209,7 +231,7 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                         identifier: kp.test_plan_uuid.to_string(),
                     })?;
 
-                from_known(known, kp.git_ref, kp.variables)
+                from_known(known, kp.git_ref, kp.variables)?
             }
 
             TriggerPayload::KnownTestPlanName(kp) => {
@@ -220,7 +242,7 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                         identifier: kp.test_plan_name.clone(),
                     })?;
 
-                from_known(known, kp.git_ref, kp.variables)
+                from_known(known, kp.git_ref, kp.variables)?
             }
         })
     }
@@ -229,7 +251,8 @@ impl PayloadWithMeta<PreparedOrGitHub> {
         Ok(match self.payload {
             PreparedOrGitHub::Prepared(payload) => PayloadWithMeta {
                 pool: self.pool,
-                allow_k8s_write: self.allow_k8s_write,
+                pinned_pool: self.pinned_pool,
+                workload_config_patch: self.workload_config_patch,
                 requires_dedicated_cluster: self.requires_dedicated_cluster,
                 link: self.link,
                 payload,
@@ -239,7 +262,8 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                 info!("attempting to pull test plan details from GitHub");
                 PayloadWithMeta {
                     pool: self.pool,
-                    allow_k8s_write: self.allow_k8s_write,
+                    pinned_pool: self.pinned_pool,
+                    workload_config_patch: self.workload_config_patch,
                     requires_dedicated_cluster: self.requires_dedicated_cluster,
                     link: self.link,
                     payload: payload.into_prepared(cfg.server_context()).await?,
@@ -253,6 +277,7 @@ async fn init_run_and_build_summary(
     meta: &PayloadWithMeta<PreparedPayload>,
     variables: Option<Value>,
     initiated_by: Option<String>,
+    workload_config: &WorkloadConfig,
     conn: &mut PgConnection,
 ) -> Result<(TestRun, TestRunSummary), Error> {
     let test_run = TestRun::init(
@@ -260,7 +285,7 @@ async fn init_run_and_build_summary(
         variables,
         initiated_by.as_deref(),
         &meta.pool,
-        meta.allow_k8s_write,
+        workload_config,
         conn,
     )
     .await?;
@@ -419,13 +444,15 @@ mod tests {
         let (test_run, _) = init_run_and_build_summary(
             &PayloadWithMeta {
                 pool: PoolId::new("router_perf"),
-                allow_k8s_write: false,
+                pinned_pool: None,
+                workload_config_patch: Default::default(),
                 requires_dedicated_cluster: false,
                 link: None,
                 payload: stub_payload(),
             },
             None,
             None,
+            &Default::default(),
             conn!(),
         )
         .await?;
@@ -459,7 +486,7 @@ mod tests {
                 None,
                 Some(&bare_email),
                 &DEFAULT_POOL,
-                false,
+                &Default::default(),
                 conn!(),
             )
             .await?;

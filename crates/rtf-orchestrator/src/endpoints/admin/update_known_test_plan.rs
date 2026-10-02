@@ -7,7 +7,7 @@
 //! Gated to admins only (see [AdminUser]).
 use crate::{
     Error, Result,
-    config::DEFAULT_POOL,
+    config::DEFAULT_POOL_NAME,
     conn,
     db::{KnownTestPlan, PoolId},
     endpoints::AdminUser,
@@ -40,20 +40,26 @@ pub async fn handler(
             identifier: uuid.to_string(),
         })?;
 
-    let pool = match &req.pinned_workload_pool {
-        Some(Some(pool)) => PoolId::new(pool),
-        Some(None) => DEFAULT_POOL,
-        None => known.pinned_workload_pool().unwrap_or(DEFAULT_POOL),
+    let known_pinned = known.pinned_workload_pool();
+    let pinned = match &req.pinned_workload_pool {
+        Some(Some(pool)) => Some(pool.as_str()),
+        Some(None) => None,
+        None => known_pinned.as_ref().map(|p| p.as_str()),
     };
     let requires_dedicated = req
         .requires_dedicated_cluster
         .unwrap_or_else(|| known.requires_dedicated_cluster());
+    let patch = match &req.workload_config_patch {
+        Some(patch) => patch.clone(),
+        None => known.workload_config_patch()?,
+    };
 
-    if requires_dedicated && !eq_state.supports_dedicated(&pool) {
-        return Err(Error::DedicatedClusterNotSupported {
-            pool: pool.to_string(),
-        });
-    }
+    patch.validate(
+        pinned.unwrap_or(DEFAULT_POOL_NAME),
+        pinned.is_some(),
+        requires_dedicated,
+        |pool| eq_state.supports_dedicated(pool),
+    )?;
 
     let updated = known.update(req, conn).await?;
 
@@ -64,11 +70,12 @@ pub async fn handler(
 mod tests {
     use super::*;
     use crate::{
-        config::{Config, NamedPoolConfig, PoolConfig},
+        config::{Config, DEFAULT_POOL, NamedPoolConfig, PoolConfig},
         iap_identity::IAP_USER_EMAIL_HEADER,
         test_helpers::TestServerState,
     };
     use reqwest::StatusCode;
+    use rtf_orchestrator_shared::workload_config::WorkloadConfigPatch;
     use sqlx::PgConnection;
 
     const ADMIN_EMAIL: &str = "admin@test.com";
@@ -103,6 +110,7 @@ mod tests {
                     supports_dedicated: false,
                     available_clusters: vec!["beta".into()],
                     per_user_limits: Default::default(),
+                    workload_config: Default::default(),
                 },
             });
 
@@ -175,38 +183,47 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn admin_can_set_and_clear_the_k8s_write_flag() -> anyhow::Result<()> {
+    async fn admin_can_set_and_replace_the_workload_config_patch() -> anyhow::Result<()> {
         let tss = TestServerState::new_with_admins(&[ADMIN_EMAIL]);
         let plan = register_plan(conn!()).await;
-        assert!(!plan.allow_k8s_write());
+        assert_eq!(
+            plan.workload_config_patch()?,
+            WorkloadConfigPatch::default()
+        );
 
-        let resp = tss
-            .test_server
-            .put(&format!("/admin/test-plan/{}", plan.uuid()))
-            .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
-            .json(&UpdateKnownTestPlanRequest {
-                allow_k8s_write: Some(true),
+        let resp = put_update(
+            &tss,
+            &plan,
+            UpdateKnownTestPlanRequest {
+                workload_config_patch: Some(WorkloadConfigPatch {
+                    allow_k8s_write: Some(true),
+                    ..Default::default()
+                }),
                 ..Default::default()
-            })
-            .await;
+            },
+        )
+        .await;
         assert_eq!(resp.status_code(), StatusCode::OK, "{:?}", resp.text());
 
         let updated: KnownTestPlanSummary = resp.json();
-        assert!(updated.allow_k8s_write);
+        assert_eq!(updated.workload_config_patch.allow_k8s_write, Some(true));
 
-        let resp = tss
-            .test_server
-            .put(&format!("/admin/test-plan/{}", plan.uuid()))
-            .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
-            .json(&UpdateKnownTestPlanRequest {
-                allow_k8s_write: Some(false),
+        let resp = put_update(
+            &tss,
+            &plan,
+            UpdateKnownTestPlanRequest {
+                workload_config_patch: Some(WorkloadConfigPatch::default()),
                 ..Default::default()
-            })
-            .await;
-        assert_eq!(resp.status_code(), StatusCode::OK);
+            },
+        )
+        .await;
+        assert_eq!(resp.status_code(), StatusCode::OK, "{:?}", resp.text());
 
         let cleared: KnownTestPlanSummary = resp.json();
-        assert!(!cleared.allow_k8s_write);
+        assert_eq!(
+            cleared.workload_config_patch,
+            WorkloadConfigPatch::default()
+        );
 
         Ok(())
     }

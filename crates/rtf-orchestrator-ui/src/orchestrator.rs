@@ -506,7 +506,7 @@ pub(crate) mod mocks {
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
             pinned_workload_pool: None,
-            allow_k8s_write: false,
+            workload_config_patch: Default::default(),
             requires_dedicated_cluster: false,
         }
     }

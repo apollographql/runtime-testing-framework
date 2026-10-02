@@ -21,6 +21,7 @@ use rtf_orchestrator_shared::{
     },
     payload::PreparedPayload,
     test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
+    workload_config::WorkloadConfig,
 };
 use sqlx::PgConnection;
 use std::{
@@ -229,7 +230,11 @@ impl EventQueue {
         self.with_shared(|shared| {
             let ex_state = shared.executions.get(&ex_id)?;
             let ex_cfg = ex_state.resolved_config.as_ref()?;
-            let allow_k8s_write = shared.runs.get(&ex_state.run_uuid)?.allow_k8s_write;
+            let allow_k8s_write = shared
+                .runs
+                .get(&ex_state.run_uuid)?
+                .workload_config
+                .allow_k8s_write;
 
             Some(ScenarioJobParams {
                 docker_image: ex_cfg.docker_image.clone(),
@@ -296,6 +301,7 @@ impl EventQueue {
                 })?;
 
             let requires_dedicated = conn.run_requires_dedicated_cluster(&tr).await?;
+            let workload_config = conn.run_workload_config(&tr).await?;
             let PreparedPayload {
                 test_plan,
                 relative_files,
@@ -312,7 +318,7 @@ impl EventQueue {
             h.cache_for_test_run(
                 run_uuid,
                 tr.initiated_by().map(|s| s.to_owned()),
-                tr.allow_k8s_write(),
+                workload_config,
                 requires_dedicated,
                 ctx,
                 test_plan,
@@ -857,7 +863,7 @@ impl ProvisioningHandle {
         &self,
         run_uuid: Uuid,
         initiated_by: Option<String>,
-        allow_k8s_write: bool,
+        workload_config: WorkloadConfig,
         requires_dedicated: bool,
         ctx: OrchestratorContext,
         test_plan: OrchestratorTestPlan,
@@ -870,7 +876,7 @@ impl ProvisioningHandle {
                     test_plan,
                     executions: HashSet::new(),
                     initiated_by,
-                    allow_k8s_write,
+                    workload_config,
                     requires_dedicated,
                 },
             )
@@ -1177,8 +1183,8 @@ impl EventQueueState {
         .await
     }
 
-    pub fn supports_dedicated(&self, pool: &PoolId) -> bool {
-        self.dedicated_pools.contains(pool)
+    pub fn supports_dedicated(&self, pool: &str) -> bool {
+        self.dedicated_pools.iter().any(|p| p.as_str() == pool)
     }
 
     pub fn available_pools(&self) -> Vec<PoolId> {
@@ -1419,7 +1425,7 @@ struct RunState {
     test_plan: OrchestratorTestPlan,
     executions: HashSet<Uuid>,
     initiated_by: Option<String>,
-    allow_k8s_write: bool,
+    workload_config: WorkloadConfig,
     requires_dedicated: bool,
 }
 
@@ -1585,8 +1591,15 @@ mod tests {
             empty_source_map(),
             HashMap::new(),
         );
-        ph.cache_for_test_run(run_uuid, None, false, false, ctx, stub_test_plan())
-            .await;
+        ph.cache_for_test_run(
+            run_uuid,
+            None,
+            Default::default(),
+            false,
+            ctx,
+            stub_test_plan(),
+        )
+        .await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
 
@@ -1659,7 +1672,7 @@ mod tests {
         ph.cache_for_test_run(
             run_uuid,
             Some("alice@example.com".to_string()),
-            false,
+            Default::default(),
             false,
             ctx,
             stub_test_plan(),
@@ -1712,7 +1725,7 @@ mod tests {
             ph.cache_for_test_run(
                 run_uuid,
                 Some(user.to_string()),
-                false,
+                Default::default(),
                 false,
                 ctx.clone(),
                 stub_test_plan(),
@@ -1764,7 +1777,7 @@ mod tests {
         ph.cache_for_test_run(
             run_uuid,
             Some("alice".to_string()),
-            false,
+            Default::default(),
             false,
             ctx,
             stub_test_plan(),
@@ -1801,8 +1814,15 @@ mod tests {
             empty_source_map(),
             HashMap::new(),
         );
-        h.cache_for_test_run(run_uuid, None, false, false, ctx, stub_test_plan())
-            .await;
+        h.cache_for_test_run(
+            run_uuid,
+            None,
+            Default::default(),
+            false,
+            ctx,
+            stub_test_plan(),
+        )
+        .await;
         h.with_shared(|shared| {
             shared.register_execution(ex1, run_uuid);
             shared.register_execution(ex2, run_uuid);
@@ -1855,8 +1875,15 @@ mod tests {
             empty_source_map(),
             HashMap::new(),
         );
-        h.cache_for_test_run(run_uuid, None, false, false, ctx, stub_test_plan())
-            .await;
+        h.cache_for_test_run(
+            run_uuid,
+            None,
+            Default::default(),
+            false,
+            ctx,
+            stub_test_plan(),
+        )
+        .await;
     }
 
     #[tokio::test]
@@ -2230,7 +2257,7 @@ mod tests {
             empty_source_map(),
             HashMap::new(),
         );
-        ph.cache_for_test_run(run_uuid, None, false, false, ctx, test_plan)
+        ph.cache_for_test_run(run_uuid, None, Default::default(), false, ctx, test_plan)
             .await;
         ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
@@ -2862,7 +2889,7 @@ mod tests {
         ph.cache_for_test_run(
             run_uuid,
             Some(initiator.to_string()),
-            false,
+            Default::default(),
             true,
             ctx,
             stub_test_plan(),

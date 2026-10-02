@@ -98,14 +98,15 @@ mod tests {
     };
     use chrono::Duration;
     use reqwest::StatusCode;
+    use rtf_orchestrator_shared::workload_config::WorkloadConfig;
     use uuid::Uuid;
 
-    // Tests run against a shared, long-lived dev database rather than a fresh one per test, so
-    // every identifier used as a query filter must be unique to this test invocation. Otherwise
-    // rows left behind by other tests (past or concurrently running) would leak into totals and
-    // break these assertions. `unique` gives each test a value no other run could plausibly share.
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
+    }
+
+    fn wcfg() -> WorkloadConfig {
+        WorkloadConfig::default()
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -114,8 +115,8 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let initiated_by = unique("returns-matching-runs");
-        TestRun::init("a", None, Some(&initiated_by), &DEFAULT_POOL, false, conn).await?;
-        TestRun::init("b", None, Some(&initiated_by), &DEFAULT_POOL, false, conn).await?;
+        TestRun::init("a", None, Some(&initiated_by), &DEFAULT_POOL, &wcfg(), conn).await?;
+        TestRun::init("b", None, Some(&initiated_by), &DEFAULT_POOL, &wcfg(), conn).await?;
 
         // Scope the otherwise-unfiltered request with a filter unique to this test, since the
         // table also holds rows from every other test that has run against this database.
@@ -167,8 +168,8 @@ mod tests {
         let conn = conn!();
         let alice = unique("alice");
         let bob = unique("bob");
-        TestRun::init("a", None, Some(&alice), &DEFAULT_POOL, false, conn).await?;
-        TestRun::init("b", None, Some(&bob), &DEFAULT_POOL, false, conn).await?;
+        TestRun::init("a", None, Some(&alice), &DEFAULT_POOL, &wcfg(), conn).await?;
+        TestRun::init("b", None, Some(&bob), &DEFAULT_POOL, &wcfg(), conn).await?;
 
         let resp = tss
             .test_server
@@ -191,15 +192,15 @@ mod tests {
     async fn handler_respects_limit_and_offset() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let initiated_by = unique("respects-limit-and-offset");
+        let user = unique("respects-limit-and-offset");
         for name in ["a", "b", "c"] {
-            TestRun::init(name, None, Some(&initiated_by), &DEFAULT_POOL, false, conn).await?;
+            TestRun::init(name, None, Some(&user), &DEFAULT_POOL, &wcfg(), conn).await?;
         }
 
         let resp = tss
             .test_server
             .get("/test-run")
-            .add_query_param("initiated_by", &initiated_by)
+            .add_query_param("initiated_by", &user)
             .add_query_param("limit", 1)
             .add_query_param("offset", 1)
             .await;
@@ -219,25 +220,9 @@ mod tests {
     async fn handler_orders_newest_first() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let initiated_by = unique("orders-newest-first");
-        let first = TestRun::init(
-            "first",
-            None,
-            Some(&initiated_by),
-            &DEFAULT_POOL,
-            false,
-            conn,
-        )
-        .await?;
-        TestRun::init(
-            "second",
-            None,
-            Some(&initiated_by),
-            &DEFAULT_POOL,
-            false,
-            conn,
-        )
-        .await?;
+        let user = unique("orders-newest-first");
+        let first = TestRun::init("first", None, Some(&user), &DEFAULT_POOL, &wcfg(), conn).await?;
+        TestRun::init("second", None, Some(&user), &DEFAULT_POOL, &wcfg(), conn).await?;
 
         // Force a deterministic ordering regardless of how fast the two inserts above ran.
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
@@ -248,7 +233,7 @@ mod tests {
         let resp = tss
             .test_server
             .get("/test-run")
-            .add_query_param("initiated_by", &initiated_by)
+            .add_query_param("initiated_by", &user)
             .await;
 
         assert_eq!(resp.status_code(), StatusCode::OK);
@@ -266,18 +251,9 @@ mod tests {
     async fn handler_filters_by_started_after() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let initiated_by = unique("started-after");
-        let old =
-            TestRun::init("old", None, Some(&initiated_by), &DEFAULT_POOL, false, conn).await?;
-        TestRun::init(
-            "recent",
-            None,
-            Some(&initiated_by),
-            &DEFAULT_POOL,
-            false,
-            conn,
-        )
-        .await?;
+        let user = unique("started-after");
+        let old = TestRun::init("old", None, Some(&user), &DEFAULT_POOL, &wcfg(), conn).await?;
+        TestRun::init("recent", None, Some(&user), &DEFAULT_POOL, &wcfg(), conn).await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 days' WHERE id = $1")
             .bind(old.id())
@@ -288,7 +264,7 @@ mod tests {
         let resp = tss
             .test_server
             .get("/test-run")
-            .add_query_param("initiated_by", &initiated_by)
+            .add_query_param("initiated_by", &user)
             .add_query_param("started_after", cutoff.to_rfc3339())
             .await;
 
@@ -307,18 +283,9 @@ mod tests {
     async fn handler_filters_by_started_before() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let conn = conn!();
-        let initiated_by = unique("started-before");
-        let old =
-            TestRun::init("old", None, Some(&initiated_by), &DEFAULT_POOL, false, conn).await?;
-        TestRun::init(
-            "recent",
-            None,
-            Some(&initiated_by),
-            &DEFAULT_POOL,
-            false,
-            conn,
-        )
-        .await?;
+        let user = unique("started-before");
+        let old = TestRun::init("old", None, Some(&user), &DEFAULT_POOL, &wcfg(), conn).await?;
+        TestRun::init("recent", None, Some(&user), &DEFAULT_POOL, &wcfg(), conn).await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 days' WHERE id = $1")
             .bind(old.id())
@@ -329,7 +296,7 @@ mod tests {
         let resp = tss
             .test_server
             .get("/test-run")
-            .add_query_param("initiated_by", &initiated_by)
+            .add_query_param("initiated_by", &user)
             .add_query_param("started_before", cutoff.to_rfc3339())
             .await;
 

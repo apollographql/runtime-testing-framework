@@ -28,10 +28,10 @@ impl TestPlanDetailTemplate {
     }
 
     pub fn write_access_label(&self) -> &'static str {
-        if self.plan.allow_k8s_write {
-            "Enabled"
-        } else {
-            "Disabled"
+        match self.plan.allow_k8s_write {
+            Some(true) => "Enabled",
+            Some(false) => "Disabled",
+            None => "Pool default",
         }
     }
 
@@ -56,6 +56,7 @@ mod tests {
     use crate::{orchestrator::mocks, preview, render_fragment};
     use chrono::{TimeZone, Utc};
     use rtf_orchestrator_shared::{status::Status, summary::TestRunListResponse};
+    use simple_test_case::test_case;
     use uuid::Uuid;
 
     fn details_failed() -> TestPlanDetailTemplate {
@@ -82,17 +83,18 @@ mod tests {
         );
     }
 
+    #[test_case(None, "Pool default"; "unset defers to the pool")]
+    #[test_case(Some(true), "Enabled"; "explicitly enabled")]
+    #[test_case(Some(false), "Disabled"; "explicitly disabled")]
     #[test]
-    fn write_access_label_is_disabled_by_default() {
-        assert_eq!(preview::test_plan_detail().write_access_label(), "Disabled");
-    }
-
-    #[test]
-    fn write_access_label_is_enabled_when_k8s_write_is_allowed() {
+    fn write_access_label_reflects_the_plans_override(
+        allow_k8s_write: Option<bool>,
+        expected: &str,
+    ) {
         let mut t = preview::test_plan_detail();
-        t.plan.allow_k8s_write = true;
+        t.plan.allow_k8s_write = allow_k8s_write;
 
-        assert_eq!(t.write_access_label(), "Enabled");
+        assert_eq!(t.write_access_label(), expected);
     }
 
     #[test]

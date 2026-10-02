@@ -3,6 +3,7 @@ use crate::{
     db::{ClusterId, PoolId},
 };
 use rtf_config::context::Context;
+use rtf_orchestrator_shared::workload_config::{self, WorkloadConfig};
 use serde::Deserialize;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -12,7 +13,7 @@ use std::{
 };
 use thiserror::Error;
 
-const DEFAULT_POOL_NAME: &str = "default";
+pub const DEFAULT_POOL_NAME: &str = "default";
 pub const DEFAULT_POOL: PoolId = PoolId::new_static(DEFAULT_POOL_NAME);
 
 const APOLLO_KEY_VAR: &str = "RTF_APOLLO_KEY";
@@ -60,6 +61,15 @@ pub enum ConfigError {
         first: String,
         second: String,
     },
+
+    #[error("pool {pool} has invalid workload config: {reason}")]
+    InvalidWorkloadConfig {
+        pool: String,
+        reason: workload_config::Error,
+    },
+
+    #[error("pool {pool} sets node_label_weights but does not support dedicated clusters")]
+    NodeLabelsWithoutDedicated { pool: String },
 }
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
@@ -217,6 +227,20 @@ impl WorkloadClusters {
                 });
             }
 
+            // Ensure that the workload config is valid and that nodes are only labelled in pools
+            // that can hand out dedicated clusters
+            if let Err(reason) = pool.workload_config.validate() {
+                errors.push(ConfigError::InvalidWorkloadConfig {
+                    pool: pool_name.to_string(),
+                    reason,
+                });
+            }
+            if !pool.workload_config.node_label_weights.is_empty() && !pool.supports_dedicated {
+                errors.push(ConfigError::NodeLabelsWithoutDedicated {
+                    pool: pool_name.to_string(),
+                });
+            }
+
             for cluster in pool.available_clusters.iter() {
                 // Ensure that pools only contain known clusters
                 if !cluster_names.contains(cluster.as_str()) {
@@ -267,6 +291,12 @@ impl WorkloadClusters {
             .collect()
     }
 
+    pub fn pool_workload_config(&self, pool: &PoolId) -> Option<&WorkloadConfig> {
+        self.cluster_pools
+            .pool_config(pool)
+            .map(|pool| &pool.workload_config)
+    }
+
     pub fn pool_clusters(&self) -> HashMap<PoolId, Vec<ClusterId>> {
         self.cluster_pools
             .iter()
@@ -315,7 +345,7 @@ impl ClusterPools {
             .chain(self.additional.iter().map(|p| (p.name.as_str(), &p.config)))
     }
 
-    fn pool_config(&self, pool: &PoolId) -> Option<&PoolConfig> {
+    pub fn pool_config(&self, pool: &PoolId) -> Option<&PoolConfig> {
         self.iter()
             .find(|(name, _)| *name == pool.as_str())
             .map(|(_, config)| config)
@@ -342,6 +372,8 @@ pub struct PoolConfig {
     pub available_clusters: Vec<String>,
     #[serde(default)]
     pub per_user_limits: PerUserExecutionConfig,
+    #[serde(flatten)]
+    pub workload_config: WorkloadConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -515,6 +547,7 @@ mod tests {
                         supports_dedicated: false,
                         available_clusters: vec![default_cluster.to_string()],
                         per_user_limits: Default::default(),
+                        workload_config: Default::default(),
                     },
                     additional: names
                         .iter()
@@ -525,6 +558,7 @@ mod tests {
                                 supports_dedicated: false,
                                 available_clusters: vec![name.to_string()],
                                 per_user_limits: Default::default(),
+                                workload_config: Default::default(),
                             },
                         })
                         .collect(),
@@ -568,6 +602,7 @@ mod tests {
             supports_dedicated: false,
             available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
             per_user_limits: Default::default(),
+            workload_config: Default::default(),
         }
     }
 
@@ -644,5 +679,39 @@ mod tests {
     #[test]
     fn validate_rejects_invalid_config(wc: WorkloadClusters, expected: Vec<ConfigError>) {
         assert_eq!(wc.validate().unwrap_err(), expected);
+    }
+
+    fn dedicated_pool_with_labels(clusters: &[&str], weights: &[(&str, u32)]) -> PoolConfig {
+        PoolConfig {
+            supports_dedicated: true,
+            workload_config: WorkloadConfig {
+                node_label_weights: weights.iter().map(|(v, w)| (v.to_string(), *w)).collect(),
+                ..Default::default()
+            },
+            ..pool(clusters)
+        }
+    }
+
+    #[test_case(
+        with_pools(&["a"], dedicated_pool_with_labels(&["a"], &[("x", 1), ("y", 2)]), vec![]),
+        Ok(());
+        "labels in a dedicated pool"
+    )]
+    #[test_case(
+        with_pools(&["a"], PoolConfig { supports_dedicated: false, ..dedicated_pool_with_labels(&["a"], &[("x", 1)]) }, vec![]),
+        Err(vec![ConfigError::NodeLabelsWithoutDedicated { pool: "default".into() }]);
+        "labels in a pool without dedicated support"
+    )]
+    #[test_case(
+        with_pools(&["a"], dedicated_pool_with_labels(&["a"], &[("x", 0)]), vec![]),
+        Err(vec![ConfigError::InvalidWorkloadConfig {
+            pool: "default".into(),
+            reason: workload_config::Error::ZeroWeights,
+        }]);
+        "all zero weights"
+    )]
+    #[test]
+    fn validate_node_label_weights(wc: WorkloadClusters, expected: Result<(), Vec<ConfigError>>) {
+        assert_eq!(wc.validate(), expected);
     }
 }

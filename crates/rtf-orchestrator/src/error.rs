@@ -9,7 +9,9 @@ use axum::{
 };
 use rtf_config::formats;
 use rtf_integrations::github;
-use rtf_orchestrator_shared::{payload::PrepareError, test_plan_details::EnvironmentSummaryError};
+use rtf_orchestrator_shared::{
+    payload::PrepareError, test_plan_details::EnvironmentSummaryError, workload_config,
+};
 use serde_json::json;
 use std::io;
 use uuid::Uuid;
@@ -83,6 +85,15 @@ pub enum Error {
 
     #[error("this test plan requires a dedicated cluster but pool {pool} does not support them")]
     DedicatedClusterNotSupported { pool: String },
+
+    #[error("invalid workload config: {0}")]
+    InvalidWorkloadConfig(#[from] workload_config::Error),
+
+    #[error("node labels can only be set for a test plan that requires a dedicated cluster")]
+    NodeLabelsRequireDedicatedCluster,
+
+    #[error("node labels can only be set for a test plan that is pinned to pool")]
+    NodeLabelsRequirePinnedPool,
 }
 
 impl IntoResponse for Error {
@@ -94,6 +105,9 @@ impl IntoResponse for Error {
             | Self::InvalidFileProviderUsage { .. }
             | Self::UnknownWorkloadPool { .. }
             | Self::DedicatedClusterNotSupported { .. }
+            | Self::InvalidWorkloadConfig(_)
+            | Self::NodeLabelsRequireDedicatedCluster
+            | Self::NodeLabelsRequirePinnedPool
             | Self::Prepare(_)
             | Self::Db(db::Error::MissingExitCode)
             | Self::Db(db::Error::InvalidFailedExitCode)

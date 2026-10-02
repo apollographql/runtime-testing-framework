@@ -147,6 +147,7 @@ mod tests {
             supports_dedicated: false,
             available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
             per_user_limits: Default::default(),
+            workload_config: Default::default(),
         }
     }
 

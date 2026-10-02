@@ -10,6 +10,7 @@ pub mod summary;
 pub mod test_plan;
 pub mod test_plan_details;
 pub mod upload_urls;
+pub mod workload_config;
 
 // Re-exported so other orchestrator crates do not need to depend directly on rtf-config
 pub use rtf_config::{

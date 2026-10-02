@@ -1,4 +1,4 @@
-use rtf_orchestrator_shared::payload::PreparedPayload;
+use rtf_orchestrator_shared::{payload::PreparedPayload, workload_config::WorkloadConfig};
 use serde::Serialize;
 use sqlx::{AssertSqlSafe, Database, FromRow, PgConnection, Postgres};
 use std::{borrow::Cow, fmt};
@@ -15,6 +15,7 @@ pub mod test_plan_history;
 mod test_run;
 mod test_run_filter;
 mod variables;
+mod workload_config;
 
 pub use known_test_plan::{KnownTestPlan, KnownTestPlanFilter, KnownTestPlanRun};
 pub use status::{Status, StatusTracked, StatusUpdate};
@@ -22,6 +23,7 @@ pub use test_execution::TestExecution;
 pub use test_run::TestRun;
 pub use test_run_filter::TestRunFilter;
 pub use variables::upsert_variables;
+pub use workload_config::{get_workload_config, upsert_workload_config};
 
 #[macro_export]
 macro_rules! conn {
@@ -60,6 +62,12 @@ pub enum Error {
 
     #[error("a known test plan with this name, or this org/repo/path, is already registered")]
     KnownTestPlanAlreadyExists,
+
+    #[error("the stored workload config patch for this known test plan is malformed: {0}")]
+    MalformedWorkloadConfigPatch(serde_json::Error),
+
+    #[error("the stored workload config for this test run is malformed: {0}")]
+    MalformedWorkloadConfig(serde_json::Error),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -390,6 +398,11 @@ pub trait UpdateHandle: Send + Sync {
         tr: &TestRun,
     ) -> impl Future<Output = crate::Result<bool>> + Send;
 
+    fn run_workload_config(
+        &mut self,
+        tr: &TestRun,
+    ) -> impl Future<Output = crate::Result<WorkloadConfig>> + Send;
+
     fn set_execution_workload_cluster(
         &mut self,
         ex: &mut TestExecution,
@@ -459,6 +472,10 @@ impl UpdateHandle for PgConnection {
         Ok(tr.requires_dedicated_cluster(self).await?)
     }
 
+    async fn run_workload_config(&mut self, tr: &TestRun) -> crate::Result<WorkloadConfig> {
+        Ok(tr.workload_config(self).await?)
+    }
+
     async fn set_execution_workload_cluster(
         &mut self,
         ex: &mut TestExecution,
@@ -520,6 +537,7 @@ mod update_handle {
         pub cached_payloads: Vec<Uuid>,
         pub cleared_payload_caches: Vec<Uuid>,
         pub dedicated_runs: Vec<i32>,
+        pub workload_configs: std::collections::HashMap<i32, WorkloadConfig>,
     }
 
     impl MockUpdateHandle {
@@ -647,6 +665,14 @@ mod update_handle {
 
         async fn run_requires_dedicated_cluster(&mut self, tr: &TestRun) -> crate::Result<bool> {
             Ok(self.dedicated_runs.contains(&tr.id()))
+        }
+
+        async fn run_workload_config(&mut self, tr: &TestRun) -> crate::Result<WorkloadConfig> {
+            Ok(self
+                .workload_configs
+                .get(&tr.id())
+                .cloned()
+                .unwrap_or_default())
         }
 
         async fn set_execution_workload_cluster(
