@@ -13,6 +13,7 @@ pub struct ExecutionDetailView {
     pub run_id: Uuid,
     pub test_plan_id: Option<Uuid>,
     pub name: String,
+    pub cluster: String,
     pub status: StatusView,
     pub exit_code_label: String,
     pub started_at: String,
@@ -29,9 +30,8 @@ impl ExecutionDetailView {
         let end = ex.completed_at.unwrap_or_else(Utc::now);
         let cluster = ex
             .cluster
-            .as_deref()
             .expect("an execution fetched standalone always carries its cluster");
-        let logs_url = gcp_logs(links_cfg, cluster, &namespace, ex.started_at, end);
+        let logs_url = gcp_logs(links_cfg, &cluster, &namespace, ex.started_at, end);
         let grafana_url = grafana(links_cfg, &namespace, ex.started_at, end);
 
         Self {
@@ -41,6 +41,7 @@ impl ExecutionDetailView {
                 .expect("an execution fetched standalone always carries its parent run's id"),
             test_plan_id: ex.test_plan_id,
             name: ex.name,
+            cluster,
             status: ex.current_status.into(),
             exit_code_label: exit_code_label(effective_exit_code(ex.current_status, ex.exit_code)),
             started_at: format_rfc3339(ex.started_at),

@@ -20,6 +20,8 @@
     <dl>
         <dt>Execution ID</dt>
         <dd><code>{{ execution.id }}</code> {% call macros::copy_button(execution.id, "execution ID") %}{% endcall %}</dd>
+        <dt>Cluster</dt>
+        <dd>{{ execution.cluster }}</dd>
         <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code
                 &#8599;</a></dt>
         <dd>{{ execution.exit_code_label }}</dd>
