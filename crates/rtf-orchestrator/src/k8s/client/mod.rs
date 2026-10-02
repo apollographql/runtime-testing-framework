@@ -22,7 +22,7 @@ use kube::{
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
-use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
+use rtf_orchestrator_shared::{EXECUTION_ID_LABEL, NODE_ALLOCATION_LABEL};
 use serde_json::json;
 use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
@@ -34,10 +34,6 @@ pub(crate) mod nodes;
 // Not wired up yet - pending the node-allocation feature work that will call these.
 #[expect(dead_code)]
 const MANAGER_NAME: &str = "rtf-orchestrator";
-// Not wired up yet - pending the node-allocation feature work that will call this. Already
-// exercised by nodes.rs's tests, so the dead_code lint only applies outside test builds.
-#[cfg_attr(not(test), expect(dead_code))]
-const NODE_LABEL_PREFIX: &str = "rtf.io/node-allocation";
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
 // exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
 //
@@ -330,7 +326,7 @@ impl<M> ClusterClients<M, AvailableWorkload> {
                     .labels
                     .unwrap_or(BTreeMap::new())
                     .into_iter()
-                    .filter(|(k, _)| !k.starts_with(NODE_LABEL_PREFIX))
+                    .filter(|(k, _)| !k.starts_with(NODE_ALLOCATION_LABEL))
                     .collect();
 
                 api.patch(

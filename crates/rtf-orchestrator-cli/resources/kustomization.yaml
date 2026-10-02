@@ -67,6 +67,26 @@ patches:
         value:
           - configMapRef:
               name: rtf-otel-config
+  - target:
+      kind: Deployment
+      annotationSelector: "__REQUIRED_NODE_LABEL_KEY__"
+    patch: |-
+      - op: add
+        path: /spec/template/spec/affinity
+        value:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: placeholder
+                      operator: In
+                      values: []
+      - op: copy
+        from: /metadata/annotations/__REQUIRED_NODE_LABEL_KEY_POINTER__
+        path: /spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/0/key
+      - op: copy
+        from: /metadata/annotations/__REQUIRED_NODE_LABEL_VALUE_POINTER__
+        path: /spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/0/matchExpressions/0/values/0
 __EXCLUSIVE_NODES_PATCH__
 configMapGenerator:
   - name: rtf-otel-config

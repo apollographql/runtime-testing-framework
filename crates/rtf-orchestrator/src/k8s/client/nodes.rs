@@ -1,6 +1,6 @@
-use crate::k8s::client::NODE_LABEL_PREFIX;
 use k8s_openapi::api::core::v1::Node;
 use kube::ResourceExt;
+use rtf_orchestrator_shared::NODE_ALLOCATION_LABEL;
 use std::collections::HashMap;
 
 /// A struct to represent an allocation of node labels to nodes
@@ -62,7 +62,7 @@ impl NodeAllocationPlan {
                 let node = nodes.pop().unwrap();
                 inner.insert(
                     node.name_any(),
-                    (NODE_LABEL_PREFIX.to_string(), label.clone()),
+                    (NODE_ALLOCATION_LABEL.to_string(), label.clone()),
                 );
             }
         }
