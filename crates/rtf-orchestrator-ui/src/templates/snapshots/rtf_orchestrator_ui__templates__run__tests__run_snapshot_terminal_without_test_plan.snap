@@ -28,6 +28,8 @@ expression: render_fragment!(terminal_run_without_test_plan().as_run())
 </dd>
             <dt>Initiated by</dt>
             <dd>someone@apollographql.com</dd>
+            <dt>Pool</dt>
+            <dd>alpha</dd>
             <dt>Started</dt>
             <dd>2024-03-15T09:00:00Z</dd>
             <dt>Updated</dt>

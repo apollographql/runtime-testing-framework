@@ -23,6 +23,7 @@ pub struct RunView {
     pub test_plan_id: Option<Uuid>,
     pub rerun_url: Option<String>,
     pub name: String,
+    pub pool: String,
     pub status: StatusView,
     pub trigger_variables: Vec<TriggerVariableView>,
     pub initiated_by: String,
@@ -59,6 +60,7 @@ impl RunView {
                 .test_plan_id
                 .map(|test_plan_id| rerun_url(test_plan_id, run.trigger_variables.as_ref())),
             name: run.name,
+            pool: run.pool,
             status: run.current_status.into(),
             trigger_variables: TriggerVariableView::from_raw(run.trigger_variables),
             initiated_by: format_initiator(run.initiated_by),
@@ -277,6 +279,15 @@ mod tests {
         } else {
             assert_eq!(completed_at, None);
         }
+    }
+
+    #[test]
+    fn run_view_carries_the_runs_pool() {
+        let mut run = sample_summary(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running);
+        run.pool = "beta".to_owned();
+        let view = RunView::new(run, Utc::now(), &sample_config(), String::new());
+
+        assert_eq!(view.pool, "beta");
     }
 
     #[test]

@@ -29,6 +29,8 @@ expression: render_fragment!(running_run().as_run())
 </dd>
             <dt>Initiated by</dt>
             <dd>someone@apollographql.com</dd>
+            <dt>Pool</dt>
+            <dd>default</dd>
             <dt>Started</dt>
             <dd>2024-03-15T12:00:00Z</dd>
             <dt>Updated</dt>

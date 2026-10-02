@@ -18,6 +18,8 @@ expression: render_fragment!(execution(None).as_banner())
     </svg>
 </button>
 </dd>
+        <dt>Cluster</dt>
+        <dd>alpha</dd>
         <dt><a href="https://tldp.org/LDP/abs/html/exitcodes.html" target="_blank" rel="noopener noreferrer">Exit code
                 &#8599;</a></dt>
         <dd>0</dd>
