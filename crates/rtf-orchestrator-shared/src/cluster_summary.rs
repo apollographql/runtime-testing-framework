@@ -27,6 +27,15 @@ pub struct WorkloadClusterSummary {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodesSummary {
     pub by_instance_type: BTreeMap<String, usize>,
+    pub nodes: Vec<NodeMeta>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeMeta {
+    pub name: String,
+    pub instance_type: String,
+    pub region: String,
+    pub zone: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
