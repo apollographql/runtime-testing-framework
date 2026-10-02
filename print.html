@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-56eabfb2.js";
+            window.path_to_searchindex_js = "searchindex-231a85ae.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-9b5efe91.js"></script>
@@ -4729,6 +4729,8 @@ runs under the <a href="#running-test-plans-with-the-rtf-orchestrator-service">R
 <tr><td><code>rtf.io/file-providers</code></td><td><code>true</code></td><td>Mounts file provider output into the container. Required for services that read provider files at runtime.</td></tr>
 <tr><td><code>rtf.io/log-collection</code></td><td><code>true</code></td><td>Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.</td></tr>
 <tr><td><code>rtf.io/otel</code></td><td><code>true</code></td><td>Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: <code>RTF_OTEL_COLLECTOR_GRPC</code> (gRPC endpoint, port 4317) and <code>RTF_OTEL_COLLECTOR_HTTP</code> (HTTP/protobuf endpoint, port 4318). Use these in your service’s config instead of the standard <code>OTEL_*</code> variables.</td></tr>
+<tr><td><code>rtf.io/required-node-label-key</code></td><td>a Kubernetes node label key</td><td>Set together with <code>rtf.io/required-node-label-value</code> to require this service’s pods be scheduled only onto nodes carrying that exact label key/value pair.</td></tr>
+<tr><td><code>rtf.io/required-node-label-value</code></td><td>a Kubernetes node label value</td><td>The value half of the <code>rtf.io/required-node-label-key</code> pair above. Both labels must be set together.</td></tr>
 </tbody>
 </table>
 </div>
@@ -4739,6 +4741,8 @@ runs under the <a href="#running-test-plans-with-the-rtf-orchestrator-service">R
       rtf.io/file-providers: true
       rtf.io/log-collection: true
       rtf.io/otel: true
+      rtf.io/required-node-label-key: "rtf.io/node-allocation"
+      rtf.io/required-node-label-value: "my-label"
 </code></pre>
 <h3 id="full-example-1"><a class="header" href="#full-example-1">Full example</a></h3>
 <pre><code class="language-yaml">name: docker-compose-environment
@@ -4804,6 +4808,8 @@ Slack to discuss your use case.</p>
 <tr><td><code>rtf.io/file-providers</code></td><td><code>true</code></td><td>Mounts file provider output into the container. Required for containers that read provider files at runtime.</td></tr>
 <tr><td><code>rtf.io/log-collection</code></td><td><code>true</code></td><td>Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.</td></tr>
 <tr><td><code>rtf.io/otel</code></td><td><code>true</code></td><td>Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: <code>RTF_OTEL_COLLECTOR_GRPC</code> (gRPC endpoint, port 4317) and <code>RTF_OTEL_COLLECTOR_HTTP</code> (HTTP/protobuf endpoint, port 4318). Use these in your service’s config instead of the standard <code>OTEL_*</code> variables.</td></tr>
+<tr><td><code>rtf.io/required-node-label-key</code></td><td>a Kubernetes node label key</td><td>Set together with <code>rtf.io/required-node-label-value</code> to require this Deployment’s pods be scheduled only onto nodes carrying that exact label key/value pair.</td></tr>
+<tr><td><code>rtf.io/required-node-label-value</code></td><td>a Kubernetes node label value</td><td>The value half of the <code>rtf.io/required-node-label-key</code> pair above. Both annotations must be set together.</td></tr>
 </tbody>
 </table>
 </div>
@@ -4815,6 +4821,8 @@ metadata:
     rtf.io/file-providers: "true"
     rtf.io/log-collection: "true"
     rtf.io/otel: "true"
+    rtf.io/required-node-label-key: "rtf.io/node-allocation"
+    rtf.io/required-node-label-value: "my-label"
 spec:
   replicas: 1
   selector:
