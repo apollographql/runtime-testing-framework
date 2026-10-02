@@ -1,13 +1,19 @@
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
 use rtf_orchestrator_shared::{
-    cluster_summary::{ClusterExecutionSummary, ClusterSummaryResponse, PerUserExecutionSummary},
+    cluster_summary::{
+        ClusterExecutionSummary, ClusterSummaryResponse, NodesSummary, PerUserExecutionSummary,
+    },
     event_queue::{ClusterClaimSummary, EventQueueSnapshot},
 };
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    time::Duration,
+};
 use uuid::Uuid;
 
 const QUEUE_WARN_PERCENT: usize = 75;
+const PALETTE_SIZE: usize = 12;
 
 #[derive(Debug)]
 pub struct DashboardView {
@@ -41,7 +47,76 @@ pub struct ClusterView {
     pub pending_other: usize,
     pub claim: Option<ClaimView>,
     pub config: Vec<(&'static str, String)>,
+    pub nodes: Option<NodesView>,
     hourly_counts: Vec<u64>,
+}
+
+#[derive(Debug)]
+pub struct NodesView {
+    pub instance_types: Vec<InstanceTypeView>,
+    pub nodes: Vec<NodeView>,
+}
+
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+pub struct InstanceTypeView {
+    pub name: String,
+    pub count: usize,
+    pub colour: usize,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NodeView {
+    pub instance_type: String,
+    pub zone: String,
+    pub region: String,
+    pub name: String,
+}
+
+impl NodesView {
+    fn new(nodes: NodesSummary, colours: &HashMap<String, usize>) -> Self {
+        let instance_types = nodes
+            .by_instance_type
+            .into_iter()
+            .map(|(name, count)| InstanceTypeView {
+                colour: colours.get(&name).copied().unwrap_or_default(),
+                name,
+                count,
+            })
+            .collect();
+
+        let mut nodes: Vec<_> = nodes
+            .nodes
+            .into_iter()
+            .map(|n| NodeView {
+                name: n.name,
+                instance_type: n.instance_type,
+                region: n.region,
+                zone: n.zone,
+            })
+            .collect();
+        nodes.sort_unstable();
+
+        Self {
+            instance_types,
+            nodes,
+        }
+    }
+}
+
+/// Assigns each instance type found in any cluster a palette index in alphabetical order so that
+/// the same type always has the same colour regardless of which cluster is being displayed.
+fn instance_type_colours(summary: &ClusterSummaryResponse) -> HashMap<String, usize> {
+    summary
+        .pools
+        .iter()
+        .flat_map(|p| &p.clusters)
+        .filter_map(|c| c.nodes.as_ref())
+        .flat_map(|n| n.by_instance_type.keys().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .enumerate()
+        .map(|(i, name)| (name, i % PALETTE_SIZE))
+        .collect()
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -114,6 +189,7 @@ pub struct DashboardJsData<'a> {
 struct ClusterJsData<'a> {
     name: &'a str,
     counts: &'a [u64],
+    instance_types: &'a [InstanceTypeView],
 }
 
 impl DashboardView {
@@ -130,6 +206,7 @@ impl DashboardView {
             .next()
             .unwrap_or_default();
 
+        let colours = instance_type_colours(&summary);
         let pools = summary
             .pools
             .into_iter()
@@ -163,6 +240,7 @@ impl DashboardView {
                                 pending_other: queue.pending_non_provisions.len(),
                                 claim: queue.claim.map(ClaimView::from),
                                 config: config_rows(&cluster.execution),
+                                nodes: cluster.nodes.map(|n| NodesView::new(n, &colours)),
                                 hourly_counts: cluster
                                     .hourly_executions
                                     .iter()
@@ -208,6 +286,7 @@ impl DashboardView {
                 .map(|c| ClusterJsData {
                     name: &c.name,
                     counts: &c.hourly_counts,
+                    instance_types: c.nodes.as_ref().map_or(&[], |n| &n.instance_types),
                 })
                 .collect(),
         }
@@ -267,7 +346,9 @@ fn limit_rows(pu: &PerUserExecutionSummary) -> Vec<(&'static str, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::mocks::{sample_cluster_summary, sample_event_queue_snapshot};
+    use crate::orchestrator::mocks::{
+        sample_cluster_summary, sample_event_queue_snapshot, sample_nodes,
+    };
     use simple_test_case::test_case;
 
     fn dashboard() -> DashboardView {
@@ -414,6 +495,25 @@ mod tests {
                     })
                 )
             ]
+        );
+    }
+
+    #[test]
+    fn js_data_includes_the_instance_types_for_each_cluster() {
+        let mut summary = sample_cluster_summary();
+        summary.pools[0].clusters[0].nodes = Some(sample_nodes(&[("a1", "m5.large", "z1")]));
+        summary.pools[1].clusters[0].nodes = None;
+
+        let d = DashboardView::new(EventQueueSnapshot::default(), summary, String::new());
+        let js = d.js_data();
+
+        assert_eq!(
+            js.clusters[0].instance_types,
+            &[InstanceTypeView {
+                name: "m5.large".to_owned(),
+                count: 1,
+                colour: 0
+            }]
         );
     }
 

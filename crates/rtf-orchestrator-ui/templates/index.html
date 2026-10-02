@@ -150,6 +150,48 @@
                     <dd>{{ value }}</dd>
                     {% endfor %}
                 </dl>
+                {% match cluster.nodes %}
+                {% when Some with (nodes) %}
+                <div class="node-summary">
+                    <canvas class="node-chart" data-cluster="{{ cluster.name }}" width="110" height="110" aria-label="Nodes by instance type"></canvas>
+                    <ul class="node-legend">
+                        {% for t in nodes.instance_types %}
+                        <li>
+                            <span class="swatch" style="background: var(--chart-{{ t.colour }})"></span>
+                            <code>{{ t.name }}</code>
+                            <span class="muted">{{ t.count }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <details class="node-list">
+                    <summary>Nodes ({{ nodes.nodes.len() }})</summary>
+                    <div class="node-table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Instance type</th>
+                                    <th>Region</th>
+                                    <th>Zone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for node in nodes.nodes %}
+                                <tr>
+                                    <td><code>{{ node.name }}</code></td>
+                                    <td>{{ node.instance_type }}</td>
+                                    <td>{{ node.region }}</td>
+                                    <td>{{ node.zone }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                {% when None %}
+                <p class="muted">Node data unavailable</p>
+                {% endmatch %}
             </details>
             {% endfor %}
             {% endfor %}

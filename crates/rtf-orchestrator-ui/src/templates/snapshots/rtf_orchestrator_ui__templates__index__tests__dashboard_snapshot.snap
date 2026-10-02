@@ -137,6 +137,65 @@ expression: "render_fragment!(preview::index().as_dashboard())"
                     <dd>1m 30s</dd>
                     
                 </dl>
+                
+                <div class="node-summary">
+                    <canvas class="node-chart" data-cluster="alpha" width="110" height="110" aria-label="Nodes by instance type"></canvas>
+                    <ul class="node-legend">
+                        
+                        <li>
+                            <span class="swatch" style="background: var(--chart-0)"></span>
+                            <code>c5.xlarge</code>
+                            <span class="muted">1</span>
+                        </li>
+                        
+                        <li>
+                            <span class="swatch" style="background: var(--chart-1)"></span>
+                            <code>m5.large</code>
+                            <span class="muted">2</span>
+                        </li>
+                        
+                    </ul>
+                </div>
+                <details class="node-list">
+                    <summary>Nodes (3)</summary>
+                    <div class="node-table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Instance type</th>
+                                    <th>Region</th>
+                                    <th>Zone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                                <tr>
+                                    <td><code>node-a3</code></td>
+                                    <td>c5.xlarge</td>
+                                    <td>us-east-1</td>
+                                    <td>us-east-1a</td>
+                                </tr>
+                                
+                                <tr>
+                                    <td><code>node-a1</code></td>
+                                    <td>m5.large</td>
+                                    <td>us-east-1</td>
+                                    <td>us-east-1a</td>
+                                </tr>
+                                
+                                <tr>
+                                    <td><code>node-a2</code></td>
+                                    <td>m5.large</td>
+                                    <td>us-east-1</td>
+                                    <td>us-east-1b</td>
+                                </tr>
+                                
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                
             </details>
             
             
@@ -194,6 +253,9 @@ expression: "render_fragment!(preview::index().as_dashboard())"
                     <dd>1m 30s</dd>
                     
                 </dl>
+                
+                <p class="muted">Node data unavailable</p>
+                
             </details>
             
             

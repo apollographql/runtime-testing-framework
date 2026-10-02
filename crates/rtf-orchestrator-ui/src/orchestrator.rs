@@ -429,8 +429,8 @@ pub(crate) mod mocks {
     };
     use rtf_orchestrator_shared::{
         cluster_summary::{
-            ClusterExecutionSummary, HourlyCount, PerUserExecutionSummary, WorkloadClusterSummary,
-            WorkloadPoolSummary,
+            ClusterExecutionSummary, HourlyCount, NodeMeta, NodesSummary, PerUserExecutionSummary,
+            WorkloadClusterSummary, WorkloadPoolSummary,
         },
         event_queue::{
             ClusterClaimSummary, ClusterQueueState, EventSummary, PendingProvisionSummary,
@@ -705,6 +705,29 @@ pub(crate) mod mocks {
         }
     }
 
+    /// Nodes given as `(name, instance type, zone)` all in the region `us-east-1`.
+    pub(crate) fn sample_nodes(nodes: &[(&str, &str, &str)]) -> NodesSummary {
+        let mut by_instance_type = BTreeMap::new();
+        for (_, instance_type, _) in nodes {
+            *by_instance_type
+                .entry(instance_type.to_string())
+                .or_insert(0) += 1;
+        }
+
+        NodesSummary {
+            by_instance_type,
+            nodes: nodes
+                .iter()
+                .map(|(name, instance_type, zone)| NodeMeta {
+                    name: name.to_string(),
+                    instance_type: instance_type.to_string(),
+                    region: "us-east-1".to_owned(),
+                    zone: zone.to_string(),
+                })
+                .collect(),
+        }
+    }
+
     /// Hourly counts are for the 24 hours up to a fixed time so rendered output is stable.
     pub(crate) fn sample_cluster_summary() -> ClusterSummaryResponse {
         let last_hour = DateTime::parse_from_rfc3339("2026-01-01T12:00:00Z")
@@ -748,13 +771,21 @@ pub(crate) mod mocks {
                     name: "default".to_owned(),
                     supports_dedicated: false,
                     per_user: per_user.clone(),
-                    clusters: vec![cluster(
-                        "alpha",
-                        10,
-                        [
-                            0, 0, 1, 2, 4, 3, 5, 8, 6, 7, 9, 10, 8, 6, 5, 4, 6, 7, 5, 3, 2, 1, 0, 2,
-                        ],
-                    )],
+                    clusters: vec![WorkloadClusterSummary {
+                        nodes: Some(sample_nodes(&[
+                            ("node-a1", "m5.large", "us-east-1a"),
+                            ("node-a2", "m5.large", "us-east-1b"),
+                            ("node-a3", "c5.xlarge", "us-east-1a"),
+                        ])),
+                        ..cluster(
+                            "alpha",
+                            10,
+                            [
+                                0, 0, 1, 2, 4, 3, 5, 8, 6, 7, 9, 10, 8, 6, 5, 4, 6, 7, 5, 3, 2, 1,
+                                0, 2,
+                            ],
+                        )
+                    }],
                 },
                 WorkloadPoolSummary {
                     name: "dedicated".to_owned(),
