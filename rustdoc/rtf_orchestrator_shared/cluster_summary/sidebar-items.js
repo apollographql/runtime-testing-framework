@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ClusterExecutionSummary","ClusterSummaryResponse","HourlyCount","NodesSummary","PerUserExecutionSummary","WorkloadClusterSummary","WorkloadPoolSummary"]};
+window.SIDEBAR_ITEMS = {"struct":["ClusterExecutionSummary","ClusterSummaryResponse","HourlyCount","NodeMeta","NodesSummary","PerUserExecutionSummary","WorkloadClusterSummary","WorkloadPoolSummary"]};

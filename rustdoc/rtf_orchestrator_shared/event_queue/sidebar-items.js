@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ClusterQueueState","EventQueueSnapshot","EventSummary","SnapshotSummary"]};
+window.SIDEBAR_ITEMS = {"enum":["ClusterClaimSummary"],"struct":["ClusterQueueState","EventQueueSnapshot","EventSummary","PendingProvisionSummary","PoolQueueState","SnapshotSummary"]};

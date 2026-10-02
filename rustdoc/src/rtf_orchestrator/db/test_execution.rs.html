@@ -236,14 +236,14 @@
 <a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">let </span>tr = <span class="self">self</span>.test_run(conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#237 id=237 data-nosnippet>237</a>        <span class="kw">let </span>test_run_id = tr.uuid();
 <a href=#238 id=238 data-nosnippet>238</a>        <span class="kw">let </span>test_plan_id = tr.test_plan_uuid(conn).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#239 id=239 data-nosnippet>239</a>        <span class="kw">let </span>cluster = tr.workload_pool().to_string();
+<a href=#239 id=239 data-nosnippet>239</a>        <span class="kw">let </span>cluster = <span class="self">self</span>.workload_cluster.clone();
 <a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">let </span>status_history = <span class="self">self</span>.status_history(conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">let </span><span class="kw-2">mut </span>summary = <span class="self">self</span>.try_into_summary(conn).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#242 id=242 data-nosnippet>242</a>
 <a href=#243 id=243 data-nosnippet>243</a>        summary.status_history = status_history.into_iter().map(Into::into).collect();
 <a href=#244 id=244 data-nosnippet>244</a>        summary.test_run_id = <span class="prelude-val">Some</span>(test_run_id);
 <a href=#245 id=245 data-nosnippet>245</a>        summary.test_plan_id = test_plan_id;
-<a href=#246 id=246 data-nosnippet>246</a>        summary.cluster = <span class="prelude-val">Some</span>(cluster);
+<a href=#246 id=246 data-nosnippet>246</a>        summary.cluster = cluster;
 <a href=#247 id=247 data-nosnippet>247</a>
 <a href=#248 id=248 data-nosnippet>248</a>        <span class="prelude-val">Ok</span>(summary)
 <a href=#249 id=249 data-nosnippet>249</a>    }
