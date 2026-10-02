@@ -1,6 +1,12 @@
 use crate::config::ClusterRoles;
-use k8s_openapi::api::batch::v1::{Job, JobSpec};
-use kube::config::{InClusterError, KubeconfigError};
+use k8s_openapi::api::{
+    batch::v1::{Job, JobSpec},
+    core::v1::Node,
+};
+use kube::{
+    ResourceExt,
+    config::{InClusterError, KubeconfigError},
+};
 use std::fmt;
 use uuid::Uuid;
 
@@ -12,7 +18,9 @@ mod workflow;
 pub mod mock_client;
 
 pub use client::ClusterClients;
+use client::nodes::NodeAllocationError;
 pub(crate) use job::scenario_job;
+use rtf_orchestrator_shared::cluster_summary::NodesSummary;
 pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
     WorkflowToolboxSettings,
@@ -23,6 +31,7 @@ const CLI_BINARY: &str = "rtf-orchestrator-cli";
 pub(crate) const SCENARIO_SA_NAME: &str = "scenario-sa";
 pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";
 pub const ORCHESTRATOR_NAMESPACE: &str = "orchestrator";
+const NODE_INSTANCE_TYPE_LABEL: &str = "node.kubernetes.io/instance-type";
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -37,6 +46,9 @@ pub enum Error {
 
     #[error("In-cluster config error: {0}")]
     InCluster(#[from] InClusterError),
+
+    #[error("Node allocation error: {0}")]
+    NodeAllocation(#[from] NodeAllocationError),
 }
 
 impl Error {
@@ -108,6 +120,28 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
         poll_interval_secs: u64,
         timeout_secs: u64,
     ) -> impl Future<Output = bool> + Send;
+
+    /// Fetch all nodes in the workload cluster.
+    fn get_nodes(&mut self) -> impl Future<Output = Result<Vec<Node>>> + Send;
+
+    /// Summarise the nodes of the workload cluster by instance type.
+    fn nodes_summary(&mut self) -> impl Future<Output = Result<NodesSummary>> + Send {
+        async {
+            let nodes = self.get_nodes().await?;
+
+            let mut by_instance_type = std::collections::BTreeMap::new();
+            for node in &nodes {
+                let instance_type = node
+                    .labels()
+                    .get(NODE_INSTANCE_TYPE_LABEL)
+                    .cloned()
+                    .unwrap_or_else(|| "unknown".to_string());
+                *by_instance_type.entry(instance_type).or_insert(0) += 1;
+            }
+
+            Ok(NodesSummary { by_instance_type })
+        }
+    }
 }
 
 /// Kubernetes API actions that interact with both the management and workload clusters.

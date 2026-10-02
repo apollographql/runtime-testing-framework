@@ -3,27 +3,41 @@ use crate::{
     k8s::{
         Error, FullClient, ManagementClient, ORCHESTRATOR_NAMESPACE, Result,
         SCENARIO_RUNNER_CONTAINER, SCENARIO_SA_NAME, WatchOutcome, Workflow, WorkflowSpec,
-        WorkloadClient, workflow_name,
+        WorkloadClient, client::nodes::NodeAllocationPlan, workflow_name,
     },
 };
 use chrono::{DateTime, Duration, Utc};
-use k8s_openapi::api::{
-    batch::v1::{Job, JobSpec},
-    core::v1::{Namespace, Pod, ServiceAccount},
-    rbac::v1::{ClusterRoleBinding, RoleBinding, RoleRef, Subject},
+use futures::future::try_join_all;
+use k8s_openapi::{
+    ClusterResourceScope,
+    api::{
+        batch::v1::{Job, JobSpec},
+        core::v1::{Namespace, Node, Pod, ServiceAccount},
+        rbac::v1::{ClusterRoleBinding, RoleBinding, RoleRef, Subject},
+    },
 };
 use kube::{
-    Client, Config, Resource,
-    api::{Api, ListParams, ObjectMeta, PostParams},
+    Client, Config, Resource, ResourceExt,
+    api::{Api, ListParams, ObjectMeta, Patch, PatchParams, PostParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
 use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
+use serde_json::json;
 use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
+pub(crate) mod nodes;
+
+// Not wired up yet - pending the node-allocation feature work that will call these.
+#[expect(dead_code)]
+const MANAGER_NAME: &str = "rtf-orchestrator";
+// Not wired up yet - pending the node-allocation feature work that will call this. Already
+// exercised by nodes.rs's tests, so the dead_code lint only applies outside test builds.
+#[cfg_attr(not(test), expect(dead_code))]
+const NODE_LABEL_PREFIX: &str = "rtf.io/node-allocation";
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
 // exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
 //
@@ -150,6 +164,14 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         Api::namespaced(self.workload_client(), ns)
     }
 
+    fn cluster_api<K>(&mut self) -> Api<K>
+    where
+        K: Resource<Scope = ClusterResourceScope>,
+        <K as Resource>::DynamicType: Default,
+    {
+        Api::all(self.workload_client())
+    }
+
     fn workload_client(&mut self) -> Client {
         self.workload.client.clone()
     }
@@ -238,6 +260,89 @@ impl<M> ClusterClients<M, AvailableWorkload> {
                 )
                 .await?;
         }
+
+        Ok(())
+    }
+
+    pub(crate) async fn get_nodes(&mut self) -> Result<Vec<Node>> {
+        let list = self
+            .cluster_api::<Node>()
+            .list(&ListParams::default())
+            .await?;
+
+        Ok(list.items)
+    }
+
+    // Not wired up yet - pending the node-allocation feature work that will call these.
+    #[expect(dead_code)]
+    /// Take a given allocation (i.e. a set of label and weight pairs) and try and apply
+    /// that on top of the nodes that come back from the cluster. Errors indicate either
+    /// data could not be gathered that is necessary to plan the allocation or
+    /// that its impossible to apply that particular allocation to the set of nodes
+    async fn plan_node_label_allocation(
+        &mut self,
+        allocation: Vec<(String, u32)>,
+    ) -> Result<NodeAllocationPlan> {
+        let nodes = self.get_nodes().await?;
+
+        Ok(NodeAllocationPlan::try_new(nodes, allocation)?)
+    }
+
+    #[expect(dead_code)]
+    /// Take a given allocation and actually re-label the nodes such that they correspond to the
+    /// given allocation.
+    async fn apply_node_label_allocation(&mut self, allocation: Vec<(String, u32)>) -> Result<()> {
+        let node_allocation_plan = self.plan_node_label_allocation(allocation).await?;
+        let api = self.cluster_api::<Node>();
+
+        // Do this using futures so that we can submit the requests in parallel rather than
+        // via a for-loop
+        let patches = node_allocation_plan.into_iter().map(|(node_id, (k, v))| {
+            let api = api.clone();
+            async move {
+                api.patch(
+                    &node_id,
+                    &PatchParams::apply(MANAGER_NAME),
+                    &Patch::Merge(json!({"metadata": {"labels": {k : v}}})),
+                )
+                .await
+            }
+        });
+
+        try_join_all(patches).await?;
+
+        Ok(())
+    }
+
+    #[expect(dead_code)]
+    /// Remove from the node all the labels that have our prefix on them so we can reset a
+    /// cluster after using it
+    async fn remove_all_prefixed_labels(&mut self) -> Result<()> {
+        let nodes = self.get_nodes().await?;
+        let api = self.cluster_api::<Node>();
+
+        let patches = nodes.into_iter().map(|node| {
+            let api = api.clone();
+            async move {
+                let node_name = node.name_any();
+                let filtered_labels: BTreeMap<String, String> = node
+                    .metadata
+                    .labels
+                    .unwrap_or(BTreeMap::new())
+                    .into_iter()
+                    .filter(|(k, _)| !k.starts_with(NODE_LABEL_PREFIX))
+                    .collect();
+
+                api.patch(
+                    &node_name,
+                    &PatchParams::apply(MANAGER_NAME),
+                    &Patch::Merge(json!({"metadata": {"labels": filtered_labels}})),
+                )
+                .await
+            }
+        });
+
+        try_join_all(patches).await?;
 
         Ok(())
     }
@@ -399,6 +504,10 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
                 return false;
             }
         }
+    }
+
+    async fn get_nodes(&mut self) -> Result<Vec<Node>> {
+        self.get_nodes().await
     }
 }
 

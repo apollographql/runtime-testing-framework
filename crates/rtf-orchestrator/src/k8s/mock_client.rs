@@ -4,7 +4,10 @@ use crate::{
         FullClient, ManagementClient, Result, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient,
     },
 };
-use k8s_openapi::api::batch::v1::{Job, JobSpec};
+use k8s_openapi::api::{
+    batch::v1::{Job, JobSpec},
+    core::v1::Node,
+};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -22,6 +25,7 @@ pub struct MockClient {
     pub wait_for_job: Resp<WatchOutcome>,
     pub delete_workload_namespace: Resp<Result<()>>,
     pub wait_for_namespace_pods_deleted: Resp<bool>,
+    pub get_nodes: Resp<Result<Vec<Node>>>,
 }
 
 impl MockClient {
@@ -36,6 +40,7 @@ impl MockClient {
             wait_for_job: Resp::new(WatchOutcome::Succeeded),
             delete_workload_namespace: Resp::new(Ok(())),
             wait_for_namespace_pods_deleted: Resp::new(true),
+            get_nodes: Resp::new(Ok(Vec::new())),
         }
     }
 }
@@ -94,6 +99,12 @@ impl WorkloadClient for MockClient {
         self.wait_for_namespace_pods_deleted
             .take()
             .expect("wait_for_namespace_pods_deleted called but no outcome configured")
+    }
+
+    async fn get_nodes(&mut self) -> Result<Vec<Node>> {
+        self.get_nodes
+            .take()
+            .expect("get_nodes called but no outcome configured")
     }
 }
 
