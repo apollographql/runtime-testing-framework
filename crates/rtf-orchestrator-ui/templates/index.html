@@ -70,22 +70,40 @@
                 </div>
                 <p class="muted">{{ d.running }} executions running</p>
             </div>
-            <h3>Cluster Pools</h3>
+            <br>
+            <h3>Workload Pools</h3>
             {% for pool in d.pools %}
             <h4 class="pool-name">{{ pool.name }}</h4>
+            <p class="muted">
+                Queued executions: {{ pool.queued_executions }} &middot; Queued runs: {{ pool.queued_runs }}
+                {% if pool.queued_dedicated > 0 %}
+                &middot; Awaiting a dedicated cluster: {{ pool.queued_dedicated }}
+                {% endif %}
+            </p>
             {% for cluster in pool.clusters %}
             <div class="cluster-queue">
                 <div class="cluster-queue__header">
                     <code>{{ cluster.name }}</code>
                     <span class="muted">{{ cluster.running }} / {{ cluster.max_concurrent }} running</span>
                 </div>
-                <div class="usage-bar" aria-hidden="true">
-                    <div class="usage-bar__fill" style="width: {{ cluster.utilisation_percent }}%"></div>
-                </div>
+                {% match cluster.claim %}
+                {% when Some with (claim) %}
                 <p class="muted">
-                    {{ cluster.pending_provisions }} awaiting provisioning &middot;
-                    {{ cluster.pending_other }} other pending events
+                    <span class="status status--active">{{ claim.label() }}</span>
+                    for <a href="/ui/run/{{ claim.run_id }}">{{ claim.initiated_by }}'s run</a>
+                    {% match claim.executions_to_wait_for() %}
+                    {% when Some with (n) %}
+                    <br>executions outstanding: {{ n }}
+                    {% when None %}
+                    {% endmatch %}
                 </p>
+                <br>
+                {% when None %}
+                {% endmatch %}
+                <div class="usage-bar" aria-hidden="true">
+                <div class="usage-bar__fill" style="width: {{ cluster.utilisation_percent }}%"></div>
+                </div>
+                <p class="muted">Pending events: {{ cluster.pending_other }}</p>
             </div>
             {% endfor %}
             {% endfor %}
@@ -98,14 +116,31 @@
         </div>
 
         <div class="card">
-            <h3>Workload clusters</h3>
+            <h3>Workload pool configuration</h3>
             <p class="muted">
                 <a href="{{ d.cluster_roles_url }}" target="_blank" rel="noopener noreferrer">
                     View current scenario cluster roles in GitHub &#8599;
                 </a>
             </p>
             {% for pool in d.pools %}
-            <h4 class="pool-name">{{ pool.name }} pool</h4>
+            <h4 class="pool-name">
+                {{ pool.name }}
+                {% if pool.supports_dedicated %}
+                <span class="status status--active">Supports dedicated</span>
+                {% endif %}
+            </h4>
+
+            <details class="cluster-config">
+            <summary>Per-user limits</summary>
+            <dl class="pool-limits">
+                {% for (label, value) in pool.limits %}
+                <dt>{{ label }}</dt>
+                <dd>{{ value }}</dd>
+                {% endfor %}
+            </dl>
+            </details>
+            
+            <summary>Clusters</summary>
             {% for cluster in pool.clusters %}
             <details class="cluster-config">
                 <summary><code>{{ cluster.name }}</code></summary>

@@ -76,6 +76,8 @@ fn cluster_summary(
         .iter()
         .map(|(name, pool)| WorkloadPoolSummary {
             name: name.to_string(),
+            supports_dedicated: pool.supports_dedicated,
+            per_user: per_user_summary(&pool.per_user_limits),
             clusters: pool
                 .available_clusters
                 .iter()
@@ -87,7 +89,7 @@ fn cluster_summary(
                 })
                 .map(|cfg| WorkloadClusterSummary {
                     name: cfg.name.clone(),
-                    execution: execution_summary(&cfg.execution, &pool.per_user_limits),
+                    execution: execution_summary(&cfg.execution),
                     hourly_executions: hourly
                         .remove(&ClusterId::new(&cfg.name))
                         .unwrap_or_default(),
@@ -103,10 +105,16 @@ fn cluster_summary(
     }
 }
 
-fn execution_summary(
-    cfg: &ClusterExecutionConfig,
-    per_user: &PerUserExecutionConfig,
-) -> ClusterExecutionSummary {
+fn per_user_summary(per_user: &PerUserExecutionConfig) -> PerUserExecutionSummary {
+    PerUserExecutionSummary {
+        max_concurrent_runs: per_user.max_concurrent_runs,
+        max_queued_runs: per_user.max_queued_runs,
+        max_queued_executions: per_user.max_queued_executions,
+        max_runs_per_hour: per_user.max_runs_per_hour,
+    }
+}
+
+fn execution_summary(cfg: &ClusterExecutionConfig) -> ClusterExecutionSummary {
     ClusterExecutionSummary {
         max_concurrent: cfg.max_concurrent,
         failed_execution_ttl_secs: cfg.failed_execution_ttl_secs,
@@ -115,12 +123,6 @@ fn execution_summary(
         exclusive_nodes: cfg.exclusive_nodes,
         scenario_node_selector: cfg.scenario_node_selector.clone(),
         namespace_cleanup_timeout_secs: cfg.namespace_cleanup_timeout_secs,
-        per_user: PerUserExecutionSummary {
-            max_concurrent_runs: per_user.max_concurrent_runs,
-            max_queued_runs: per_user.max_queued_runs,
-            max_queued_executions: per_user.max_queued_executions,
-            max_runs_per_hour: per_user.max_runs_per_hour,
-        },
     }
 }
 
@@ -172,5 +174,37 @@ mod tests {
         let expected: Vec<_> = expected.iter().map(|(p, cs)| (*p, cs.to_vec())).collect();
 
         assert_eq!(pool_layout(&resp), expected);
+    }
+
+    #[test]
+    fn cluster_summary_reports_dedicated_support_and_user_limits_per_pool() {
+        let mut dedicated = pool(&["a"]);
+        dedicated.supports_dedicated = true;
+        dedicated.per_user_limits.max_queued_runs = 7;
+        let mut perf = pool(&["b"]);
+        perf.per_user_limits.max_queued_runs = 3;
+        let mut clusters = WorkloadClusters::for_test_with_available_clusters(10, "a", &["a", "b"]);
+        clusters.cluster_pools = ClusterPools {
+            default: dedicated,
+            additional: vec![NamedPoolConfig {
+                name: "perf".into(),
+                config: perf,
+            }],
+        };
+
+        let resp = cluster_summary(&clusters, HashMap::new(), HashMap::new());
+        let pools: Vec<_> = resp
+            .pools
+            .iter()
+            .map(|p| {
+                (
+                    p.name.as_str(),
+                    p.supports_dedicated,
+                    p.per_user.max_queued_runs,
+                )
+            })
+            .collect();
+
+        assert_eq!(pools, vec![("default", true, 7), ("perf", false, 3)]);
     }
 }

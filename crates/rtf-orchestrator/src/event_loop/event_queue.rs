@@ -15,13 +15,16 @@ use rtf_config::{
 };
 use rtf_orchestrator_shared::{
     OutputCollectionResponse, PrometheusQueries,
-    event_queue::{ClusterQueueState, EventQueueSnapshot, EventSummary, SnapshotSummary},
+    event_queue::{
+        ClusterClaimSummary, ClusterQueueState, EventQueueSnapshot, EventSummary,
+        PendingProvisionSummary, PoolQueueState, SnapshotSummary,
+    },
     payload::PreparedPayload,
     test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
 };
 use sqlx::PgConnection;
 use std::{
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     sync::Arc,
 };
 use tokio::sync::{
@@ -760,6 +763,65 @@ impl EventQueueInner {
 
         None
     }
+
+    fn snapshot_state(&self) -> InnerSnapshotState {
+        let mut summary = SnapshotSummary::default();
+        let mut pools: BTreeMap<String, PoolQueueState> = BTreeMap::new();
+        let mut clusters: BTreeMap<String, ClusterQueueState> = BTreeMap::new();
+
+        for (pool_id, events) in self.pending_provisions.iter() {
+            let state = pools.entry(pool_id.to_string()).or_default();
+            for evt in events.iter() {
+                state.pending_provisions.push(PendingProvisionSummary {
+                    execution_id: evt.test_execution.uuid(),
+                    run_id: evt.run_uuid,
+                    requires_dedicated: evt.requires_dedicated,
+                });
+            }
+        }
+
+        for (cluster_id, running) in self.running_executions.iter() {
+            let state = clusters.entry(cluster_id.to_string()).or_default();
+            state.running_executions.extend(running.iter().copied());
+            state.running_executions.sort_unstable();
+            summary.running += running.len();
+        }
+
+        for evt in self.pending_non_provisions.iter() {
+            let state = clusters.entry(evt.cluster.to_string()).or_default();
+            state.pending_non_provisions.push(event_summary(evt));
+            summary.pending_non_provisions += 1;
+        }
+
+        // Ensure that we have default summaries for pools/clusters that are currently empty
+        for (pool_id, cluster_ids) in self.pool_clusters.iter() {
+            pools.entry(pool_id.to_string()).or_default();
+
+            for cluster_id in cluster_ids.iter() {
+                clusters.entry(cluster_id.to_string()).or_default();
+            }
+        }
+
+        let claims: Vec<_> = self
+            .claims
+            .iter()
+            .map(|(cid, claim)| (cid.to_string(), *claim, self.running_on(cid)))
+            .collect();
+
+        InnerSnapshotState {
+            summary,
+            claims,
+            pools,
+            clusters,
+        }
+    }
+}
+
+struct InnerSnapshotState {
+    summary: SnapshotSummary,
+    claims: Vec<(String, ClusterClaim, usize)>,
+    pools: BTreeMap<String, PoolQueueState>,
+    clusters: BTreeMap<String, ClusterQueueState>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1127,63 +1189,45 @@ impl EventQueueState {
     }
 
     pub async fn event_queue_snapshot(&self) -> EventQueueSnapshot {
-        let (clusters, mut summary) = {
-            let inner = self.eq_inner.lock().await;
-            let mut clusters: BTreeMap<String, ClusterQueueState> = inner
-                .pool_clusters
-                .values()
-                .flatten()
-                .map(|cid| (cid.to_string(), ClusterQueueState::default()))
-                .collect();
-            let mut summary = SnapshotSummary::default();
-
-            for (cid, running) in inner.running_executions.iter() {
-                let state = clusters.entry(cid.to_string()).or_default();
-                state.running_executions.extend(running.iter().copied());
-                state.running_executions.sort_unstable();
-                summary.running += running.len();
-            }
-
-            // Queued provisions have not been assigned a cluster yet so they are reported against
-            // the name of their pool.
-            for (pool, events) in inner.pending_provisions.iter() {
-                let state = clusters.entry(pool.to_string()).or_default();
-                for evt in events.iter() {
-                    state.pending_provisions.push(EventSummary {
-                        execution_id: evt.test_execution.uuid(),
-                        event: EventData::ResolveConfig.name().to_string(),
-                    });
-                    summary.pending_provisions += 1;
-                }
-            }
-
-            for evt in inner.pending_non_provisions.iter() {
-                let state = clusters.entry(evt.cluster.to_string()).or_default();
-                state.pending_non_provisions.push(event_summary(evt));
-                summary.pending_non_provisions += 1;
-            }
-
-            (clusters, summary)
-        };
+        let InnerSnapshotState {
+            mut summary,
+            claims,
+            pools,
+            mut clusters,
+        } = self.eq_inner.lock().await.snapshot_state();
 
         self.with_shared(|shared| {
+            let initiator = |run: &Uuid| shared.runs.get(run).and_then(|r| r.initiated_by.clone());
+
+            for (cid, claim, running) in claims.into_iter() {
+                clusters.entry(cid).or_default().claim = Some(match claim {
+                    ClusterClaim::Owned(run_id) => ClusterClaimSummary::Owned {
+                        run_id,
+                        initiated_by: initiator(&run_id),
+                    },
+                    ClusterClaim::Reserved(run_id) => ClusterClaimSummary::Reserved {
+                        run_id,
+                        initiated_by: initiator(&run_id),
+                        executions_to_wait_for: running,
+                    },
+                });
+            }
+
+            let SharedSnapshotState {
+                cached_run_payloads,
+                active_run_executions,
+                resolved_execution_cache,
+            } = shared.snapshot_state();
+
             summary.queued = shared.n_queued;
 
             EventQueueSnapshot {
                 summary,
+                pools,
                 clusters,
-                cached_run_payloads: shared.runs.keys().cloned().collect(),
-                active_run_executions: shared
-                    .runs
-                    .iter()
-                    .map(|(run_uuid, run)| (*run_uuid, run.executions.clone()))
-                    .collect(),
-                resolved_execution_cache: shared
-                    .executions
-                    .iter()
-                    .filter(|(_, exec)| exec.resolved_config.is_some())
-                    .map(|(ex_uuid, _)| *ex_uuid)
-                    .collect(),
+                cached_run_payloads,
+                active_run_executions,
+                resolved_execution_cache,
             }
         })
         .await
@@ -1442,6 +1486,29 @@ impl Shared {
             None => Err(ResolverError::UnknownRun(run_uuid)),
         }
     }
+
+    fn snapshot_state(&self) -> SharedSnapshotState {
+        SharedSnapshotState {
+            cached_run_payloads: self.runs.keys().cloned().collect(),
+            active_run_executions: self
+                .runs
+                .iter()
+                .map(|(run_uuid, run)| (*run_uuid, run.executions.clone().into_iter().collect()))
+                .collect(),
+            resolved_execution_cache: self
+                .executions
+                .iter()
+                .filter(|(_, exec)| exec.resolved_config.is_some())
+                .map(|(ex_uuid, _)| *ex_uuid)
+                .collect(),
+        }
+    }
+}
+
+struct SharedSnapshotState {
+    cached_run_payloads: Vec<Uuid>,
+    active_run_executions: BTreeMap<Uuid, BTreeSet<Uuid>>,
+    resolved_execution_cache: Vec<Uuid>,
 }
 
 fn event_summary(evt: &Event) -> EventSummary {
@@ -2778,6 +2845,93 @@ mod tests {
                 Some(&ClusterClaim::Reserved(run))
             );
         }
+    }
+
+    async fn snapshot_state(
+        clusters: &WorkloadClusters,
+        initiator: &str,
+    ) -> (EventQueue, ProvisioningHandle, EventQueueState, Uuid) {
+        let (eq, ph, state, _) = EventQueue::new(clusters);
+        let run_uuid = Uuid::new_v4();
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &Config::for_test(),
+            empty_source_map(),
+            empty_source_map(),
+            HashMap::new(),
+        );
+        ph.cache_for_test_run(
+            run_uuid,
+            Some(initiator.to_string()),
+            false,
+            true,
+            ctx,
+            stub_test_plan(),
+        )
+        .await;
+
+        (eq, ph, state, run_uuid)
+    }
+
+    #[tokio::test]
+    async fn snapshot_reports_pending_provisions_against_their_pool() {
+        let (mut eq, ph, state, run_uuid) = snapshot_state(&two_cluster_pool(10, true), "a").await;
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+        ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
+            .await;
+        eq.push_event(QueueEvent::Provision(
+            DEFAULT_POOL.clone(),
+            PendingProvision::new(ex.clone(), run_uuid, true),
+        ))
+        .await;
+
+        let snapshot = state.event_queue_snapshot().await;
+
+        assert_eq!(
+            snapshot.pools["default"].pending_provisions,
+            vec![PendingProvisionSummary {
+                execution_id: ex.uuid(),
+                run_id: run_uuid,
+                requires_dedicated: true,
+            }]
+        );
+        assert_eq!(
+            snapshot.clusters.keys().collect::<Vec<_>>(),
+            vec!["a", "b"],
+            "pools must not appear in the cluster map"
+        );
+    }
+
+    #[tokio::test]
+    async fn snapshot_reports_owned_and_reserved_claims() {
+        let (eq, _ph, state, owner) = snapshot_state(&two_cluster_pool(10, true), "alice").await;
+        let reserver = Uuid::new_v4();
+        eq.with_inner(|inner| {
+            inner.claims.insert(cluster_a(), ClusterClaim::Owned(owner));
+            inner
+                .claims
+                .insert(cluster_b(), ClusterClaim::Reserved(reserver));
+            inner.insert_running_execution(Uuid::new_v4(), cluster_b());
+            inner.insert_running_execution(Uuid::new_v4(), cluster_b());
+        })
+        .await;
+
+        let snapshot = state.event_queue_snapshot().await;
+
+        assert_eq!(
+            snapshot.clusters["a"].claim,
+            Some(ClusterClaimSummary::Owned {
+                run_id: owner,
+                initiated_by: Some("alice".to_string()),
+            })
+        );
+        assert_eq!(
+            snapshot.clusters["b"].claim,
+            Some(ClusterClaimSummary::Reserved {
+                run_id: reserver,
+                initiated_by: None,
+                executions_to_wait_for: 2,
+            })
+        );
     }
 
     async fn prepare_dedicated_recovery(

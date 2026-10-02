@@ -563,6 +563,21 @@ button[type="submit"]:hover, button.primary:hover {
     margin-bottom: 0.25rem;
 }
 
+.pool-name .status {
+    margin-left: 0.4rem;
+    text-transform: none;
+    vertical-align: middle;
+}
+
+.pool-limits {
+    margin: 0 0 0.6rem;
+    font-size: 0.85rem;
+}
+
+.pool-limits dd {
+    margin: 0 0 0.35rem;
+}
+
 .cluster-config {
     margin-bottom: 0.4rem;
 }

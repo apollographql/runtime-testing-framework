@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
 use humantime::format_duration;
 use rtf_orchestrator_shared::{
-    cluster_summary::{ClusterExecutionSummary, ClusterSummaryResponse},
-    event_queue::EventQueueSnapshot,
+    cluster_summary::{ClusterExecutionSummary, ClusterSummaryResponse, PerUserExecutionSummary},
+    event_queue::{ClusterClaimSummary, EventQueueSnapshot},
 };
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
+use uuid::Uuid;
 
 const QUEUE_WARN_PERCENT: usize = 75;
 
@@ -23,6 +24,11 @@ pub struct DashboardView {
 #[derive(Debug)]
 pub struct PoolView {
     pub name: String,
+    pub supports_dedicated: bool,
+    pub queued_executions: usize,
+    pub queued_runs: usize,
+    pub queued_dedicated: usize,
+    pub limits: Vec<(&'static str, String)>,
     pub clusters: Vec<ClusterView>,
 }
 
@@ -32,10 +38,70 @@ pub struct ClusterView {
     pub running: usize,
     pub max_concurrent: usize,
     pub utilisation_percent: usize,
-    pub pending_provisions: usize,
     pub pending_other: usize,
+    pub claim: Option<ClaimView>,
     pub config: Vec<(&'static str, String)>,
     hourly_counts: Vec<u64>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ClaimView {
+    pub run_id: Uuid,
+    pub initiated_by: String,
+    pub state: ClaimState,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ClaimState {
+    Owned,
+    Reserved { executions_to_wait_for: usize },
+}
+
+impl ClaimView {
+    pub fn label(&self) -> &'static str {
+        match self.state {
+            ClaimState::Owned => "Owned",
+            ClaimState::Reserved { .. } => "Reserved",
+        }
+    }
+
+    /// Only reservations are waiting on anything.
+    pub fn executions_to_wait_for(&self) -> Option<usize> {
+        match self.state {
+            ClaimState::Owned => None,
+            ClaimState::Reserved {
+                executions_to_wait_for,
+            } => Some(executions_to_wait_for),
+        }
+    }
+}
+
+impl From<ClusterClaimSummary> for ClaimView {
+    fn from(claim: ClusterClaimSummary) -> Self {
+        let (run_id, initiated_by, state) = match claim {
+            ClusterClaimSummary::Owned {
+                run_id,
+                initiated_by,
+            } => (run_id, initiated_by, ClaimState::Owned),
+            ClusterClaimSummary::Reserved {
+                run_id,
+                initiated_by,
+                executions_to_wait_for,
+            } => (
+                run_id,
+                initiated_by,
+                ClaimState::Reserved {
+                    executions_to_wait_for,
+                },
+            ),
+        };
+
+        Self {
+            run_id,
+            initiated_by: initiated_by.unwrap_or_else(|| "unknown".to_owned()),
+            state,
+        }
+    }
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -67,32 +133,47 @@ impl DashboardView {
         let pools = summary
             .pools
             .into_iter()
-            .map(|pool| PoolView {
-                name: pool.name,
-                clusters: pool
-                    .clusters
-                    .into_iter()
-                    .map(|cluster| {
-                        let queue = snapshot.clusters.remove(&cluster.name).unwrap_or_default();
-                        let running = queue.running_executions.len();
-                        let max_concurrent = cluster.execution.max_concurrent;
+            .map(|pool| {
+                let queue = snapshot.pools.remove(&pool.name).unwrap_or_default();
+                let queued_runs: HashSet<_> =
+                    queue.pending_provisions.iter().map(|p| p.run_id).collect();
 
-                        ClusterView {
-                            running,
-                            max_concurrent,
-                            utilisation_percent: percent(running, max_concurrent),
-                            pending_provisions: queue.pending_provisions.len(),
-                            pending_other: queue.pending_non_provisions.len(),
-                            config: config_rows(&cluster.execution),
-                            hourly_counts: cluster
-                                .hourly_executions
-                                .iter()
-                                .map(|h| h.count)
-                                .collect(),
-                            name: cluster.name,
-                        }
-                    })
-                    .collect(),
+                PoolView {
+                    supports_dedicated: pool.supports_dedicated,
+                    queued_executions: queue.pending_provisions.len(),
+                    queued_runs: queued_runs.len(),
+                    queued_dedicated: queue
+                        .pending_provisions
+                        .iter()
+                        .filter(|p| p.requires_dedicated)
+                        .count(),
+                    limits: limit_rows(&pool.per_user),
+                    clusters: pool
+                        .clusters
+                        .into_iter()
+                        .map(|cluster| {
+                            let queue = snapshot.clusters.remove(&cluster.name).unwrap_or_default();
+                            let running = queue.running_executions.len();
+                            let max_concurrent = cluster.execution.max_concurrent;
+
+                            ClusterView {
+                                running,
+                                max_concurrent,
+                                utilisation_percent: percent(running, max_concurrent),
+                                pending_other: queue.pending_non_provisions.len(),
+                                claim: queue.claim.map(ClaimView::from),
+                                config: config_rows(&cluster.execution),
+                                hourly_counts: cluster
+                                    .hourly_executions
+                                    .iter()
+                                    .map(|h| h.count)
+                                    .collect(),
+                                name: cluster.name,
+                            }
+                        })
+                        .collect(),
+                    name: pool.name,
+                }
             })
             .collect();
 
@@ -168,22 +249,18 @@ fn config_rows(cfg: &ClusterExecutionSummary) -> Vec<(&'static str, String)> {
             "Namespace cleanup timeout",
             secs(cfg.namespace_cleanup_timeout_secs),
         ),
+    ]
+}
+
+fn limit_rows(pu: &PerUserExecutionSummary) -> Vec<(&'static str, String)> {
+    vec![
+        ("Max concurrent runs", pu.max_concurrent_runs.to_string()),
+        ("Max queued runs", pu.max_queued_runs.to_string()),
         (
-            "Max concurrent runs per user",
-            cfg.per_user.max_concurrent_runs.to_string(),
+            "Max queued executions",
+            pu.max_queued_executions.to_string(),
         ),
-        (
-            "Max queued runs per user",
-            cfg.per_user.max_queued_runs.to_string(),
-        ),
-        (
-            "Max queued executions per user",
-            cfg.per_user.max_queued_executions.to_string(),
-        ),
-        (
-            "Max runs per hour per user",
-            cfg.per_user.max_runs_per_hour.to_string(),
-        ),
+        ("Max runs per hour", pu.max_runs_per_hour.to_string()),
     ]
 }
 
@@ -230,22 +307,112 @@ mod tests {
             .pools
             .iter()
             .flat_map(|p| p.clusters.iter().map(move |c| (p.name.as_str(), c)))
-            .map(|(pool, c)| {
-                (
-                    pool,
-                    c.name.as_str(),
-                    c.running,
-                    c.pending_provisions,
-                    c.pending_other,
-                )
-            })
+            .map(|(pool, c)| (pool, c.name.as_str(), c.running, c.pending_other))
             .collect();
 
         assert_eq!(
             clusters,
+            vec![("default", "alpha", 2, 1), ("dedicated", "beta", 1, 0)]
+        );
+    }
+
+    #[test]
+    fn queued_executions_are_joined_onto_each_pool() {
+        let d = dashboard();
+        let pools: Vec<_> = d
+            .pools
+            .iter()
+            .map(|p| {
+                (
+                    p.name.as_str(),
+                    p.queued_executions,
+                    p.queued_runs,
+                    p.queued_dedicated,
+                )
+            })
+            .collect();
+
+        assert_eq!(pools, vec![("default", 2, 1, 0), ("dedicated", 1, 1, 1)]);
+    }
+
+    #[test]
+    fn pools_report_dedicated_support_and_per_user_limits_once() {
+        let d = dashboard();
+
+        assert_eq!(
+            d.pools
+                .iter()
+                .map(|p| (p.name.as_str(), p.supports_dedicated))
+                .collect::<Vec<_>>(),
+            vec![("default", false), ("dedicated", true)]
+        );
+        assert!(d.pools.iter().all(|p| {
+            p.limits
+                .iter()
+                .any(|(l, v)| *l == "Max queued runs" && v == "5")
+        }));
+        assert!(d.pools.iter().flat_map(|p| p.clusters.iter()).all(|c| {
+            c.config
+                .iter()
+                .all(|(label, _)| !label.contains("per user"))
+        }));
+    }
+
+    #[test_case(
+        ClusterClaimSummary::Owned {
+            run_id: Uuid::from_u128(1),
+            initiated_by: Some("bob".into())
+        },
+        "bob",
+        ClaimState::Owned;
+        "owned"
+    )]
+    #[test_case(
+        ClusterClaimSummary::Reserved {
+            run_id: Uuid::from_u128(1),
+            initiated_by: None,
+            executions_to_wait_for: 3,
+        },
+        "unknown",
+        ClaimState::Reserved { executions_to_wait_for: 3 };
+        "reserved with unknown initiator"
+    )]
+    #[test]
+    fn claims_are_converted_for_display(
+        claim: ClusterClaimSummary,
+        initiator: &str,
+        state: ClaimState,
+    ) {
+        assert_eq!(
+            ClaimView::from(claim),
+            ClaimView {
+                run_id: Uuid::from_u128(1),
+                initiated_by: initiator.to_owned(),
+                state,
+            }
+        );
+    }
+
+    #[test]
+    fn claims_are_joined_onto_their_cluster() {
+        let d = dashboard();
+        let claims: Vec<_> = d
+            .pools
+            .iter()
+            .flat_map(|p| p.clusters.iter())
+            .map(|c| (c.name.as_str(), c.claim.as_ref().map(|c| &c.state)))
+            .collect();
+
+        assert_eq!(
+            claims,
             vec![
-                ("default", "alpha", 2, 2, 1),
-                ("dedicated", "beta", 1, 0, 0)
+                ("alpha", None),
+                (
+                    "beta",
+                    Some(&ClaimState::Reserved {
+                        executions_to_wait_for: 1
+                    })
+                )
             ]
         );
     }
@@ -258,11 +425,12 @@ mod tests {
             String::new(),
         );
 
+        assert!(d.pools.iter().all(|p| p.queued_executions == 0));
         assert!(
             d.pools
                 .iter()
                 .flat_map(|p| p.clusters.iter())
-                .all(|c| c.running == 0 && c.pending_provisions == 0 && c.pending_other == 0)
+                .all(|c| c.running == 0 && c.pending_other == 0 && c.claim.is_none())
         );
     }
 }
