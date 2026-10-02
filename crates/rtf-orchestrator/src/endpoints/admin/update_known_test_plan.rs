@@ -1,8 +1,8 @@
 //! Update the stored details of a known test plan.
 //!
 //! Every field in the request body is optional: a field left out of the payload is left
-//! unchanged. `description` and `pinned_workload_cluster` additionally accept an explicit JSON
-//! `null` to clear the stored value, unpinning the cluster in the latter case.
+//! unchanged. `description` and `pinned_workload_pool` additionally accept an explicit JSON
+//! `null` to clear the stored value, unpinning the pool in the latter case.
 //!
 //! Gated to admins only (see [AdminUser]).
 use crate::{
@@ -26,14 +26,10 @@ pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
     Json(req): Json<UpdateKnownTestPlanRequest>,
 ) -> Result<Json<KnownTestPlanSummary>> {
-    // RR-1176 is moving all of this over to a different structure so we'll make a single breaking
-    // change there instead of altering the payload field name at this time.
-    if let Some(Some(cluster)) = &req.pinned_cluster {
-        let requested = PoolId::new(cluster);
+    if let Some(Some(pool)) = &req.pinned_workload_pool {
+        let requested = PoolId::new(pool);
         if !eq_state.available_pools().contains(&requested) {
-            return Err(Error::UnknownWorkloadPool {
-                pool: cluster.clone(),
-            });
+            return Err(Error::UnknownWorkloadPool { pool: pool.clone() });
         }
     }
 
@@ -44,8 +40,8 @@ pub async fn handler(
             identifier: uuid.to_string(),
         })?;
 
-    let pool = match &req.pinned_cluster {
-        Some(Some(cluster)) => PoolId::new(cluster),
+    let pool = match &req.pinned_workload_pool {
+        Some(Some(pool)) => PoolId::new(pool),
         Some(None) => DEFAULT_POOL,
         None => known.pinned_workload_pool().unwrap_or(DEFAULT_POOL),
     };
@@ -102,7 +98,7 @@ mod tests {
             .cluster_pools
             .additional
             .push(NamedPoolConfig {
-                name: "beta".into(),
+                name: "perf".into(),
                 config: PoolConfig {
                     supports_dedicated: false,
                     available_clusters: vec!["beta".into()],
@@ -120,28 +116,28 @@ mod tests {
             .put(&format!("/admin/test-plan/{}", plan.uuid()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some("beta".to_owned())),
+                pinned_workload_pool: Some(Some("perf".to_owned())),
                 ..Default::default()
             })
             .await;
         assert_eq!(resp.status_code(), StatusCode::OK, "{:?}", resp.text());
 
         let pinned: KnownTestPlanSummary = resp.json();
-        assert_eq!(pinned.pinned_workload_cluster.as_deref(), Some("beta"));
+        assert_eq!(pinned.pinned_workload_pool.as_deref(), Some("perf"));
 
         let resp = tss
             .test_server
             .put(&format!("/admin/test-plan/{}", plan.uuid()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(None),
+                pinned_workload_pool: Some(None),
                 ..Default::default()
             })
             .await;
         assert_eq!(resp.status_code(), StatusCode::OK);
 
         let unpinned: KnownTestPlanSummary = resp.json();
-        assert_eq!(unpinned.pinned_workload_cluster, None);
+        assert_eq!(unpinned.pinned_workload_pool, None);
 
         Ok(())
     }
@@ -157,7 +153,7 @@ mod tests {
             .put(&format!("/admin/test-plan/{}", plan.uuid()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some("unknown".to_owned())),
+                pinned_workload_pool: Some(Some("unknown".to_owned())),
                 ..Default::default()
             })
             .await;
@@ -308,7 +304,7 @@ mod tests {
             .put(&format!("/admin/test-plan/{}", Uuid::new_v4()))
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some(DEFAULT_POOL.to_string())),
+                pinned_workload_pool: Some(Some(DEFAULT_POOL.to_string())),
                 ..Default::default()
             })
             .await;
@@ -332,7 +328,7 @@ mod tests {
                 "accounts.google.com:someone@my-project.iam.gserviceaccount.com",
             )
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some(DEFAULT_POOL.to_string())),
+                pinned_workload_pool: Some(Some(DEFAULT_POOL.to_string())),
                 ..Default::default()
             })
             .await;
@@ -352,7 +348,7 @@ mod tests {
             .test_server
             .put(&format!("/admin/test-plan/{}", plan.uuid()))
             .json(&UpdateKnownTestPlanRequest {
-                pinned_cluster: Some(Some(DEFAULT_POOL.to_string())),
+                pinned_workload_pool: Some(Some(DEFAULT_POOL.to_string())),
                 ..Default::default()
             })
             .await;

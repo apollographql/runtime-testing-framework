@@ -14,7 +14,7 @@ pub struct KnownTestPlan {
     org: String,
     repo: String,
     path: String,
-    pinned_workload_cluster: Option<String>,
+    pinned_workload_pool: Option<String>,
     allow_k8s_write: bool,
     requires_dedicated_cluster: bool,
 }
@@ -53,7 +53,7 @@ impl KnownTestPlan {
     }
 
     pub fn pinned_workload_pool(&self) -> Option<PoolId> {
-        self.pinned_workload_cluster.as_ref().map(PoolId::new)
+        self.pinned_workload_pool.as_ref().map(PoolId::new)
     }
 
     pub fn allow_k8s_write(&self) -> bool {
@@ -84,7 +84,7 @@ impl KnownTestPlan {
             VALUES
               ($1, $2, $3, $4, $5)
             RETURNING
-              id, uuid, name, description, org, repo, path, pinned_workload_cluster, allow_k8s_write,
+              id, uuid, name, description, org, repo, path, pinned_workload_pool, allow_k8s_write,
               requires_dedicated_cluster;
             "#,
         )
@@ -131,7 +131,7 @@ impl KnownTestPlan {
             push_if_some!(sep, update.org, "org = ");
             push_if_some!(sep, update.repo, "repo = ");
             push_if_some!(sep, update.path, "path = ");
-            push_if_some!(sep, update.pinned_cluster, "pinned_workload_cluster = ");
+            push_if_some!(sep, update.pinned_workload_pool, "pinned_workload_pool = ");
             push_if_some!(sep, update.allow_k8s_write, "allow_k8s_write = ");
             push_if_some!(
                 sep,
@@ -178,7 +178,7 @@ impl KnownTestPlan {
             org: self.org,
             repo: self.repo,
             path: self.path,
-            pinned_workload_cluster: self.pinned_workload_cluster,
+            pinned_workload_pool: self.pinned_workload_pool,
             allow_k8s_write: self.allow_k8s_write,
             requires_dedicated_cluster: self.requires_dedicated_cluster,
         }

@@ -479,7 +479,7 @@ pub(crate) mod mocks {
         TestRunSummary {
             id: run_id,
             name: "my-test-run".to_owned(),
-            cluster: "alpha".to_owned(),
+            pool: "alpha".to_owned(),
             current_status: status,
             initiated_by: initiator.to_owned(),
             started_at: Utc::now(),
@@ -505,7 +505,7 @@ pub(crate) mod mocks {
             org: "apollographql".to_owned(),
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
-            pinned_workload_cluster: None,
+            pinned_workload_pool: None,
             allow_k8s_write: false,
             requires_dedicated_cluster: false,
         }

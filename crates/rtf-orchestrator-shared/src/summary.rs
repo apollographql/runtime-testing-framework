@@ -19,7 +19,7 @@ pub struct TestRunSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub test_plan_id: Option<Uuid>,
     pub name: String,
-    pub cluster: String,
+    pub pool: String,
     pub trigger_variables: Option<Value>,
     pub current_status: Status,
     pub initiated_by: String,

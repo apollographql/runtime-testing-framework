@@ -114,7 +114,7 @@ mod tests {
                     org: "apollographql".to_owned(),
                     repo: "runtime-testing-framework".to_owned(),
                     path: "test-plans/example.yaml".to_owned(),
-                    pinned_workload_cluster: None,
+                    pinned_workload_pool: None,
                     allow_k8s_write: false,
                     requires_dedicated_cluster: false,
                 })
@@ -133,7 +133,7 @@ mod tests {
             org: "org".to_owned(),
             repo: "repo".to_owned(),
             path: "path.yaml".to_owned(),
-            pinned_workload_cluster: None,
+            pinned_workload_pool: None,
             allow_k8s_write: false,
             requires_dedicated_cluster: false,
         });
@@ -150,7 +150,7 @@ mod tests {
             org: "apollographql".to_owned(),
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
-            pinned_workload_cluster: None,
+            pinned_workload_pool: None,
             allow_k8s_write: false,
             requires_dedicated_cluster: false,
         });

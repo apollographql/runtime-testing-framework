@@ -12,7 +12,7 @@ pub struct KnownTestPlanSummary {
     pub org: String,
     pub repo: String,
     pub path: String,
-    pub pinned_workload_cluster: Option<String>,
+    pub pinned_workload_pool: Option<String>,
     pub allow_k8s_write: bool,
     pub requires_dedicated_cluster: bool,
 }
@@ -57,7 +57,7 @@ pub struct UpdateKnownTestPlanRequest {
         skip_serializing_if = "Option::is_none",
         deserialize_with = "explicit_null"
     )]
-    pub pinned_cluster: Option<Option<String>>,
+    pub pinned_workload_pool: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allow_k8s_write: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

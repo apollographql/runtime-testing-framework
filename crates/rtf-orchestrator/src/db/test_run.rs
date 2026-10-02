@@ -31,7 +31,7 @@ pub struct TestRun {
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
     variables_id: Option<i32>,
-    workload_cluster: String,
+    workload_pool: String,
     allow_k8s_write: bool,
 }
 
@@ -66,7 +66,7 @@ impl TestRun {
     }
 
     pub fn workload_pool(&self) -> PoolId {
-        PoolId::new(&self.workload_cluster)
+        PoolId::new(&self.workload_pool)
     }
 
     pub fn allow_k8s_write(&self) -> bool {
@@ -83,7 +83,7 @@ impl TestRun {
             started_at: Utc::now(),
             completed_at: None,
             variables_id: None,
-            workload_cluster: "default".into(),
+            workload_pool: "default".into(),
             allow_k8s_write: false,
         }
     }
@@ -110,7 +110,7 @@ impl TestRun {
             WHERE
               initiated_by = $1
             AND
-              workload_cluster = $2
+              workload_pool = $2
             AND
               started_at >= $3;"#,
         )
@@ -135,9 +135,9 @@ impl TestRun {
         };
 
         let tr: TestRun = sqlx::query_as(
-            "INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_cluster, allow_k8s_write)
+            "INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_pool, allow_k8s_write)
              VALUES ($1, NOW(), $2, $3, $4, $5)
-             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_cluster, allow_k8s_write;
+             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_pool, allow_k8s_write;
             ",
         )
         .bind(name)
@@ -219,7 +219,7 @@ impl TestRun {
             id: self.uuid,
             test_plan_id,
             name: self.name,
-            cluster: self.workload_cluster,
+            pool: self.workload_pool,
             trigger_variables,
             current_status: current.status.into(),
             initiated_by: self
@@ -538,7 +538,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn init_persists_workload_cluster() -> Result<()> {
+    async fn init_persists_workload_pool() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init_unknown_initiator("test", None, &perf_pool(), c).await?;
         assert_eq!(tr.workload_pool(), perf_pool());
