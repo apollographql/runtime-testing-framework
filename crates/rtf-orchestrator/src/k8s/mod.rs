@@ -125,6 +125,17 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
     /// Fetch all nodes in the workload cluster.
     fn get_nodes(&mut self) -> impl Future<Output = Result<Vec<Node>>> + Send;
 
+    /// Spread the given `(label value, weight)` allocation across the nodes of the workload
+    /// cluster in proportion to the weights, labelling each node with its assigned value.
+    fn apply_node_label_allocation(
+        &mut self,
+        allocation: Vec<(String, u32)>,
+    ) -> impl Future<Output = Result<()>> + Send;
+
+    /// Remove every node label added by [WorkloadClient::apply_node_label_allocation] from every
+    /// node in the workload cluster. Nodes without any such labels are left untouched.
+    fn remove_all_prefixed_labels(&mut self) -> impl Future<Output = Result<()>> + Send;
+
     /// Summarise the nodes of the workload cluster by instance type.
     fn nodes_summary(&mut self) -> impl Future<Output = Result<NodesSummary>> + Send {
         async {
