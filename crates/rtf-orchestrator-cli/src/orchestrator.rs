@@ -1,7 +1,8 @@
 use reqwest::Url;
 use rtf_orchestrator_shared::{
     FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, OtelConfig, OutputCollectionResponse,
-    RTF_OTEL_COLLECTOR_GRPC_VAR, RTF_OTEL_COLLECTOR_HTTP_VAR,
+    REQUIRED_NODE_LABEL_KEY, REQUIRED_NODE_LABEL_VALUE, RTF_OTEL_COLLECTOR_GRPC_VAR,
+    RTF_OTEL_COLLECTOR_HTTP_VAR,
     payload::{GenerateUploadUrlsPayload, SetStatusPayload},
     status::Status,
     upload_urls::UploadUrls,
@@ -182,6 +183,15 @@ impl Client for HttpClient {
             .replace("__FILE_PROVIDERS_LABEL__", FILE_PROVIDERS_LABEL)
             .replace("__LOG_COLLECTION_LABEL__", LOG_COLLECTION_LABEL)
             .replace("__OTEL_LABEL__", OTEL_LABEL)
+            .replace("__REQUIRED_NODE_LABEL_KEY__", REQUIRED_NODE_LABEL_KEY)
+            .replace(
+                "__REQUIRED_NODE_LABEL_KEY_POINTER__",
+                &REQUIRED_NODE_LABEL_KEY.replace('/', "~1"),
+            )
+            .replace(
+                "__REQUIRED_NODE_LABEL_VALUE_POINTER__",
+                &REQUIRED_NODE_LABEL_VALUE.replace('/', "~1"),
+            )
             .replace(
                 "__RTF_OTEL_COLLECTOR_GRPC_VAR__",
                 RTF_OTEL_COLLECTOR_GRPC_VAR,
@@ -532,7 +542,13 @@ pub(crate) mod mocks {
 mod tests {
     use super::*;
     use crate::orchestrator::mocks::MockClient;
+    use assert_fs::{TempDir, prelude::*};
+    use indoc::indoc;
+    use k8s_openapi::api::apps::v1::Deployment;
+    use serde::Deserialize;
+    use serde_yaml::Deserializer;
     use simple_test_case::test_case;
+    use std::{fs, process::Command};
 
     fn otel() -> OtelConfig {
         OtelConfig {
@@ -585,6 +601,26 @@ mod tests {
         assert!(!patch.contains("__EXCLUSIVE_NODES_PATCH__"));
     }
 
+    #[test]
+    fn kustomize_patch_for_execution_substitutes_required_node_label_constants() {
+        let patch = client().kustomize_patch_for_execution(
+            Path::new("/providers"),
+            "IfNotPresent",
+            "rtf-toolbox:edge",
+            &otel(),
+            &[],
+            false,
+        );
+
+        assert!(patch.contains("rtf.io/required-node-label-key"));
+        assert!(patch.contains("rtf.io~1required-node-label-key"));
+        assert!(patch.contains("rtf.io~1required-node-label-value"));
+        assert!(
+            !patch.contains("__REQUIRED_NODE_LABEL"),
+            "unsubstituted placeholder: {patch}"
+        );
+    }
+
     // Substring assertions above don't catch a malformed splice (e.g. the exclusive-nodes
     // fragment losing the leading indent it needs to land as a valid list item under
     // `patches:`) - only actually parsing the result does. Covers both flag states since the
@@ -604,6 +640,108 @@ mod tests {
 
         serde_yaml::from_str::<serde_yaml::Value>(&patch)
             .expect("substituted kustomization.yaml should be valid YAML");
+    }
+
+    #[test_case(false; "required node label only")]
+    #[test_case(true; "required node label with exclusive nodes")]
+    #[test]
+    #[ignore = "requires kubectl/kustomize on the PATH"]
+    fn kustomize_patch_for_execution_applies_required_node_label_affinity_via_real_kustomize(
+        exclusive_nodes: bool,
+    ) {
+        let tmp = TempDir::new().unwrap();
+
+        let deployment = indoc! {r#"
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: router
+              annotations:
+                rtf.io/required-node-label-key: "rtf.io/node-allocation"
+                rtf.io/required-node-label-value: "my-label"
+            spec:
+              selector:
+                matchLabels:
+                  app: router
+              template:
+                metadata:
+                  labels:
+                    app: router
+                spec:
+                  containers:
+                    - name: router
+                      image: nginx:alpine
+            "#};
+        tmp.child("router-deployment.yaml")
+            .write_str(deployment)
+            .unwrap();
+
+        let kustomization = client().kustomize_patch_for_execution(
+            tmp.path(),
+            "IfNotPresent",
+            "rtf-toolbox:edge",
+            &otel(),
+            &["router-deployment.yaml".to_string()],
+            exclusive_nodes,
+        );
+        tmp.child("kustomization.yaml")
+            .write_str(&kustomization)
+            .unwrap();
+
+        let output_file = tmp.child("out.yaml");
+        let status = Command::new("kubectl")
+            .args([
+                "kustomize",
+                tmp.path().to_str().unwrap(),
+                "-o",
+                output_file.path().to_str().unwrap(),
+            ])
+            .status()
+            .expect("failed to run kubectl - is it on the PATH?");
+        assert!(status.success(), "kubectl kustomize failed");
+
+        let output = fs::read_to_string(output_file.path()).unwrap();
+        let deployment: Deployment = Deserializer::from_str(&output)
+            .map(|doc| serde_yaml::Value::deserialize(doc).expect("valid yaml document"))
+            .find(|doc| doc.get("kind").and_then(|k| k.as_str()) == Some("Deployment"))
+            .map(|doc| serde_yaml::from_value(doc).expect("valid Deployment manifest"))
+            .expect("expected a Deployment in the kustomize output");
+
+        let affinity = deployment
+            .spec
+            .and_then(|s| s.template.spec)
+            .and_then(|s| s.affinity)
+            .expect("expected an affinity block");
+
+        let match_expr = affinity
+            .node_affinity
+            .as_ref()
+            .and_then(|na| {
+                na.required_during_scheduling_ignored_during_execution
+                    .as_ref()
+            })
+            .and_then(|ns| ns.node_selector_terms.first())
+            .and_then(|term| term.match_expressions.as_ref())
+            .and_then(|exprs| exprs.first())
+            .expect("expected a nodeAffinity matchExpression");
+
+        assert_eq!(match_expr.key, "rtf.io/node-allocation");
+        assert_eq!(match_expr.operator, "In");
+        assert_eq!(
+            match_expr.values.as_deref(),
+            Some(["my-label".to_string()].as_slice())
+        );
+
+        if exclusive_nodes {
+            assert!(
+                affinity.pod_affinity.is_some(),
+                "expected podAffinity to survive alongside nodeAffinity: {affinity:?}"
+            );
+            assert!(
+                affinity.pod_anti_affinity.is_some(),
+                "expected podAntiAffinity to survive alongside nodeAffinity: {affinity:?}"
+            );
+        }
     }
 
     #[tokio::test]
