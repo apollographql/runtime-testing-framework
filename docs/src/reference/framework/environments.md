@@ -174,11 +174,13 @@ Services in the compose files can carry RTF-specific labels that control behavio
 runs under the [RTF Orchestrator][1]. These labels have no effect when running locally with the
 `rtf` CLI.
 
-| Label                   | Value  | Effect                                                                                                                                                                                                                                                                                                                             |
-| ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rtf.io/file-providers` | `true` | Mounts file provider output into the container. Required for services that read provider files at runtime.                                                                                                                                                                                                                         |
-| `rtf.io/log-collection` | `true` | Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.                                                                                                                                                                                                                      |
-| `rtf.io/otel`           | `true` | Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: `RTF_OTEL_COLLECTOR_GRPC` (gRPC endpoint, port 4317) and `RTF_OTEL_COLLECTOR_HTTP` (HTTP/protobuf endpoint, port 4318). Use these in your service's config instead of the standard `OTEL_*` variables. |
+| Label                              | Value                         | Effect                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rtf.io/file-providers`            | `true`                        | Mounts file provider output into the container. Required for services that read provider files at runtime.                                                                                                                                                                                                                         |
+| `rtf.io/log-collection`            | `true`                        | Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.                                                                                                                                                                                                                      |
+| `rtf.io/otel`                      | `true`                        | Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: `RTF_OTEL_COLLECTOR_GRPC` (gRPC endpoint, port 4317) and `RTF_OTEL_COLLECTOR_HTTP` (HTTP/protobuf endpoint, port 4318). Use these in your service's config instead of the standard `OTEL_*` variables. |
+| `rtf.io/required-node-label-key`   | a Kubernetes node label key   | Set together with `rtf.io/required-node-label-value` to require this service's pods be scheduled only onto nodes carrying that exact label key/value pair.                                                                                                                                                                         |
+| `rtf.io/required-node-label-value` | a Kubernetes node label value | The value half of the `rtf.io/required-node-label-key` pair above. Both labels must be set together.                                                                                                                                                                                                                               |
 
 ```yaml
 services:
@@ -188,6 +190,8 @@ services:
       rtf.io/file-providers: true
       rtf.io/log-collection: true
       rtf.io/otel: true
+      rtf.io/required-node-label-key: "rtf.io/node-allocation"
+      rtf.io/required-node-label-value: "my-label"
 ```
 
 ### Full example
@@ -252,11 +256,13 @@ manifests, but they are set as **annotations** rather than labels:
 > you need this behaviour on other resource types, please reach out to the Runtime Readiness team in
 > Slack to discuss your use case.
 
-| Annotation              | Value  | Effect                                                                                                                                                                                                                                                                                                                             |
-| ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rtf.io/file-providers` | `true` | Mounts file provider output into the container. Required for containers that read provider files at runtime.                                                                                                                                                                                                                       |
-| `rtf.io/log-collection` | `true` | Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.                                                                                                                                                                                                                      |
-| `rtf.io/otel`           | `true` | Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: `RTF_OTEL_COLLECTOR_GRPC` (gRPC endpoint, port 4317) and `RTF_OTEL_COLLECTOR_HTTP` (HTTP/protobuf endpoint, port 4318). Use these in your service's config instead of the standard `OTEL_*` variables. |
+| Annotation                         | Value                         | Effect                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rtf.io/file-providers`            | `true`                        | Mounts file provider output into the container. Required for containers that read provider files at runtime.                                                                                                                                                                                                                       |
+| `rtf.io/log-collection`            | `true`                        | Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in.                                                                                                                                                                                                                      |
+| `rtf.io/otel`                      | `true`                        | Injects RTF collector endpoints into the container as environment variables. The following variables are set automatically: `RTF_OTEL_COLLECTOR_GRPC` (gRPC endpoint, port 4317) and `RTF_OTEL_COLLECTOR_HTTP` (HTTP/protobuf endpoint, port 4318). Use these in your service's config instead of the standard `OTEL_*` variables. |
+| `rtf.io/required-node-label-key`   | a Kubernetes node label key   | Set together with `rtf.io/required-node-label-value` to require this Deployment's pods be scheduled only onto nodes carrying that exact label key/value pair.                                                                                                                                                                      |
+| `rtf.io/required-node-label-value` | a Kubernetes node label value | The value half of the `rtf.io/required-node-label-key` pair above. Both annotations must be set together.                                                                                                                                                                                                                          |
 
 ```yaml
 apiVersion: apps/v1
@@ -267,6 +273,8 @@ metadata:
     rtf.io/file-providers: "true"
     rtf.io/log-collection: "true"
     rtf.io/otel: "true"
+    rtf.io/required-node-label-key: "rtf.io/node-allocation"
+    rtf.io/required-node-label-value: "my-label"
 spec:
   replicas: 1
   selector:
