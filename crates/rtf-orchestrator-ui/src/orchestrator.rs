@@ -429,10 +429,13 @@ pub(crate) mod mocks {
     };
     use rtf_orchestrator_shared::{
         cluster_summary::{
-            ClusterExecutionSummary, HourlyCount, PerUserExecutionSummary, WorkloadClusterSummary,
-            WorkloadPoolSummary,
+            ClusterExecutionSummary, HourlyCount, NodeMeta, NodesSummary, PerUserExecutionSummary,
+            WorkloadClusterSummary, WorkloadPoolSummary,
         },
-        event_queue::{ClusterQueueState, EventSummary, SnapshotSummary},
+        event_queue::{
+            ClusterClaimSummary, ClusterQueueState, EventSummary, PendingProvisionSummary,
+            PoolQueueState, SnapshotSummary,
+        },
         status::{Status, StatusUpdate},
         summary::TestExecutionSummary,
         test_plan_details::{
@@ -650,34 +653,78 @@ pub(crate) mod mocks {
             event: event.to_owned(),
         };
 
+        let pending = |ex: u128, run: u128, requires_dedicated| PendingProvisionSummary {
+            execution_id: Uuid::from_u128(ex),
+            run_id: Uuid::from_u128(run),
+            requires_dedicated,
+        };
+
         EventQueueSnapshot {
             summary: SnapshotSummary {
                 running: 3,
                 queued: 4,
-                pending_provisions: 2,
                 pending_non_provisions: 1,
             },
+            pools: BTreeMap::from([
+                (
+                    "default".to_owned(),
+                    PoolQueueState {
+                        pending_provisions: vec![pending(3, 100, false), pending(4, 100, false)],
+                    },
+                ),
+                (
+                    "dedicated".to_owned(),
+                    PoolQueueState {
+                        pending_provisions: vec![pending(6, 200, true)],
+                    },
+                ),
+            ]),
             clusters: BTreeMap::from([
                 (
                     "alpha".to_owned(),
                     ClusterQueueState {
                         running_executions: vec![Uuid::from_u128(1), Uuid::from_u128(2)],
-                        pending_provisions: vec![
-                            event(3, "ResolveConfig"),
-                            event(4, "ResolveConfig"),
-                        ],
                         pending_non_provisions: vec![event(1, "WaitForScenarioJob")],
+                        claim: None,
                     },
                 ),
                 (
                     "beta".to_owned(),
                     ClusterQueueState {
                         running_executions: vec![Uuid::from_u128(5)],
+                        claim: Some(ClusterClaimSummary::Reserved {
+                            run_id: Uuid::from_u128(200),
+                            initiated_by: Some("alice".to_owned()),
+                            executions_to_wait_for: 1,
+                        }),
                         ..Default::default()
                     },
                 ),
             ]),
             ..Default::default()
+        }
+    }
+
+    /// Nodes given as `(name, instance type, zone)` all in the region `us-east-1`.
+    pub(crate) fn sample_nodes(nodes: &[(&str, &str, &str)]) -> NodesSummary {
+        let mut by_instance_type = BTreeMap::new();
+        for (_, instance_type, _) in nodes {
+            *by_instance_type
+                .entry(instance_type.to_string())
+                .or_insert(0) += 1;
+        }
+
+        NodesSummary {
+            by_instance_type,
+            nodes: nodes
+                .iter()
+                .map(|(name, instance_type, zone)| NodeMeta {
+                    name: name.to_string(),
+                    instance_type: instance_type.to_string(),
+                    region: "us-east-1".to_owned(),
+                    zone: zone.to_string(),
+                })
+                .collect(),
         }
     }
 
@@ -706,15 +753,15 @@ pub(crate) mod mocks {
                 exclusive_nodes: false,
                 scenario_node_selector: BTreeMap::new(),
                 namespace_cleanup_timeout_secs: 90,
-                per_user: PerUserExecutionSummary {
-                    max_concurrent_runs: 1,
-                    max_queued_runs: 5,
-                    max_queued_executions: 100,
-                    max_runs_per_hour: 10,
-                },
             },
             hourly_executions: hourly(counts),
             nodes: None,
+        };
+        let per_user = PerUserExecutionSummary {
+            max_concurrent_runs: 1,
+            max_queued_runs: 5,
+            max_queued_executions: 100,
+            max_runs_per_hour: 10,
         };
 
         ClusterSummaryResponse {
@@ -722,16 +769,28 @@ pub(crate) mod mocks {
             pools: vec![
                 WorkloadPoolSummary {
                     name: "default".to_owned(),
-                    clusters: vec![cluster(
-                        "alpha",
-                        10,
-                        [
-                            0, 0, 1, 2, 4, 3, 5, 8, 6, 7, 9, 10, 8, 6, 5, 4, 6, 7, 5, 3, 2, 1, 0, 2,
-                        ],
-                    )],
+                    supports_dedicated: false,
+                    per_user: per_user.clone(),
+                    clusters: vec![WorkloadClusterSummary {
+                        nodes: Some(sample_nodes(&[
+                            ("node-a1", "m5.large", "us-east-1a"),
+                            ("node-a2", "m5.large", "us-east-1b"),
+                            ("node-a3", "c5.xlarge", "us-east-1a"),
+                        ])),
+                        ..cluster(
+                            "alpha",
+                            10,
+                            [
+                                0, 0, 1, 2, 4, 3, 5, 8, 6, 7, 9, 10, 8, 6, 5, 4, 6, 7, 5, 3, 2, 1,
+                                0, 2,
+                            ],
+                        )
+                    }],
                 },
                 WorkloadPoolSummary {
                     name: "dedicated".to_owned(),
+                    supports_dedicated: true,
+                    per_user,
                     clusters: vec![WorkloadClusterSummary {
                         execution: ClusterExecutionSummary {
                             exclusive_nodes: true,

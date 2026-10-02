@@ -16,39 +16,56 @@ expression: "render_fragment!(preview::index().as_dashboard())"
                 </div>
                 <p class="muted">3 executions running</p>
             </div>
-            <h3>Cluster Pools</h3>
+            <br>
+            <h3>Workload Pools</h3>
             
             <h4 class="pool-name">default</h4>
+            <p class="muted">
+                Queued executions: 2 &middot; Queued runs: 1
+                
+            </p>
             
             <div class="cluster-queue">
                 <div class="cluster-queue__header">
                     <code>alpha</code>
                     <span class="muted">2 / 10 running</span>
                 </div>
+                
+                
                 <div class="usage-bar" aria-hidden="true">
-                    <div class="usage-bar__fill" style="width: 20%"></div>
+                <div class="usage-bar__fill" style="width: 20%"></div>
                 </div>
-                <p class="muted">
-                    2 awaiting provisioning &middot;
-                    1 other pending events
-                </p>
+                <p class="muted">Pending events: 1</p>
             </div>
             
             
             <h4 class="pool-name">dedicated</h4>
+            <p class="muted">
+                Queued executions: 1 &middot; Queued runs: 1
+                
+                &middot; Awaiting a dedicated cluster: 1
+                
+            </p>
             
             <div class="cluster-queue">
                 <div class="cluster-queue__header">
                     <code>beta</code>
                     <span class="muted">1 / 2 running</span>
                 </div>
-                <div class="usage-bar" aria-hidden="true">
-                    <div class="usage-bar__fill" style="width: 50%"></div>
-                </div>
+                
                 <p class="muted">
-                    0 awaiting provisioning &middot;
-                    0 other pending events
+                    <span class="status status--active">Reserved</span>
+                    for <a href="/ui/run/00000000-0000-0000-0000-0000000000c8">alice's run</a>
+                    
+                    <br>executions outstanding: 1
+                    
                 </p>
+                <br>
+                
+                <div class="usage-bar" aria-hidden="true">
+                <div class="usage-bar__fill" style="width: 50%"></div>
+                </div>
+                <p class="muted">Pending events: 0</p>
             </div>
             
             
@@ -61,14 +78,38 @@ expression: "render_fragment!(preview::index().as_dashboard())"
         </div>
 
         <div class="card">
-            <h3>Workload clusters</h3>
+            <h3>Workload pool configuration</h3>
             <p class="muted">
                 <a href="https://github.com/org/repo/tree/main/cluster-roles" target="_blank" rel="noopener noreferrer">
                     View current scenario cluster roles in GitHub &#8599;
                 </a>
             </p>
             
-            <h4 class="pool-name">default pool</h4>
+            <h4 class="pool-name">
+                default
+                
+            </h4>
+
+            <details class="cluster-config">
+            <summary>Per-user limits</summary>
+            <dl class="pool-limits">
+                
+                <dt>Max concurrent runs</dt>
+                <dd>1</dd>
+                
+                <dt>Max queued runs</dt>
+                <dd>5</dd>
+                
+                <dt>Max queued executions</dt>
+                <dd>100</dd>
+                
+                <dt>Max runs per hour</dt>
+                <dd>10</dd>
+                
+            </dl>
+            </details>
+            
+            <summary>Clusters</summary>
             
             <details class="cluster-config">
                 <summary><code>alpha</code></summary>
@@ -95,23 +136,96 @@ expression: "render_fragment!(preview::index().as_dashboard())"
                     <dt>Namespace cleanup timeout</dt>
                     <dd>1m 30s</dd>
                     
-                    <dt>Max concurrent runs per user</dt>
-                    <dd>1</dd>
-                    
-                    <dt>Max queued runs per user</dt>
-                    <dd>5</dd>
-                    
-                    <dt>Max queued executions per user</dt>
-                    <dd>100</dd>
-                    
-                    <dt>Max runs per hour per user</dt>
-                    <dd>10</dd>
-                    
                 </dl>
+                
+                <div class="node-summary">
+                    <canvas class="node-chart" data-cluster="alpha" width="110" height="110" aria-label="Nodes by instance type"></canvas>
+                    <ul class="node-legend">
+                        
+                        <li>
+                            <span class="swatch" style="background: var(--chart-0)"></span>
+                            <code>c5.xlarge</code>
+                            <span class="muted">1</span>
+                        </li>
+                        
+                        <li>
+                            <span class="swatch" style="background: var(--chart-1)"></span>
+                            <code>m5.large</code>
+                            <span class="muted">2</span>
+                        </li>
+                        
+                    </ul>
+                </div>
+                <details class="node-list">
+                    <summary>Nodes (3)</summary>
+                    <div class="node-table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Instance type</th>
+                                    <th>Region</th>
+                                    <th>Zone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                                <tr>
+                                    <td><code>node-a3</code></td>
+                                    <td>c5.xlarge</td>
+                                    <td>us-east-1</td>
+                                    <td>us-east-1a</td>
+                                </tr>
+                                
+                                <tr>
+                                    <td><code>node-a1</code></td>
+                                    <td>m5.large</td>
+                                    <td>us-east-1</td>
+                                    <td>us-east-1a</td>
+                                </tr>
+                                
+                                <tr>
+                                    <td><code>node-a2</code></td>
+                                    <td>m5.large</td>
+                                    <td>us-east-1</td>
+                                    <td>us-east-1b</td>
+                                </tr>
+                                
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                
             </details>
             
             
-            <h4 class="pool-name">dedicated pool</h4>
+            <h4 class="pool-name">
+                dedicated
+                
+                <span class="status status--active">Supports dedicated</span>
+                
+            </h4>
+
+            <details class="cluster-config">
+            <summary>Per-user limits</summary>
+            <dl class="pool-limits">
+                
+                <dt>Max concurrent runs</dt>
+                <dd>1</dd>
+                
+                <dt>Max queued runs</dt>
+                <dd>5</dd>
+                
+                <dt>Max queued executions</dt>
+                <dd>100</dd>
+                
+                <dt>Max runs per hour</dt>
+                <dd>10</dd>
+                
+            </dl>
+            </details>
+            
+            <summary>Clusters</summary>
             
             <details class="cluster-config">
                 <summary><code>beta</code></summary>
@@ -138,19 +252,10 @@ expression: "render_fragment!(preview::index().as_dashboard())"
                     <dt>Namespace cleanup timeout</dt>
                     <dd>1m 30s</dd>
                     
-                    <dt>Max concurrent runs per user</dt>
-                    <dd>1</dd>
-                    
-                    <dt>Max queued runs per user</dt>
-                    <dd>5</dd>
-                    
-                    <dt>Max queued executions per user</dt>
-                    <dd>100</dd>
-                    
-                    <dt>Max runs per hour per user</dt>
-                    <dd>10</dd>
-                    
                 </dl>
+                
+                <p class="muted">Node data unavailable</p>
+                
             </details>
             
             

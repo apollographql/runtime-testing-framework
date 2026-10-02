@@ -38,6 +38,20 @@
     --status-cancelled-text: #fd864d;
     --status-cancelled-bg: #ffdabb;
 
+    /* Categorical chart palette: PALETTE_SIZE in src/view/dashboard.rs must match the count. */
+    --chart-0: #4e79a7;
+    --chart-1: #f28e2b;
+    --chart-2: #e15759;
+    --chart-3: #76b7b2;
+    --chart-4: #59a14f;
+    --chart-5: #edc948;
+    --chart-6: #b07aa1;
+    --chart-7: #ff9da7;
+    --chart-8: #9c755f;
+    --chart-9: #bab0ac;
+    --chart-10: #1f4e79;
+    --chart-11: #a0522d;
+
     --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.15);
     color-scheme: light;
 }
@@ -55,6 +69,19 @@
     --color-btn-primary: #467b95;
     --color-btn-primary-hover: #365e72;
     --color-btn-primary-text: #13222a;
+
+    --chart-0: #6b9bd1;
+    --chart-1: #ffa94d;
+    --chart-2: #ff7b7d;
+    --chart-3: #8fd1cc;
+    --chart-4: #78c26f;
+    --chart-5: #f2d767;
+    --chart-6: #c999bd;
+    --chart-7: #ffb3bb;
+    --chart-8: #b8917a;
+    --chart-9: #cfc7c3;
+    --chart-10: #5a8fc7;
+    --chart-11: #d2845a;
 
     --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.45);
     color-scheme: dark;
@@ -74,6 +101,19 @@
         --color-btn-primary: #467b95;
         --color-btn-primary-hover: #365e72;
         --color-btn-primary-text: #13222a;
+
+        --chart-0: #6b9bd1;
+        --chart-1: #ffa94d;
+        --chart-2: #ff7b7d;
+        --chart-3: #8fd1cc;
+        --chart-4: #78c26f;
+        --chart-5: #f2d767;
+        --chart-6: #c999bd;
+        --chart-7: #ffb3bb;
+        --chart-8: #b8917a;
+        --chart-9: #cfc7c3;
+        --chart-10: #5a8fc7;
+        --chart-11: #d2845a;
 
         --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.45);
         color-scheme: dark;
@@ -563,6 +603,21 @@ button[type="submit"]:hover, button.primary:hover {
     margin-bottom: 0.25rem;
 }
 
+.pool-name .status {
+    margin-left: 0.4rem;
+    text-transform: none;
+    vertical-align: middle;
+}
+
+.pool-limits {
+    margin: 0 0 0.6rem;
+    font-size: 0.85rem;
+}
+
+.pool-limits dd {
+    margin: 0 0 0.35rem;
+}
+
 .cluster-config {
     margin-bottom: 0.4rem;
 }
@@ -574,6 +629,49 @@ button[type="submit"]:hover, button.primary:hover {
 
 .cluster-config dd {
     margin: 0 0 0.35rem;
+}
+
+.node-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.4rem 0;
+}
+
+.node-chart {
+    width: 110px;
+    height: 110px;
+    flex: none;
+}
+
+.node-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0.85rem;
+}
+
+.node-legend li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+}
+
+.swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    flex: none;
+}
+
+.node-list {
+    font-size: 0.85rem;
+}
+
+.node-table-wrap {
+    max-height: 16rem;
+    overflow: auto;
 }
 
 /* ==========================================================================

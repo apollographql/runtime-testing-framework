@@ -1,4 +1,4 @@
-// Renders the executions per hour chart on the index page.
+// Renders the executions per hour chart and the per-cluster node charts on the index page.
 //
 // Data comes from the `#dashboard-data` script tag the template embeds - see
 // `DashboardView::js_data` in src/view/dashboard.rs for exactly what's in it.
@@ -11,15 +11,19 @@
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
+    // The categorical palette is --chart-0, --chart-1, ... in theme.css
+    function palette() {
+        const colors = [];
+        for (let i = 0; ; i++) {
+            const color = cssVar("--chart-" + i);
+            if (!color) return colors;
+            colors.push(color);
+        }
+    }
+
     function chartColors() {
         return {
-            series: [
-                cssVar("--color-brand-accent"),
-                cssVar("--status-active-text"),
-                cssVar("--status-success-text"),
-                cssVar("--status-unrunnable-text"),
-                cssVar("--status-failed-text"),
-            ],
+            series: palette(),
             muted: cssVar("--color-text-secondary"),
             grid: cssVar("--color-border-primary"),
             surface: cssVar("--color-bg-primary"),
@@ -72,9 +76,44 @@
         });
     }
 
+    let nodeCharts = [];
+
+    function renderNodeCharts() {
+        const c = chartColors();
+        document.querySelectorAll("canvas.node-chart").forEach((canvas) => {
+            const cluster = data.clusters.find((cl) => cl.name === canvas.dataset.cluster);
+            if (!cluster || cluster.instance_types.length === 0) return;
+
+            nodeCharts.push(new Chart(canvas, {
+                type: "doughnut",
+                data: {
+                    labels: cluster.instance_types.map((t) => t.name),
+                    datasets: [{
+                        data: cluster.instance_types.map((t) => t.count),
+                        backgroundColor: cluster.instance_types.map((t) => c.series[t.colour]),
+                        borderColor: c.surface,
+                        borderWidth: 2,
+                    }],
+                },
+                options: {
+                    responsive: false,
+                    animation: false,
+                    cutout: "55%",
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: c.surface, titleColor: c.text, bodyColor: c.muted, borderColor: c.grid, borderWidth: 1, padding: 8 },
+                    },
+                },
+            }));
+        });
+    }
+
     function renderCharts() {
         if (executionsChart) executionsChart.destroy();
+        nodeCharts.forEach((chart) => chart.destroy());
+        nodeCharts = [];
         renderExecutionsChart();
+        renderNodeCharts();
     }
 
     // Redraw with the new palette whenever the theme toggle flips data-theme.

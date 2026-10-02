@@ -7,7 +7,8 @@ use kube::{
     ResourceExt,
     config::{InClusterError, KubeconfigError},
 };
-use std::fmt;
+use rtf_orchestrator_shared::cluster_summary::{NodeMeta, NodesSummary};
+use std::{collections::BTreeMap, fmt};
 use uuid::Uuid;
 
 mod client;
@@ -17,10 +18,8 @@ mod workflow;
 #[cfg(test)]
 pub mod mock_client;
 
-pub use client::ClusterClients;
-use client::nodes::NodeAllocationError;
+pub use client::{ClusterClients, nodes::NodeAllocationError};
 pub(crate) use job::scenario_job;
-use rtf_orchestrator_shared::cluster_summary::NodesSummary;
 pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
     WorkflowToolboxSettings,
@@ -32,6 +31,8 @@ pub(crate) const SCENARIO_SA_NAME: &str = "scenario-sa";
 pub(crate) const SCENARIO_RUNNER_CONTAINER: &str = "scenario-runner";
 pub const ORCHESTRATOR_NAMESPACE: &str = "orchestrator";
 const NODE_INSTANCE_TYPE_LABEL: &str = "node.kubernetes.io/instance-type";
+const NODE_REGION_LABEL: &str = "topology.kubernetes.io/region";
+const NODE_ZONE_LABEL: &str = "topology.kubernetes.io/zone";
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -127,19 +128,35 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
     /// Summarise the nodes of the workload cluster by instance type.
     fn nodes_summary(&mut self) -> impl Future<Output = Result<NodesSummary>> + Send {
         async {
-            let nodes = self.get_nodes().await?;
+            let raw_nodes = self.get_nodes().await?;
+            let mut nodes = Vec::with_capacity(raw_nodes.len());
+            let mut by_instance_type = BTreeMap::new();
 
-            let mut by_instance_type = std::collections::BTreeMap::new();
-            for node in &nodes {
-                let instance_type = node
-                    .labels()
-                    .get(NODE_INSTANCE_TYPE_LABEL)
+            let label_val = |node: &Node, label| {
+                node.labels()
+                    .get(label)
                     .cloned()
-                    .unwrap_or_else(|| "unknown".to_string());
-                *by_instance_type.entry(instance_type).or_insert(0) += 1;
+                    .unwrap_or_else(|| "unknown".to_string())
+            };
+
+            for node in raw_nodes.into_iter() {
+                let instance_type = label_val(&node, NODE_INSTANCE_TYPE_LABEL);
+                let region = label_val(&node, NODE_REGION_LABEL);
+                let zone = label_val(&node, NODE_ZONE_LABEL);
+
+                *by_instance_type.entry(instance_type.clone()).or_insert(0) += 1;
+                nodes.push(NodeMeta {
+                    name: node.name_any(),
+                    instance_type,
+                    region,
+                    zone,
+                });
             }
 
-            Ok(NodesSummary { by_instance_type })
+            Ok(NodesSummary {
+                by_instance_type,
+                nodes,
+            })
         }
     }
 }

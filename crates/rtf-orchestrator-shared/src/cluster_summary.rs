@@ -12,6 +12,8 @@ pub struct ClusterSummaryResponse {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkloadPoolSummary {
     pub name: String,
+    pub supports_dedicated: bool,
+    pub per_user: PerUserExecutionSummary,
     pub clusters: Vec<WorkloadClusterSummary>,
 }
 
@@ -27,6 +29,15 @@ pub struct WorkloadClusterSummary {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodesSummary {
     pub by_instance_type: BTreeMap<String, usize>,
+    pub nodes: Vec<NodeMeta>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeMeta {
+    pub name: String,
+    pub instance_type: String,
+    pub region: String,
+    pub zone: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,7 +49,6 @@ pub struct ClusterExecutionSummary {
     pub exclusive_nodes: bool,
     pub scenario_node_selector: BTreeMap<String, String>,
     pub namespace_cleanup_timeout_secs: u64,
-    pub per_user: PerUserExecutionSummary,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
