@@ -121,7 +121,7 @@
 <a href=#121 id=121 data-nosnippet>121</a>            .<span class="kw">await
 <a href=#122 id=122 data-nosnippet>122</a>            </span>.unwrap();
 <a href=#123 id=123 data-nosnippet>123</a>        tss.prov_handle
-<a href=#124 id=124 data-nosnippet>124</a>            .cache_for_test_run(run_uuid, <span class="prelude-val">None</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>, ctx, test_plan)
+<a href=#124 id=124 data-nosnippet>124</a>            .cache_for_test_run(run_uuid, <span class="prelude-val">None</span>, Default::default(), <span class="bool-val">false</span>, ctx, test_plan)
 <a href=#125 id=125 data-nosnippet>125</a>            .<span class="kw">await</span>;
 <a href=#126 id=126 data-nosnippet>126</a>        tss.prov_handle
 <a href=#127 id=127 data-nosnippet>127</a>            .register_existing_execution(ex.uuid(), run_uuid)
