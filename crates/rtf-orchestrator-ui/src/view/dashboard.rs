@@ -158,6 +158,10 @@ impl From<ClusterClaimSummary> for ClaimView {
                 run_id,
                 initiated_by,
             } => (run_id, initiated_by, ClaimState::Owned),
+            ClusterClaimSummary::Acquiring {
+                run_id,
+                initiated_by,
+            } => (run_id, initiated_by, ClaimState::Owned),
             ClusterClaimSummary::Reserved {
                 run_id,
                 initiated_by,
