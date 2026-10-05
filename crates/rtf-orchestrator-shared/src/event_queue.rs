@@ -41,14 +41,18 @@ pub struct ClusterQueueState {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ClusterClaimSummary {
-    Owned {
-        run_id: Uuid,
-        initiated_by: Option<String>,
-    },
     Reserved {
         run_id: Uuid,
         initiated_by: Option<String>,
         executions_to_wait_for: usize,
+    },
+    Acquiring {
+        run_id: Uuid,
+        initiated_by: Option<String>,
+    },
+    Owned {
+        run_id: Uuid,
+        initiated_by: Option<String>,
     },
 }
 

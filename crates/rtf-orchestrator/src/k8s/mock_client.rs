@@ -150,6 +150,14 @@ impl<T> Resp<T> {
         }
     }
 
+    pub fn is_some(&self) -> bool {
+        self.inner.lock().unwrap().is_some()
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.inner.lock().unwrap().is_none()
+    }
+
     fn take(&self) -> Option<T> {
         self.inner.lock().unwrap().take()
     }

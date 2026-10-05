@@ -110,14 +110,14 @@ impl EventQueue {
         }
     }
 
-    async fn with_shared<F, T>(&self, f: F) -> T
+    pub(super) async fn with_shared<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut Shared) -> T,
     {
         f(&mut *self.shared.lock().await)
     }
 
-    async fn with_inner<F, T>(&self, f: F) -> T
+    pub(super) async fn with_inner<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut EventQueueInner) -> T,
     {
@@ -211,19 +211,37 @@ impl EventQueue {
         .await
     }
 
-    /// Immediately remove any outstanding reservations and schedule a ReleaseCluster event for any
-    /// clusters currently claimed by this run.
-    pub async fn schedule_cluster_release(&mut self, run_uuid: Uuid, ex: &TestExecution) {
-        self.with_inner(|inner| inner.schedule_cluster_release(run_uuid, ex))
-            .await
-    }
+    pub(super) async fn abort_run_acquiring_cluster(
+        &mut self,
+        run_uuid: Uuid,
+        ex: &TestExecution,
+        msg: String,
+        conn: &mut impl UpdateHandle,
+    ) {
+        let mut shared = self.shared.lock().await;
+        let mut inner = self.inner.lock().await;
+        let mut aborted = vec![ex.clone()];
 
-    /// Remove any claims currently in place for the given cluster ID
-    pub async fn clear_cluster_claims_for(&mut self, cluster: &ClusterId) {
-        self.with_inner(|inner| {
-            inner.claims.remove(cluster);
-        })
-        .await
+        for evts in inner.pending_provisions.values_mut() {
+            evts.retain(|evt| {
+                if evt.run_uuid == run_uuid {
+                    aborted.push(evt.test_execution.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+
+        for ex in aborted.iter() {
+            conn.mark_execution_as_unrunnable(ex, msg.clone()).await;
+            inner.remove_running_execution(ex.uuid());
+            shared.executions.remove(&ex.uuid());
+        }
+
+        shared.runs.remove(&run_uuid);
+        inner.schedule_cluster_release(run_uuid, ex);
+        conn.clear_cached_payload_for_run(run_uuid).await;
     }
 
     pub(crate) async fn scenario_job_params(&self, ex_id: Uuid) -> Option<ScenarioJobParams> {
@@ -563,7 +581,7 @@ async fn try_load_payload_cache(
 }
 
 #[derive(Debug)]
-struct EventQueueInner {
+pub(super) struct EventQueueInner {
     /// Pending events for in-progress executions, independent of cluster
     pending_non_provisions: VecDeque<Event>,
     /// Pending provisioning events for new executions, queued per pool
@@ -612,12 +630,12 @@ impl EventQueueInner {
 
     /// Immediately remove any outstanding reservations and schedule a ReleaseCluster event for any
     /// clusters currently claimed by this run.
-    fn schedule_cluster_release(&mut self, run_uuid: Uuid, ex: &TestExecution) {
+    pub(super) fn schedule_cluster_release(&mut self, run_uuid: Uuid, ex: &TestExecution) {
         let mut released = Vec::new();
 
         self.claims.retain(|cluster, claim| match claim {
             ClusterClaim::Reserved(run) if *run == run_uuid => false,
-            ClusterClaim::Owned(run) if *run == run_uuid => {
+            ClusterClaim::Acquiring(run) | ClusterClaim::Owned(run) if *run == run_uuid => {
                 released.push(cluster.clone());
                 true
             }
@@ -633,6 +651,22 @@ impl EventQueueInner {
         }
     }
 
+    /// Remove any claims currently in place for the given cluster ID
+    pub(super) fn clear_cluster_claims_for(&mut self, cluster: &ClusterId) {
+        self.claims.remove(cluster);
+    }
+
+    /// Mark the `cluster` as being owned by `run_uuid`
+    pub(super) fn mark_cluster_as_owned(&mut self, cluster: &ClusterId, run_uuid: Uuid) {
+        self.claims
+            .insert(cluster.clone(), ClusterClaim::Owned(run_uuid));
+    }
+
+    #[cfg(test)]
+    pub(super) fn cluster_claim_for(&self, cluster: &ClusterId) -> Option<ClusterClaim> {
+        self.claims.get(cluster).cloned()
+    }
+
     /// Attempt to find a cluster that is able to accepts a new execution from the given test run.
     fn try_assign(
         &mut self,
@@ -640,7 +674,7 @@ impl EventQueueInner {
         run_uuid: Uuid,
         requires_dedicated: bool,
     ) -> Option<(ClusterId, EventData)> {
-        use ClusterClaim::{Owned, Reserved};
+        use ClusterClaim::{Acquiring, Owned, Reserved};
 
         let clusters = self.pool_clusters.get(pool)?;
         let cluster_with_claim = |claim| {
@@ -669,13 +703,19 @@ impl EventQueueInner {
                 .then(|| (cluster.clone(), EventData::ResolveConfig));
         }
 
+        // If this run is in the process of acquiring its cluster then all other executions block
+        // until that process has finished
+        if cluster_with_claim(Acquiring(run_uuid)).is_some() {
+            return None;
+        }
+
         // If this run has an outstanding reservation assign to that cluster if it is now free and
-        // update the claim to Owned (otherwise we continue waiting)
+        // update the claim to Acquiring (otherwise we continue waiting)
         if let Some(cluster) = cluster_with_claim(Reserved(run_uuid)) {
             if self.running_on(cluster) > 0 || !self.has_capacity(cluster) {
                 return None;
             }
-            self.claims.insert(cluster.clone(), Owned(run_uuid));
+            self.claims.insert(cluster.clone(), Acquiring(run_uuid));
             return Some((cluster.clone(), EventData::AcquireCluster));
         }
 
@@ -687,7 +727,7 @@ impl EventQueueInner {
         // If we have an empty unclaimed cluster, claim it and assign to it
         let first_empty = unclaimed.iter().find(|c| self.running_on(c) == 0);
         if let Some(cluster) = first_empty {
-            self.claims.insert((*cluster).clone(), Owned(run_uuid));
+            self.claims.insert((*cluster).clone(), Acquiring(run_uuid));
 
             return Some(((*cluster).clone(), EventData::AcquireCluster));
         }
@@ -701,7 +741,7 @@ impl EventQueueInner {
         None
     }
 
-    fn insert_running_execution(&mut self, ex_uuid: Uuid, cluster: ClusterId) {
+    pub(super) fn insert_running_execution(&mut self, ex_uuid: Uuid, cluster: ClusterId) {
         self.running_executions
             .entry(cluster.clone())
             .or_default()
@@ -831,8 +871,12 @@ struct InnerSnapshotState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ClusterClaim {
+pub(super) enum ClusterClaim {
+    /// The run is waiting for the executions currently running on the cluster to finish
     Reserved(Uuid),
+    /// The run has the cluster to itself and is in the process of running acquisition actions
+    Acquiring(Uuid),
+    /// The run has the cluster to itself and it is ready for its executions to start
     Owned(Uuid),
 }
 
@@ -1207,14 +1251,18 @@ impl EventQueueState {
 
             for (cid, claim, running) in claims.into_iter() {
                 clusters.entry(cid).or_default().claim = Some(match claim {
-                    ClusterClaim::Owned(run_id) => ClusterClaimSummary::Owned {
-                        run_id,
-                        initiated_by: initiator(&run_id),
-                    },
                     ClusterClaim::Reserved(run_id) => ClusterClaimSummary::Reserved {
                         run_id,
                         initiated_by: initiator(&run_id),
                         executions_to_wait_for: running,
+                    },
+                    ClusterClaim::Acquiring(run_id) => ClusterClaimSummary::Acquiring {
+                        run_id,
+                        initiated_by: initiator(&run_id),
+                    },
+                    ClusterClaim::Owned(run_id) => ClusterClaimSummary::Owned {
+                        run_id,
+                        initiated_by: initiator(&run_id),
                     },
                 });
             }
@@ -1448,7 +1496,7 @@ struct ResolvedExecutionConfig {
 }
 
 #[derive(Debug)]
-struct Shared {
+pub(super) struct Shared {
     /// Metadata for every run with at least one in-flight execution, keyed by TestRun uuid.
     runs: HashMap<Uuid, RunState>,
     /// Metadata for every in-flight TestExecution, keyed by its uuid.
@@ -1460,7 +1508,22 @@ struct Shared {
 }
 
 impl Shared {
-    fn register_execution(&mut self, ex_uuid: Uuid, run_uuid: Uuid) {
+    pub fn run_and_workload_config(&self, ex_id: Uuid) -> resolver::Result<(Uuid, WorkloadConfig)> {
+        let run_uuid = self
+            .executions
+            .get(&ex_id)
+            .ok_or(ResolverError::UnknownExecution(ex_id))?
+            .run_uuid;
+
+        let run = self
+            .runs
+            .get(&run_uuid)
+            .ok_or(ResolverError::UnknownRun(run_uuid))?;
+
+        Ok((run_uuid, run.workload_config.clone()))
+    }
+
+    pub(super) fn register_execution(&mut self, ex_uuid: Uuid, run_uuid: Uuid) {
         self.executions.insert(
             ex_uuid,
             ExecutionState {
@@ -2814,8 +2877,19 @@ mod tests {
         let run = Uuid::new_v4();
 
         assert_eq!(inner.try_assign_insert_dedicated(run), Some(acquire("a")));
-        assert_eq!(inner.try_assign_insert_dedicated(run), Some(resolve("a")));
+        assert_eq!(
+            inner.claims.get(&cluster_a()),
+            Some(&ClusterClaim::Acquiring(run))
+        );
+
+        // No further executions for the run until the cluster has been acquired
         assert_eq!(inner.try_assign_insert_dedicated(run), None);
+
+        // Completing acquisition should then allow further executions to resolve up to the
+        // cluster's capacity
+        inner.mark_cluster_as_owned(&cluster_a(), run);
+        assert_eq!(inner.try_assign_insert_dedicated(run), Some(resolve("a")));
+        assert_eq!(inner.try_assign_insert_dedicated(run), None, "no capacity");
     }
 
     #[tokio::test]
@@ -2826,6 +2900,9 @@ mod tests {
 
         assert_eq!(inner.try_assign_insert_dedicated(run), Some(acquire("a")));
         assert_eq!(inner.try_assign_insert(), Some(resolve("b")));
+        assert_eq!(inner.try_assign_insert_dedicated(run), None);
+
+        inner.claims.insert(cluster_a(), ClusterClaim::Owned(run));
         assert_eq!(inner.try_assign_insert_dedicated(run), Some(resolve("a")));
     }
 
