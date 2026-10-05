@@ -4,9 +4,6 @@ use rtf_orchestrator_shared::NODE_ALLOCATION_LABEL;
 use std::collections::HashMap;
 
 /// A struct to represent an allocation of node labels to nodes
-// Not wired up yet - pending the node-allocation feature work that will call this, only used in
-// tests
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Debug)]
 pub(crate) struct NodeAllocationPlan {
     // Map of node ID to the label (key, value) to apply to it
@@ -14,7 +11,6 @@ pub(crate) struct NodeAllocationPlan {
 }
 
 impl NodeAllocationPlan {
-    #[cfg_attr(not(test), expect(dead_code))]
     /// Create an allocation, testing whether it's valid throughout.
     pub(crate) fn try_new(
         mut nodes: Vec<Node>,

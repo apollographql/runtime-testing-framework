@@ -1,3 +1,4 @@
+use crate::workload_config::WorkloadConfigPatch;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
@@ -13,8 +14,9 @@ pub struct KnownTestPlanSummary {
     pub repo: String,
     pub path: String,
     pub pinned_workload_pool: Option<String>,
-    pub allow_k8s_write: bool,
     pub requires_dedicated_cluster: bool,
+    #[serde(default)]
+    pub workload_config_patch: WorkloadConfigPatch,
 }
 
 /// A page of [KnownTestPlanSummary]s matching a set of query filters, along with the total number
@@ -59,9 +61,9 @@ pub struct UpdateKnownTestPlanRequest {
     )]
     pub pinned_workload_pool: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub allow_k8s_write: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requires_dedicated_cluster: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workload_config_patch: Option<WorkloadConfigPatch>,
 }
 
 impl UpdateKnownTestPlanRequest {

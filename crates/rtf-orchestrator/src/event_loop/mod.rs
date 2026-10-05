@@ -23,6 +23,7 @@ use tokio::{spawn, time::sleep};
 use tracing::{Instrument, error, info_span, warn};
 use uuid::Uuid;
 
+mod acquire_cluster;
 mod cleanup_namespace;
 mod event_queue;
 mod provision_environment;
@@ -187,6 +188,15 @@ impl EventData {
                 | EventData::WaitForScenarioJob
         )
     }
+
+    /// Whether or not a handler failure for this event requires us to mark the execution as
+    /// complete (a subset of full cleanup behaviour after namespace cleanup has run)
+    fn completes_execution_on_error(&self) -> bool {
+        matches!(
+            self,
+            EventData::CleanupNamespace | EventData::WaitForNamespacePodDeletion
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -241,8 +251,16 @@ impl Event {
     async fn handle(self, event_queue: &mut EventQueue, cfg: &EventLoopConfig<'_>) -> Result<()> {
         let conn = conn!();
         let cleanup_on_error = self.data.requires_cleanup_on_error();
+        let complete_on_error = self.data.completes_execution_on_error();
 
         let res = match self.data {
+            EventData::AcquireCluster => {
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                event_queue
+                    .handle_acquire(&self.test_execution, &self.cluster, cluster_cfg, conn)
+                    .await
+            }
+
             EventData::ResolveConfig => {
                 let mut test_execution = self.test_execution;
                 if let Err(e) = test_execution
@@ -259,14 +277,6 @@ impl Event {
                 }
 
                 return Ok(());
-            }
-
-            EventData::AcquireCluster => Ok(Some(EventData::ResolveConfig)),
-
-            EventData::ReleaseCluster => {
-                event_queue.clear_cluster_claims_for(&self.cluster).await;
-
-                Ok(None)
             }
 
             EventData::CreateEnvArgoWorkflow => {
@@ -469,11 +479,22 @@ impl Event {
                 {
                     conn.clear_cached_payload_for_run(run_uuid).await;
                     event_queue
-                        .schedule_cluster_release(run_uuid, &self.test_execution)
+                        .with_inner(|inner| {
+                            inner.schedule_cluster_release(run_uuid, &self.test_execution)
+                        })
                         .await;
                 }
 
                 Ok(None)
+            }
+
+            EventData::ReleaseCluster => {
+                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                event_queue
+                    .handle_release(&self.cluster, cluster_cfg)
+                    .await?;
+
+                return Ok(());
             }
 
             EventData::PurgeNamespace => {
@@ -513,14 +534,20 @@ impl Event {
                 conn.mark_execution_as_unrunnable(&self.test_execution, e.to_string())
                     .await;
 
-                if cleanup_on_error {
+                let data = if cleanup_on_error {
                     let ttl_secs = cfg.failed_execution_ttl_secs(&self.cluster);
-                    let _ = event_queue.tx().send(QueueEvent::Other(Event::new(
-                        self.test_execution,
-                        self.cluster,
-                        EventData::CleanupNamespaceAfter(ttl_secs),
-                    )));
-                }
+                    EventData::CleanupNamespaceAfter(ttl_secs)
+                } else if complete_on_error {
+                    EventData::MarkExecutionComplete
+                } else {
+                    return Ok(());
+                };
+
+                let _ = event_queue.tx().send(QueueEvent::Other(Event::new(
+                    self.test_execution,
+                    self.cluster,
+                    data,
+                )));
             }
         };
 

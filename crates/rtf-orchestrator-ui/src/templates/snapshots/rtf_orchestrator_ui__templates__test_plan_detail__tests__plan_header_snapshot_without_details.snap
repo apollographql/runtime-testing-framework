@@ -15,6 +15,6 @@ expression: render_fragment!(details_failed().as_plan_header())
         
         
         <dt>Namespace write access</dt>
-        <dd>Disabled</dd>
+        <dd>Pool default</dd>
     </dl>
 </div>

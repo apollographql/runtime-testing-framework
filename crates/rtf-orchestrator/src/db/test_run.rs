@@ -4,7 +4,9 @@ use crate::db::{
     test_execution::TestExecution,
 };
 use chrono::{DateTime, Utc};
-use rtf_orchestrator_shared::{payload::PreparedPayload, summary::TestRunSummary};
+use rtf_orchestrator_shared::{
+    payload::PreparedPayload, summary::TestRunSummary, workload_config::WorkloadConfig,
+};
 use serde_json::Value;
 use sqlx::{FromRow, PgConnection};
 use std::collections::HashMap;
@@ -33,6 +35,7 @@ pub struct TestRun {
     variables_id: Option<i32>,
     workload_pool: String,
     allow_k8s_write: bool,
+    workload_config_id: Option<i32>,
 }
 
 impl Queryable for TestRun {
@@ -69,8 +72,14 @@ impl TestRun {
         PoolId::new(&self.workload_pool)
     }
 
-    pub fn allow_k8s_write(&self) -> bool {
-        self.allow_k8s_write
+    pub async fn workload_config(&self, conn: &mut PgConnection) -> Result<WorkloadConfig> {
+        match self.workload_config_id {
+            Some(id) => db::get_workload_config(id, conn).await,
+            None => Ok(WorkloadConfig {
+                allow_k8s_write: self.allow_k8s_write,
+                ..Default::default()
+            }),
+        }
     }
 
     #[cfg(test)]
@@ -85,6 +94,7 @@ impl TestRun {
             variables_id: None,
             workload_pool: "default".into(),
             allow_k8s_write: false,
+            workload_config_id: None,
         }
     }
 
@@ -126,25 +136,26 @@ impl TestRun {
         variables: Option<Value>,
         initiated_by: Option<&str>,
         workload_pool: &PoolId,
-        allow_k8s_write: bool,
+        workload_config: &WorkloadConfig,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         let variables_id = match variables {
             Some(data) => Some(db::upsert_variables(&data, conn).await?),
             None => None,
         };
+        let workload_config_id = db::upsert_workload_config(workload_config, conn).await?;
 
         let tr: TestRun = sqlx::query_as(
-            "INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_pool, allow_k8s_write)
+            "INSERT INTO test_run (name, started_at, variables_id, initiated_by, workload_pool, workload_config_id)
              VALUES ($1, NOW(), $2, $3, $4, $5)
-             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_pool, allow_k8s_write;
+             RETURNING id, uuid, name, initiated_by, started_at, completed_at, variables_id, workload_pool, allow_k8s_write, workload_config_id;
             ",
         )
         .bind(name)
         .bind(variables_id)
         .bind(initiated_by)
         .bind(workload_pool.as_str())
-        .bind(allow_k8s_write)
+        .bind(workload_config_id)
         .fetch_one(&mut *conn)
         .await?;
 
@@ -160,7 +171,15 @@ impl TestRun {
         workload_pool: &PoolId,
         conn: &mut PgConnection,
     ) -> Result<Self> {
-        Self::init(name, variables, None, workload_pool, false, conn).await
+        Self::init(
+            name,
+            variables,
+            None,
+            workload_pool,
+            &WorkloadConfig::default(),
+            conn,
+        )
+        .await
     }
 
     pub async fn init_execution(
@@ -975,14 +994,18 @@ mod tests {
         Ok(())
     }
 
+    fn wcfg() -> WorkloadConfig {
+        WorkloadConfig::default()
+    }
+
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn started_since_counts_only_runs_after_the_cutoff() -> Result<()> {
         let c = conn!();
         let user = unique("user");
 
-        let old = TestRun::init("old", None, Some(&user), &DEFAULT_POOL, false, c).await?;
-        TestRun::init("recent", None, Some(&user), &DEFAULT_POOL, false, c).await?;
+        let old = TestRun::init("old", None, Some(&user), &DEFAULT_POOL, &wcfg(), c).await?;
+        TestRun::init("recent", None, Some(&user), &DEFAULT_POOL, &wcfg(), c).await?;
 
         sqlx::query("UPDATE test_run SET started_at = NOW() - INTERVAL '2 hours' WHERE id = $1")
             .bind(old.id())
@@ -1006,17 +1029,17 @@ mod tests {
         let other_user = unique("other-user");
         let since = Utc::now() - Duration::hours(1);
 
-        TestRun::init("mine", None, Some(&user), &DEFAULT_POOL, false, c).await?;
+        TestRun::init("mine", None, Some(&user), &DEFAULT_POOL, &wcfg(), c).await?;
         TestRun::init(
             "someone-elses",
             None,
             Some(&other_user),
             &DEFAULT_POOL,
-            false,
+            &wcfg(),
             c,
         )
         .await?;
-        TestRun::init("wrong-cluster", None, Some(&user), &perf_pool(), false, c).await?;
+        TestRun::init("wrong-cluster", None, Some(&user), &perf_pool(), &wcfg(), c).await?;
 
         let count = TestRun::started_since(&user, &DEFAULT_POOL, since, c).await?;
 

@@ -7,7 +7,7 @@ use crate::{
     iap_identity::{extract_authenticated_user_email, try_extract_trigger_repo},
 };
 use axum::http::HeaderMap;
-use rtf_orchestrator_shared::payload::PreparedPayload;
+use rtf_orchestrator_shared::{payload::PreparedPayload, workload_config::WorkloadConfig};
 use std::{io::ErrorKind, sync::Arc};
 use tokio::fs;
 use tracing::error;
@@ -91,6 +91,7 @@ pub struct TestRunWithPayload {
     pub test_run: TestRun,
     pub payload: PreparedPayload,
     pub requires_dedicated: bool,
+    pub workload_config: WorkloadConfig,
 }
 
 #[derive(Debug)]

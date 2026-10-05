@@ -1,6 +1,11 @@
 use crate::db::{self, PoolId, Queryable, Result};
-use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, UpdateKnownTestPlanRequest};
+use rtf_orchestrator_shared::{
+    known_test_plan::{KnownTestPlanSummary, UpdateKnownTestPlanRequest},
+    workload_config::WorkloadConfigPatch,
+};
+use serde_json::Value;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use tracing::warn;
 use uuid::Uuid;
 
 /// A Test Plan registered with the orchestrator, identifiable by UUID or name so it can be
@@ -15,7 +20,7 @@ pub struct KnownTestPlan {
     repo: String,
     path: String,
     pinned_workload_pool: Option<String>,
-    allow_k8s_write: bool,
+    workload_config_patch: Option<Value>,
     requires_dedicated_cluster: bool,
 }
 
@@ -56,8 +61,13 @@ impl KnownTestPlan {
         self.pinned_workload_pool.as_ref().map(PoolId::new)
     }
 
-    pub fn allow_k8s_write(&self) -> bool {
-        self.allow_k8s_write
+    pub fn workload_config_patch(&self) -> Result<WorkloadConfigPatch> {
+        match &self.workload_config_patch {
+            Some(raw) => {
+                serde_json::from_value(raw.clone()).map_err(db::Error::MalformedWorkloadConfigPatch)
+            }
+            None => Ok(WorkloadConfigPatch::default()),
+        }
     }
 
     pub fn requires_dedicated_cluster(&self) -> bool {
@@ -84,8 +94,8 @@ impl KnownTestPlan {
             VALUES
               ($1, $2, $3, $4, $5)
             RETURNING
-              id, uuid, name, description, org, repo, path, pinned_workload_pool, allow_k8s_write,
-              requires_dedicated_cluster;
+              id, uuid, name, description, org, repo, path, pinned_workload_pool,
+              workload_config_patch, requires_dedicated_cluster;
             "#,
         )
         .bind(name)
@@ -132,7 +142,13 @@ impl KnownTestPlan {
             push_if_some!(sep, update.repo, "repo = ");
             push_if_some!(sep, update.path, "path = ");
             push_if_some!(sep, update.pinned_workload_pool, "pinned_workload_pool = ");
-            push_if_some!(sep, update.allow_k8s_write, "allow_k8s_write = ");
+            push_if_some!(
+                sep,
+                update.workload_config_patch.map(|patch| {
+                    serde_json::to_value(patch).expect("workload config patch to serialize")
+                }),
+                "workload_config_patch = "
+            );
             push_if_some!(
                 sep,
                 update.requires_dedicated_cluster,
@@ -171,6 +187,11 @@ impl KnownTestPlan {
     }
 
     pub fn into_summary(self) -> KnownTestPlanSummary {
+        let workload_config_patch = self.workload_config_patch().unwrap_or_else(|e| {
+            warn!(plan = %self.uuid, "{e}");
+            WorkloadConfigPatch::default()
+        });
+
         KnownTestPlanSummary {
             uuid: self.uuid,
             name: self.name,
@@ -179,7 +200,7 @@ impl KnownTestPlan {
             repo: self.repo,
             path: self.path,
             pinned_workload_pool: self.pinned_workload_pool,
-            allow_k8s_write: self.allow_k8s_write,
+            workload_config_patch,
             requires_dedicated_cluster: self.requires_dedicated_cluster,
         }
     }
@@ -274,6 +295,63 @@ mod tests {
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
+    }
+
+    fn plan_with_stored_patch(workload_config_patch: Option<Value>) -> KnownTestPlan {
+        KnownTestPlan {
+            id: 1,
+            uuid: Uuid::new_v4(),
+            name: "plan".into(),
+            description: None,
+            org: "org".into(),
+            repo: "repo".into(),
+            path: "path".into(),
+            pinned_workload_pool: None,
+            workload_config_patch,
+            requires_dedicated_cluster: false,
+        }
+    }
+
+    #[test]
+    fn a_plan_with_no_stored_patch_has_an_empty_one() {
+        let plan = plan_with_stored_patch(None);
+
+        assert_eq!(
+            plan.workload_config_patch().unwrap(),
+            WorkloadConfigPatch::default()
+        );
+    }
+
+    #[test]
+    fn a_stored_patch_is_parsed() {
+        let plan = plan_with_stored_patch(Some(serde_json::json!({
+            "allow_k8s_write": true,
+            "node_label_weights": [["a", 1]],
+        })));
+
+        assert_eq!(
+            plan.workload_config_patch().unwrap(),
+            WorkloadConfigPatch {
+                allow_k8s_write: Some(true),
+                node_label_weights: Some(vec![("a".into(), 1)]),
+            }
+        );
+    }
+
+    #[test]
+    fn a_malformed_stored_patch_is_an_error_but_a_plan_can_still_be_summarised() {
+        let plan = plan_with_stored_patch(Some(serde_json::json!({
+            "node_label_weights": "not a list",
+        })));
+
+        assert_matches!(
+            plan.workload_config_patch(),
+            Err(db::Error::MalformedWorkloadConfigPatch(_))
+        );
+        assert_eq!(
+            plan.into_summary().workload_config_patch,
+            WorkloadConfigPatch::default()
+        );
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]

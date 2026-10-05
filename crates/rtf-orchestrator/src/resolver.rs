@@ -178,6 +178,7 @@ async fn try_resolve<H>(
         test_run,
         payload,
         requires_dedicated,
+        workload_config,
     }: &TestRunWithPayload,
     update_handle: &mut H,
     cfg: &Config,
@@ -216,7 +217,7 @@ where
         .cache_for_test_run(
             test_run.uuid(),
             test_run.initiated_by().map(|s| s.to_owned()),
-            test_run.allow_k8s_write(),
+            workload_config.clone(),
             *requires_dedicated,
             ctx,
             test_plan,
@@ -501,7 +502,7 @@ mod tests {
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(tr.uuid(), None, false, false, ctx, tp)
+        ph.cache_for_test_run(tr.uuid(), None, Default::default(), false, ctx, tp)
             .await;
         ph.request_provisioning(&tr, "test", 0, DEFAULT_POOL, &mut mock)
             .await
@@ -557,6 +558,7 @@ mod tests {
             test_run,
             payload,
             requires_dedicated: false,
+            workload_config: Default::default(),
         }
     }
 
@@ -702,6 +704,7 @@ mod tests {
                 test_run: tr.clone(),
                 payload,
                 requires_dedicated: false,
+                workload_config: Default::default(),
             },
         )
         .await
@@ -814,6 +817,7 @@ mod tests {
             test_run: TestRun::create_stub(1, "tr"),
             payload: empty_payload(),
             requires_dedicated: false,
+            workload_config: Default::default(),
         })))
         .unwrap();
         tx.send(ResolverInput::ResolveConfig(

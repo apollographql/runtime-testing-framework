@@ -26,6 +26,8 @@ pub struct MockClient {
     pub delete_workload_namespace: Resp<Result<()>>,
     pub wait_for_namespace_pods_deleted: Resp<bool>,
     pub get_nodes: Resp<Result<Vec<Node>>>,
+    pub apply_node_label_allocation: Resp<Result<()>>,
+    pub remove_all_prefixed_labels: Resp<Result<()>>,
 }
 
 impl MockClient {
@@ -41,6 +43,8 @@ impl MockClient {
             delete_workload_namespace: Resp::new(Ok(())),
             wait_for_namespace_pods_deleted: Resp::new(true),
             get_nodes: Resp::new(Ok(Vec::new())),
+            apply_node_label_allocation: Resp::new(Ok(())),
+            remove_all_prefixed_labels: Resp::new(Ok(())),
         }
     }
 }
@@ -106,6 +110,18 @@ impl WorkloadClient for MockClient {
             .take()
             .expect("get_nodes called but no outcome configured")
     }
+
+    async fn apply_node_label_allocation(&mut self, _allocation: Vec<(String, u32)>) -> Result<()> {
+        self.apply_node_label_allocation
+            .take()
+            .expect("apply_node_label_allocation called but no outcome configured")
+    }
+
+    async fn remove_all_prefixed_labels(&mut self) -> Result<()> {
+        self.remove_all_prefixed_labels
+            .take()
+            .expect("remove_all_prefixed_labels called but no outcome configured")
+    }
 }
 
 impl FullClient for MockClient {
@@ -132,6 +148,14 @@ impl<T> Resp<T> {
         Self {
             inner: Arc::new(Mutex::new(Some(t))),
         }
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.inner.lock().unwrap().is_some()
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.inner.lock().unwrap().is_none()
     }
 
     fn take(&self) -> Option<T> {

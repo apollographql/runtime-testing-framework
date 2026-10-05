@@ -22,8 +22,8 @@ use kube::{
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
-use rtf_orchestrator_shared::{EXECUTION_ID_LABEL, NODE_ALLOCATION_LABEL};
-use serde_json::json;
+use rtf_orchestrator_shared::EXECUTION_ID_LABEL;
+use serde_json::{Value, json};
 use std::{collections::BTreeMap, time};
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
@@ -31,9 +31,9 @@ use uuid::Uuid;
 
 pub(crate) mod nodes;
 
-// Not wired up yet - pending the node-allocation feature work that will call these.
-#[expect(dead_code)]
 const MANAGER_NAME: &str = "rtf-orchestrator";
+const NODE_LABEL_PREFIX: &str = "rtf.io/node-allocation";
+
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
 // exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
 //
@@ -269,8 +269,6 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         Ok(list.items)
     }
 
-    // Not wired up yet - pending the node-allocation feature work that will call these.
-    #[expect(dead_code)]
     /// Take a given allocation (i.e. a set of label and weight pairs) and try and apply
     /// that on top of the nodes that come back from the cluster. Errors indicate either
     /// data could not be gathered that is necessary to plan the allocation or
@@ -282,65 +280,6 @@ impl<M> ClusterClients<M, AvailableWorkload> {
         let nodes = self.get_nodes().await?;
 
         Ok(NodeAllocationPlan::try_new(nodes, allocation)?)
-    }
-
-    #[expect(dead_code)]
-    /// Take a given allocation and actually re-label the nodes such that they correspond to the
-    /// given allocation.
-    async fn apply_node_label_allocation(&mut self, allocation: Vec<(String, u32)>) -> Result<()> {
-        let node_allocation_plan = self.plan_node_label_allocation(allocation).await?;
-        let api = self.cluster_api::<Node>();
-
-        // Do this using futures so that we can submit the requests in parallel rather than
-        // via a for-loop
-        let patches = node_allocation_plan.into_iter().map(|(node_id, (k, v))| {
-            let api = api.clone();
-            async move {
-                api.patch(
-                    &node_id,
-                    &PatchParams::apply(MANAGER_NAME),
-                    &Patch::Merge(json!({"metadata": {"labels": {k : v}}})),
-                )
-                .await
-            }
-        });
-
-        try_join_all(patches).await?;
-
-        Ok(())
-    }
-
-    #[expect(dead_code)]
-    /// Remove from the node all the labels that have our prefix on them so we can reset a
-    /// cluster after using it
-    async fn remove_all_prefixed_labels(&mut self) -> Result<()> {
-        let nodes = self.get_nodes().await?;
-        let api = self.cluster_api::<Node>();
-
-        let patches = nodes.into_iter().map(|node| {
-            let api = api.clone();
-            async move {
-                let node_name = node.name_any();
-                let filtered_labels: BTreeMap<String, String> = node
-                    .metadata
-                    .labels
-                    .unwrap_or(BTreeMap::new())
-                    .into_iter()
-                    .filter(|(k, _)| !k.starts_with(NODE_ALLOCATION_LABEL))
-                    .collect();
-
-                api.patch(
-                    &node_name,
-                    &PatchParams::apply(MANAGER_NAME),
-                    &Patch::Merge(json!({"metadata": {"labels": filtered_labels}})),
-                )
-                .await
-            }
-        });
-
-        try_join_all(patches).await?;
-
-        Ok(())
     }
 }
 
@@ -504,6 +443,63 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
 
     async fn get_nodes(&mut self) -> Result<Vec<Node>> {
         self.get_nodes().await
+    }
+
+    async fn apply_node_label_allocation(&mut self, allocation: Vec<(String, u32)>) -> Result<()> {
+        let node_allocation_plan = self.plan_node_label_allocation(allocation).await?;
+        let api = self.cluster_api::<Node>();
+
+        let patches = node_allocation_plan.into_iter().map(|(node_id, (k, v))| {
+            let api = api.clone();
+            async move {
+                api.patch(
+                    &node_id,
+                    &PatchParams::apply(MANAGER_NAME),
+                    &Patch::Merge(json!({"metadata": {"labels": {k : v}}})),
+                )
+                .await
+            }
+        });
+
+        try_join_all(patches).await?;
+
+        Ok(())
+    }
+
+    async fn remove_all_prefixed_labels(&mut self) -> Result<()> {
+        let nodes = self.get_nodes().await?;
+        let api = self.cluster_api::<Node>();
+
+        let patches = nodes
+            .iter()
+            .filter_map(|node| {
+                let removals: BTreeMap<&String, Value> = node
+                    .labels()
+                    .keys()
+                    .filter_map(|k| k.starts_with(NODE_LABEL_PREFIX).then_some((k, Value::Null)))
+                    .collect();
+
+                if removals.is_empty() {
+                    None
+                } else {
+                    Some((node.name_any(), json!({"metadata": {"labels": removals}})))
+                }
+            })
+            .map(|(node_name, patch)| {
+                let api = api.clone();
+                async move {
+                    api.patch(
+                        &node_name,
+                        &PatchParams::apply(MANAGER_NAME),
+                        &Patch::Merge(patch),
+                    )
+                    .await
+                }
+            });
+
+        try_join_all(patches).await?;
+
+        Ok(())
     }
 }
 

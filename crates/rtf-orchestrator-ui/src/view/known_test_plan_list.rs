@@ -12,7 +12,8 @@ pub struct KnownTestPlanRowView {
     pub repo: String,
     pub path: String,
     pub github_url: String,
-    pub allow_k8s_write: bool,
+    /// The plan's override of the pool's setting, `None` meaning it defers to the pool.
+    pub allow_k8s_write: Option<bool>,
 }
 
 impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
@@ -25,7 +26,7 @@ impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
             org: plan.org,
             repo: plan.repo,
             path: plan.path,
-            allow_k8s_write: plan.allow_k8s_write,
+            allow_k8s_write: plan.workload_config_patch.allow_k8s_write,
         }
     }
 }
@@ -115,7 +116,7 @@ mod tests {
                     repo: "runtime-testing-framework".to_owned(),
                     path: "test-plans/example.yaml".to_owned(),
                     pinned_workload_pool: None,
-                    allow_k8s_write: false,
+                    workload_config_patch: Default::default(),
                     requires_dedicated_cluster: false,
                 })
                 .collect(),
@@ -134,7 +135,7 @@ mod tests {
             repo: "repo".to_owned(),
             path: "path.yaml".to_owned(),
             pinned_workload_pool: None,
-            allow_k8s_write: false,
+            workload_config_patch: Default::default(),
             requires_dedicated_cluster: false,
         });
 
@@ -151,7 +152,7 @@ mod tests {
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
             pinned_workload_pool: None,
-            allow_k8s_write: false,
+            workload_config_patch: Default::default(),
             requires_dedicated_cluster: false,
         });
 

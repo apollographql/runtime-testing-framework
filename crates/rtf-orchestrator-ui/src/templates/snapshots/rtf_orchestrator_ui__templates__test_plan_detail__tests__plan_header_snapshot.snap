@@ -19,6 +19,6 @@ expression: "render_fragment!(preview::test_plan_detail().as_plan_header())"
         <dd><code>alpha</code></dd>
         
         <dt>Namespace write access</dt>
-        <dd>Disabled</dd>
+        <dd>Pool default</dd>
     </dl>
 </div>
