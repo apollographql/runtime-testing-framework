@@ -56,6 +56,9 @@ pub enum Error {
     #[error("Request failed: {0}")]
     RequestFailed(#[from] reqwest::Error),
 
+    #[error("Unable to rewrite supergraph: {err}")]
+    SupergraphRewriteFailed { err: String },
+
     #[error("Error decoding bytes to utf8")]
     Utf8DecodingError,
 

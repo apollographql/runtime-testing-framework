@@ -69,28 +69,36 @@ pub struct GraphosSupergraph {
 }
 
 impl GraphosSupergraph {
-    fn content_from_details(&self, mut sg: Arc<SupergraphDetails>) -> String {
+    fn content_from_details(&self, mut sg: Arc<SupergraphDetails>) -> providers::Result<String> {
+        // Nothing to rewrite means the details can stay shared, which is worth an early return:
+        // make_mut would otherwise clone every subgraph's SDL along with the supergraph's.
+        if self.with_subgraph_overrides.is_none()
+            && self.with_connector_overrides.is_none()
+            && !self.with_fed3_compat
+        {
+            return Ok(sg.supergraph_sdl.clone());
+        }
+
+        let sg = Arc::make_mut(&mut sg);
+
         if let Some(url_format) = &self.with_subgraph_overrides {
-            let sg = Arc::make_mut(&mut sg);
             let subgraph_urls = url_format.urls_for_subgraphs(&sg.subgraphs);
             sg.rewrite_subgraph_urls(&subgraph_urls)
-                .expect("unable to rewrite subgraph URLs");
+                .map_err(|e| providers::Error::SupergraphRewriteFailed { err: e.to_string() })?;
         }
 
         if let Some(connector_format) = &self.with_connector_overrides {
-            let sg = Arc::make_mut(&mut sg);
             let connector_url = connector_format.connector_base_url();
             sg.rewrite_connector_urls(&connector_url)
-                .expect("unable to rewrite connector URLs");
+                .map_err(|e| providers::Error::SupergraphRewriteFailed { err: e.to_string() })?;
         }
 
         if self.with_fed3_compat {
-            let sg = Arc::make_mut(&mut sg);
             sg.apply_fed3_compat()
-                .expect("unable to apply fed3 compatibility shim");
+                .map_err(|e| providers::Error::SupergraphRewriteFailed { err: e.to_string() })?;
         }
 
-        sg.supergraph_sdl.clone()
+        Ok(sg.supergraph_sdl.clone())
     }
 }
 
@@ -109,7 +117,7 @@ impl AsUtf8FileContent for GraphosSupergraph {
             .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
             .await?;
 
-        Ok(self.content_from_details(sg))
+        self.content_from_details(sg)
     }
 }
 
@@ -1390,7 +1398,8 @@ mod tests {
 
         let expected_content = supergraph_sdl();
         let res = supergraph.content_from_details(details);
-        assert_eq!(res, expected_content)
+        assert!(res.is_ok(), "expected String, got {res:?}");
+        assert_eq!(res.unwrap(), expected_content)
     }
 
     #[tokio::test]
@@ -1409,12 +1418,15 @@ mod tests {
         let expected_bar_url = r#"BAR @join__graph(name: "bar", url: "http://loadbalancer:8080")"#;
 
         let res = supergraph.content_from_details(details);
+        assert!(res.is_ok(), "expected String, got {res:?}");
+
+        let url = res.unwrap();
         assert!(
-            contains(expected_foo_url).eval(&res),
+            contains(expected_foo_url).eval(&url),
             "expected file to contain: {expected_foo_url:?}"
         );
         assert!(
-            contains(expected_bar_url).eval(&res),
+            contains(expected_bar_url).eval(&url),
             "expected file to contain: {expected_bar_url:?}"
         );
     }
@@ -1447,12 +1459,15 @@ mod tests {
             r#"BAR @join__graph(name: "bar", url: "http://my-other-subgraph:8081")"#;
 
         let res = supergraph.content_from_details(details);
+        assert!(res.is_ok(), "expected String, got {res:?}");
+
+        let url = res.unwrap();
         assert!(
-            contains(expected_foo_url).eval(&res),
+            contains(expected_foo_url).eval(&url),
             "expected file to contain: {expected_foo_url:?}"
         );
         assert!(
-            contains(expected_bar_url).eval(&res),
+            contains(expected_bar_url).eval(&url),
             "expected file to contain: {expected_bar_url:?}"
         );
     }
@@ -1484,12 +1499,15 @@ mod tests {
         let expected_bar_url = r#"BAR @join__graph(name: "bar", url: "http://my-subgraph:8000")"#;
 
         let res = supergraph.content_from_details(details);
+        assert!(res.is_ok(), "expected String, got {res:?}");
+
+        let file = res.unwrap();
         assert!(
-            contains(expected_foo_url).eval(&res),
+            contains(expected_foo_url).eval(&file),
             "expected file to contain: {expected_foo_url:?}"
         );
         assert!(
-            contains(expected_bar_url).eval(&res),
+            contains(expected_bar_url).eval(&file),
             "expected file to contain: {expected_bar_url:?}"
         );
     }
@@ -1510,12 +1528,15 @@ mod tests {
         let expected_bar_url = r#"BAR @join__graph(name: "bar", url: "http://localhost:4002")"#;
 
         let res = supergraph.content_from_details(details);
+        assert!(res.is_ok(), "expected String, got {res:?}");
+
+        let url = res.unwrap();
         assert!(
-            contains(expected_foo_url).eval(&res),
+            contains(expected_foo_url).eval(&url),
             "expected file to contain: {expected_foo_url:?}"
         );
         assert!(
-            contains(expected_bar_url).eval(&res),
+            contains(expected_bar_url).eval(&url),
             "expected file to contain: {expected_bar_url:?}"
         );
     }
