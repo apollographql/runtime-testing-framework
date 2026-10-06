@@ -39,8 +39,7 @@ pub struct TestExecutionSummary {
     /// Only populated when this summary is fetched directly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub test_plan_id: Option<Uuid>,
-    /// Only populated when this summary is fetched directly.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Only populated once the execution has been assigned to a cluster.
     pub cluster: Option<String>,
     pub name: String,
     pub current_status: Status,

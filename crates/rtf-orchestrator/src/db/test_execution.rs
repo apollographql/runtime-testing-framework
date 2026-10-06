@@ -218,7 +218,7 @@ impl TestExecution {
             id: self.uuid,
             test_run_id: None,
             test_plan_id: None,
-            cluster: None,
+            cluster: self.workload_cluster,
             name: self.name,
             current_status: current.status,
             exit_code: self.exit_code,
@@ -236,14 +236,12 @@ impl TestExecution {
         let tr = self.test_run(conn).await?;
         let test_run_id = tr.uuid();
         let test_plan_id = tr.test_plan_uuid(conn).await?;
-        let cluster = self.workload_cluster.clone();
         let status_history = self.status_history(conn).await?;
         let mut summary = self.try_into_summary(conn).await?;
 
         summary.status_history = status_history.into_iter().map(Into::into).collect();
         summary.test_run_id = Some(test_run_id);
         summary.test_plan_id = test_plan_id;
-        summary.cluster = cluster;
 
         Ok(summary)
     }

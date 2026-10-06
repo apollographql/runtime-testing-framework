@@ -479,13 +479,13 @@ pub(crate) mod mocks {
         TestRunSummary {
             id: run_id,
             name: "my-test-run".to_owned(),
-            pool: "alpha".to_owned(),
+            pool: "default".to_owned(),
             current_status: status,
             initiated_by: initiator.to_owned(),
             started_at: Utc::now(),
             executions: vec![TestExecutionSummary {
                 test_run_id: None,
-                cluster: None,
+                cluster: Some("alpha".into()),
                 ..sample_execution(run_id, ex_id)
             }],
             ..Default::default()
