@@ -20,8 +20,8 @@
         {% when Some with (d) %}
         <dt>Commit</dt>
         <dd><code>{{ d.source_sha }}</code></dd>
-        <dt>Cluster</dt>
-        <dd><code>{{ d.cluster }}</code></dd>
+        <dt>Workload Pool</dt>
+        <dd><code>{{ d.pool }}</code></dd>
         {% when None %}
         {% endmatch %}
         <dt>Namespace write access</dt>

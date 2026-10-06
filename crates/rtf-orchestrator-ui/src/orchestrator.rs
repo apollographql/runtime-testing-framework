@@ -516,7 +516,7 @@ pub(crate) mod mocks {
             uuid,
             name: "my-known-test-plan".to_owned(),
             description: Some("a sample known test plan".to_owned()),
-            cluster: "alpha".to_owned(),
+            pool: "default".to_owned(),
             source: TestPlanSource {
                 org: "apollographql".to_owned(),
                 repo: "runtime-testing-framework".to_owned(),

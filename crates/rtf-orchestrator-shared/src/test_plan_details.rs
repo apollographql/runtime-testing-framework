@@ -111,7 +111,7 @@ pub struct TestPlanDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub source: TestPlanSource,
-    pub cluster: String,
+    pub pool: String,
     pub variables: Vec<TestPlanVariable>,
     pub matrix: MatrixSummary,
     pub environment: Option<EnvironmentSummary>,
