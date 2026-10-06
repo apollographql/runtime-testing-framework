@@ -5,9 +5,10 @@ use crate::graphos::{
 };
 
 use apollo_compiler::{
-    Name, Node, Schema,
+    Name, Node, Schema, ast,
     ast::{Directive, Value},
-    schema::ExtendedType,
+    collections::IndexMap,
+    schema::{Component, ExtendedType},
 };
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
@@ -153,6 +154,32 @@ impl SupergraphDetails {
 
         replace_sourceless_connector_urls(&mut schema, base_url);
         replace_sourced_connector_urls(&mut schema, base_url);
+
+        self.supergraph_sdl = schema.to_string();
+        Ok(())
+    }
+
+    /// Rewrite this schema so a Router 3 / federation 3 build accepts it.
+    ///
+    /// Composition published graphs before the September 2025 GraphQL spec tightened two rules
+    /// around `@deprecated`, and such a graph is rejected at startup. This applies the same two
+    /// fixes as composition's own fed3 compat shim (apollographql/router#10029):
+    ///
+    /// 1. `@deprecated(reason: null)` loses the `reason` argument, since it is no longer
+    ///    nullable. The directive keeps its default reason.
+    /// 2. `@deprecated` is removed from a field whose interface declares that field without
+    ///    deprecating it, since an implementing field may now only be deprecated alongside it.
+    ///
+    /// Unlike the shim, (2) is applied only to fields the interface actually declares. The shim
+    /// also strips fields the implementing type adds of its own, which the spec rule does not
+    /// cover; leaving those alone keeps the schema under test closer to the published one.
+    pub fn apply_fed3_compat(&mut self) -> Result<(), &'static str> {
+        let mut schema = Schema::parse(&self.supergraph_sdl, "supergraph.graphql")
+            .map_err(|_| "Unable to parse supergraph schema")?;
+
+        let interface_fields = collect_interface_fields(&schema);
+        strip_null_deprecation_reasons(&mut schema);
+        strip_deprecated_implementing_fields(&mut schema, &interface_fields);
 
         self.supergraph_sdl = schema.to_string();
         Ok(())
@@ -315,6 +342,119 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
     );
 
     Some(schema.to_string())
+}
+
+/// Map each interface in the schema to its field names and whether each is deprecated.
+fn collect_interface_fields(schema: &Schema) -> HashMap<Name, HashMap<Name, bool>> {
+    schema
+        .types
+        .values()
+        .filter_map(|ty| match ty {
+            ExtendedType::Interface(interface) => Some(interface),
+            _ => None,
+        })
+        .map(|interface| {
+            let fields = interface
+                .fields
+                .iter()
+                .map(|(name, field)| (name.clone(), has_deprecated(&field.directives)))
+                .collect();
+
+            (interface.name.clone(), fields)
+        })
+        .collect()
+}
+
+fn has_deprecated(directives: &ast::DirectiveList) -> bool {
+    directives.iter().any(|d| d.name == "deprecated")
+}
+
+/// Drop a `reason: null` argument from every `@deprecated` in the list.
+fn strip_null_reason(directives: &mut ast::DirectiveList) {
+    for directive in directives.iter_mut() {
+        if directive.name != "deprecated" {
+            continue;
+        }
+
+        let Some(directive) = directive.get_mut() else {
+            continue;
+        };
+
+        directive
+            .arguments
+            .retain(|arg| !(arg.name == "reason" && matches!(*arg.value, Value::Null)));
+    }
+}
+
+fn strip_null_deprecation_reasons(schema: &mut Schema) {
+    for ty in schema.types.values_mut() {
+        match ty {
+            ExtendedType::Object(object) => {
+                strip_null_reason_from_fields(&mut object.make_mut().fields)
+            }
+            ExtendedType::Interface(interface) => {
+                strip_null_reason_from_fields(&mut interface.make_mut().fields)
+            }
+            ExtendedType::Enum(enum_type) => {
+                for value in enum_type.make_mut().values.values_mut() {
+                    strip_null_reason(&mut value.make_mut().directives);
+                }
+            }
+            ExtendedType::InputObject(input) => {
+                for field in input.make_mut().fields.values_mut() {
+                    strip_null_reason(&mut field.make_mut().directives);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// `@deprecated` is valid on a field's arguments as well as the field itself.
+fn strip_null_reason_from_fields(fields: &mut IndexMap<Name, Component<ast::FieldDefinition>>) {
+    for field in fields.values_mut() {
+        let field = field.make_mut();
+        strip_null_reason(&mut field.directives);
+
+        for arg in field.arguments.iter_mut() {
+            strip_null_reason(&mut arg.make_mut().directives);
+        }
+    }
+}
+
+fn strip_deprecated_implementing_fields(
+    schema: &mut Schema,
+    interface_fields: &HashMap<Name, HashMap<Name, bool>>,
+) {
+    for ty in schema.types.values_mut() {
+        let (implements, fields) = match ty {
+            ExtendedType::Object(object) => {
+                let object = object.make_mut();
+                (&object.implements_interfaces, &mut object.fields)
+            }
+            ExtendedType::Interface(interface) => {
+                let interface = interface.make_mut();
+                (&interface.implements_interfaces, &mut interface.fields)
+            }
+            _ => continue,
+        };
+
+        for interface_name in implements {
+            let Some(declared) = interface_fields.get(&interface_name.name) else {
+                continue;
+            };
+
+            for (field_name, field) in fields.iter_mut() {
+                // Only a field the interface itself declares without deprecating.
+                if declared.get(field_name) == Some(&false) {
+                    field
+                        .make_mut()
+                        .directives
+                        .retain(|d| d.name != "deprecated");
+                }
+            }
+        }
+    }
 }
 
 fn is_join_directive_named(directive: &Node<Directive>, name: &str) -> bool {
@@ -579,6 +719,101 @@ mod tests {
 
         let result = rewrite_subgraph_urls(sdl, &subgraph_urls);
         assert!(result.is_some());
+    }
+
+    fn fed3_compat_fixture() -> SupergraphDetails {
+        SupergraphDetails {
+            graph_id: "".to_string(),
+            variant: "".to_string(),
+            supergraph_sdl: include_str!("../../../resources/test_data/fed3-compat.graphql")
+                .to_string(),
+            subgraphs: vec![],
+        }
+    }
+
+    /// The name a `@deprecated` sits on, for every remaining occurrence. Enum values carry no
+    /// type, so this takes the leading token rather than splitting on `:`.
+    fn fields_still_deprecated(sdl: &str) -> Vec<&str> {
+        sdl.lines()
+            .filter(|line| line.contains("@deprecated"))
+            .filter_map(|line| line.split_whitespace().next())
+            .map(|token| token.trim_end_matches(':'))
+            .collect()
+    }
+
+    #[test]
+    fn fed3_compat_strips_deprecated_implementing_a_non_deprecated_interface_field() {
+        let mut sd = fed3_compat_fixture();
+
+        sd.apply_fed3_compat().unwrap();
+
+        // Node.id and Timestamped.createdAt are not deprecated, so Product's must not be.
+        assert!(!sd.supergraph_sdl.contains("Node.id is not deprecated"));
+        assert!(!fields_still_deprecated(&sd.supergraph_sdl).contains(&"createdAt"));
+    }
+
+    #[test]
+    fn fed3_compat_keeps_deprecated_matching_the_interface() {
+        let mut sd = fed3_compat_fixture();
+
+        sd.apply_fed3_compat().unwrap();
+
+        // Node.legacyId is itself deprecated, so the implementing field may stay deprecated.
+        assert_eq!(
+            sd.supergraph_sdl
+                .matches(r#"@deprecated(reason: "use id")"#)
+                .count(),
+            2,
+            "both Node.legacyId and Product.legacyId should keep their deprecation"
+        );
+    }
+
+    #[test]
+    fn fed3_compat_leaves_fields_the_interface_does_not_declare() {
+        let mut sd = fed3_compat_fixture();
+
+        sd.apply_fed3_compat().unwrap();
+
+        assert!(sd.supergraph_sdl.contains("not an interface field"));
+    }
+
+    #[test]
+    fn fed3_compat_applies_to_an_interface_implementing_an_interface() {
+        let mut sd = fed3_compat_fixture();
+
+        sd.apply_fed3_compat().unwrap();
+
+        assert!(
+            !sd.supergraph_sdl
+                .contains("interface implementing an interface")
+        );
+    }
+
+    #[test]
+    fn fed3_compat_strips_null_reasons_but_keeps_the_directive() {
+        let mut sd = fed3_compat_fixture();
+
+        sd.apply_fed3_compat().unwrap();
+
+        assert!(
+            !sd.supergraph_sdl.contains("reason: null"),
+            "reason is non-nullable under the 2025 spec"
+        );
+        // The enum value, input field and field argument all keep a bare @deprecated.
+        for field in ["RETIRED", "legacyTerm", "currency"] {
+            assert!(
+                fields_still_deprecated(&sd.supergraph_sdl).contains(&field),
+                "{field} should keep a bare @deprecated"
+            );
+        }
+    }
+
+    #[test]
+    fn fed3_compat_invalid_sdl_is_an_error() {
+        let mut sd = fed3_compat_fixture();
+        sd.supergraph_sdl = "not valid graphql {{{".to_string();
+
+        assert!(sd.apply_fed3_compat().is_err());
     }
 
     #[test]
