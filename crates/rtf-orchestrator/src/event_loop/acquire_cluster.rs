@@ -109,7 +109,7 @@ mod tests {
         config::Config,
         context::OrchestratorContext,
         db::{MockUpdateHandle, Status, StatusUpdate, TaggedStatusUpdate},
-        event_loop::{self, event_queue::ClusterClaim, tests::stub_test_plan},
+        event_loop::{self, inner::ClusterClaim, tests::stub_test_plan},
         k8s::{
             self, NodeAllocationError,
             mock_client::{MockClient, Resp},

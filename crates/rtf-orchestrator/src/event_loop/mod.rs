@@ -25,11 +25,17 @@ use uuid::Uuid;
 
 mod acquire_cluster;
 mod cleanup_namespace;
+mod eq_state;
 mod event_queue;
+mod inner;
+mod prov_handle;
 mod provision_environment;
 mod run_scenario;
+mod shared;
 
-pub use event_queue::{Claim, EventQueue, EventQueueState, ProvisioningHandle, SubmitError};
+pub use eq_state::{Claim, EventQueueState, SubmitError};
+pub use event_queue::EventQueue;
+pub use prov_handle::ProvisioningHandle;
 pub use provision_environment::MSG_ARGO_WAIT;
 pub(crate) use run_scenario::CreateJobConfig;
 pub use run_scenario::MSG_JOB_WAIT;
