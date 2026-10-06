@@ -59,6 +59,13 @@ pub struct GraphosSupergraph {
     #[serde(default)]
     #[template(skip)]
     pub with_connector_overrides: Option<UrlFormat>,
+    /// Rewrite the supergraph so a Router 3 build accepts it. A graph composed before
+    /// the September 2025 GraphQL spec is otherwise rejected at startup.
+    ///
+    /// Defaults to false if unset.
+    #[serde(default)]
+    #[template(skip)]
+    pub with_fed3_compat: bool,
 }
 
 impl GraphosSupergraph {
@@ -75,6 +82,12 @@ impl GraphosSupergraph {
             let connector_url = connector_format.connector_base_url();
             sg.rewrite_connector_urls(&connector_url)
                 .expect("unable to rewrite connector URLs");
+        }
+
+        if self.with_fed3_compat {
+            let sg = Arc::make_mut(&mut sg);
+            sg.apply_fed3_compat()
+                .expect("unable to apply fed3 compatibility shim");
         }
 
         sg.supergraph_sdl.clone()
@@ -1023,6 +1036,7 @@ mod tests {
             graph_ref: Field::Resolved(graph_ref.to_string()),
             with_subgraph_overrides: None,
             with_connector_overrides: None,
+            with_fed3_compat: false,
         }
     }
 
@@ -1386,6 +1400,7 @@ mod tests {
             graph_ref: Field::Resolved("graph@variant".to_string()),
             with_subgraph_overrides: Some(UrlFormat::Docker),
             with_connector_overrides: None,
+            with_fed3_compat: false,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1422,6 +1437,7 @@ mod tests {
                 .collect(),
             })),
             with_connector_overrides: None,
+            with_fed3_compat: false,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1459,6 +1475,7 @@ mod tests {
                 .collect(),
             })),
             with_connector_overrides: None,
+            with_fed3_compat: false,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1484,6 +1501,7 @@ mod tests {
             graph_ref: Field::Resolved("graph@variant".to_string()),
             with_subgraph_overrides: Some(UrlFormat::Localhost),
             with_connector_overrides: None,
+            with_fed3_compat: false,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible

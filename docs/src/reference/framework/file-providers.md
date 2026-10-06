@@ -505,6 +505,13 @@ Replace the supergraph's connector urls with overridden values for testing.
 
 Defaults to null if unset.
 
+### `with_fed3_compat`
+
+Rewrite the supergraph so a Router 3 build accepts it. A graph composed before the September 2025
+GraphQL spec is otherwise rejected at startup.
+
+Defaults to false if unset.
+
 </details>
 
 ## Inline file
