@@ -15,8 +15,8 @@ expression: "render_fragment!(preview::test_plan_detail().as_plan_header())"
         
         <dt>Commit</dt>
         <dd><code>abc1234def5678</code></dd>
-        <dt>Cluster</dt>
-        <dd><code>alpha</code></dd>
+        <dt>Workload Pool</dt>
+        <dd><code>default</code></dd>
         
         <dt>Namespace write access</dt>
         <dd>Pool default</dd>

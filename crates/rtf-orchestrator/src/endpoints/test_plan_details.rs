@@ -71,7 +71,7 @@ async fn build_details(
         .await?;
 
     let mut details = build_details_without_history(known, git_ref, sha, ctx).await?;
-    details.cluster = pool.to_string();
+    details.pool = pool.to_string();
     details.history = history;
 
     Ok(details)
@@ -125,7 +125,7 @@ async fn build_details_without_history(
         environment: EnvironmentSummary::try_from_test_plan(&test_plan, &config_file_url, &ctx)
             .await?,
         // set from DB state in build_details
-        cluster: Default::default(),
+        pool: Default::default(),
         history: Default::default(),
     })
 }
