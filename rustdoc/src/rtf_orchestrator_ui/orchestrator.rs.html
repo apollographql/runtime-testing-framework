@@ -479,13 +479,13 @@
 <a href=#479 id=479 data-nosnippet>479</a>        TestRunSummary {
 <a href=#480 id=480 data-nosnippet>480</a>            id: run_id,
 <a href=#481 id=481 data-nosnippet>481</a>            name: <span class="string">"my-test-run"</span>.to_owned(),
-<a href=#482 id=482 data-nosnippet>482</a>            pool: <span class="string">"alpha"</span>.to_owned(),
+<a href=#482 id=482 data-nosnippet>482</a>            pool: <span class="string">"default"</span>.to_owned(),
 <a href=#483 id=483 data-nosnippet>483</a>            current_status: status,
 <a href=#484 id=484 data-nosnippet>484</a>            initiated_by: initiator.to_owned(),
 <a href=#485 id=485 data-nosnippet>485</a>            started_at: Utc::now(),
 <a href=#486 id=486 data-nosnippet>486</a>            executions: <span class="macro">vec!</span>[TestExecutionSummary {
 <a href=#487 id=487 data-nosnippet>487</a>                test_run_id: <span class="prelude-val">None</span>,
-<a href=#488 id=488 data-nosnippet>488</a>                cluster: <span class="prelude-val">None</span>,
+<a href=#488 id=488 data-nosnippet>488</a>                cluster: <span class="prelude-val">Some</span>(<span class="string">"alpha"</span>.into()),
 <a href=#489 id=489 data-nosnippet>489</a>                ..sample_execution(run_id, ex_id)
 <a href=#490 id=490 data-nosnippet>490</a>            }],
 <a href=#491 id=491 data-nosnippet>491</a>            ..Default::default()
@@ -516,7 +516,7 @@
 <a href=#516 id=516 data-nosnippet>516</a>            uuid,
 <a href=#517 id=517 data-nosnippet>517</a>            name: <span class="string">"my-known-test-plan"</span>.to_owned(),
 <a href=#518 id=518 data-nosnippet>518</a>            description: <span class="prelude-val">Some</span>(<span class="string">"a sample known test plan"</span>.to_owned()),
-<a href=#519 id=519 data-nosnippet>519</a>            cluster: <span class="string">"alpha"</span>.to_owned(),
+<a href=#519 id=519 data-nosnippet>519</a>            pool: <span class="string">"default"</span>.to_owned(),
 <a href=#520 id=520 data-nosnippet>520</a>            source: TestPlanSource {
 <a href=#521 id=521 data-nosnippet>521</a>                org: <span class="string">"apollographql"</span>.to_owned(),
 <a href=#522 id=522 data-nosnippet>522</a>                repo: <span class="string">"runtime-testing-framework"</span>.to_owned(),

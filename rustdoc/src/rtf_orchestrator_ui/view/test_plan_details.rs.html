@@ -162,7 +162,7 @@
 <a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">pub </span>uuid: Uuid,
 <a href=#163 id=163 data-nosnippet>163</a>    <span class="kw">pub </span>github_url: String,
 <a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">pub </span>source_sha: String,
-<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">pub </span>cluster: String,
+<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">pub </span>pool: String,
 <a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">pub </span>variables: Vec&lt;TriggerVariableView&gt;,
 <a href=#167 id=167 data-nosnippet>167</a>    <span class="kw">pub </span>n_executions: usize,
 <a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">pub </span>matrix_formula: String,
@@ -204,7 +204,7 @@
 <a href=#204 id=204 data-nosnippet>204</a>            uuid: details.uuid,
 <a href=#205 id=205 data-nosnippet>205</a>            github_url,
 <a href=#206 id=206 data-nosnippet>206</a>            source_sha: source.sha,
-<a href=#207 id=207 data-nosnippet>207</a>            cluster: details.cluster,
+<a href=#207 id=207 data-nosnippet>207</a>            pool: details.pool,
 <a href=#208 id=208 data-nosnippet>208</a>            n_executions: matrix.n_executions,
 <a href=#209 id=209 data-nosnippet>209</a>            matrix_formula: matrix_formula_parts.join(<span class="string">" × "</span>),
 <a href=#210 id=210 data-nosnippet>210</a>            compound_groups: matrix
@@ -447,7 +447,7 @@
 <a href=#447 id=447 data-nosnippet>447</a>            uuid,
 <a href=#448 id=448 data-nosnippet>448</a>            name: <span class="string">"plan"</span>.to_owned(),
 <a href=#449 id=449 data-nosnippet>449</a>            description: <span class="prelude-val">None</span>,
-<a href=#450 id=450 data-nosnippet>450</a>            cluster: <span class="string">"alpha"</span>.to_owned(),
+<a href=#450 id=450 data-nosnippet>450</a>            pool: <span class="string">"alpha"</span>.to_owned(),
 <a href=#451 id=451 data-nosnippet>451</a>            source: TestPlanSource {
 <a href=#452 id=452 data-nosnippet>452</a>                org: <span class="string">"org"</span>.to_owned(),
 <a href=#453 id=453 data-nosnippet>453</a>                repo: <span class="string">"repo"</span>.to_owned(),
