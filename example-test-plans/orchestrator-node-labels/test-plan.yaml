@@ -1,0 +1,58 @@
+name: Check node labels on dedicated clusters
+description: |
+  Checks that the nodes of a dedicated workload cluster carry the `rtf.io/node-allocation` labels
+  requested by the known test plan's workload config.
+
+  This plan only asserts on the cluster, the labels themselves come from the orchestrator. To run it
+  the known test plan must be configured with `requires_dedicated_cluster`, a pinned workload pool
+  and `node_label_weights` whose label values match EXPECTED_VALUES environment variable.
+
+environment:
+  inline:
+    skip: true
+    name: ""
+    description: not needed for this test
+
+scenario:
+  inline:
+    name: node-label-check
+    description: ""
+    docker:
+      image: us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox
+      tag: edge
+      command: "sh $SCRIPT"
+
+    env_vars:
+      # Space separated label values configured on the known test plan in the orchestrator
+      EXPECTED_VALUES: "foo bar"
+
+    file_providers:
+      - name: script.sh
+        env_var: SCRIPT
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          set -eu
+          LABEL="rtf.io/node-allocation"
+
+          echo "listing all node labels for debugging purposes..."
+          kubectl get nodes -L "$LABEL"
+
+          echo "checking for the $LABEL label on all nodes..."
+          status=0
+          for node in $(kubectl get nodes -o name); do
+            value=$(kubectl get "$node" -o jsonpath="{.metadata.labels['rtf\.io/node-allocation']}")
+
+            if [ -z "$value" ]; then
+              echo "FAIL: $node has no $LABEL label"
+              status=1
+              continue
+            fi
+
+            case " $EXPECTED_VALUES " in
+              *" $value "*) ;;
+              *) echo "FAIL: $node has unexpected $LABEL value '$value'"; status=1 ;;
+            esac
+          done
+
+          exit $status
