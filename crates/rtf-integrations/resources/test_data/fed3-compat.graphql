@@ -1,0 +1,79 @@
+schema
+    @link(url: "https://specs.apollo.dev/link/v1.0")
+    @link(url: "https://specs.apollo.dev/join/v0.3", for: EXECUTION) {
+    query: Query
+}
+
+directive @join__graph(name: String!, url: String!) on ENUM_VALUE
+
+directive @join__implements(
+    graph: join__Graph!
+    interface: String!
+) repeatable on OBJECT | INTERFACE
+
+directive @join__type(
+    graph: join__Graph!
+    key: join__FieldSet
+) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT | SCALAR
+
+scalar join__FieldSet
+
+enum join__Graph {
+    CATALOG @join__graph(name: "catalog", url: "http://catalog")
+}
+
+interface Node
+    @join__type(graph: CATALOG)
+{
+    id: ID!
+    legacyId: ID @deprecated(reason: "use id")
+}
+
+interface Timestamped
+    @join__type(graph: CATALOG)
+{
+    createdAt: String
+}
+
+"""
+Implements two interfaces across several lines, as composition emits them.
+"""
+type Product implements Node & Timestamped
+    @join__implements(graph: CATALOG, interface: "Node")
+    @join__implements(graph: CATALOG, interface: "Timestamped")
+    @join__type(graph: CATALOG, key: "id")
+{
+    id: ID! @deprecated(reason: "Node.id is not deprecated")
+    legacyId: ID @deprecated(reason: "use id")
+    createdAt: String @deprecated
+    ownField: String @deprecated(reason: "not an interface field")
+    pricing(currency: String @deprecated(reason: null)): String
+}
+
+interface Audited implements Timestamped
+    @join__type(graph: CATALOG)
+{
+    createdAt: String @deprecated(reason: "interface implementing an interface")
+}
+
+enum Status
+    @join__type(graph: CATALOG)
+{
+    ACTIVE
+    RETIRED @deprecated(reason: null)
+}
+
+input Filter
+    @join__type(graph: CATALOG)
+{
+    term: String
+    legacyTerm: String @deprecated(reason: null)
+}
+
+type Query
+    @join__type(graph: CATALOG)
+{
+    product: Product
+    status: Status
+    search(filter: Filter): [Product]
+}
