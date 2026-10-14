@@ -16,6 +16,7 @@ graphql_client = "0.16.0"
 itertools.workspace = true
 jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 oauth2.workspace = true
+oauth2_reqwest.workspace = true
 open.workspace = true
 rand.workspace = true
 reqwest.workspace = true

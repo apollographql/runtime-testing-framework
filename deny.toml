@@ -21,7 +21,11 @@ git-fetch-with-cli = true
 # rustsec advisory exemptions
 ignore = [
     # Bincode is unmaintained but stable for our use case
-    "RUSTSEC-2025-0141"
+    "RUSTSEC-2025-0141",
+    # rsa is only a dev-dependency (test key generation) and has no patch available
+    "RUSTSEC-2023-0071",
+    # serde_yaml is unmaintained; replacing it is tracked separately
+    "RUSTSEC-2024-0449",
 ]
 
 # This section is considered when running `cargo deny check licenses`
