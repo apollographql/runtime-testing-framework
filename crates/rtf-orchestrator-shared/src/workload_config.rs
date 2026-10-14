@@ -39,9 +39,9 @@ impl WorkloadConfig {
 /// unchanged.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkloadConfigPatch {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub allow_k8s_write: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub node_label_weights: Option<Vec<(String, u32)>>,
 }
 

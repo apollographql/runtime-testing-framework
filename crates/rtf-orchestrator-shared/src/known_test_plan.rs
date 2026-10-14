@@ -1,6 +1,7 @@
 use crate::workload_config::WorkloadConfigPatch;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 /// A Test Plan registered with the orchestrator, identifiable by UUID or name for triggering and
@@ -15,8 +16,18 @@ pub struct KnownTestPlanSummary {
     pub path: String,
     pub pinned_workload_pool: Option<String>,
     pub requires_dedicated_cluster: bool,
+    pub restrict_triggers: bool,
+    pub restrict_automated_triggers: bool,
+    pub associated_users: BTreeMap<String, Role>,
     #[serde(default)]
     pub workload_config_patch: WorkloadConfigPatch,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Role {
+    Owner,
+    CanTrigger,
 }
 
 /// A page of [KnownTestPlanSummary]s matching a set of query filters, along with the total number
@@ -40,7 +51,7 @@ pub struct RegisterTestPlanRequest {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UpdateKnownTestPlanRequest {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub name: Option<String>,
     #[serde(
         default,
@@ -48,11 +59,11 @@ pub struct UpdateKnownTestPlanRequest {
         deserialize_with = "explicit_null"
     )]
     pub description: Option<Option<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub org: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub repo: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub path: Option<String>,
     #[serde(
         default,
@@ -60,15 +71,24 @@ pub struct UpdateKnownTestPlanRequest {
         deserialize_with = "explicit_null"
     )]
     pub pinned_workload_pool: Option<Option<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub requires_dedicated_cluster: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub restrict_triggers: Option<bool>,
+    #[serde(default)]
+    pub restrict_automated_triggers: Option<bool>,
+    #[serde(default)]
+    pub associated_users: Option<BTreeMap<String, Option<Role>>>,
+    #[serde(default)]
     pub workload_config_patch: Option<WorkloadConfigPatch>,
 }
 
 impl UpdateKnownTestPlanRequest {
-    pub fn is_empty(&self) -> bool {
-        self == &Self::default()
+    pub fn is_empty_row_update(&self) -> bool {
+        Self {
+            associated_users: None,
+            ..self.clone()
+        } == Self::default()
     }
 }
 

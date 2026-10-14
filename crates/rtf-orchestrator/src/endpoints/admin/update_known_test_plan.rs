@@ -63,7 +63,7 @@ pub async fn handler(
 
     let updated = known.update(req, conn).await?;
 
-    Ok(Json(updated.into_summary()))
+    Ok(Json(updated.try_into_summary(conn).await?))
 }
 
 #[cfg(test)]

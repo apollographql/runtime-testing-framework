@@ -116,8 +116,11 @@ mod tests {
                     repo: "runtime-testing-framework".to_owned(),
                     path: "test-plans/example.yaml".to_owned(),
                     pinned_workload_pool: None,
+                    associated_users: Default::default(),
                     workload_config_patch: Default::default(),
                     requires_dedicated_cluster: false,
+                    restrict_triggers: false,
+                    restrict_automated_triggers: false,
                 })
                 .collect(),
             total,
@@ -136,7 +139,10 @@ mod tests {
             path: "path.yaml".to_owned(),
             pinned_workload_pool: None,
             workload_config_patch: Default::default(),
+            associated_users: Default::default(),
             requires_dedicated_cluster: false,
+            restrict_triggers: false,
+            restrict_automated_triggers: false,
         });
 
         assert_eq!(row.description, "");
@@ -153,7 +159,10 @@ mod tests {
             path: "test-plans/example.yaml".to_owned(),
             pinned_workload_pool: None,
             workload_config_patch: Default::default(),
+            associated_users: Default::default(),
             requires_dedicated_cluster: false,
+            restrict_triggers: false,
+            restrict_automated_triggers: false,
         });
 
         assert_eq!(

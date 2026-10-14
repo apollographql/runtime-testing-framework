@@ -1,10 +1,11 @@
 use crate::db::{self, PoolId, Queryable, Result};
 use rtf_orchestrator_shared::{
-    known_test_plan::{KnownTestPlanSummary, UpdateKnownTestPlanRequest},
+    known_test_plan::{KnownTestPlanSummary, Role as SharedRole, UpdateKnownTestPlanRequest},
     workload_config::WorkloadConfigPatch,
 };
 use serde_json::Value;
-use sqlx::{PgConnection, Postgres, QueryBuilder};
+use sqlx::{Connection, PgConnection, Postgres, QueryBuilder};
+use std::collections::BTreeMap;
 use tracing::warn;
 use uuid::Uuid;
 
@@ -22,6 +23,8 @@ pub struct KnownTestPlan {
     pinned_workload_pool: Option<String>,
     workload_config_patch: Option<Value>,
     requires_dedicated_cluster: bool,
+    restrict_triggers: bool,
+    restrict_automated_triggers: bool,
 }
 
 impl Queryable for KnownTestPlan {
@@ -95,7 +98,8 @@ impl KnownTestPlan {
               ($1, $2, $3, $4, $5)
             RETURNING
               id, uuid, name, description, org, repo, path, pinned_workload_pool,
-              workload_config_patch, requires_dedicated_cluster;
+              workload_config_patch, requires_dedicated_cluster, restrict_triggers,
+              restrict_automated_triggers;
             "#,
         )
         .bind(name)
@@ -120,7 +124,84 @@ impl KnownTestPlan {
         update: UpdateKnownTestPlanRequest,
         conn: &mut PgConnection,
     ) -> Result<Self> {
-        if update.is_empty() {
+        let mut tx = conn.begin().await?;
+
+        if let Some(user_update) = update.associated_users.as_ref() {
+            for (email, role) in user_update.iter() {
+                self.update_associated_user(email, role.map(Role::from), &mut tx)
+                    .await?;
+            }
+        }
+
+        let updated = self.update_row(update, &mut tx).await?;
+        tx.commit().await?;
+
+        Ok(updated)
+    }
+
+    async fn update_associated_user(
+        &self,
+        email: &str,
+        role: Option<Role>,
+        conn: &mut PgConnection,
+    ) -> Result<()> {
+        let role = match role {
+            Some(role) => role,
+            None => return self.remove_associated_user(email, conn).await,
+        };
+
+        let (user_id,): (i32,) = sqlx::query_as(
+            "INSERT INTO test_plan_user (email)
+             VALUES ($1)
+             ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+             RETURNING id;",
+        )
+        .bind(email)
+        .fetch_one(&mut *conn)
+        .await?;
+
+        sqlx::query(
+            "INSERT INTO known_test_plan_user (user_id, known_test_plan_id, role)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (known_test_plan_id, user_id)
+             DO UPDATE SET role = EXCLUDED.role;",
+        )
+        .bind(user_id)
+        .bind(self.id)
+        .bind(role)
+        .execute(conn)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn remove_associated_user(&self, email: &str, conn: &mut PgConnection) -> Result<()> {
+        sqlx::query(
+            "DELETE FROM
+               known_test_plan_user AS ktpu
+             USING
+               test_plan_user AS u
+             WHERE
+               ktpu.user_id = u.id
+             AND
+               ktpu.known_test_plan_id = $1
+             AND
+               u.email = $2;",
+        )
+        .bind(self.id)
+        .bind(email)
+        .execute(conn)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn update_row(
+        self,
+        update: UpdateKnownTestPlanRequest,
+        conn: &mut PgConnection,
+    ) -> Result<Self> {
+        if update.is_empty_row_update() {
             return Ok(self);
         }
 
@@ -154,6 +235,12 @@ impl KnownTestPlan {
                 update.requires_dedicated_cluster,
                 "requires_dedicated_cluster = "
             );
+            push_if_some!(sep, update.restrict_triggers, "restrict_triggers = ");
+            push_if_some!(
+                sep,
+                update.restrict_automated_triggers,
+                "restrict_automated_triggers = "
+            );
         }
         qb.push(" WHERE id = ").push_bind(self.id);
 
@@ -186,13 +273,45 @@ impl KnownTestPlan {
         )
     }
 
-    pub fn into_summary(self) -> KnownTestPlanSummary {
+    pub async fn associated_users(
+        &self,
+        conn: &mut PgConnection,
+    ) -> Result<BTreeMap<String, Role>> {
+        let rows: Vec<(String, Role)> = sqlx::query_as(
+            r#"
+                SELECT
+                  u.email, ktpu.role
+                FROM
+                  test_plan_user AS u
+                JOIN known_test_plan_user AS ktpu
+                  ON ktpu.user_id = u.id
+                WHERE
+                  ktpu.known_test_plan_id = $1
+                ORDER BY
+                  u.email;
+                "#,
+        )
+        .bind(self.id())
+        .fetch_all(conn)
+        .await?;
+
+        Ok(rows.into_iter().collect())
+    }
+
+    pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<KnownTestPlanSummary> {
         let workload_config_patch = self.workload_config_patch().unwrap_or_else(|e| {
             warn!(plan = %self.uuid, "{e}");
             WorkloadConfigPatch::default()
         });
 
-        KnownTestPlanSummary {
+        let associated_users = self
+            .associated_users(conn)
+            .await?
+            .into_iter()
+            .map(|(email, role)| (email, role.into()))
+            .collect();
+
+        Ok(KnownTestPlanSummary {
             uuid: self.uuid,
             name: self.name,
             description: self.description,
@@ -202,6 +321,34 @@ impl KnownTestPlan {
             pinned_workload_pool: self.pinned_workload_pool,
             workload_config_patch,
             requires_dedicated_cluster: self.requires_dedicated_cluster,
+            associated_users,
+            restrict_triggers: self.restrict_triggers,
+            restrict_automated_triggers: self.restrict_automated_triggers,
+        })
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, sqlx::Type)]
+#[repr(i32)]
+pub enum Role {
+    Owner = 1,
+    CanTrigger = 2,
+}
+
+impl From<Role> for SharedRole {
+    fn from(role: Role) -> Self {
+        match role {
+            Role::Owner => SharedRole::Owner,
+            Role::CanTrigger => SharedRole::CanTrigger,
+        }
+    }
+}
+
+impl From<SharedRole> for Role {
+    fn from(role: SharedRole) -> Self {
+        match role {
+            SharedRole::Owner => Role::Owner,
+            SharedRole::CanTrigger => Role::CanTrigger,
         }
     }
 }
@@ -290,6 +437,7 @@ impl KnownTestPlanFilter {
 mod tests {
     use super::*;
     use crate::{config::DEFAULT_POOL, conn, db::TestRun};
+    use simple_test_case::test_case;
     use std::assert_matches;
     use uuid::Uuid;
 
@@ -309,6 +457,8 @@ mod tests {
             pinned_workload_pool: None,
             workload_config_patch,
             requires_dedicated_cluster: false,
+            restrict_triggers: false,
+            restrict_automated_triggers: false,
         }
     }
 
@@ -338,8 +488,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_malformed_stored_patch_is_an_error_but_a_plan_can_still_be_summarised() {
+    #[tokio::test]
+    async fn a_malformed_stored_patch_doesnt_error_summary_creation() -> anyhow::Result<()> {
         let plan = plan_with_stored_patch(Some(serde_json::json!({
             "node_label_weights": "not a list",
         })));
@@ -349,9 +499,14 @@ mod tests {
             Err(db::Error::MalformedWorkloadConfigPatch(_))
         );
         assert_eq!(
-            plan.into_summary().workload_config_patch,
+            plan.try_into_summary(conn!())
+                .await
+                .unwrap()
+                .workload_config_patch,
             WorkloadConfigPatch::default()
         );
+
+        Ok(())
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -500,6 +655,122 @@ mod tests {
 
         assert!(n >= 3, "{n}");
         assert_eq!(page.len(), 1, "{page:?}");
+
+        Ok(())
+    }
+
+    fn update_users_req(user_changes: &[(&str, Option<SharedRole>)]) -> UpdateKnownTestPlanRequest {
+        UpdateKnownTestPlanRequest {
+            associated_users: Some(
+                user_changes
+                    .iter()
+                    .map(|(email, role)| (email.to_string(), *role))
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    const OWNER: &str = "test-owner@apollographql.com";
+    const TRIGGER: &str = "test-trigger@apollographql.com";
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(
+        &[],
+        &[(OWNER, Role::Owner), (TRIGGER, Role::CanTrigger)];
+        "no changes"
+    )]
+    #[test_case(
+        &[(TRIGGER, Some(SharedRole::Owner))],
+        &[(OWNER, Role::Owner), (TRIGGER, Role::Owner)];
+        "upgrade trigger user to owner"
+    )]
+    #[test_case(
+        &[(OWNER, Some(SharedRole::CanTrigger))],
+        &[(OWNER, Role::CanTrigger), (TRIGGER, Role::CanTrigger)];
+        "downgrade owner user to trigger"
+    )]
+    #[test_case(
+        &[(TRIGGER, None)],
+        &[(OWNER, Role::Owner)];
+        "remove user"
+    )]
+    #[test_case(
+        &[("alice@apollographql.com", Some(SharedRole::CanTrigger))],
+        &[(OWNER, Role::Owner), (TRIGGER, Role::CanTrigger), ("alice@apollographql.com", Role::CanTrigger)];
+        "add new user"
+    )]
+    #[tokio::test]
+    async fn user_updates_produce_correct_state(
+        user_changes: &[(&str, Option<SharedRole>)],
+        expected: &[(&str, Role)],
+    ) -> Result<()> {
+        let c = conn!();
+        let plan =
+            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
+                .await?;
+
+        // Set initial users
+        let plan = plan
+            .update(
+                update_users_req(&[
+                    (OWNER, Some(SharedRole::Owner)),
+                    (TRIGGER, Some(SharedRole::CanTrigger)),
+                ]),
+                c,
+            )
+            .await?;
+
+        // apply changes
+        let plan = plan.update(update_users_req(user_changes), c).await?;
+
+        assert_eq!(
+            plan.associated_users(c).await?,
+            BTreeMap::from_iter(
+                expected
+                    .iter()
+                    .map(|(email, role)| (email.to_string(), *role))
+            )
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn try_into_summary_includes_associated_users() -> Result<()> {
+        let c = conn!();
+        let (owner, trigger) = (unique("owner"), unique("trigger"));
+        let plan =
+            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
+                .await?;
+        let plan = plan
+            .update(
+                UpdateKnownTestPlanRequest {
+                    restrict_triggers: Some(true),
+                    restrict_automated_triggers: Some(false),
+                    associated_users: update_users_req(&[
+                        (&owner, Some(SharedRole::Owner)),
+                        (&trigger, Some(SharedRole::CanTrigger)),
+                    ])
+                    .associated_users,
+                    ..Default::default()
+                },
+                c,
+            )
+            .await?;
+
+        let summary = plan.try_into_summary(c).await?;
+
+        assert!(summary.restrict_triggers);
+        assert!(!summary.restrict_automated_triggers);
+        assert_eq!(
+            summary.associated_users,
+            BTreeMap::from([
+                (owner, SharedRole::Owner),
+                (trigger, SharedRole::CanTrigger)
+            ])
+        );
 
         Ok(())
     }
