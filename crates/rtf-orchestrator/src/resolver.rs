@@ -10,7 +10,7 @@ use crate::{
 use rtf_config::{StableSource, checks::Check, templating::Template};
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorTestPlan};
 use std::{collections::VecDeque, mem::take, ops::ControlFlow};
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::{sync::mpsc::UnboundedReceiver, task::yield_now};
 use tracing::{error, warn};
 use uuid::Uuid;
 
@@ -203,6 +203,10 @@ where
             .map_err(ResolverError::VariantTemplating)?;
 
         variant.try_check(&mut Vec::new(), &ctx)?;
+
+        // If running on a single CPU then this loop becomes blocking
+        // yield_now gives other tasks the chance to schedule if required
+        yield_now().await;
     }
 
     let expanded_matrix = test_plan.matrix.try_expand(&test_plan.variables)?;
