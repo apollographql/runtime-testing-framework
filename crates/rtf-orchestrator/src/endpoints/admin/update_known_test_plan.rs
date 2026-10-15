@@ -4,14 +4,12 @@
 //! unchanged. `description` and `pinned_workload_pool` additionally accept an explicit JSON
 //! `null` to clear the stored value, unpinning the pool in the latter case.
 //!
-//! Gated to admins only (see [AdminUser]).
+//! - Admins may update any field
+//! - Owners may update a subset of fields (see [KnownTestPlan::validate_and_update])
 use crate::{
-    Error, Result,
-    config::DEFAULT_POOL_NAME,
-    conn,
-    db::{KnownTestPlan, PoolId},
-    endpoints::AdminUser,
-    state::ServerState,
+    Error, Result, conn,
+    db::KnownTestPlan,
+    state::{KnownUser, ServerState},
 };
 use axum::{
     Json,
@@ -21,18 +19,11 @@ use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanSummary, UpdateKnown
 use uuid::Uuid;
 
 pub async fn handler(
-    _admin: AdminUser,
+    user: KnownUser,
     Path(uuid): Path<Uuid>,
     State(ServerState { eq_state, .. }): State<ServerState>,
     Json(req): Json<UpdateKnownTestPlanRequest>,
 ) -> Result<Json<KnownTestPlanSummary>> {
-    if let Some(Some(pool)) = &req.pinned_workload_pool {
-        let requested = PoolId::new(pool);
-        if !eq_state.available_pools().contains(&requested) {
-            return Err(Error::UnknownWorkloadPool { pool: pool.clone() });
-        }
-    }
-
     let conn = conn!();
     let known = KnownTestPlan::get_by_uuid(&uuid, conn)
         .await?
@@ -40,28 +31,15 @@ pub async fn handler(
             identifier: uuid.to_string(),
         })?;
 
-    let known_pinned = known.pinned_workload_pool();
-    let pinned = match &req.pinned_workload_pool {
-        Some(Some(pool)) => Some(pool.as_str()),
-        Some(None) => None,
-        None => known_pinned.as_ref().map(|p| p.as_str()),
-    };
-    let requires_dedicated = req
-        .requires_dedicated_cluster
-        .unwrap_or_else(|| known.requires_dedicated_cluster());
-    let patch = match &req.workload_config_patch {
-        Some(patch) => patch.clone(),
-        None => known.workload_config_patch()?,
-    };
-
-    patch.validate(
-        pinned.unwrap_or(DEFAULT_POOL_NAME),
-        pinned.is_some(),
-        requires_dedicated,
-        |pool| eq_state.supports_dedicated(pool),
-    )?;
-
-    let updated = known.update(req, conn).await?;
+    let updated = known
+        .validate_and_update(
+            &user,
+            req,
+            &eq_state.available_pools(),
+            &eq_state.dedicated_pools(),
+            conn,
+        )
+        .await?;
 
     Ok(Json(updated.try_into_summary(conn).await?))
 }
@@ -70,15 +48,17 @@ pub async fn handler(
 mod tests {
     use super::*;
     use crate::{
-        config::{Config, DEFAULT_POOL, NamedPoolConfig, PoolConfig},
+        config::{Config, DEFAULT_POOL, DEFAULT_POOL_NAME, NamedPoolConfig, PoolConfig},
         iap_identity::IAP_USER_EMAIL_HEADER,
         test_helpers::TestServerState,
     };
     use reqwest::StatusCode;
-    use rtf_orchestrator_shared::workload_config::WorkloadConfigPatch;
+    use rtf_orchestrator_shared::{known_test_plan::Role, workload_config::WorkloadConfigPatch};
     use sqlx::PgConnection;
+    use std::collections::{BTreeMap, HashSet};
 
     const ADMIN_EMAIL: &str = "admin@test.com";
+    const OWNER_EMAIL: &str = "owner@test.com";
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
@@ -385,6 +365,47 @@ mod tests {
             .add_header(IAP_USER_EMAIL_HEADER, admin_header_value())
             .json(&req)
             .await
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn owner_can_update_a_permitted_field() -> Result<()> {
+        let tss = TestServerState::new_with_admins(&[ADMIN_EMAIL]);
+        let plan = register_plan(conn!())
+            .await
+            .validate_and_update(
+                &KnownUser::Admin(ADMIN_EMAIL.into()),
+                UpdateKnownTestPlanRequest {
+                    associated_users: Some(BTreeMap::from([(
+                        OWNER_EMAIL.to_owned(),
+                        Some(Role::Owner),
+                    )])),
+                    ..Default::default()
+                },
+                &HashSet::from([DEFAULT_POOL_NAME]),
+                &HashSet::from([DEFAULT_POOL_NAME]),
+                conn!(),
+            )
+            .await?;
+
+        let resp = tss
+            .test_server
+            .put(&format!("/admin/test-plan/{}", plan.uuid()))
+            .add_header(
+                IAP_USER_EMAIL_HEADER,
+                format!("accounts.google.com:{OWNER_EMAIL}"),
+            )
+            .json(&UpdateKnownTestPlanRequest {
+                description: Some(Some("updated by owner".to_owned())),
+                ..Default::default()
+            })
+            .await;
+        assert_eq!(resp.status_code(), StatusCode::OK, "{:?}", resp.text());
+
+        let updated: KnownTestPlanSummary = resp.json();
+        assert_eq!(updated.description.as_deref(), Some("updated by owner"));
+
+        Ok(())
     }
 
     fn requires_dedicated(value: bool) -> UpdateKnownTestPlanRequest {

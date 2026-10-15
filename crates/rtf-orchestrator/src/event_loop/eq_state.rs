@@ -111,15 +111,18 @@ impl EventQueueState {
         .await
     }
 
-    pub fn supports_dedicated(&self, pool: &str) -> bool {
-        self.dedicated_pools.iter().any(|p| p.as_str() == pool)
+    pub fn available_pools(&self) -> HashSet<&str> {
+        self.pool_clusters
+            .keys()
+            .map(|pool_id| pool_id.as_str())
+            .collect()
     }
 
-    pub fn available_pools(&self) -> Vec<PoolId> {
-        let mut pool_ids: Vec<_> = self.pool_clusters.keys().cloned().collect();
-        pool_ids.sort_unstable();
-
-        pool_ids
+    pub fn dedicated_pools(&self) -> HashSet<&str> {
+        self.dedicated_pools
+            .iter()
+            .map(|pool_id| pool_id.as_str())
+            .collect()
     }
 
     pub async fn event_queue_snapshot(&self) -> EventQueueSnapshot {

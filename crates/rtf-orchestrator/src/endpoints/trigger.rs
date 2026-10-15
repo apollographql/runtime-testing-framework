@@ -36,7 +36,7 @@ pub async fn handler(
             .unwrap_or_else(|| DEFAULT_POOL_NAME),
         payload.pinned_pool.is_some(),
         payload.requires_dedicated_cluster,
-        |pool| state.eq_state.supports_dedicated(pool),
+        &state.eq_state.dedicated_pools(),
     )?;
 
     let workload_config = cfg
@@ -302,7 +302,7 @@ mod tests {
     use super::*;
     use crate::test_helpers::{TestServerState, stub_payload};
     use reqwest::StatusCode;
-    use rtf_orchestrator_shared::{known_test_plan::UpdateKnownTestPlanRequest, status::Status};
+    use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -510,44 +510,6 @@ mod tests {
         assert_eq!(body["reason"]["current"], 10);
         assert_eq!(body["reason"]["max"], 10);
         assert_eq!(body["pool"], "default");
-
-        Ok(())
-    }
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
-    async fn handler_rejects_dedicated_plans_pinned_to_pools_without_dedicated_support()
-    -> anyhow::Result<()> {
-        let tss = TestServerState::new();
-        let plan = KnownTestPlan::register(
-            &format!("plan-{}", Uuid::new_v4()),
-            None,
-            "org",
-            "repo",
-            &format!("path-{}", Uuid::new_v4()),
-            conn!(),
-        )
-        .await?
-        .update(
-            UpdateKnownTestPlanRequest {
-                requires_dedicated_cluster: Some(true),
-                ..Default::default()
-            },
-            conn!(),
-        )
-        .await?;
-
-        let resp = tss
-            .test_server
-            .post("/test-run/trigger")
-            .json(&serde_json::json!({ "test_plan_uuid": plan.uuid() }))
-            .await;
-
-        assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST);
-        assert!(
-            tss.resolver_rx.is_empty(),
-            "should not have submitted the test plan"
-        );
 
         Ok(())
     }

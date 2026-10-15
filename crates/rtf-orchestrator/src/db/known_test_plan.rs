@@ -1,11 +1,15 @@
-use crate::db::{self, PoolId, Queryable, Result};
+use crate::{
+    config::DEFAULT_POOL_NAME,
+    db::{self, PoolId, Queryable, Result},
+    state::KnownUser,
+};
 use rtf_orchestrator_shared::{
     known_test_plan::{KnownTestPlanSummary, Role as SharedRole, UpdateKnownTestPlanRequest},
     workload_config::WorkloadConfigPatch,
 };
 use serde_json::Value;
 use sqlx::{Connection, PgConnection, Postgres, QueryBuilder};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use tracing::warn;
 use uuid::Uuid;
 
@@ -119,7 +123,115 @@ impl KnownTestPlan {
         }
     }
 
-    pub async fn update(
+    pub async fn validate_and_update(
+        self,
+        user: &KnownUser,
+        req: UpdateKnownTestPlanRequest,
+        available_pools: &HashSet<&str>,
+        dedicated_pools: &HashSet<&str>,
+        conn: &mut PgConnection,
+    ) -> crate::Result<Self> {
+        self.validate_update_request(user, &req, available_pools, dedicated_pools, conn)
+            .await?;
+
+        Ok(self.update(req, conn).await?)
+    }
+
+    async fn validate_update_request(
+        &self,
+        user: &KnownUser,
+        req: &UpdateKnownTestPlanRequest,
+        available_pools: &HashSet<&str>,
+        dedicated_pools: &HashSet<&str>,
+        conn: &mut PgConnection,
+    ) -> crate::Result<()> {
+        self.check_update_permitted(user, req, conn).await?;
+
+        if let Some(Some(pool)) = &req.pinned_workload_pool
+            && !available_pools.contains(pool.as_str())
+        {
+            return Err(crate::Error::UnknownWorkloadPool { pool: pool.clone() });
+        }
+
+        let known_pinned = self.pinned_workload_pool();
+        let pinned = match &req.pinned_workload_pool {
+            Some(Some(pool)) => Some(pool.as_str()),
+            Some(None) => None,
+            None => known_pinned.as_ref().map(|p| p.as_str()),
+        };
+        let requires_dedicated = req
+            .requires_dedicated_cluster
+            .unwrap_or_else(|| self.requires_dedicated_cluster());
+
+        let patch = match &req.workload_config_patch {
+            Some(patch) => patch.clone(),
+            None => self.workload_config_patch()?,
+        };
+
+        patch.validate(
+            pinned.unwrap_or(DEFAULT_POOL_NAME),
+            pinned.is_some(),
+            requires_dedicated,
+            dedicated_pools,
+        )?;
+
+        Ok(())
+    }
+
+    async fn check_update_permitted(
+        &self,
+        user: &KnownUser,
+        req: &UpdateKnownTestPlanRequest,
+        conn: &mut PgConnection,
+    ) -> crate::Result<()> {
+        // Admins can change anything
+        let email = match user {
+            KnownUser::Admin(_) => return Ok(()),
+            KnownUser::User(email) => email,
+        };
+
+        // Non-owners can change nothing
+        if !self.is_owner(email, conn).await? {
+            return Err(crate::Error::Unauthorized);
+        }
+
+        // Owners can change anything other than the following fields
+        if req.pinned_workload_pool.is_some() {
+            return Err(crate::Error::AdminOnlyField {
+                field: "pinned_workload_pool",
+            });
+        }
+
+        if req.requires_dedicated_cluster.is_some() {
+            return Err(crate::Error::AdminOnlyField {
+                field: "requires_dedicated_cluster",
+            });
+        }
+
+        // Attempting to remove yourself as an owner is not allowed
+        let owners: HashSet<String> = self
+            .associated_users(conn)
+            .await?
+            .into_iter()
+            .filter_map(|(k, v)| if v == Role::Owner { Some(k) } else { None })
+            .collect();
+
+        let modifies_owners = req.associated_users.as_ref().is_some_and(|users| {
+            users
+                .iter()
+                .any(|(k, v)| owners.contains(k) || *v == Some(SharedRole::Owner))
+        });
+
+        if modifies_owners {
+            return Err(crate::Error::AdminOnlyField {
+                field: "associated_users (Owner)",
+            });
+        }
+
+        Ok(())
+    }
+
+    async fn update(
         self,
         update: UpdateKnownTestPlanRequest,
         conn: &mut PgConnection,
@@ -271,6 +383,10 @@ impl KnownTestPlan {
                 .fetch_optional(conn)
                 .await?,
         )
+    }
+
+    pub async fn is_owner(&self, email: &str, conn: &mut PgConnection) -> Result<bool> {
+        Ok(self.associated_users(conn).await?.get(email) == Some(&Role::Owner))
     }
 
     pub async fn associated_users(
@@ -440,6 +556,9 @@ mod tests {
     use simple_test_case::test_case;
     use std::assert_matches;
     use uuid::Uuid;
+
+    const OWNER: &str = "test-owner@apollographql.com";
+    const TRIGGER: &str = "test-trigger@apollographql.com";
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
@@ -671,10 +790,6 @@ mod tests {
         }
     }
 
-    const OWNER: &str = "test-owner@apollographql.com";
-    const TRIGGER: &str = "test-trigger@apollographql.com";
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(
         &[],
         &[(OWNER, Role::Owner), (TRIGGER, Role::CanTrigger)];
@@ -700,6 +815,7 @@ mod tests {
         &[(OWNER, Role::Owner), (TRIGGER, Role::CanTrigger), ("alice@apollographql.com", Role::CanTrigger)];
         "add new user"
     )]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn user_updates_produce_correct_state(
         user_changes: &[(&str, Option<SharedRole>)],
@@ -734,6 +850,136 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    async fn setup_update_and_validate_test(
+        user: KnownUser,
+        req: UpdateKnownTestPlanRequest,
+    ) -> crate::Result<KnownTestPlan> {
+        let c = conn!();
+        let plan =
+            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
+                .await
+                .expect("failed to create known test plan")
+                .update(
+                    update_users_req(&[
+                        (OWNER, Some(SharedRole::Owner)),
+                        (TRIGGER, Some(SharedRole::CanTrigger)),
+                    ]),
+                    c,
+                )
+                .await
+                .expect("failed to set initial owners");
+
+        plan.validate_and_update(
+            &user,
+            req,
+            &HashSet::from([DEFAULT_POOL_NAME]),
+            &HashSet::from([DEFAULT_POOL_NAME]),
+            c,
+        )
+        .await
+    }
+
+    fn admin() -> KnownUser {
+        KnownUser::Admin("admin@apollographql.com".into())
+    }
+
+    fn user(email: &str) -> KnownUser {
+        KnownUser::User(email.into())
+    }
+
+    // Update requests for the permissions check tests below
+
+    fn pin_workload_pool() -> UpdateKnownTestPlanRequest {
+        UpdateKnownTestPlanRequest {
+            pinned_workload_pool: Some(Some(DEFAULT_POOL_NAME.into())),
+            ..Default::default()
+        }
+    }
+
+    fn requires_dedicated_cluster() -> UpdateKnownTestPlanRequest {
+        UpdateKnownTestPlanRequest {
+            requires_dedicated_cluster: Some(false),
+            ..Default::default()
+        }
+    }
+
+    fn change_description() -> UpdateKnownTestPlanRequest {
+        UpdateKnownTestPlanRequest {
+            description: Some(Some("new description".into())),
+            ..Default::default()
+        }
+    }
+
+    fn add_trigger_user() -> UpdateKnownTestPlanRequest {
+        update_users_req(&[("alice@apollographql.com", Some(SharedRole::CanTrigger))])
+    }
+
+    fn add_owner() -> UpdateKnownTestPlanRequest {
+        update_users_req(&[("alice@apollographql.com", Some(SharedRole::Owner))])
+    }
+
+    fn remove_trigger_user() -> UpdateKnownTestPlanRequest {
+        update_users_req(&[(TRIGGER, None)])
+    }
+
+    fn remove_owner() -> UpdateKnownTestPlanRequest {
+        update_users_req(&[(OWNER, None)])
+    }
+
+    fn demote_owner() -> UpdateKnownTestPlanRequest {
+        update_users_req(&[(OWNER, Some(SharedRole::CanTrigger))])
+    }
+
+    fn promote_trigger_user() -> UpdateKnownTestPlanRequest {
+        update_users_req(&[(TRIGGER, Some(SharedRole::Owner))])
+    }
+
+    // admins should be able to perform every action
+    #[test_case(admin(), pin_workload_pool(); "admin can pin workload pool")]
+    #[test_case(admin(), requires_dedicated_cluster(); "admin can require dedicated cluster")]
+    #[test_case(admin(), change_description(); "admin can change non-admin field")]
+    #[test_case(admin(), add_trigger_user(); "admin can add a trigger user")]
+    #[test_case(admin(), add_owner(); "admin can add an owner")]
+    #[test_case(admin(), remove_trigger_user(); "admin can remove a trigger user")]
+    #[test_case(admin(), remove_owner(); "admin can remove an owner")]
+    #[test_case(admin(), demote_owner(); "admin can demote an owner to a trigger user")]
+    #[test_case(admin(), promote_trigger_user(); "admin can promote a trigger user to owner")]
+    // owners should be able to perform the following subset of actions
+    #[test_case(user(OWNER), change_description(); "owner can change non-admin field")]
+    #[test_case(user(OWNER), add_trigger_user(); "owners can add a new user")]
+    #[test_case(user(OWNER), remove_trigger_user(); "owners can remove a trigger user")]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn validate_and_update_happy_path(user: KnownUser, req: UpdateKnownTestPlanRequest) {
+        let res = setup_update_and_validate_test(user, req).await;
+
+        assert!(res.is_ok(), "{res:?}");
+    }
+
+    #[test_case(pin_workload_pool(); "pin to a workload pool")]
+    #[test_case(requires_dedicated_cluster(); "require a dedicated cluster")]
+    #[test_case(add_owner(); "add new owner")]
+    #[test_case(remove_owner(); "remove existing owner")]
+    #[test_case(demote_owner(); "demote owner to a trigger user")]
+    #[test_case(promote_trigger_user(); "promote a trigger user to owner")]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn validate_and_update_admin_only(req: UpdateKnownTestPlanRequest) {
+        let res = setup_update_and_validate_test(user(OWNER), req).await;
+
+        assert_matches!(res, Err(crate::Error::AdminOnlyField { .. }), "{res:?}");
+    }
+
+    #[test_case(user(TRIGGER), change_description(); "trigger user")]
+    #[test_case(user("alice@apollographql.com"), change_description(); "unassociated user")]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn validate_and_update_unauthorized(user: KnownUser, req: UpdateKnownTestPlanRequest) {
+        let res = setup_update_and_validate_test(user, req).await;
+
+        assert_matches!(res, Err(crate::Error::Unauthorized), "{res:?}");
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]

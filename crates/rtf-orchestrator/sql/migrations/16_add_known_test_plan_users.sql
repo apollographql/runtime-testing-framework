@@ -23,4 +23,4 @@ CREATE TABLE IF NOT EXISTS known_test_plan_user (
 -- runs and is independent of restricting triggers for regular users.
 ALTER TABLE known_test_plan
     ADD COLUMN restrict_triggers BOOLEAN NOT NULL DEFAULT false,
-    ADD COLUMN restrict_automated_triggers BOOLEAN NOT NULL DEFAULT true;
+    ADD COLUMN restrict_automated_triggers BOOLEAN NOT NULL DEFAULT false;

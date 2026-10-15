@@ -3,6 +3,7 @@
 //! A [WorkloadConfig] is defined per pool and a known test plan can override individual values
 //! through a [WorkloadConfigPatch].
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 /// The maximum length of a k8s label value.
 const MAX_LABEL_VALUE_LEN: usize = 63;
@@ -61,9 +62,9 @@ impl WorkloadConfigPatch {
         pool: &str,
         is_pinned: bool,
         requires_dedicated: bool,
-        supports_dedicated: impl Fn(&str) -> bool,
+        dedicated_pools: &HashSet<&str>,
     ) -> Result<(), Error> {
-        if requires_dedicated && !supports_dedicated(pool) {
+        if requires_dedicated && !dedicated_pools.contains(pool) {
             return Err(Error::DedicatedClusterNotSupported {
                 pool: pool.to_string(),
             });
@@ -236,6 +237,67 @@ mod tests {
         };
 
         assert_eq!(patch.sets_node_labels(), expected);
+    }
+
+    fn labels_patch(pairs: &[(&str, u32)]) -> WorkloadConfigPatch {
+        WorkloadConfigPatch {
+            node_label_weights: Some(weights(pairs)),
+            ..Default::default()
+        }
+    }
+
+    #[test_case(
+        "default", false, false, WorkloadConfigPatch::default(),
+        Ok(());
+        "empty patch"
+    )]
+    #[test_case(
+        "default", false, true, WorkloadConfigPatch::default(),
+        Err(Error::DedicatedClusterNotSupported { pool: "default".into() });
+        "requires dedicated invalid pool"
+    )]
+    #[test_case(
+        "dedicated", true, true, WorkloadConfigPatch::default(),
+        Ok(());
+        "requires dedicated valid pool"
+    )]
+    #[test_case(
+        "dedicated", true, true, labels_patch(&[("a", 1)]),
+        Ok(());
+        "node labels pinned to dedicated"
+    )]
+    #[test_case(
+        "default", false, false, labels_patch(&[("a", 1)]),
+        Err(Error::NodeLabelsRequireDedicatedCluster);
+        "node labels without dedicated"
+    )]
+    #[test_case(
+        "dedicated", false, true, labels_patch(&[("a", 1)]),
+        Err(Error::NodeLabelsRequirePinnedPool);
+        "node labels without pinned pool"
+    )]
+    #[test_case(
+        "dedicated", true, true, labels_patch(&[("a", 0)]),
+        Err(Error::ZeroWeights);
+        "zero weights"
+    )]
+    #[test]
+    fn patch_validate_returns_expected_result(
+        pool: &str,
+        is_pinned: bool,
+        requires_dedicated: bool,
+        patch: WorkloadConfigPatch,
+        expected: Result<(), Error>,
+    ) {
+        assert_eq!(
+            patch.validate(
+                pool,
+                is_pinned,
+                requires_dedicated,
+                &HashSet::from(["dedicated"])
+            ),
+            expected
+        );
     }
 
     #[test]
