@@ -1,7 +1,7 @@
 use crate::{
     config::DEFAULT_POOL_NAME,
     db::{self, PoolId, Queryable, Result},
-    state::KnownUser,
+    state::{KnownUser, UserType},
 };
 use rtf_orchestrator_shared::{
     known_test_plan::{KnownTestPlanSummary, Role as SharedRole, UpdateKnownTestPlanRequest},
@@ -385,6 +385,27 @@ impl KnownTestPlan {
         )
     }
 
+    pub async fn user_can_trigger(
+        &self,
+        user: &UserType,
+        conn: &mut PgConnection,
+    ) -> crate::Result<bool> {
+        let permitted = match user {
+            UserType::Admin(_) => true,
+            UserType::Automation { .. } => !self.restrict_automated_triggers,
+            UserType::Unknown => !self.restrict_triggers,
+            UserType::User(email) => {
+                if self.restrict_triggers {
+                    self.associated_users(conn).await?.contains_key(email)
+                } else {
+                    true
+                }
+            }
+        };
+
+        Ok(permitted)
+    }
+
     pub async fn is_owner(&self, email: &str, conn: &mut PgConnection) -> Result<bool> {
         Ok(self.associated_users(conn).await?.get(email) == Some(&Role::Owner))
     }
@@ -559,6 +580,7 @@ mod tests {
 
     const OWNER: &str = "test-owner@apollographql.com";
     const TRIGGER: &str = "test-trigger@apollographql.com";
+    const OTHER: &str = "test-other@apollographql.com";
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
@@ -980,6 +1002,78 @@ mod tests {
         let res = setup_update_and_validate_test(user, req).await;
 
         assert_matches!(res, Err(crate::Error::Unauthorized), "{res:?}");
+    }
+
+    fn ut_admin() -> UserType {
+        UserType::Admin("admin@apollographql.com".into())
+    }
+
+    fn ut_user(email: &str) -> UserType {
+        UserType::User(email.into())
+    }
+
+    fn ut_auto() -> UserType {
+        UserType::Automation {
+            email: "ci@my-project.iam.gserviceaccount.com".into(),
+            org: "org".into(),
+            repo: "repo".into(),
+        }
+    }
+
+    // admin
+    #[test_case(ut_admin(), true, true, true; "admin restrict both")]
+    #[test_case(ut_admin(), true, false, true; "admin restrict trigger")]
+    #[test_case(ut_admin(), false, true, true; "admin restrict automated")]
+    #[test_case(ut_admin(), false, false, true; "admin restrict neither")]
+    // owner
+    #[test_case(ut_user(OWNER), true, true, true; "owner restrict both")]
+    #[test_case(ut_user(OWNER), true, false, true; "owner restrict trigger")]
+    #[test_case(ut_user(OWNER), false, true, true; "owner restrict automated")]
+    #[test_case(ut_user(OWNER), false, false, true; "owner restrict neither")]
+    // trigger user
+    #[test_case(ut_user(TRIGGER), true, true, true; "trigger restrict both")]
+    #[test_case(ut_user(TRIGGER), true, false, true; "trigger restrict trigger")]
+    #[test_case(ut_user(TRIGGER), false, true, true; "trigger restrict automated")]
+    #[test_case(ut_user(TRIGGER), false, false, true; "trigger restrict neither")]
+    // automation user
+    #[test_case(ut_auto(), true, true, false; "auto restrict both")]
+    #[test_case(ut_auto(), true, false, true; "auto restrict trigger")]
+    #[test_case(ut_auto(), false, true, false; "auto restrict automated")]
+    #[test_case(ut_auto(), false, false, true; "auto restrict neither")]
+    // non-associated user
+    #[test_case(ut_user(OTHER), true, true, false; "other restrict both")]
+    #[test_case(ut_user(OTHER), true, false, false; "other restrict trigger")]
+    #[test_case(ut_user(OTHER), false, true, true; "other restrict automated")]
+    #[test_case(ut_user(OTHER), false, false, true; "other restrict neither")]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn user_can_trigger_gates_correctly(
+        user: UserType,
+        restrict_triggers: bool,
+        restrict_automated_triggers: bool,
+        expected: bool,
+    ) -> crate::Result<()> {
+        let c = conn!();
+        let mut req = update_users_req(&[
+            (OWNER, Some(SharedRole::Owner)),
+            (TRIGGER, Some(SharedRole::CanTrigger)),
+        ]);
+        req.restrict_triggers = Some(restrict_triggers);
+        req.restrict_automated_triggers = Some(restrict_automated_triggers);
+
+        let plan =
+            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
+                .await
+                .expect("failed to create known test plan")
+                .update(req, c)
+                .await
+                .expect("failed to configure known test plan");
+
+        let can_trigger = plan.user_can_trigger(&user, c).await.unwrap();
+
+        assert_eq!(can_trigger, expected);
+
+        Ok(())
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]

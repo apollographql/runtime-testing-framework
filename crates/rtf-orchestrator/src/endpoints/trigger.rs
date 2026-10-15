@@ -6,7 +6,7 @@ use crate::{
     error::Error,
     event_loop::SubmitError,
     rate_limit,
-    state::{ServerState, TestRunWithPayload},
+    state::{ServerState, TestRunWithPayload, UserType},
 };
 use axum::{Json, extract::State, http::HeaderMap};
 use rtf_orchestrator_shared::{
@@ -25,7 +25,7 @@ pub async fn handler(
 ) -> Result<Json<TestRunSummary>, Error> {
     let user = state.identify_user(&headers).await?;
     let cfg = Config::get();
-    let payload = PayloadWithMeta::resolve(trigger_payload, conn!()).await?;
+    let payload = PayloadWithMeta::resolve(trigger_payload, &user, conn!()).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.pool)?;
 
     payload.workload_config_patch.validate(
@@ -175,6 +175,7 @@ struct PayloadWithMeta<T> {
 impl PayloadWithMeta<PreparedOrGitHub> {
     async fn resolve(
         trigger_payload: TriggerPayload,
+        user: &UserType,
         conn: &mut PgConnection,
     ) -> Result<Self, Error> {
         let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
@@ -231,6 +232,10 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                         identifier: kp.test_plan_uuid.to_string(),
                     })?;
 
+                if !known.user_can_trigger(user, conn).await? {
+                    return Err(Error::Unauthorized);
+                }
+
                 from_known(known, kp.git_ref, kp.variables)?
             }
 
@@ -241,6 +246,10 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                     .ok_or_else(|| Error::UnknownTestPlan {
                         identifier: kp.test_plan_name.clone(),
                     })?;
+
+                if !known.user_can_trigger(user, conn).await? {
+                    return Err(Error::Unauthorized);
+                }
 
                 from_known(known, kp.git_ref, kp.variables)?
             }
