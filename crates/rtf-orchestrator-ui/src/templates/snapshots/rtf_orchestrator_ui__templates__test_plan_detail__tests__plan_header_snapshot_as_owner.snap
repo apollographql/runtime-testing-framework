@@ -1,0 +1,135 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/test_plan_detail.rs
+expression: "render_fragment!(preview::test_plan_detail_for_user(user(OWNER_EMAIL)).as_plan_header())"
+---
+
+<div class="card">
+    <h2>my-known-test-plan</h2>
+    
+    <p>a sample known test plan</p>
+    
+    <p class="muted location">
+        <a href="https://github.com/apollographql/runtime-testing-framework/blob/abc1234def5678/test-plans/example.yaml" target="_blank" rel="noopener noreferrer">apollographql/runtime-testing-framework/test-plans/example.yaml &#8599;</a>
+    </p>
+    <div class="plan-config">
+        <dl>
+            
+            <dt>Commit</dt>
+            <dd><code>abc1234def5678</code></dd>
+            <dt>Workload Pool</dt>
+            <dd><code>dedicated</code></dd>
+            
+            <dt>Pinned workload pool</dt>
+            <dd><code>dedicated</code></dd>
+            <dt>Dedicated cluster</dt>
+            <dd>Required</dd>
+            
+            <dt>Node label weights</dt>
+            <dd><code>rtf.io/node-pool-a</code>: 3, <code>rtf.io/node-pool-b</code>: 1</dd>
+            
+            <dt>Namespace write access</dt>
+            <dd>Enabled</dd>
+        </dl>
+        <dl>
+            <dt>Triggers</dt>
+            <dd>Restricted to owners and trigger users</dd>
+            <dt>Automated triggers</dt>
+            <dd>Disabled</dd>
+            <dt>Owners</dt>
+            <dd>owner@apollographql.com</dd>
+            <dt>Trigger users</dt>
+            <dd>trigger-user@apollographql.com</dd>
+        </dl>
+    </div>
+</div>
+
+
+<details id="edit-test-plan" class="card" >
+    <summary>Edit test plan</summary>
+
+    
+
+
+
+
+    <form method="post" action="/ui/test-plan/00000000-0000-0000-0000-00000000000a/edit">
+        <div class="var-field-grid">
+            <div class="var-field">
+                <label for="edit-name">Name</label><br>
+                <input id="edit-name" name="name" type="text" value="my-known-test-plan" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-description">Description</label><br>
+                <input id="edit-description" name="description" type="text" value="a sample known test plan" />
+            </div>
+            <div class="var-field">
+                <label for="edit-org">Org</label><br>
+                <input id="edit-org" name="org" type="text" value="apollographql" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-repo">Repo</label><br>
+                <input id="edit-repo" name="repo" type="text" value="runtime-testing-framework" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-path">Path</label><br>
+                <input id="edit-path" name="path" type="text" value="test-plans/example.yaml" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-pinned-pool">Pinned workload pool <span class="muted">(admins only)</span></label><br>
+                <select id="edit-pinned-pool" name="pinned_workload_pool" disabled>
+                    <option value="" >Not pinned</option>
+                    
+                    <option value="dedicated" selected>dedicated</option>
+                    
+                </select>
+                
+
+
+
+            </div>
+            <div class="var-field">
+                <label for="edit-dedicated">Dedicated cluster <span class="muted">(admins only)</span></label><br>
+                <select id="edit-dedicated" name="requires_dedicated_cluster" disabled>
+                    <option value="true" selected>Required</option>
+                    <option value="false" >Not required</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-k8s-write">Namespace write access</label><br>
+                <select id="edit-k8s-write" name="allow_k8s_write">
+                    <option value="" >Pool default</option>
+                    <option value="true" selected>Enabled</option>
+                    <option value="false" >Disabled</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-restrict-triggers">Triggers</label><br>
+                <select id="edit-restrict-triggers" name="restrict_triggers">
+                    <option value="true" selected>Restricted to owners and trigger users</option>
+                    <option value="false" >Unrestricted</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-restrict-automated">Automated triggers</label><br>
+                <select id="edit-restrict-automated" name="restrict_automated_triggers">
+                    <option value="true" selected>Disabled</option>
+                    <option value="false" >Allowed</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-node-labels">Node label weights <span class="muted">(one <code>label=weight</code> per line; blank for the pool default)</span></label><br>
+                <textarea id="edit-node-labels" name="node_label_weights" rows="3">rtf.io/node-pool-a=3
+rtf.io/node-pool-b=1</textarea>
+            </div>
+            <div class="var-field">
+                <label for="edit-owners">Owners <span class="muted">(one email per line; admins only)</span></label><br>
+                <textarea id="edit-owners" name="owners" rows="3" disabled>owner@apollographql.com</textarea>
+            </div>
+            <div class="var-field">
+                <label for="edit-trigger-users">Trigger users <span class="muted">(one email per line)</span></label><br>
+                <textarea id="edit-trigger-users" name="trigger_users" rows="3">trigger-user@apollographql.com</textarea>
+            </div>
+        </div>
+        <p><button type="submit" class="primary">Save changes</button></p>
+    </form>
+</details>

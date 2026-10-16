@@ -5,6 +5,7 @@ mod run;
 mod test_plan_detail;
 mod test_plans;
 mod trigger;
+mod viewer_badge;
 
 pub use error::ErrorTemplate;
 pub use execution::{ExecutionNotFoundTemplate, ExecutionTemplate};
@@ -13,6 +14,7 @@ pub use run::{RunNotFoundTemplate, RunTemplate};
 pub use test_plan_detail::{TestPlanDetailTemplate, TestPlanNotFoundTemplate};
 pub use test_plans::TestPlansTemplate;
 pub use trigger::TriggerTemplate;
+pub use viewer_badge::ViewerBadgeTemplate;
 
 /// Panics on empty output: askama silently renders `""` for blocks nested inside control flow.
 #[cfg(test)]

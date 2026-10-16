@@ -1,5 +1,8 @@
-use crate::view::Pagination;
-use rtf_orchestrator_shared::known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary};
+use crate::view::{Pagination, ViewerBadge};
+use rtf_orchestrator_shared::{
+    known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary, Role},
+    whoami::WhoAmIResponse,
+};
 use url::form_urlencoded;
 use uuid::Uuid;
 
@@ -14,10 +17,22 @@ pub struct KnownTestPlanRowView {
     pub github_url: String,
     /// The plan's override of the pool's setting, `None` meaning it defers to the pool.
     pub allow_k8s_write: Option<bool>,
+    pub node_label_weights: Option<Vec<(String, u32)>>,
+    pub pinned_workload_pool: Option<String>,
+    pub requires_dedicated_cluster: bool,
+    pub restrict_triggers: bool,
+    pub restrict_automated_triggers: bool,
+    pub owners: Vec<String>,
+    pub trigger_users: Vec<String>,
 }
 
 impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
     fn from(plan: KnownTestPlanSummary) -> Self {
+        let (owners, trigger_users) = plan
+            .associated_users
+            .into_iter()
+            .partition::<Vec<_>, _>(|(_, role)| *role == Role::Owner);
+
         Self {
             github_url: known_test_plan_github_url(&plan.org, &plan.repo, &plan.path),
             uuid: plan.uuid,
@@ -27,6 +42,13 @@ impl From<KnownTestPlanSummary> for KnownTestPlanRowView {
             repo: plan.repo,
             path: plan.path,
             allow_k8s_write: plan.workload_config_patch.allow_k8s_write,
+            node_label_weights: plan.workload_config_patch.node_label_weights,
+            pinned_workload_pool: plan.pinned_workload_pool,
+            requires_dedicated_cluster: plan.requires_dedicated_cluster,
+            restrict_triggers: plan.restrict_triggers,
+            restrict_automated_triggers: plan.restrict_automated_triggers,
+            owners: owners.into_iter().map(|(email, _)| email).collect(),
+            trigger_users: trigger_users.into_iter().map(|(email, _)| email).collect(),
         }
     }
 }
@@ -36,17 +58,31 @@ fn known_test_plan_github_url(org: &str, repo: &str, path: &str) -> String {
 }
 
 #[derive(Debug)]
+pub struct KnownTestPlanListRow {
+    pub plan: KnownTestPlanRowView,
+    pub role: Option<ViewerBadge>,
+}
+
+#[derive(Debug)]
 pub struct KnownTestPlanListView {
-    pub rows: Vec<KnownTestPlanRowView>,
+    pub rows: Vec<KnownTestPlanListRow>,
     pagination: Pagination,
 }
 
 impl KnownTestPlanListView {
-    pub fn new(response: KnownTestPlanListResponse, limit: i64, offset: i64) -> Self {
-        let rows: Vec<KnownTestPlanRowView> = response
+    pub fn new(
+        response: KnownTestPlanListResponse,
+        whoami: &WhoAmIResponse,
+        limit: i64,
+        offset: i64,
+    ) -> Self {
+        let rows: Vec<KnownTestPlanListRow> = response
             .test_plans
             .into_iter()
-            .map(KnownTestPlanRowView::from)
+            .map(|plan| KnownTestPlanListRow {
+                role: whoami.role_for(&plan).map(ViewerBadge::for_role),
+                plan: KnownTestPlanRowView::from(plan),
+            })
             .collect();
         let pagination = Pagination {
             total: response.total,
@@ -125,7 +161,8 @@ mod tests {
                 .collect(),
             total,
         };
-        KnownTestPlanListView::new(response, limit, offset)
+
+        KnownTestPlanListView::new(response, &WhoAmIResponse::Unknown, limit, offset)
     }
 
     #[test]

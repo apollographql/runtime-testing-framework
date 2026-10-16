@@ -1,13 +1,13 @@
 use crate::{
     endpoints::{SelectedTemplate, to_response},
     links::LinksConfig,
-    orchestrator::{self, Client},
+    orchestrator::{self, Client, OrchestratorClient},
     templates::{ErrorTemplate, RunNotFoundTemplate, RunTemplate},
     view::RunView,
 };
 use axum::{
     Extension,
-    extract::{Path, Query, State},
+    extract::{Path, Query},
     response::Response,
 };
 use chrono::{DateTime, Utc};
@@ -24,12 +24,12 @@ pub struct RunParams {
 /// Also serves the htmx poll of `#run`. htmx doesn't swap non-2xx responses, so a failed poll
 /// leaves the previous content in place.
 pub async fn handler<C: Client>(
-    State(orchestrator_client): State<C>,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Extension(links_cfg): Extension<LinksConfig>,
     Path(id): Path<Uuid>,
     Query(params): Query<RunParams>,
 ) -> Response {
-    let result = orchestrator_client.run_summary(id).await;
+    let result = client.run_summary(id).await;
     let execution_status_filter = params.execution_status.unwrap_or_default();
 
     to_response(

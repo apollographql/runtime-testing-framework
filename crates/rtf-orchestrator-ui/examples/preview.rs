@@ -9,7 +9,7 @@ use axum::{
     response::{Html, IntoResponse, Response},
     routing::get,
 };
-use rtf_orchestrator_ui::preview;
+use rtf_orchestrator_ui::preview::{self, OWNER_EMAIL, TRIGGER_USER_EMAIL, user};
 use rust_embed::RustEmbed;
 use tokio::net::TcpListener;
 
@@ -30,10 +30,25 @@ const PAGES: &[(&str, &str)] = &[
         "Execution — linked to a parent run",
     ),
     ("/ui/execution/not-found", "Execution — not found"),
-    ("/ui/test-plans", "Known test plans — list"),
+    (
+        "/ui/test-plans",
+        "Known test plans — list, viewed as an owner/trigger user of some plans",
+    ),
     (
         "/ui/test-plan/detail",
-        "Known test plan — detail + trigger form (docker-compose environment)",
+        "Known test plan — detail + trigger form (docker-compose environment), viewed as an admin",
+    ),
+    (
+        "/ui/test-plan/detail/owner",
+        "Known test plan — detail, restricted triggers, viewed as an owner",
+    ),
+    (
+        "/ui/test-plan/detail/trigger-user",
+        "Known test plan — detail, restricted triggers, viewed as a trigger user",
+    ),
+    (
+        "/ui/test-plan/detail/restricted",
+        "Known test plan — detail, restricted triggers, viewed by an unassociated user",
     ),
     (
         "/ui/test-plan/detail-k8s",
@@ -42,6 +57,10 @@ const PAGES: &[(&str, &str)] = &[
     (
         "/ui/test-plan/detail/trigger-error",
         "Known test plan — detail, resubmitted trigger with invalid JSON",
+    ),
+    (
+        "/ui/test-plan/detail/edit-error",
+        "Known test plan — detail, rejected edit and failed workload pool listing, viewed as an admin",
     ),
     ("/ui/test-plan/not-found", "Known test plan — not found"),
     ("/ui/trigger", "Trigger a run from GitHub — empty form"),
@@ -86,12 +105,28 @@ async fn main() -> anyhow::Result<()> {
             get(|| async { render(preview::test_plan_detail()) }),
         )
         .route(
+            "/ui/test-plan/detail/owner",
+            get(|| async { render(preview::test_plan_detail_for_user(user(OWNER_EMAIL))) }),
+        )
+        .route(
+            "/ui/test-plan/detail/trigger-user",
+            get(|| async { render(preview::test_plan_detail_for_user(user(TRIGGER_USER_EMAIL))) }),
+        )
+        .route(
+            "/ui/test-plan/detail/restricted",
+            get(|| async { render(preview::test_plan_detail_for_user(user("foo@bar.com"))) }),
+        )
+        .route(
             "/ui/test-plan/detail-k8s",
             get(|| async { render(preview::test_plan_detail_k8s()) }),
         )
         .route(
             "/ui/test-plan/detail/trigger-error",
             get(|| async { render(preview::test_plan_detail_trigger_error()) }),
+        )
+        .route(
+            "/ui/test-plan/detail/edit-error",
+            get(|| async { render(preview::test_plan_detail_edit_error()) }),
         )
         .route(
             "/ui/test-plan/not-found",
@@ -106,6 +141,10 @@ async fn main() -> anyhow::Result<()> {
             get(|| async { render(preview::trigger_error()) }),
         )
         .route("/ui/error", get(|| async { render(preview::error_page()) }))
+        .route(
+            "/ui/viewer-badge",
+            get(|| async { render(preview::viewer_badge_admin()) }),
+        )
         .route("/ui/static/{*path}", get(serve_asset));
 
     let addr = "127.0.0.1:8080";

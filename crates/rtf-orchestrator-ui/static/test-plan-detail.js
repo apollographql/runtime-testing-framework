@@ -101,7 +101,7 @@
         statEl.textContent = total.toLocaleString();
         statEl.classList.toggle("warn", total === 0);
         triggerCountEl.textContent = total.toLocaleString();
-        triggerBtn.disabled = total === 0;
+        triggerBtn.disabled = total === 0 || "forbidden" in triggerBtn.dataset;
         formulaEl.textContent =
             total === 0
                 ? "A field with no values selected produces no executions"

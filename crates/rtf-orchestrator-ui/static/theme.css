@@ -313,8 +313,15 @@ main.wide {
     align-items: start;
 }
 
+.plan-config {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 1.5rem;
+}
+
 @media (max-width: 860px) {
-    .detail-grid {
+    .detail-grid,
+    .plan-config {
         grid-template-columns: 1fr;
     }
 }
@@ -463,6 +470,15 @@ button[type="submit"]:hover, button.primary:hover {
     padding: 0.85rem 1.1rem;
     margin-bottom: 1.5rem;
     font-weight: 600;
+}
+
+.warn-box {
+    background: var(--status-unrunnable-bg);
+    color: var(--status-unrunnable-text);
+    border-left: 4px solid var(--status-unrunnable-text);
+    border-radius: 4px;
+    padding: 0.85rem 1.1rem;
+    margin-bottom: 1.5rem;
 }
 
 .card {
@@ -703,6 +719,7 @@ button[type="submit"]:hover, button.primary:hover {
 }
 
 .var-field input,
-.var-field select {
+.var-field select,
+.var-field textarea {
     width: 100%;
 }

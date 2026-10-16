@@ -41,7 +41,7 @@ where
 {
     use endpoints::{
         execution_detail, execution_log, execution_output_zip, health, index, run_status,
-        test_plan_detail, test_plans, trigger,
+        test_plan_detail, test_plan_edit, test_plans, trigger, viewer_badge,
     };
 
     Router::new()
@@ -53,6 +53,10 @@ where
         .route(
             "/ui/test-plan/{uuid}/trigger",
             post(test_plan_detail::post_trigger::<C>),
+        )
+        .route(
+            "/ui/test-plan/{uuid}/edit",
+            post(test_plan_edit::post_edit::<C>),
         )
         .route("/ui/execution/{eid}", get(execution_detail::handler::<C>))
         .route(
@@ -67,6 +71,7 @@ where
             "/ui/trigger",
             get(trigger::get_handler).post(trigger::post_handler::<C>),
         )
+        .route("/ui/viewer-badge", get(viewer_badge::handler::<C>))
         .route("/ui/static/{*path}", get(assets::serve))
         .layer(Extension(links_cfg))
         .with_state(orchestrator_client)

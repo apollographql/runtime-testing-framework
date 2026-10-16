@@ -1,0 +1,2 @@
+{% import "macros.html" as macros %}
+{% if let Some(badge) = badge %}{% call macros::status_pill(badge) %}{% endcall %}{% endif %}

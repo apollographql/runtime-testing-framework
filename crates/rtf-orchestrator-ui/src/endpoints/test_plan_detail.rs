@@ -1,20 +1,21 @@
 use crate::{
     endpoints::{SelectedTemplate, parse_trigger_ref_and_variables, to_response},
-    orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
+    orchestrator::{self, Client, OrchestratorClient},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
-    view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView},
+    view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView, TestPlanEditView, ViewerBadge},
 };
 use axum::{
     Form,
-    extract::{Path, Query, State},
-    http::HeaderMap,
+    extract::{Path, Query},
     response::{IntoResponse, Redirect, Response},
 };
 use rtf_orchestrator_shared::{
+    cluster_summary::ClusterSummaryResponse,
     known_test_plan::{KnownTestPlanRunsParams, KnownTestPlanSummary},
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
     summary::TestRunListResponse,
     test_plan_details::{DEFAULT_DAYS, DEFAULT_DAYS_BACK, TestPlanDetails, TestPlanDetailsParams},
+    whoami::WhoAmIResponse,
 };
 use tracing::error;
 use url::form_urlencoded;
@@ -34,6 +35,8 @@ pub struct TestPlanDetailParams {
     #[serde(default)]
     trigger_error: Option<String>,
     #[serde(default)]
+    edit_error: Option<String>,
+    #[serde(default)]
     days_back: Option<u32>,
     #[serde(default)]
     days: Option<u32>,
@@ -46,6 +49,7 @@ struct TestPlanDetailPage {
     trigger_git_ref: String,
     trigger_variables: String,
     trigger_error: Option<String>,
+    edit_error: Option<String>,
     days_back: u32,
     days: u32,
 }
@@ -58,6 +62,7 @@ impl Default for TestPlanDetailPage {
             trigger_git_ref: String::new(),
             trigger_variables: String::new(),
             trigger_error: None,
+            edit_error: None,
             days_back: DEFAULT_DAYS_BACK,
             days: DEFAULT_DAYS,
         }
@@ -69,10 +74,12 @@ struct TestPlanDetailResults {
     plan: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
     runs: Result<TestRunListResponse, orchestrator::Error>,
     details: Result<Option<TestPlanDetails>, orchestrator::Error>,
+    whoami: Result<WhoAmIResponse, orchestrator::Error>,
+    pools: Option<Result<ClusterSummaryResponse, orchestrator::Error>>,
 }
 
 pub async fn handler<C: Client>(
-    State(orchestrator_client): State<C>,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Path(uuid): Path<Uuid>,
     Query(params): Query<TestPlanDetailParams>,
 ) -> Response {
@@ -90,11 +97,17 @@ pub async fn handler<C: Client>(
         git_ref: params.trigger_git_ref.clone(),
     };
 
-    let (plan, runs, details) = tokio::join!(
-        orchestrator_client.known_test_plan_summary(uuid),
-        orchestrator_client.list_known_test_plan_runs(uuid, &runs_params),
-        orchestrator_client.test_plan_details(uuid, &details_params)
+    let (plan, runs, details, whoami) = tokio::join!(
+        client.known_test_plan_summary(uuid),
+        client.list_known_test_plan_runs(uuid, &runs_params),
+        client.test_plan_details(uuid, &details_params),
+        client.whoami()
     );
+
+    let pools = match &whoami {
+        Ok(whoami) if whoami.is_admin() => Some(client.cluster_summary().await),
+        _ => None,
+    };
 
     to_response(
         select_template(
@@ -103,6 +116,8 @@ pub async fn handler<C: Client>(
                 plan,
                 runs,
                 details,
+                whoami,
+                pools,
             },
             TestPlanDetailPage {
                 limit: DEFAULT_LIMIT,
@@ -110,6 +125,7 @@ pub async fn handler<C: Client>(
                 trigger_git_ref: params.trigger_git_ref.unwrap_or_default(),
                 trigger_variables: params.trigger_variables.unwrap_or_default(),
                 trigger_error: params.trigger_error,
+                edit_error: params.edit_error,
                 days_back,
                 days,
             },
@@ -139,6 +155,11 @@ fn select_template(
             });
         }
     };
+
+    let whoami = fetch.whoami.unwrap_or_else(|error| {
+        error!(%error, "failed to identify the current user from orchestrator");
+        WhoAmIResponse::Unknown
+    });
 
     let (details, details_error) = match fetch.details {
         Ok(Some(details)) => (
@@ -184,7 +205,19 @@ fn select_template(
         }
     };
 
+    let pools = fetch.pools.map(|pools| {
+        pools.map_err(|error| {
+            error!(%error, "failed to fetch workload pools from orchestrator");
+            format!("Could not load the available workload pools: {error}")
+        })
+    });
+
     SelectedTemplate::Found(Box::new(TestPlanDetailTemplate {
+        badge: ViewerBadge::for_test_plan(&whoami, &plan),
+        can_trigger: whoami.can_trigger(&plan),
+        edit: whoami
+            .can_edit(&plan)
+            .then(|| TestPlanEditView::new(&plan, whoami.is_admin(), pools, page.edit_error)),
         plan: KnownTestPlanRowView::from(plan),
         details,
         details_error,
@@ -223,8 +256,7 @@ impl KnownTestPlanTriggerForm {
 }
 
 pub async fn post_trigger<C: Client>(
-    State(orchestrator_client): State<C>,
-    headers: HeaderMap,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Path(uuid): Path<Uuid>,
     Form(form): Form<KnownTestPlanTriggerForm>,
 ) -> Response {
@@ -233,12 +265,8 @@ pub async fn post_trigger<C: Client>(
         Err(message) => return redirect_with_trigger_error(uuid, &form, &message),
     };
 
-    let initiated_by = headers
-        .get(IAP_USER_EMAIL_HEADER)
-        .and_then(|value| value.to_str().ok());
-
-    match orchestrator_client
-        .trigger(&TriggerPayload::KnownTestPlanUuid(payload), initiated_by)
+    match client
+        .trigger(&TriggerPayload::KnownTestPlanUuid(payload))
         .await
     {
         Ok(summary) => Redirect::to(&format!("/ui/run/{}", summary.id)).into_response(),
@@ -292,7 +320,31 @@ mod tests {
             plan: Ok(Some(sample_known_test_plan(uuid))),
             runs: Ok(TestRunListResponse::default()),
             details: Ok(Some(sample_test_plan_details(uuid))),
+            whoami: Ok(WhoAmIResponse::Unknown),
+            pools: None,
         }
+    }
+
+    #[test]
+    fn selected_template_cannot_trigger_a_restricted_plan_when_the_whoami_fetch_fails() {
+        let uuid = Uuid::from_u128(1);
+        let t = select_template(
+            uuid,
+            TestPlanDetailResults {
+                plan: Ok(Some(KnownTestPlanSummary {
+                    restrict_triggers: true,
+                    ..sample_known_test_plan(uuid)
+                })),
+                whoami: Err(orchestrator::Error::WhoAmI {
+                    status: StatusCode::BAD_GATEWAY,
+                }),
+                ..ok_results(uuid)
+            },
+            TestPlanDetailPage::default(),
+        )
+        .unwrap_found();
+
+        assert!(!t.can_trigger);
     }
 
     #[test]
@@ -467,12 +519,11 @@ mod tests {
     {
         let uuid = Uuid::from_u128(1);
         let resp = post_trigger(
-            State(MockClient::with_test_run(
+            OrchestratorClient(MockClient::with_test_run(
                 Uuid::from_u128(2),
                 Uuid::from_u128(3),
                 Status::Running,
             )),
-            HeaderMap::new(),
             Path(uuid),
             Form(KnownTestPlanTriggerForm {
                 variables: "not json".to_owned(),
@@ -498,8 +549,7 @@ mod tests {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let resp = post_trigger(
-            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
-            HeaderMap::new(),
+            OrchestratorClient(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Path(Uuid::from_u128(3)),
             Form(sample_form()),
         )

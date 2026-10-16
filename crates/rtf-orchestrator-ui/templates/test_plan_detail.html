@@ -3,6 +3,8 @@
 
 {% block title %}RTF Status &middot; {{ plan.name }}{% endblock %}
 
+{% block viewer_badge %}{% if let Some(badge) = badge %}{% call macros::status_pill(badge) %}{% endcall %}{% endif %}{% endblock %}
+
 {% block content %}
 <p><a href="/ui/test-plans">&larr; Back to known test plans</a></p>
 
@@ -15,19 +17,124 @@
     <p class="muted location">
         <a href="{{ self.github_url() }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
     </p>
-    <dl>
-        {% match details %}
-        {% when Some with (d) %}
-        <dt>Commit</dt>
-        <dd><code>{{ d.source_sha }}</code></dd>
-        <dt>Workload Pool</dt>
-        <dd><code>{{ d.pool }}</code></dd>
-        {% when None %}
-        {% endmatch %}
-        <dt>Namespace write access</dt>
-        <dd>{{ self.write_access_label() }}</dd>
-    </dl>
+    <div class="plan-config">
+        <dl>
+            {% match details %}
+            {% when Some with (d) %}
+            <dt>Commit</dt>
+            <dd><code>{{ d.source_sha }}</code></dd>
+            <dt>Workload Pool</dt>
+            <dd><code>{{ d.pool }}</code></dd>
+            {% when None %}
+            {% endmatch %}
+            <dt>Pinned workload pool</dt>
+            <dd>{% match plan.pinned_workload_pool %}{% when Some with (pool) %}<code>{{ pool }}</code>{% when None %}Not pinned{% endmatch %}</dd>
+            <dt>Dedicated cluster</dt>
+            <dd>{% if plan.requires_dedicated_cluster %}Required{% else %}Not required{% endif %}</dd>
+            {% if let Some(weights) = plan.node_label_weights %}
+            <dt>Node label weights</dt>
+            <dd>{% for (label, weight) in weights %}{% if !loop.first %}, {% endif %}<code>{{ label }}</code>: {{ weight }}{% endfor %}</dd>
+            {% endif %}
+            <dt>Namespace write access</dt>
+            <dd>{{ self.write_access_label() }}</dd>
+        </dl>
+        <dl>
+            <dt>Triggers</dt>
+            <dd>{% if plan.restrict_triggers %}Restricted to owners and trigger users{% else %}Unrestricted{% endif %}</dd>
+            <dt>Automated triggers</dt>
+            <dd>{% if plan.restrict_automated_triggers %}Disabled{% else %}Allowed{% endif %}</dd>
+            <dt>Owners</dt>
+            <dd>{% if plan.owners.is_empty() %}None{% else %}{{ plan.owners|join(", ") }}{% endif %}</dd>
+            <dt>Trigger users</dt>
+            <dd>{% if plan.trigger_users.is_empty() %}None{% else %}{{ plan.trigger_users|join(", ") }}{% endif %}</dd>
+        </dl>
+    </div>
 </div>
+
+{% if let Some(edit) = edit %}
+<details id="edit-test-plan" class="card" {% if edit.error.is_some() %}open{% endif %}>
+    <summary>Edit test plan</summary>
+
+    {% call macros::error_message(edit.error) %}{% endcall %}
+
+    <form method="post" action="/ui/test-plan/{{ plan.uuid }}/edit">
+        <div class="var-field-grid">
+            <div class="var-field">
+                <label for="edit-name">Name</label><br>
+                <input id="edit-name" name="name" type="text" value="{{ plan.name }}" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-description">Description</label><br>
+                <input id="edit-description" name="description" type="text" value="{{ plan.description }}" />
+            </div>
+            <div class="var-field">
+                <label for="edit-org">Org</label><br>
+                <input id="edit-org" name="org" type="text" value="{{ plan.org }}" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-repo">Repo</label><br>
+                <input id="edit-repo" name="repo" type="text" value="{{ plan.repo }}" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-path">Path</label><br>
+                <input id="edit-path" name="path" type="text" value="{{ plan.path }}" required />
+            </div>
+            <div class="var-field">
+                <label for="edit-pinned-pool">Pinned workload pool{% if !edit.is_admin %} <span class="muted">(admins only)</span>{% endif %}</label><br>
+                <select id="edit-pinned-pool" name="pinned_workload_pool" {% if !edit.is_admin %}disabled{% endif %}>
+                    <option value="" {% if plan.pinned_workload_pool.is_none() %}selected{% endif %}>Not pinned</option>
+                    {% for pool in edit.pools %}
+                    <option value="{{ pool.name }}" {% if pool.selected %}selected{% endif %}>{{ pool.label }}</option>
+                    {% endfor %}
+                </select>
+                {% call macros::error_message(edit.pools_error) %}{% endcall %}
+            </div>
+            <div class="var-field">
+                <label for="edit-dedicated">Dedicated cluster{% if !edit.is_admin %} <span class="muted">(admins only)</span>{% endif %}</label><br>
+                <select id="edit-dedicated" name="requires_dedicated_cluster" {% if !edit.is_admin %}disabled{% endif %}>
+                    <option value="true" {% if plan.requires_dedicated_cluster %}selected{% endif %}>Required</option>
+                    <option value="false" {% if !plan.requires_dedicated_cluster %}selected{% endif %}>Not required</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-k8s-write">Namespace write access</label><br>
+                <select id="edit-k8s-write" name="allow_k8s_write">
+                    <option value="" {% if plan.allow_k8s_write.is_none() %}selected{% endif %}>Pool default</option>
+                    <option value="true" {% if plan.allow_k8s_write == Some(true) %}selected{% endif %}>Enabled</option>
+                    <option value="false" {% if plan.allow_k8s_write == Some(false) %}selected{% endif %}>Disabled</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-restrict-triggers">Triggers</label><br>
+                <select id="edit-restrict-triggers" name="restrict_triggers">
+                    <option value="true" {% if plan.restrict_triggers %}selected{% endif %}>Restricted to owners and trigger users</option>
+                    <option value="false" {% if !plan.restrict_triggers %}selected{% endif %}>Unrestricted</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-restrict-automated">Automated triggers</label><br>
+                <select id="edit-restrict-automated" name="restrict_automated_triggers">
+                    <option value="true" {% if plan.restrict_automated_triggers %}selected{% endif %}>Disabled</option>
+                    <option value="false" {% if !plan.restrict_automated_triggers %}selected{% endif %}>Allowed</option>
+                </select>
+            </div>
+            <div class="var-field">
+                <label for="edit-node-labels">Node label weights <span class="muted">(one <code>label=weight</code> per line; blank for the pool default)</span></label><br>
+                <textarea id="edit-node-labels" name="node_label_weights" rows="3">{{ edit.node_label_weights }}</textarea>
+            </div>
+            <div class="var-field">
+                <label for="edit-owners">Owners <span class="muted">(one email per line{% if !edit.is_admin %}; admins only{% endif %})</span></label><br>
+                <textarea id="edit-owners" name="owners" rows="3" {% if !edit.is_admin %}disabled{% endif %}>{{ edit.owners }}</textarea>
+            </div>
+            <div class="var-field">
+                <label for="edit-trigger-users">Trigger users <span class="muted">(one email per line)</span></label><br>
+                <textarea id="edit-trigger-users" name="trigger_users" rows="3">{{ edit.trigger_users }}</textarea>
+            </div>
+        </div>
+        <p><button type="submit" class="primary">Save changes</button></p>
+    </form>
+</details>
+{% endif %}
 {% endblock %}
 
 {% block overview %}
@@ -153,9 +260,13 @@
 
 {% call macros::error_message(trigger_error) %}{% endcall %}
 
+{% if !can_trigger %}
+<p class="warn-box">This test plan restricts who can trigger it. To trigger runs, request trigger access from an owner{% if !plan.owners.is_empty() %}: {{ plan.owners|join(", ") }}{% endif %}.</p>
+{% endif %}
+
 <form method="post" action="/ui/test-plan/{{ plan.uuid }}/trigger" id="trigger-form">
     <p class="trigger-actions">
-        <button type="submit" class="primary" id="trigger-btn">Trigger <span id="trigger-count">{{ d.n_executions }}</span> executions</button>
+        <button type="submit" class="primary" id="trigger-btn" {% if !can_trigger %}disabled data-forbidden{% endif %}>Trigger <span id="trigger-count">{{ d.n_executions }}</span> executions</button>
         <span class="muted">Runs every variable at its current value below unless you customize it.</span>
     </p>
     <input type="hidden" name="ref" value="{{ trigger_git_ref }}" />

@@ -1,12 +1,10 @@
 use crate::{
     endpoints::{parse_trigger_ref_and_variables, render_body, to_response},
-    orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
+    orchestrator::{self, Client, OrchestratorClient},
     templates::TriggerTemplate,
 };
 use axum::{
     Form,
-    extract::State,
-    http::HeaderMap,
     response::{IntoResponse, Redirect, Response},
 };
 use reqwest::StatusCode;
@@ -22,8 +20,7 @@ pub async fn get_handler() -> Response {
 }
 
 pub async fn post_handler<C: Client>(
-    State(orchestrator_client): State<C>,
-    headers: HeaderMap,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Form(form): Form<TriggerForm>,
 ) -> Response {
     let payload = match form.try_into_payload() {
@@ -39,13 +36,7 @@ pub async fn post_handler<C: Client>(
         }
     };
 
-    let initiated_by = headers
-        .get(IAP_USER_EMAIL_HEADER)
-        .and_then(|value| value.to_str().ok());
-
-    let result = orchestrator_client
-        .trigger(&TriggerPayload::GitHub(payload), initiated_by)
-        .await;
+    let result = client.trigger(&TriggerPayload::GitHub(payload)).await;
 
     trigger_result_response(form, result)
 }
@@ -227,8 +218,7 @@ mod tests {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let resp = post_handler(
-            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
-            HeaderMap::new(),
+            OrchestratorClient(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Form(TriggerForm {
                 variables: "not json".to_owned(),
                 ..sample_form()
@@ -244,8 +234,7 @@ mod tests {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let resp = post_handler(
-            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
-            HeaderMap::new(),
+            OrchestratorClient(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Form(sample_form()),
         )
         .await;

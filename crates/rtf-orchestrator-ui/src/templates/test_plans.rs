@@ -11,29 +11,44 @@ pub struct TestPlansTemplate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{orchestrator::mocks::sample_known_test_plan, render_fragment};
-    use rtf_orchestrator_shared::known_test_plan::KnownTestPlanListResponse;
+    use crate::{
+        orchestrator::mocks::sample_known_test_plan, preview::OWNER_EMAIL, render_fragment,
+    };
+    use rtf_orchestrator_shared::{
+        known_test_plan::KnownTestPlanListResponse, whoami::WhoAmIResponse,
+    };
     use uuid::Uuid;
 
-    fn test_plans(response: KnownTestPlanListResponse) -> TestPlansTemplate {
+    fn test_plans(
+        response: KnownTestPlanListResponse,
+        whoami: WhoAmIResponse,
+    ) -> TestPlansTemplate {
         TestPlansTemplate {
-            list: Some(KnownTestPlanListView::new(response, 20, 0)),
+            list: Some(KnownTestPlanListView::new(response, &whoami, 20, 0)),
             list_error: None,
         }
     }
 
     #[test]
     fn plans_snapshot() {
-        let t = test_plans(KnownTestPlanListResponse {
-            test_plans: vec![sample_known_test_plan(Uuid::from_u128(1))],
-            total: 1,
-        });
+        let t = test_plans(
+            KnownTestPlanListResponse {
+                test_plans: vec![sample_known_test_plan(Uuid::from_u128(1))],
+                total: 1,
+            },
+            WhoAmIResponse::User {
+                email: OWNER_EMAIL.to_owned(),
+            },
+        );
         insta::assert_snapshot!(render_fragment!(t.as_plans()));
     }
 
     #[test]
     fn plans_snapshot_empty() {
-        let t = test_plans(KnownTestPlanListResponse::default());
+        let t = test_plans(
+            KnownTestPlanListResponse::default(),
+            WhoAmIResponse::Unknown,
+        );
         insta::assert_snapshot!(render_fragment!(t.as_plans()));
     }
 

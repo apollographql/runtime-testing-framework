@@ -12,9 +12,11 @@ expression: "render_fragment!(preview::test_plan_detail_trigger_error().as_trigg
 
 
 
+
+
 <form method="post" action="/ui/test-plan/00000000-0000-0000-0000-00000000000a/trigger" id="trigger-form">
     <p class="trigger-actions">
-        <button type="submit" class="primary" id="trigger-btn">Trigger <span id="trigger-count">8</span> executions</button>
+        <button type="submit" class="primary" id="trigger-btn" >Trigger <span id="trigger-count">8</span> executions</button>
         <span class="muted">Runs every variable at its current value below unless you customize it.</span>
     </p>
     <input type="hidden" name="ref" value="" />
