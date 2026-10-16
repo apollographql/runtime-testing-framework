@@ -32,7 +32,7 @@ kube = { version = "4.2.0", default-features=false, features = ["aws-lc-rs", "cl
 oauth2 = { version = "5.0.0", default-features = false, features = ["reqwest"] }
 # Enables TLS on the reqwest 0.12 that oauth2 uses; its default `rustls-tls`
 # feature would pull in ring, which deny.toml bans.
-oauth2_reqwest = { package = "reqwest", version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots-no-provider"] }
+oauth2_reqwest = { package = "reqwest", version = "0.13", default-features = false, features = ["rustls-tls-webpki-roots-no-provider"] }
 open = "5.4.4"
 promql-parser = "0.10.0"
 rand = { version = "0.10.2", features = ["chacha"] }
