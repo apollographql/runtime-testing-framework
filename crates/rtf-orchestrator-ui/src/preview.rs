@@ -151,9 +151,16 @@ fn test_plan_detail_for(
         ..details
     };
 
+    let pools = whoami
+        .is_admin()
+        .then(|| Ok(mocks::sample_cluster_summary()));
+
     TestPlanDetailTemplate {
         badge: ViewerBadge::for_test_plan(&whoami, &plan),
         can_trigger: whoami.can_trigger(&plan),
+        edit: whoami
+            .can_edit(&plan)
+            .then(|| TestPlanEditView::new(&plan, whoami.is_admin(), pools, None)),
         plan: KnownTestPlanRowView::from(plan),
         details: Some(TestPlanDetailsView::new(
             details,
@@ -201,6 +208,21 @@ pub fn test_plan_detail_trigger_error() -> TestPlanDetailTemplate {
         trigger_error: Some(
             "Variables must be a JSON object: trailing comma at line 1 column 24".to_owned(),
         ),
+        ..test_plan_detail()
+    }
+}
+
+pub fn test_plan_detail_edit_error() -> TestPlanDetailTemplate {
+    let plan = mocks::sample_known_test_plan(id(10));
+    TestPlanDetailTemplate {
+        edit: Some(TestPlanEditView::new(
+            &plan,
+            true,
+            Some(Err(
+                "Could not load the available workload pools: orchestrator returned 502 Bad Gateway fetching the cluster summary".to_owned(),
+            )),
+            Some("node label weights require a dedicated cluster".to_owned()),
+        )),
         ..test_plan_detail()
     }
 }

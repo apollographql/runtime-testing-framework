@@ -719,6 +719,7 @@ button[type="submit"]:hover, button.primary:hover {
 }
 
 .var-field input,
-.var-field select {
+.var-field select,
+.var-field textarea {
     width: 100%;
 }

@@ -13,6 +13,7 @@ mod known_test_plan_list;
 mod run;
 mod run_list;
 mod test_plan_details;
+mod test_plan_edit;
 mod viewer_badge;
 
 pub use dashboard::DashboardView;
@@ -21,6 +22,7 @@ pub use known_test_plan_list::{KnownTestPlanListRow, KnownTestPlanListView, Know
 pub use run::RunView;
 pub use run_list::RunListView;
 pub use test_plan_details::{EnvironmentDetailView, TestPlanDetailsView};
+pub use test_plan_edit::{PoolOptionView, TestPlanEditView};
 pub use viewer_badge::ViewerBadge;
 
 fn format_rfc3339(dt: DateTime<Utc>) -> String {

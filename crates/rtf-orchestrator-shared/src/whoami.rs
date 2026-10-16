@@ -32,6 +32,10 @@ impl WhoAmIResponse {
         }
     }
 
+    pub fn can_edit(&self, plan: &KnownTestPlanSummary) -> bool {
+        self.is_admin() || self.role_for(plan) == Some(Role::Owner)
+    }
+
     pub fn can_trigger(&self, plan: &KnownTestPlanSummary) -> bool {
         match self {
             Self::Admin { .. } => true,

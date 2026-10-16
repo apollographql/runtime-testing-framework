@@ -1,5 +1,6 @@
 use crate::view::{
-    EnvironmentDetailView, KnownTestPlanRowView, RunListView, TestPlanDetailsView, ViewerBadge,
+    EnvironmentDetailView, KnownTestPlanRowView, RunListView, TestPlanDetailsView,
+    TestPlanEditView, ViewerBadge,
 };
 use askama::Template;
 
@@ -21,6 +22,7 @@ pub struct TestPlanDetailTemplate {
     pub trigger_error: Option<String>,
     pub badge: Option<ViewerBadge>,
     pub can_trigger: bool,
+    pub edit: Option<TestPlanEditView>,
 }
 
 impl TestPlanDetailTemplate {
@@ -59,7 +61,7 @@ mod tests {
     use super::*;
     use crate::{
         orchestrator::mocks,
-        preview::{self, user},
+        preview::{self, OWNER_EMAIL, user},
         render_fragment,
     };
     use chrono::{TimeZone, Utc};
@@ -121,6 +123,20 @@ mod tests {
     fn plan_header_snapshot() {
         insta::assert_snapshot!(render_fragment!(
             preview::test_plan_detail().as_plan_header()
+        ));
+    }
+
+    #[test]
+    fn plan_header_snapshot_as_owner() {
+        insta::assert_snapshot!(render_fragment!(
+            preview::test_plan_detail_for_user(user(OWNER_EMAIL)).as_plan_header()
+        ));
+    }
+
+    #[test]
+    fn plan_header_snapshot_with_edit_error() {
+        insta::assert_snapshot!(render_fragment!(
+            preview::test_plan_detail_edit_error().as_plan_header()
         ));
     }
 

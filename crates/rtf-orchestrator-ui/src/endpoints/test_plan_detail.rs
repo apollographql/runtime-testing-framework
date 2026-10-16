@@ -2,7 +2,7 @@ use crate::{
     endpoints::{SelectedTemplate, parse_trigger_ref_and_variables, to_response},
     orchestrator::{self, Client, OrchestratorClient},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
-    view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView, ViewerBadge},
+    view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView, TestPlanEditView, ViewerBadge},
 };
 use axum::{
     Form,
@@ -10,6 +10,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use rtf_orchestrator_shared::{
+    cluster_summary::ClusterSummaryResponse,
     known_test_plan::{KnownTestPlanRunsParams, KnownTestPlanSummary},
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
     summary::TestRunListResponse,
@@ -34,6 +35,8 @@ pub struct TestPlanDetailParams {
     #[serde(default)]
     trigger_error: Option<String>,
     #[serde(default)]
+    edit_error: Option<String>,
+    #[serde(default)]
     days_back: Option<u32>,
     #[serde(default)]
     days: Option<u32>,
@@ -46,6 +49,7 @@ struct TestPlanDetailPage {
     trigger_git_ref: String,
     trigger_variables: String,
     trigger_error: Option<String>,
+    edit_error: Option<String>,
     days_back: u32,
     days: u32,
 }
@@ -58,6 +62,7 @@ impl Default for TestPlanDetailPage {
             trigger_git_ref: String::new(),
             trigger_variables: String::new(),
             trigger_error: None,
+            edit_error: None,
             days_back: DEFAULT_DAYS_BACK,
             days: DEFAULT_DAYS,
         }
@@ -70,6 +75,7 @@ struct TestPlanDetailResults {
     runs: Result<TestRunListResponse, orchestrator::Error>,
     details: Result<Option<TestPlanDetails>, orchestrator::Error>,
     whoami: Result<WhoAmIResponse, orchestrator::Error>,
+    pools: Option<Result<ClusterSummaryResponse, orchestrator::Error>>,
 }
 
 pub async fn handler<C: Client>(
@@ -98,6 +104,11 @@ pub async fn handler<C: Client>(
         client.whoami()
     );
 
+    let pools = match &whoami {
+        Ok(whoami) if whoami.is_admin() => Some(client.cluster_summary().await),
+        _ => None,
+    };
+
     to_response(
         select_template(
             uuid,
@@ -106,6 +117,7 @@ pub async fn handler<C: Client>(
                 runs,
                 details,
                 whoami,
+                pools,
             },
             TestPlanDetailPage {
                 limit: DEFAULT_LIMIT,
@@ -113,6 +125,7 @@ pub async fn handler<C: Client>(
                 trigger_git_ref: params.trigger_git_ref.unwrap_or_default(),
                 trigger_variables: params.trigger_variables.unwrap_or_default(),
                 trigger_error: params.trigger_error,
+                edit_error: params.edit_error,
                 days_back,
                 days,
             },
@@ -192,9 +205,19 @@ fn select_template(
         }
     };
 
+    let pools = fetch.pools.map(|pools| {
+        pools.map_err(|error| {
+            error!(%error, "failed to fetch workload pools from orchestrator");
+            format!("Could not load the available workload pools: {error}")
+        })
+    });
+
     SelectedTemplate::Found(Box::new(TestPlanDetailTemplate {
         badge: ViewerBadge::for_test_plan(&whoami, &plan),
         can_trigger: whoami.can_trigger(&plan),
+        edit: whoami
+            .can_edit(&plan)
+            .then(|| TestPlanEditView::new(&plan, whoami.is_admin(), pools, page.edit_error)),
         plan: KnownTestPlanRowView::from(plan),
         details,
         details_error,
@@ -298,6 +321,7 @@ mod tests {
             runs: Ok(TestRunListResponse::default()),
             details: Ok(Some(sample_test_plan_details(uuid))),
             whoami: Ok(WhoAmIResponse::Unknown),
+            pools: None,
         }
     }
 

@@ -62,7 +62,6 @@ pub enum Error {
     #[error("orchestrator returned {status} identifying the current user")]
     WhoAmI { status: StatusCode },
 
-    #[expect(dead_code)]
     #[error("orchestrator returned {status} updating known test plan id {uuid}: {message}")]
     UpdateKnownTestPlan {
         status: StatusCode,
@@ -149,7 +148,6 @@ pub trait Client: Send + Sync + Clone + 'static {
 
     fn whoami(&self) -> impl Future<Output = Result<WhoAmIResponse, Error>> + Send;
 
-    #[expect(dead_code)]
     fn update_known_test_plan(
         &self,
         uuid: Uuid,
@@ -457,7 +455,6 @@ async fn fetch_test_plan_details(
     }
 }
 
-#[expect(dead_code)]
 async fn evict_test_plan_details(uuid: Uuid) {
     FETCH_TEST_PLAN_DETAILS
         .write()
