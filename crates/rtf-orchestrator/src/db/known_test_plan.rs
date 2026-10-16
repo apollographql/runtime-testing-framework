@@ -629,6 +629,7 @@ mod tests {
         );
     }
 
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn a_malformed_stored_patch_doesnt_error_summary_creation() -> anyhow::Result<()> {
         let plan = plan_with_stored_patch(Some(serde_json::json!({
