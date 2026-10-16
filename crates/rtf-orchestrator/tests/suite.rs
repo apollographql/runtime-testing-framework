@@ -2,7 +2,7 @@ mod common;
 
 use common::TestHelper;
 use rtf_orchestrator::event_loop::{MSG_ARGO_WAIT, MSG_JOB_WAIT};
-use rtf_orchestrator_shared::{status::Status::*, summary::TestRunSummary};
+use rtf_orchestrator_shared::{status::Status::*, summary::TestRunSummary, whoami::WhoAmIResponse};
 use serial_test::serial;
 use simple_test_case::test_case;
 use std::time::Duration;
@@ -155,18 +155,29 @@ async fn unknown_docker_image_in_scenario_marks_execution_unrunnable() {
 }
 
 // Valid admin emails are set based on the contents of the ../local-stack/k8s/admins.yaml file
-#[test_case(Some("someone@test.com"), "user: someone@test.com"; "normal user")]
-#[test_case(Some("admin@test.com"), "admin: admin@test.com"; "admin user")]
-#[test_case(None, "unknown"; "header unset")]
+#[test_case(
+    Some("someone@test.com"),
+    WhoAmIResponse::User { email: "someone@test.com".into() };
+    "normal user"
+)]
+#[test_case(
+    Some("admin@test.com"),
+    WhoAmIResponse::Admin { email: "admin@test.com".into() };
+    "admin user"
+)]
+#[test_case(None, WhoAmIResponse::Unknown; "header unset")]
 #[tokio::test]
-async fn whoami_correctly_identifies_the_user(email: Option<&'static str>, expected: &str) {
+async fn whoami_correctly_identifies_the_user(
+    email: Option<&'static str>,
+    expected: WhoAmIResponse,
+) {
     let mut t = TestHelper::new();
 
     if let Some(email) = email {
         t.set_user_email(email);
     };
 
-    let body = t.get_text("whoami").await.unwrap();
+    let resp: WhoAmIResponse = t.json_get("whoami").await.unwrap();
 
-    assert_eq!(body, expected);
+    assert_eq!(resp, expected);
 }

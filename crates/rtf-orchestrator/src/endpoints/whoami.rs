@@ -2,15 +2,21 @@ use crate::{
     Result,
     state::{ServerState, UserType},
 };
-use axum::{extract::State, http::HeaderMap};
+use axum::{Json, extract::State, http::HeaderMap};
+use rtf_orchestrator_shared::whoami::WhoAmIResponse;
 
-pub async fn handler(State(state): State<ServerState>, headers: HeaderMap) -> Result<String> {
+pub async fn handler(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> Result<Json<WhoAmIResponse>> {
     let user = state.identify_user(&headers).await?;
 
-    Ok(match user {
-        UserType::Admin(email) => format!("admin: {email}"),
-        UserType::User(email) => format!("user: {email}"),
-        UserType::Automation { email, org, repo } => format!("automation: {email} ({org}/{repo})"),
-        UserType::Unknown => "unknown".to_owned(),
-    })
+    Ok(Json(match user {
+        UserType::Admin(email) => WhoAmIResponse::Admin { email },
+        UserType::User(email) => WhoAmIResponse::User { email },
+        UserType::Automation { email, org, repo } => {
+            WhoAmIResponse::Automation { email, org, repo }
+        }
+        UserType::Unknown => WhoAmIResponse::Unknown,
+    }))
 }
