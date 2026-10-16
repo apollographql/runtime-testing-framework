@@ -15,6 +15,6 @@ syn = "3.0.5"
 
 [dev-dependencies]
 rtf-config = { path = "../rtf-config" }
-rustversion = "1.0.23"
+rustversion = "=1.0.23"
 simple_test_case.workspace = true
-trybuild = "1.0.121"
+trybuild = "=1.0.121"

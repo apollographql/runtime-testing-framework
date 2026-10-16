@@ -63,9 +63,9 @@ tikv-jemallocator.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true 
-axum-test = "21.1.0"
+axum-test = "=21.1.0"
 indoc.workspace = true
 reqwest.workspace = true
-serial_test = "4.0.1"
+serial_test = "=4.0.1"
 simple_test_case.workspace = true
 zip.workspace = true
