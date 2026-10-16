@@ -41,7 +41,7 @@
 <a href=#41 id=41 data-nosnippet>41</a>{
 <a href=#42 id=42 data-nosnippet>42</a>    <span class="kw">use </span>endpoints::{
 <a href=#43 id=43 data-nosnippet>43</a>        execution_detail, execution_log, execution_output_zip, health, index, run_status,
-<a href=#44 id=44 data-nosnippet>44</a>        test_plan_detail, test_plans, trigger,
+<a href=#44 id=44 data-nosnippet>44</a>        test_plan_detail, test_plan_edit, test_plans, trigger, viewer_badge,
 <a href=#45 id=45 data-nosnippet>45</a>    };
 <a href=#46 id=46 data-nosnippet>46</a>
 <a href=#47 id=47 data-nosnippet>47</a>    Router::new()
@@ -54,21 +54,26 @@
 <a href=#54 id=54 data-nosnippet>54</a>            <span class="string">"/ui/test-plan/{uuid}/trigger"</span>,
 <a href=#55 id=55 data-nosnippet>55</a>            post(test_plan_detail::post_trigger::&lt;C&gt;),
 <a href=#56 id=56 data-nosnippet>56</a>        )
-<a href=#57 id=57 data-nosnippet>57</a>        .route(<span class="string">"/ui/execution/{eid}"</span>, get(execution_detail::handler::&lt;C&gt;))
-<a href=#58 id=58 data-nosnippet>58</a>        .route(
-<a href=#59 id=59 data-nosnippet>59</a>            <span class="string">"/ui/execution/{eid}/log.txt"</span>,
-<a href=#60 id=60 data-nosnippet>60</a>            get(execution_log::handler::&lt;C&gt;),
-<a href=#61 id=61 data-nosnippet>61</a>        )
+<a href=#57 id=57 data-nosnippet>57</a>        .route(
+<a href=#58 id=58 data-nosnippet>58</a>            <span class="string">"/ui/test-plan/{uuid}/edit"</span>,
+<a href=#59 id=59 data-nosnippet>59</a>            post(test_plan_edit::post_edit::&lt;C&gt;),
+<a href=#60 id=60 data-nosnippet>60</a>        )
+<a href=#61 id=61 data-nosnippet>61</a>        .route(<span class="string">"/ui/execution/{eid}"</span>, get(execution_detail::handler::&lt;C&gt;))
 <a href=#62 id=62 data-nosnippet>62</a>        .route(
-<a href=#63 id=63 data-nosnippet>63</a>            <span class="string">"/ui/execution/{eid}/output.zip"</span>,
-<a href=#64 id=64 data-nosnippet>64</a>            get(execution_output_zip::handler::&lt;C&gt;),
+<a href=#63 id=63 data-nosnippet>63</a>            <span class="string">"/ui/execution/{eid}/log.txt"</span>,
+<a href=#64 id=64 data-nosnippet>64</a>            get(execution_log::handler::&lt;C&gt;),
 <a href=#65 id=65 data-nosnippet>65</a>        )
 <a href=#66 id=66 data-nosnippet>66</a>        .route(
-<a href=#67 id=67 data-nosnippet>67</a>            <span class="string">"/ui/trigger"</span>,
-<a href=#68 id=68 data-nosnippet>68</a>            get(trigger::get_handler).post(trigger::post_handler::&lt;C&gt;),
+<a href=#67 id=67 data-nosnippet>67</a>            <span class="string">"/ui/execution/{eid}/output.zip"</span>,
+<a href=#68 id=68 data-nosnippet>68</a>            get(execution_output_zip::handler::&lt;C&gt;),
 <a href=#69 id=69 data-nosnippet>69</a>        )
-<a href=#70 id=70 data-nosnippet>70</a>        .route(<span class="string">"/ui/static/{*path}"</span>, get(assets::serve))
-<a href=#71 id=71 data-nosnippet>71</a>        .layer(Extension(links_cfg))
-<a href=#72 id=72 data-nosnippet>72</a>        .with_state(orchestrator_client)
-<a href=#73 id=73 data-nosnippet>73</a>}
+<a href=#70 id=70 data-nosnippet>70</a>        .route(
+<a href=#71 id=71 data-nosnippet>71</a>            <span class="string">"/ui/trigger"</span>,
+<a href=#72 id=72 data-nosnippet>72</a>            get(trigger::get_handler).post(trigger::post_handler::&lt;C&gt;),
+<a href=#73 id=73 data-nosnippet>73</a>        )
+<a href=#74 id=74 data-nosnippet>74</a>        .route(<span class="string">"/ui/viewer-badge"</span>, get(viewer_badge::handler::&lt;C&gt;))
+<a href=#75 id=75 data-nosnippet>75</a>        .route(<span class="string">"/ui/static/{*path}"</span>, get(assets::serve))
+<a href=#76 id=76 data-nosnippet>76</a>        .layer(Extension(links_cfg))
+<a href=#77 id=77 data-nosnippet>77</a>        .with_state(orchestrator_client)
+<a href=#78 id=78 data-nosnippet>78</a>}
 </code></pre></div></section></main></body></html>
