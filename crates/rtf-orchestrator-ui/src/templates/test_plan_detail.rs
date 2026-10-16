@@ -1,4 +1,6 @@
-use crate::view::{EnvironmentDetailView, KnownTestPlanRowView, RunListView, TestPlanDetailsView};
+use crate::view::{
+    EnvironmentDetailView, KnownTestPlanRowView, RunListView, TestPlanDetailsView, ViewerBadge,
+};
 use askama::Template;
 
 #[derive(Debug, Template)]
@@ -17,6 +19,8 @@ pub struct TestPlanDetailTemplate {
     pub days: u32,
     pub trigger_variables: String,
     pub trigger_error: Option<String>,
+    pub badge: Option<ViewerBadge>,
+    pub can_trigger: bool,
 }
 
 impl TestPlanDetailTemplate {
@@ -53,7 +57,11 @@ pub struct TestPlanNotFoundTemplate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{orchestrator::mocks, preview, render_fragment};
+    use crate::{
+        orchestrator::mocks,
+        preview::{self, user},
+        render_fragment,
+    };
     use chrono::{TimeZone, Utc};
     use rtf_orchestrator_shared::{status::Status, summary::TestRunListResponse};
     use simple_test_case::test_case;
@@ -149,6 +157,13 @@ mod tests {
     fn trigger_form_snapshot_with_error_and_variables() {
         insta::assert_snapshot!(render_fragment!(
             preview::test_plan_detail_trigger_error().as_trigger_form()
+        ));
+    }
+
+    #[test]
+    fn trigger_form_snapshot_restricted() {
+        insta::assert_snapshot!(render_fragment!(
+            preview::test_plan_detail_for_user(user("foo@bar.com")).as_trigger_form()
         ));
     }
 

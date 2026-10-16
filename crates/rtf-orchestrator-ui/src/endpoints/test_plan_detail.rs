@@ -2,7 +2,7 @@ use crate::{
     endpoints::{SelectedTemplate, parse_trigger_ref_and_variables, to_response},
     orchestrator::{self, Client, OrchestratorClient},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
-    view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView},
+    view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView, ViewerBadge},
 };
 use axum::{
     Form,
@@ -14,6 +14,7 @@ use rtf_orchestrator_shared::{
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
     summary::TestRunListResponse,
     test_plan_details::{DEFAULT_DAYS, DEFAULT_DAYS_BACK, TestPlanDetails, TestPlanDetailsParams},
+    whoami::WhoAmIResponse,
 };
 use tracing::error;
 use url::form_urlencoded;
@@ -68,6 +69,7 @@ struct TestPlanDetailResults {
     plan: Result<Option<KnownTestPlanSummary>, orchestrator::Error>,
     runs: Result<TestRunListResponse, orchestrator::Error>,
     details: Result<Option<TestPlanDetails>, orchestrator::Error>,
+    whoami: Result<WhoAmIResponse, orchestrator::Error>,
 }
 
 pub async fn handler<C: Client>(
@@ -89,10 +91,11 @@ pub async fn handler<C: Client>(
         git_ref: params.trigger_git_ref.clone(),
     };
 
-    let (plan, runs, details) = tokio::join!(
+    let (plan, runs, details, whoami) = tokio::join!(
         client.known_test_plan_summary(uuid),
         client.list_known_test_plan_runs(uuid, &runs_params),
-        client.test_plan_details(uuid, &details_params)
+        client.test_plan_details(uuid, &details_params),
+        client.whoami()
     );
 
     to_response(
@@ -102,6 +105,7 @@ pub async fn handler<C: Client>(
                 plan,
                 runs,
                 details,
+                whoami,
             },
             TestPlanDetailPage {
                 limit: DEFAULT_LIMIT,
@@ -138,6 +142,11 @@ fn select_template(
             });
         }
     };
+
+    let whoami = fetch.whoami.unwrap_or_else(|error| {
+        error!(%error, "failed to identify the current user from orchestrator");
+        WhoAmIResponse::Unknown
+    });
 
     let (details, details_error) = match fetch.details {
         Ok(Some(details)) => (
@@ -184,6 +193,8 @@ fn select_template(
     };
 
     SelectedTemplate::Found(Box::new(TestPlanDetailTemplate {
+        badge: ViewerBadge::for_test_plan(&whoami, &plan),
+        can_trigger: whoami.can_trigger(&plan),
         plan: KnownTestPlanRowView::from(plan),
         details,
         details_error,
@@ -286,7 +297,30 @@ mod tests {
             plan: Ok(Some(sample_known_test_plan(uuid))),
             runs: Ok(TestRunListResponse::default()),
             details: Ok(Some(sample_test_plan_details(uuid))),
+            whoami: Ok(WhoAmIResponse::Unknown),
         }
+    }
+
+    #[test]
+    fn selected_template_cannot_trigger_a_restricted_plan_when_the_whoami_fetch_fails() {
+        let uuid = Uuid::from_u128(1);
+        let t = select_template(
+            uuid,
+            TestPlanDetailResults {
+                plan: Ok(Some(KnownTestPlanSummary {
+                    restrict_triggers: true,
+                    ..sample_known_test_plan(uuid)
+                })),
+                whoami: Err(orchestrator::Error::WhoAmI {
+                    status: StatusCode::BAD_GATEWAY,
+                }),
+                ..ok_results(uuid)
+            },
+            TestPlanDetailPage::default(),
+        )
+        .unwrap_found();
+
+        assert!(!t.can_trigger);
     }
 
     #[test]

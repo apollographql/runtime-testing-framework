@@ -9,7 +9,7 @@ use axum::{
     response::{Html, IntoResponse, Response},
     routing::get,
 };
-use rtf_orchestrator_ui::preview;
+use rtf_orchestrator_ui::preview::{self, OWNER_EMAIL, TRIGGER_USER_EMAIL, user};
 use rust_embed::RustEmbed;
 use tokio::net::TcpListener;
 
@@ -33,7 +33,19 @@ const PAGES: &[(&str, &str)] = &[
     ("/ui/test-plans", "Known test plans — list"),
     (
         "/ui/test-plan/detail",
-        "Known test plan — detail + trigger form (docker-compose environment)",
+        "Known test plan — detail + trigger form (docker-compose environment), viewed as an admin",
+    ),
+    (
+        "/ui/test-plan/detail/owner",
+        "Known test plan — detail, restricted triggers, viewed as an owner",
+    ),
+    (
+        "/ui/test-plan/detail/trigger-user",
+        "Known test plan — detail, restricted triggers, viewed as a trigger user",
+    ),
+    (
+        "/ui/test-plan/detail/restricted",
+        "Known test plan — detail, restricted triggers, viewed by an unassociated user",
     ),
     (
         "/ui/test-plan/detail-k8s",
@@ -84,6 +96,18 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/ui/test-plan/detail",
             get(|| async { render(preview::test_plan_detail()) }),
+        )
+        .route(
+            "/ui/test-plan/detail/owner",
+            get(|| async { render(preview::test_plan_detail_for_user(user(OWNER_EMAIL))) }),
+        )
+        .route(
+            "/ui/test-plan/detail/trigger-user",
+            get(|| async { render(preview::test_plan_detail_for_user(user(TRIGGER_USER_EMAIL))) }),
+        )
+        .route(
+            "/ui/test-plan/detail/restricted",
+            get(|| async { render(preview::test_plan_detail_for_user(user("foo@bar.com"))) }),
         )
         .route(
             "/ui/test-plan/detail-k8s",

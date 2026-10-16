@@ -11,10 +11,30 @@ expression: render_fragment!(details_failed().as_plan_header())
     <p class="muted location">
         <a href="https://github.com/apollographql/runtime-testing-framework/blob/HEAD/test-plans/example.yaml" target="_blank" rel="noopener noreferrer">apollographql/runtime-testing-framework/test-plans/example.yaml &#8599;</a>
     </p>
-    <dl>
-        
-        
-        <dt>Namespace write access</dt>
-        <dd>Pool default</dd>
-    </dl>
+    <div class="plan-config">
+        <dl>
+            
+            
+            <dt>Pinned workload pool</dt>
+            <dd><code>dedicated</code></dd>
+            <dt>Dedicated cluster</dt>
+            <dd>Required</dd>
+            
+            <dt>Node label weights</dt>
+            <dd><code>rtf.io/node-pool-a</code>: 3, <code>rtf.io/node-pool-b</code>: 1</dd>
+            
+            <dt>Namespace write access</dt>
+            <dd>Enabled</dd>
+        </dl>
+        <dl>
+            <dt>Triggers</dt>
+            <dd>Restricted to owners and trigger users</dd>
+            <dt>Automated triggers</dt>
+            <dd>Disabled</dd>
+            <dt>Owners</dt>
+            <dd>owner@apollographql.com</dd>
+            <dt>Trigger users</dt>
+            <dd>trigger-user@apollographql.com</dd>
+        </dl>
+    </div>
 </div>

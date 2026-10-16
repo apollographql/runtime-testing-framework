@@ -514,8 +514,8 @@ fn test_plan_details_url(base_url: &Url, uuid: Uuid) -> Url {
 
 pub(crate) mod mocks {
     use super::*;
-    use chrono::TimeDelta;
-    use chrono::Utc;
+    use crate::preview::{OWNER_EMAIL, TRIGGER_USER_EMAIL};
+    use chrono::{TimeDelta, Utc};
     use rtf_config::{
         formats::{EnvironmentService, ServiceReplicas},
         templating::Scalar,
@@ -529,6 +529,7 @@ pub(crate) mod mocks {
             ClusterClaimSummary, ClusterQueueState, EventSummary, PendingProvisionSummary,
             PoolQueueState, SnapshotSummary,
         },
+        known_test_plan::Role,
         status::{Status, StatusUpdate},
         summary::TestExecutionSummary,
         test_plan_details::{
@@ -536,6 +537,7 @@ pub(crate) mod mocks {
             ManifestLocation, MatrixSummary, TestPlanHistory, TestPlanSource, TestPlanVariable,
             VariableDeclaration, VariableValue,
         },
+        workload_config::WorkloadConfigPatch,
     };
     use std::collections::BTreeMap;
 
@@ -598,12 +600,21 @@ pub(crate) mod mocks {
             org: "apollographql".to_owned(),
             repo: "runtime-testing-framework".to_owned(),
             path: "test-plans/example.yaml".to_owned(),
-            pinned_workload_pool: None,
-            workload_config_patch: Default::default(),
-            associated_users: Default::default(),
-            requires_dedicated_cluster: false,
-            restrict_triggers: false,
-            restrict_automated_triggers: false,
+            pinned_workload_pool: Some("dedicated".to_owned()),
+            associated_users: BTreeMap::from([
+                (OWNER_EMAIL.to_owned(), Role::Owner),
+                (TRIGGER_USER_EMAIL.to_owned(), Role::CanTrigger),
+            ]),
+            workload_config_patch: WorkloadConfigPatch {
+                allow_k8s_write: Some(true),
+                node_label_weights: Some(vec![
+                    ("rtf.io/node-pool-a".to_owned(), 3),
+                    ("rtf.io/node-pool-b".to_owned(), 1),
+                ]),
+            },
+            requires_dedicated_cluster: true,
+            restrict_triggers: true,
+            restrict_automated_triggers: true,
         }
     }
 
@@ -917,7 +928,6 @@ pub(crate) mod mocks {
         test_run_summary: TestRunSummary,
         test_execution_summary: TestExecutionSummary,
         service_status_fails: bool,
-        whoami: WhoAmIResponse,
     }
 
     #[cfg(test)]
@@ -927,12 +937,7 @@ pub(crate) mod mocks {
                 test_run_summary: sample_summary(run_id, ex_id, status),
                 test_execution_summary: sample_execution(run_id, ex_id),
                 service_status_fails: false,
-                whoami: WhoAmIResponse::Unknown,
             }
-        }
-
-        pub fn with_whoami(self, whoami: WhoAmIResponse) -> Self {
-            Self { whoami, ..self }
         }
 
         /// Fails the event queue snapshot and cluster summary requests.
@@ -1037,7 +1042,7 @@ pub(crate) mod mocks {
         }
 
         async fn whoami(&self) -> Result<WhoAmIResponse, Error> {
-            Ok(self.whoami.clone())
+            Ok(WhoAmIResponse::Unknown)
         }
 
         async fn update_known_test_plan(

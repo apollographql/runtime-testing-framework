@@ -3,6 +3,8 @@
 
 {% block title %}RTF Status &middot; {{ plan.name }}{% endblock %}
 
+{% block viewer_badge %}{% if let Some(badge) = badge %}{% call macros::status_pill(badge) %}{% endcall %}{% endif %}{% endblock %}
+
 {% block content %}
 <p><a href="/ui/test-plans">&larr; Back to known test plans</a></p>
 
@@ -15,18 +17,38 @@
     <p class="muted location">
         <a href="{{ self.github_url() }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
     </p>
-    <dl>
-        {% match details %}
-        {% when Some with (d) %}
-        <dt>Commit</dt>
-        <dd><code>{{ d.source_sha }}</code></dd>
-        <dt>Workload Pool</dt>
-        <dd><code>{{ d.pool }}</code></dd>
-        {% when None %}
-        {% endmatch %}
-        <dt>Namespace write access</dt>
-        <dd>{{ self.write_access_label() }}</dd>
-    </dl>
+    <div class="plan-config">
+        <dl>
+            {% match details %}
+            {% when Some with (d) %}
+            <dt>Commit</dt>
+            <dd><code>{{ d.source_sha }}</code></dd>
+            <dt>Workload Pool</dt>
+            <dd><code>{{ d.pool }}</code></dd>
+            {% when None %}
+            {% endmatch %}
+            <dt>Pinned workload pool</dt>
+            <dd>{% match plan.pinned_workload_pool %}{% when Some with (pool) %}<code>{{ pool }}</code>{% when None %}Not pinned{% endmatch %}</dd>
+            <dt>Dedicated cluster</dt>
+            <dd>{% if plan.requires_dedicated_cluster %}Required{% else %}Not required{% endif %}</dd>
+            {% if let Some(weights) = plan.node_label_weights %}
+            <dt>Node label weights</dt>
+            <dd>{% for (label, weight) in weights %}{% if !loop.first %}, {% endif %}<code>{{ label }}</code>: {{ weight }}{% endfor %}</dd>
+            {% endif %}
+            <dt>Namespace write access</dt>
+            <dd>{{ self.write_access_label() }}</dd>
+        </dl>
+        <dl>
+            <dt>Triggers</dt>
+            <dd>{% if plan.restrict_triggers %}Restricted to owners and trigger users{% else %}Unrestricted{% endif %}</dd>
+            <dt>Automated triggers</dt>
+            <dd>{% if plan.restrict_automated_triggers %}Disabled{% else %}Allowed{% endif %}</dd>
+            <dt>Owners</dt>
+            <dd>{% if plan.owners.is_empty() %}None{% else %}{{ plan.owners|join(", ") }}{% endif %}</dd>
+            <dt>Trigger users</dt>
+            <dd>{% if plan.trigger_users.is_empty() %}None{% else %}{{ plan.trigger_users|join(", ") }}{% endif %}</dd>
+        </dl>
+    </div>
 </div>
 {% endblock %}
 
@@ -153,9 +175,13 @@
 
 {% call macros::error_message(trigger_error) %}{% endcall %}
 
+{% if !can_trigger %}
+<p class="warn-box">This test plan restricts who can trigger it. To trigger runs, request trigger access from an owner{% if !plan.owners.is_empty() %}: {{ plan.owners|join(", ") }}{% endif %}.</p>
+{% endif %}
+
 <form method="post" action="/ui/test-plan/{{ plan.uuid }}/trigger" id="trigger-form">
     <p class="trigger-actions">
-        <button type="submit" class="primary" id="trigger-btn">Trigger <span id="trigger-count">{{ d.n_executions }}</span> executions</button>
+        <button type="submit" class="primary" id="trigger-btn" {% if !can_trigger %}disabled data-forbidden{% endif %}>Trigger <span id="trigger-count">{{ d.n_executions }}</span> executions</button>
         <span class="muted">Runs every variable at its current value below unless you customize it.</span>
     </p>
     <input type="hidden" name="ref" value="{{ trigger_git_ref }}" />

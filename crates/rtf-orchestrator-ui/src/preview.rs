@@ -2,10 +2,10 @@
 use crate::{links::sample_config, orchestrator::mocks};
 use chrono::Utc;
 use rtf_orchestrator_shared::{
-    known_test_plan::KnownTestPlanListResponse,
+    known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary},
     status::Status,
     summary::{TestRunListResponse, TestRunSummary},
-    test_plan_details::{DEFAULT_DAYS, DEFAULT_DAYS_BACK},
+    test_plan_details::{DEFAULT_DAYS, DEFAULT_DAYS_BACK, TestPlanDetails},
     whoami::WhoAmIResponse,
 };
 use serde_json::json;
@@ -13,6 +13,9 @@ use uuid::Uuid;
 
 pub use crate::templates::*;
 pub use crate::view::*;
+
+pub const OWNER_EMAIL: &str = "owner@apollographql.com";
+pub const TRIGGER_USER_EMAIL: &str = "trigger-user@apollographql.com";
 
 fn id(n: u128) -> Uuid {
     Uuid::from_u128(n)
@@ -117,17 +120,27 @@ pub fn test_plans() -> TestPlansTemplate {
     }
 }
 
-pub fn test_plan_detail() -> TestPlanDetailTemplate {
-    let uuid = id(10);
+fn test_plan_detail_for(
+    whoami: WhoAmIResponse,
+    plan: KnownTestPlanSummary,
+    details: TestPlanDetails,
+) -> TestPlanDetailTemplate {
+    let uuid = plan.uuid;
     let runs = TestRunListResponse {
         runs: vec![mocks::sample_summary(id(1), id(2), Status::Successful)],
         total: 1,
     };
+    let details = TestPlanDetails {
+        pool: plan.pinned_workload_pool.clone().unwrap_or(details.pool),
+        ..details
+    };
 
     TestPlanDetailTemplate {
-        plan: KnownTestPlanRowView::from(mocks::sample_known_test_plan(uuid)),
+        badge: ViewerBadge::for_test_plan(&whoami, &plan),
+        can_trigger: whoami.can_trigger(&plan),
+        plan: KnownTestPlanRowView::from(plan),
         details: Some(TestPlanDetailsView::new(
-            mocks::sample_test_plan_details(uuid),
+            details,
             DEFAULT_DAYS_BACK,
             DEFAULT_DAYS,
         )),
@@ -142,56 +155,46 @@ pub fn test_plan_detail() -> TestPlanDetailTemplate {
     }
 }
 
-pub fn test_plan_detail_trigger_error() -> TestPlanDetailTemplate {
-    let uuid = id(10);
-    let runs = TestRunListResponse {
-        runs: vec![mocks::sample_summary(id(1), id(2), Status::Successful)],
-        total: 1,
-    };
+pub fn user(email: &str) -> WhoAmIResponse {
+    WhoAmIResponse::User {
+        email: email.to_owned(),
+    }
+}
 
+fn admin() -> WhoAmIResponse {
+    WhoAmIResponse::Admin {
+        email: "admin@apollographql.com".to_owned(),
+    }
+}
+
+pub fn test_plan_detail_for_user(whoami: WhoAmIResponse) -> TestPlanDetailTemplate {
+    test_plan_detail_for(
+        whoami,
+        mocks::sample_known_test_plan(id(10)),
+        mocks::sample_test_plan_details(id(10)),
+    )
+}
+
+pub fn test_plan_detail() -> TestPlanDetailTemplate {
+    test_plan_detail_for_user(admin())
+}
+
+pub fn test_plan_detail_trigger_error() -> TestPlanDetailTemplate {
     TestPlanDetailTemplate {
-        plan: KnownTestPlanRowView::from(mocks::sample_known_test_plan(uuid)),
-        details: Some(TestPlanDetailsView::new(
-            mocks::sample_test_plan_details(uuid),
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
-        )),
-        details_error: None,
-        runs: Some(RunListView::for_known_test_plan(runs, 20, 0, uuid)),
-        runs_error: None,
-        trigger_git_ref: String::new(),
-        days_back: DEFAULT_DAYS_BACK,
-        days: DEFAULT_DAYS,
         trigger_variables: r#"{"region": "us-east-1",}"#.to_owned(),
         trigger_error: Some(
             "Variables must be a JSON object: trailing comma at line 1 column 24".to_owned(),
         ),
+        ..test_plan_detail()
     }
 }
 
 pub fn test_plan_detail_k8s() -> TestPlanDetailTemplate {
-    let uuid = id(10);
-    let runs = TestRunListResponse {
-        runs: vec![mocks::sample_summary(id(1), id(2), Status::Successful)],
-        total: 1,
-    };
-
-    TestPlanDetailTemplate {
-        plan: KnownTestPlanRowView::from(mocks::sample_known_test_plan(uuid)),
-        details: Some(TestPlanDetailsView::new(
-            mocks::sample_k8s_test_plan_details(uuid),
-            DEFAULT_DAYS_BACK,
-            DEFAULT_DAYS,
-        )),
-        details_error: None,
-        runs: Some(RunListView::for_known_test_plan(runs, 20, 0, uuid)),
-        runs_error: None,
-        trigger_git_ref: String::new(),
-        days_back: DEFAULT_DAYS_BACK,
-        days: DEFAULT_DAYS,
-        trigger_variables: String::new(),
-        trigger_error: None,
-    }
+    test_plan_detail_for(
+        admin(),
+        mocks::sample_known_test_plan(id(10)),
+        mocks::sample_k8s_test_plan_details(id(10)),
+    )
 }
 
 pub fn test_plan_not_found() -> TestPlanNotFoundTemplate {
