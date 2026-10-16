@@ -1,6 +1,10 @@
+use axum::{
+    extract::FromRequestParts,
+    http::{HeaderValue, request::Parts},
+};
 use cached::cached;
 use chrono::{DateTime, Utc};
-use reqwest::{StatusCode, Url, header::LOCATION, redirect::Policy};
+use reqwest::{Method, RequestBuilder, StatusCode, Url, header::LOCATION, redirect::Policy};
 use rtf_orchestrator_shared::{
     cluster_summary::ClusterSummaryResponse,
     event_queue::EventQueueSnapshot,
@@ -12,6 +16,7 @@ use rtf_orchestrator_shared::{
     summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary},
     test_plan_details::{TestPlanDetails, TestPlanDetailsParams},
 };
+use std::convert::Infallible;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -57,32 +62,22 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
 }
 
-/// Serialized directly as the `GET /test-run` query string, so field names must match its params.
-#[derive(Debug, Clone, Default, serde::Serialize)]
-pub struct RunListFilter {
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub initiated_by: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub started_after: Option<DateTime<Utc>>,
-    pub limit: i64,
-    pub offset: i64,
-}
-
 #[derive(Debug, Clone)]
-pub enum Download {
-    Ready(Vec<u8>),
-    /// The parent run/execution doesn't exist, or the artifact was never produced.
-    NotFound,
-    /// The parent run/execution exists, but the artifact isn't ready yet.
-    NotReady,
-    /// To be relayed to the browser verbatim rather than followed (e.g. a 307 to a signed GCS URL).
-    Redirect {
-        status: StatusCode,
-        location: String,
-    },
+pub struct OrchestratorClient<C>(pub C);
+
+impl<C: Client> FromRequestParts<C> for OrchestratorClient<C> {
+    type Rejection = Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, client: &C) -> Result<Self, Infallible> {
+        let iap_user_email = parts.headers.get(IAP_USER_EMAIL_HEADER).cloned();
+
+        Ok(Self(client.with_identity(iap_user_email)))
+    }
 }
 
 pub trait Client: Send + Sync + Clone + 'static {
+    fn with_identity(&self, iap_user_email: Option<HeaderValue>) -> Self;
+
     fn run_summary(
         &self,
         id: Uuid,
@@ -135,11 +130,9 @@ pub trait Client: Send + Sync + Clone + 'static {
     fn cluster_summary(&self)
     -> impl Future<Output = Result<ClusterSummaryResponse, Error>> + Send;
 
-    /// `initiated_by` is the raw [IAP_USER_EMAIL_HEADER] value from the inbound request, if any.
     fn trigger(
         &self,
         payload: &TriggerPayload,
-        initiated_by: Option<&str>,
     ) -> impl Future<Output = Result<TestRunSummary, Error>> + Send;
 }
 
@@ -147,6 +140,7 @@ pub trait Client: Send + Sync + Clone + 'static {
 pub struct HttpClient {
     client: reqwest::Client,
     orchestrator_url: Url,
+    iap_user_email: Option<HeaderValue>,
 }
 
 impl HttpClient {
@@ -157,210 +151,25 @@ impl HttpClient {
                 .redirect(Policy::none())
                 .build()?,
             orchestrator_url: Url::parse(&orchestrator_url)?,
+            iap_user_email: None,
         })
     }
-}
 
-impl Client for HttpClient {
-    async fn run_summary(&self, id: Uuid) -> Result<Option<TestRunSummary>, Error> {
-        let url = test_run_status_url(&self.orchestrator_url, id);
-        let response = self.client.get(url).send().await?;
+    fn request(&self, method: Method, url: Url) -> RequestBuilder {
+        let request = self.client.request(method, url);
 
-        match response.status() {
-            StatusCode::OK => Ok(Some(response.json().await?)),
-            StatusCode::NOT_FOUND => Ok(None),
-            status => Err(Error::TestRunStatus { status, id }),
+        match &self.iap_user_email {
+            Some(value) => request.header(IAP_USER_EMAIL_HEADER, value.clone()),
+            None => request,
         }
     }
 
-    async fn execution_summary(&self, id: Uuid) -> Result<Option<TestExecutionSummary>, Error> {
-        let url = test_execution_status_url(&self.orchestrator_url, id);
-        let response = self.client.get(url).send().await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(Some(response.json().await?)),
-            StatusCode::NOT_FOUND => Ok(None),
-            status => Err(Error::TestExecutionStatus { status, id }),
-        }
-    }
-
-    async fn execution_log(&self, id: Uuid) -> Result<Download, Error> {
-        let path = format!("/test-execution/{id}/log.txt");
-
-        self.fetch_download(&path).await
-    }
-
-    async fn execution_output_zip(&self, id: Uuid) -> Result<Download, Error> {
-        let path = format!("/test-execution/{id}/output.zip");
-
-        self.fetch_download(&path).await
-    }
-
-    async fn list_runs(&self, filter: &RunListFilter) -> Result<TestRunListResponse, Error> {
-        let url = self
-            .orchestrator_url
-            .join("/test-run")
-            .expect("base url should be valid");
-        let response = self.client.get(url).query(filter).send().await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ListRuns { status }),
-        }
-    }
-
-    async fn list_known_test_plans(
-        &self,
-        filter: &KnownTestPlanListParams,
-    ) -> Result<KnownTestPlanListResponse, Error> {
-        let url = self
-            .orchestrator_url
-            .join("/test-plan")
-            .expect("base url should be valid");
-        let response = self.client.get(url).query(filter).send().await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ListKnownTestPlans { status }),
-        }
-    }
-
-    async fn known_test_plan_summary(
-        &self,
-        uuid: Uuid,
-    ) -> Result<Option<KnownTestPlanSummary>, Error> {
-        let url = known_test_plan_url(&self.orchestrator_url, uuid);
-        let response = self.client.get(url).send().await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(Some(response.json().await?)),
-            StatusCode::NOT_FOUND => Ok(None),
-            status => Err(Error::KnownTestPlanStatus { status, uuid }),
-        }
-    }
-
-    async fn test_plan_details(
-        &self,
-        uuid: Uuid,
-        params: &TestPlanDetailsParams,
-    ) -> Result<Option<TestPlanDetails>, Error> {
-        fetch_test_plan_details(
-            self.client.clone(),
-            self.orchestrator_url.clone(),
-            uuid,
-            params.clone(),
-        )
-        .await
-    }
-
-    async fn list_known_test_plan_runs(
-        &self,
-        uuid: Uuid,
-        filter: &KnownTestPlanRunsParams,
-    ) -> Result<TestRunListResponse, Error> {
-        let url = known_test_plan_runs_url(&self.orchestrator_url, uuid);
-        let response = self.client.get(url).query(filter).send().await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ListKnownTestPlanRuns { status, uuid }),
-        }
-    }
-
-    async fn event_queue_snapshot(&self) -> Result<EventQueueSnapshot, Error> {
-        let url = self
-            .orchestrator_url
-            .join("/event-queue-snapshot")
-            .expect("base url should be valid");
-        let response = self.client.get(url).send().await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::EventQueueSnapshot { status }),
-        }
-    }
-
-    async fn cluster_summary(&self) -> Result<ClusterSummaryResponse, Error> {
-        let url = self
-            .orchestrator_url
-            .join("/cluster-summary")
-            .expect("base url should be valid");
-        let response = self.client.get(url).send().await?;
-
-        match response.status() {
-            StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ClusterSummary { status }),
-        }
-    }
-
-    async fn trigger(
-        &self,
-        payload: &TriggerPayload,
-        initiated_by: Option<&str>,
-    ) -> Result<TestRunSummary, Error> {
-        let url = self
-            .orchestrator_url
-            .join("/test-run/trigger")
-            .expect("base url should be valid");
-        let mut request = self.client.post(url).json(payload);
-
-        if let Some(initiated_by) = initiated_by {
-            request = request.header(IAP_USER_EMAIL_HEADER, initiated_by);
-        }
-        let response = request.send().await?;
-        let status = response.status();
-
-        if status.is_success() {
-            return Ok(response.json().await?);
-        }
-
-        // Non-orchestrator errors (e.g. from a proxy) won't have a `message` body.
-        let message = response
-            .json::<TriggerErrorBody>()
-            .await
-            .map(|body| body.message)
-            .unwrap_or_else(|_| status.to_string());
-
-        return Err(Error::Trigger { status, message });
-
-        // serde structs
-
-        #[derive(Debug, serde::Deserialize)]
-        struct TriggerErrorBody {
-            message: String,
-        }
-    }
-}
-
-// The key must include every param that changes the response.
-#[cached(
-    ttl_secs = 300,
-    key = "String",
-    convert = r#"{ format!("{uuid}-{:?}-{}-{}", params.git_ref, params.days_back, params.days) }"#
-)]
-async fn fetch_test_plan_details(
-    client: reqwest::Client,
-    orchestrator_url: Url,
-    uuid: Uuid,
-    params: TestPlanDetailsParams,
-) -> Result<Option<TestPlanDetails>, Error> {
-    let url = test_plan_details_url(&orchestrator_url, uuid);
-    let response = client.get(url).query(&params).send().await?;
-
-    match response.status() {
-        StatusCode::OK => Ok(Some(response.json().await?)),
-        StatusCode::NOT_FOUND => Ok(None),
-        status => Err(Error::TestPlanDetailsStatus { status, uuid }),
-    }
-}
-
-impl HttpClient {
     async fn fetch_download(&self, path: &str) -> Result<Download, Error> {
         let url = self
             .orchestrator_url
             .join(path)
             .expect("base url should be valid");
-        let response = self.client.get(url).send().await?;
+        let response = self.request(Method::GET, url).send().await?;
         let status = response.status();
 
         if status.is_redirection() {
@@ -386,6 +195,216 @@ impl HttpClient {
                 path: path.to_owned(),
             }),
         }
+    }
+}
+
+impl Client for HttpClient {
+    fn with_identity(&self, iap_user_email: Option<HeaderValue>) -> Self {
+        Self {
+            iap_user_email,
+            ..self.clone()
+        }
+    }
+
+    async fn run_summary(&self, id: Uuid) -> Result<Option<TestRunSummary>, Error> {
+        let url = test_run_status_url(&self.orchestrator_url, id);
+        let response = self.request(Method::GET, url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(Some(response.json().await?)),
+            StatusCode::NOT_FOUND => Ok(None),
+            status => Err(Error::TestRunStatus { status, id }),
+        }
+    }
+
+    async fn execution_summary(&self, id: Uuid) -> Result<Option<TestExecutionSummary>, Error> {
+        let url = test_execution_status_url(&self.orchestrator_url, id);
+        let response = self.request(Method::GET, url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(Some(response.json().await?)),
+            StatusCode::NOT_FOUND => Ok(None),
+            status => Err(Error::TestExecutionStatus { status, id }),
+        }
+    }
+
+    async fn execution_log(&self, id: Uuid) -> Result<Download, Error> {
+        let path = format!("/test-execution/{id}/log.txt");
+
+        self.fetch_download(&path).await
+    }
+
+    async fn execution_output_zip(&self, id: Uuid) -> Result<Download, Error> {
+        let path = format!("/test-execution/{id}/output.zip");
+
+        self.fetch_download(&path).await
+    }
+
+    async fn list_runs(&self, filter: &RunListFilter) -> Result<TestRunListResponse, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/test-run")
+            .expect("base url should be valid");
+        let response = self.request(Method::GET, url).query(filter).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::ListRuns { status }),
+        }
+    }
+
+    async fn list_known_test_plans(
+        &self,
+        filter: &KnownTestPlanListParams,
+    ) -> Result<KnownTestPlanListResponse, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/test-plan")
+            .expect("base url should be valid");
+        let response = self.request(Method::GET, url).query(filter).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::ListKnownTestPlans { status }),
+        }
+    }
+
+    async fn known_test_plan_summary(
+        &self,
+        uuid: Uuid,
+    ) -> Result<Option<KnownTestPlanSummary>, Error> {
+        let url = known_test_plan_url(&self.orchestrator_url, uuid);
+        let response = self.request(Method::GET, url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(Some(response.json().await?)),
+            StatusCode::NOT_FOUND => Ok(None),
+            status => Err(Error::KnownTestPlanStatus { status, uuid }),
+        }
+    }
+
+    async fn test_plan_details(
+        &self,
+        uuid: Uuid,
+        params: &TestPlanDetailsParams,
+    ) -> Result<Option<TestPlanDetails>, Error> {
+        let url = test_plan_details_url(&self.orchestrator_url, uuid);
+
+        fetch_test_plan_details(self.request(Method::GET, url), uuid, params.clone()).await
+    }
+
+    async fn list_known_test_plan_runs(
+        &self,
+        uuid: Uuid,
+        filter: &KnownTestPlanRunsParams,
+    ) -> Result<TestRunListResponse, Error> {
+        let url = known_test_plan_runs_url(&self.orchestrator_url, uuid);
+        let response = self.request(Method::GET, url).query(filter).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::ListKnownTestPlanRuns { status, uuid }),
+        }
+    }
+
+    async fn event_queue_snapshot(&self) -> Result<EventQueueSnapshot, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/event-queue-snapshot")
+            .expect("base url should be valid");
+        let response = self.request(Method::GET, url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::EventQueueSnapshot { status }),
+        }
+    }
+
+    async fn cluster_summary(&self) -> Result<ClusterSummaryResponse, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/cluster-summary")
+            .expect("base url should be valid");
+        let response = self.request(Method::GET, url).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::ClusterSummary { status }),
+        }
+    }
+
+    async fn trigger(&self, payload: &TriggerPayload) -> Result<TestRunSummary, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/test-run/trigger")
+            .expect("base url should be valid");
+        let response = self.request(Method::POST, url).json(payload).send().await?;
+        let status = response.status();
+
+        if status.is_success() {
+            return Ok(response.json().await?);
+        }
+
+        // Non-orchestrator errors (e.g. from a proxy) won't have a `message` body.
+        let message = response
+            .json::<TriggerErrorBody>()
+            .await
+            .map(|body| body.message)
+            .unwrap_or_else(|_| status.to_string());
+
+        return Err(Error::Trigger { status, message });
+
+        // serde structs
+
+        #[derive(Debug, serde::Deserialize)]
+        struct TriggerErrorBody {
+            message: String,
+        }
+    }
+}
+
+/// Serialized directly as the `GET /test-run` query string, so field names must match its params.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct RunListFilter {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub initiated_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_after: Option<DateTime<Utc>>,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+#[derive(Debug, Clone)]
+pub enum Download {
+    Ready(Vec<u8>),
+    /// The parent run/execution doesn't exist, or the artifact was never produced.
+    NotFound,
+    /// The parent run/execution exists, but the artifact isn't ready yet.
+    NotReady,
+    /// To be relayed to the browser verbatim rather than followed (e.g. a 307 to a signed GCS URL).
+    Redirect {
+        status: StatusCode,
+        location: String,
+    },
+}
+
+// The key must include every param that changes the response.
+#[cached(
+    ttl_secs = 300,
+    key = "String",
+    convert = r#"{ format!("{uuid}-{:?}-{}-{}", params.git_ref, params.days_back, params.days) }"#
+)]
+async fn fetch_test_plan_details(
+    request: RequestBuilder,
+    uuid: Uuid,
+    params: TestPlanDetailsParams,
+) -> Result<Option<TestPlanDetails>, Error> {
+    let response = request.query(&params).send().await?;
+
+    match response.status() {
+        StatusCode::OK => Ok(Some(response.json().await?)),
+        StatusCode::NOT_FOUND => Ok(None),
+        status => Err(Error::TestPlanDetailsStatus { status, uuid }),
     }
 }
 
@@ -847,6 +866,10 @@ pub(crate) mod mocks {
 
     #[cfg(test)]
     impl Client for MockClient {
+        fn with_identity(&self, _iap_user_email: Option<HeaderValue>) -> Self {
+            self.clone()
+        }
+
         async fn run_summary(&self, _id: Uuid) -> Result<Option<TestRunSummary>, Error> {
             Ok(Some(self.test_run_summary.clone()))
         }
@@ -929,11 +952,7 @@ pub(crate) mod mocks {
             Ok(sample_cluster_summary())
         }
 
-        async fn trigger(
-            &self,
-            _payload: &TriggerPayload,
-            _initiated_by: Option<&str>,
-        ) -> Result<TestRunSummary, Error> {
+        async fn trigger(&self, _payload: &TriggerPayload) -> Result<TestRunSummary, Error> {
             Ok(self.test_run_summary.clone())
         }
     }

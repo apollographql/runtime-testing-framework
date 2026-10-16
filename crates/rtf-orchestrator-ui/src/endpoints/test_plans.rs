@@ -1,13 +1,10 @@
 use crate::{
     endpoints::{render_body, to_response},
-    orchestrator::{self, Client},
+    orchestrator::{self, Client, OrchestratorClient},
     templates::TestPlansTemplate,
     view::KnownTestPlanListView,
 };
-use axum::{
-    extract::{Query, State},
-    response::Response,
-};
+use axum::{extract::Query, response::Response};
 use reqwest::StatusCode;
 use rtf_orchestrator_shared::known_test_plan::{
     KnownTestPlanListParams, KnownTestPlanListResponse,
@@ -22,12 +19,12 @@ pub struct TestPlansParams {
 }
 
 pub async fn handler<C: Client>(
-    State(orchestrator_client): State<C>,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Query(params): Query<TestPlansParams>,
 ) -> Response {
     let offset = params.offset.unwrap_or(0).max(0);
 
-    let list = orchestrator_client
+    let list = client
         .list_known_test_plans(&KnownTestPlanListParams {
             name: None,
             limit: Some(DEFAULT_LIMIT),

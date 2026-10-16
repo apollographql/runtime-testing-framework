@@ -1,20 +1,17 @@
 use crate::{
     endpoints::{Content, download_response},
-    orchestrator::Client,
+    orchestrator::{Client, OrchestratorClient},
 };
-use axum::{
-    extract::{Path, State},
-    response::Response,
-};
+use axum::{extract::Path, response::Response};
 use uuid::Uuid;
 
 /// Relays the orchestrator's redirect to a signed GCS URL rather than proxying the zip itself.
 pub async fn handler<C: Client>(
-    State(orchestrator_client): State<C>,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Path(execution_id): Path<Uuid>,
 ) -> Response {
     download_response(
-        orchestrator_client.execution_output_zip(execution_id).await,
+        client.execution_output_zip(execution_id).await,
         format!("{execution_id}-output.zip"),
         Content::ZipAttachment,
     )
@@ -32,7 +29,7 @@ mod tests {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let resp = handler(
-            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
+            OrchestratorClient(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Path(ex_id),
         )
         .await;

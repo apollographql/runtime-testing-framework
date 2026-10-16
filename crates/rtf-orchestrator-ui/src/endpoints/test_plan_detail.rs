@@ -1,13 +1,12 @@
 use crate::{
     endpoints::{SelectedTemplate, parse_trigger_ref_and_variables, to_response},
-    orchestrator::{self, Client, IAP_USER_EMAIL_HEADER},
+    orchestrator::{self, Client, OrchestratorClient},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
     view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView},
 };
 use axum::{
     Form,
-    extract::{Path, Query, State},
-    http::HeaderMap,
+    extract::{Path, Query},
     response::{IntoResponse, Redirect, Response},
 };
 use rtf_orchestrator_shared::{
@@ -72,7 +71,7 @@ struct TestPlanDetailResults {
 }
 
 pub async fn handler<C: Client>(
-    State(orchestrator_client): State<C>,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Path(uuid): Path<Uuid>,
     Query(params): Query<TestPlanDetailParams>,
 ) -> Response {
@@ -91,9 +90,9 @@ pub async fn handler<C: Client>(
     };
 
     let (plan, runs, details) = tokio::join!(
-        orchestrator_client.known_test_plan_summary(uuid),
-        orchestrator_client.list_known_test_plan_runs(uuid, &runs_params),
-        orchestrator_client.test_plan_details(uuid, &details_params)
+        client.known_test_plan_summary(uuid),
+        client.list_known_test_plan_runs(uuid, &runs_params),
+        client.test_plan_details(uuid, &details_params)
     );
 
     to_response(
@@ -223,8 +222,7 @@ impl KnownTestPlanTriggerForm {
 }
 
 pub async fn post_trigger<C: Client>(
-    State(orchestrator_client): State<C>,
-    headers: HeaderMap,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Path(uuid): Path<Uuid>,
     Form(form): Form<KnownTestPlanTriggerForm>,
 ) -> Response {
@@ -233,12 +231,8 @@ pub async fn post_trigger<C: Client>(
         Err(message) => return redirect_with_trigger_error(uuid, &form, &message),
     };
 
-    let initiated_by = headers
-        .get(IAP_USER_EMAIL_HEADER)
-        .and_then(|value| value.to_str().ok());
-
-    match orchestrator_client
-        .trigger(&TriggerPayload::KnownTestPlanUuid(payload), initiated_by)
+    match client
+        .trigger(&TriggerPayload::KnownTestPlanUuid(payload))
         .await
     {
         Ok(summary) => Redirect::to(&format!("/ui/run/{}", summary.id)).into_response(),
@@ -467,12 +461,11 @@ mod tests {
     {
         let uuid = Uuid::from_u128(1);
         let resp = post_trigger(
-            State(MockClient::with_test_run(
+            OrchestratorClient(MockClient::with_test_run(
                 Uuid::from_u128(2),
                 Uuid::from_u128(3),
                 Status::Running,
             )),
-            HeaderMap::new(),
             Path(uuid),
             Form(KnownTestPlanTriggerForm {
                 variables: "not json".to_owned(),
@@ -498,8 +491,7 @@ mod tests {
         let run_id = Uuid::from_u128(1);
         let ex_id = Uuid::from_u128(2);
         let resp = post_trigger(
-            State(MockClient::with_test_run(run_id, ex_id, Status::Running)),
-            HeaderMap::new(),
+            OrchestratorClient(MockClient::with_test_run(run_id, ex_id, Status::Running)),
             Path(Uuid::from_u128(3)),
             Form(sample_form()),
         )

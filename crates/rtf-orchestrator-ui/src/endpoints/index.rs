@@ -1,15 +1,11 @@
 use crate::{
     endpoints::{render_body, to_response},
     links::LinksConfig,
-    orchestrator::{self, Client, RunListFilter},
+    orchestrator::{self, Client, OrchestratorClient, RunListFilter},
     templates::IndexTemplate,
     view::{DashboardView, RunListView},
 };
-use axum::{
-    Extension,
-    extract::{Query, State},
-    response::Response,
-};
+use axum::{Extension, extract::Query, response::Response};
 use chrono::{Duration, Utc};
 use reqwest::StatusCode;
 use rtf_orchestrator_shared::{
@@ -57,7 +53,7 @@ impl StartedWithin {
 }
 
 pub async fn handler<C: Client>(
-    State(orchestrator_client): State<C>,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Extension(links_cfg): Extension<LinksConfig>,
     Query(params): Query<IndexParams>,
 ) -> Response {
@@ -79,9 +75,9 @@ pub async fn handler<C: Client>(
     };
 
     let (list, snapshot, summary) = tokio::join!(
-        orchestrator_client.list_runs(&filter),
-        orchestrator_client.event_queue_snapshot(),
-        orchestrator_client.cluster_summary(),
+        client.list_runs(&filter),
+        client.event_queue_snapshot(),
+        client.cluster_summary(),
     );
 
     let mut t = index_template(list, DEFAULT_LIMIT, offset, initiated_by, started_within);
@@ -200,7 +196,7 @@ mod tests {
     #[tokio::test]
     async fn index_trims_whitespace_from_initiated_by() {
         let resp = handler(
-            State(MockClient::with_test_run(
+            OrchestratorClient(MockClient::with_test_run(
                 Uuid::from_u128(1),
                 Uuid::from_u128(2),
                 Status::Running,
@@ -224,7 +220,7 @@ mod tests {
     #[tokio::test]
     async fn index_falls_back_to_any_time_for_an_unrecognized_started_within() {
         let resp = handler(
-            State(MockClient::with_test_run(
+            OrchestratorClient(MockClient::with_test_run(
                 Uuid::from_u128(1),
                 Uuid::from_u128(2),
                 Status::Running,
@@ -248,7 +244,7 @@ mod tests {
     #[tokio::test]
     async fn index_still_lists_runs_when_service_status_fails() {
         let resp = handler(
-            State(
+            OrchestratorClient(
                 MockClient::with_test_run(Uuid::from_u128(1), Uuid::from_u128(2), Status::Running)
                     .with_failing_service_status(),
             ),

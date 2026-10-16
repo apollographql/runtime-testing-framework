@@ -1,25 +1,21 @@
 use crate::{
     endpoints::{SelectedTemplate, to_response},
     links::LinksConfig,
-    orchestrator::{self, Client},
+    orchestrator::{self, Client, OrchestratorClient},
     templates::{ErrorTemplate, ExecutionNotFoundTemplate, ExecutionTemplate},
     view::ExecutionDetailView,
 };
-use axum::{
-    Extension,
-    extract::{Path, State},
-    response::Response,
-};
+use axum::{Extension, extract::Path, response::Response};
 use rtf_orchestrator_shared::summary::TestExecutionSummary;
 use tracing::error;
 use uuid::Uuid;
 
 pub async fn handler<C: Client>(
-    State(orchestrator_client): State<C>,
+    OrchestratorClient(client): OrchestratorClient<C>,
     Extension(links_cfg): Extension<LinksConfig>,
     Path(execution_id): Path<Uuid>,
 ) -> Response {
-    let result = orchestrator_client.execution_summary(execution_id).await;
+    let result = client.execution_summary(execution_id).await;
 
     to_response(select_template(execution_id, result, &links_cfg).render())
 }
