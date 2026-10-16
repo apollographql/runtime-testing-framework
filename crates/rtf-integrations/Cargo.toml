@@ -29,5 +29,5 @@ xdg.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
-rsa = "0.10.0-rc.18"
+rsa = "=0.10.0-rc.18"
 simple_test_case.workspace = true

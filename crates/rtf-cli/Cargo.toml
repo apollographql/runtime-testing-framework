@@ -41,7 +41,7 @@ assert_cmd.workspace = true
 indoc.workspace = true
 predicates.workspace = true
 simple_test_case.workspace = true
-walkdir = "2.5.0"
+walkdir = "=2.5.0"
 
 [build-dependencies]
 clap-markdown = "0.1.5"
