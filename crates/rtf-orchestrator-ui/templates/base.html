@@ -23,6 +23,7 @@
             <a href="https://apollographql.github.io/runtime-testing-framework" target="_blank" rel="noopener noreferrer">RTF Docs</a>
         </nav>
         <div class="header-actions">
+            {% block viewer_badge %}<span hx-get="/ui/viewer-badge" hx-trigger="load" hx-swap="outerHTML"></span>{% endblock %}
             <form class="run-lookup"
                 onsubmit="event.preventDefault(); const id = this.runId.value.trim(); if (id) { window.location.href = '/ui/run/' + encodeURIComponent(id); }">
                 <input name="runId" type="text" placeholder="Test run ID" aria-label="Test run ID" required

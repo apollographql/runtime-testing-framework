@@ -20,6 +20,7 @@ pub mod run_status;
 pub mod test_plan_detail;
 pub mod test_plans;
 pub mod trigger;
+pub mod viewer_badge;
 
 fn render_body<T: Template>(status: StatusCode, template: T) -> (StatusCode, String) {
     match template.render() {

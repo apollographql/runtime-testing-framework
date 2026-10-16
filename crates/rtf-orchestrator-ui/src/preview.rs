@@ -6,6 +6,7 @@ use rtf_orchestrator_shared::{
     status::Status,
     summary::{TestRunListResponse, TestRunSummary},
     test_plan_details::{DEFAULT_DAYS, DEFAULT_DAYS_BACK},
+    whoami::WhoAmIResponse,
 };
 use serde_json::json;
 use uuid::Uuid;
@@ -211,6 +212,14 @@ pub fn trigger_error() -> TriggerTemplate {
         git_ref: "main".to_owned(),
         variables: r#"{"duration": "60s"}"#.to_owned(),
         error: Some("unknown path in repo".to_owned()),
+    }
+}
+
+pub fn viewer_badge_admin() -> ViewerBadgeTemplate {
+    ViewerBadgeTemplate {
+        badge: ViewerBadge::for_whoami(&WhoAmIResponse::Admin {
+            email: "admin@apollographql.com".to_owned(),
+        }),
     }
 }
 

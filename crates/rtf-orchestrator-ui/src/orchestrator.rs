@@ -59,7 +59,6 @@ pub enum Error {
     #[error("orchestrator returned {status} triggering a run: {message}")]
     Trigger { status: StatusCode, message: String },
 
-    #[expect(dead_code)]
     #[error("orchestrator returned {status} identifying the current user")]
     WhoAmI { status: StatusCode },
 
@@ -148,7 +147,6 @@ pub trait Client: Send + Sync + Clone + 'static {
         payload: &TriggerPayload,
     ) -> impl Future<Output = Result<TestRunSummary, Error>> + Send;
 
-    #[expect(dead_code)]
     fn whoami(&self) -> impl Future<Output = Result<WhoAmIResponse, Error>> + Send;
 
     #[expect(dead_code)]
@@ -919,6 +917,7 @@ pub(crate) mod mocks {
         test_run_summary: TestRunSummary,
         test_execution_summary: TestExecutionSummary,
         service_status_fails: bool,
+        whoami: WhoAmIResponse,
     }
 
     #[cfg(test)]
@@ -928,7 +927,12 @@ pub(crate) mod mocks {
                 test_run_summary: sample_summary(run_id, ex_id, status),
                 test_execution_summary: sample_execution(run_id, ex_id),
                 service_status_fails: false,
+                whoami: WhoAmIResponse::Unknown,
             }
+        }
+
+        pub fn with_whoami(self, whoami: WhoAmIResponse) -> Self {
+            Self { whoami, ..self }
         }
 
         /// Fails the event queue snapshot and cluster summary requests.
@@ -1033,7 +1037,7 @@ pub(crate) mod mocks {
         }
 
         async fn whoami(&self) -> Result<WhoAmIResponse, Error> {
-            Ok(WhoAmIResponse::Unknown)
+            Ok(self.whoami.clone())
         }
 
         async fn update_known_test_plan(

@@ -13,6 +13,7 @@ mod known_test_plan_list;
 mod run;
 mod run_list;
 mod test_plan_details;
+mod viewer_badge;
 
 pub use dashboard::DashboardView;
 pub use execution_detail::ExecutionDetailView;
@@ -20,6 +21,7 @@ pub use known_test_plan_list::{KnownTestPlanListView, KnownTestPlanRowView};
 pub use run::RunView;
 pub use run_list::RunListView;
 pub use test_plan_details::{EnvironmentDetailView, TestPlanDetailsView};
+pub use viewer_badge::ViewerBadge;
 
 fn format_rfc3339(dt: DateTime<Utc>) -> String {
     let seconds_since_epoch = dt.timestamp().max(0) as u64;

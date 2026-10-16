@@ -106,6 +106,10 @@ async fn main() -> anyhow::Result<()> {
             get(|| async { render(preview::trigger_error()) }),
         )
         .route("/ui/error", get(|| async { render(preview::error_page()) }))
+        .route(
+            "/ui/viewer-badge",
+            get(|| async { render(preview::viewer_badge_admin()) }),
+        )
         .route("/ui/static/{*path}", get(serve_asset));
 
     let addr = "127.0.0.1:8080";
