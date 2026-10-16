@@ -10,11 +10,12 @@ use rtf_orchestrator_shared::{
     event_queue::EventQueueSnapshot,
     known_test_plan::{
         KnownTestPlanListParams, KnownTestPlanListResponse, KnownTestPlanRunsParams,
-        KnownTestPlanSummary,
+        KnownTestPlanSummary, UpdateKnownTestPlanRequest,
     },
     payload::TriggerPayload,
     summary::{TestExecutionSummary, TestRunListResponse, TestRunSummary},
     test_plan_details::{TestPlanDetails, TestPlanDetailsParams},
+    whoami::WhoAmIResponse,
 };
 use std::convert::Infallible;
 use thiserror::Error;
@@ -57,6 +58,18 @@ pub enum Error {
 
     #[error("orchestrator returned {status} triggering a run: {message}")]
     Trigger { status: StatusCode, message: String },
+
+    #[expect(dead_code)]
+    #[error("orchestrator returned {status} identifying the current user")]
+    WhoAmI { status: StatusCode },
+
+    #[expect(dead_code)]
+    #[error("orchestrator returned {status} updating known test plan id {uuid}: {message}")]
+    UpdateKnownTestPlan {
+        status: StatusCode,
+        uuid: Uuid,
+        message: String,
+    },
 
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
@@ -134,6 +147,16 @@ pub trait Client: Send + Sync + Clone + 'static {
         &self,
         payload: &TriggerPayload,
     ) -> impl Future<Output = Result<TestRunSummary, Error>> + Send;
+
+    #[expect(dead_code)]
+    fn whoami(&self) -> impl Future<Output = Result<WhoAmIResponse, Error>> + Send;
+
+    #[expect(dead_code)]
+    fn update_known_test_plan(
+        &self,
+        uuid: Uuid,
+        req: &UpdateKnownTestPlanRequest,
+    ) -> impl Future<Output = Result<KnownTestPlanSummary, Error>> + Send;
 }
 
 #[derive(Debug, Clone)]
@@ -345,21 +368,49 @@ impl Client for HttpClient {
             return Ok(response.json().await?);
         }
 
-        // Non-orchestrator errors (e.g. from a proxy) won't have a `message` body.
-        let message = response
-            .json::<TriggerErrorBody>()
-            .await
-            .map(|body| body.message)
-            .unwrap_or_else(|_| status.to_string());
+        Err(Error::Trigger {
+            status,
+            message: error_message(response).await,
+        })
+    }
 
-        return Err(Error::Trigger { status, message });
+    async fn whoami(&self) -> Result<WhoAmIResponse, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/whoami")
+            .expect("base url should be valid");
+        let response = self.request(Method::GET, url).send().await?;
 
-        // serde structs
-
-        #[derive(Debug, serde::Deserialize)]
-        struct TriggerErrorBody {
-            message: String,
+        match response.status() {
+            StatusCode::OK => Ok(response.json().await?),
+            status => Err(Error::WhoAmI { status }),
         }
+    }
+
+    async fn update_known_test_plan(
+        &self,
+        uuid: Uuid,
+        req: &UpdateKnownTestPlanRequest,
+    ) -> Result<KnownTestPlanSummary, Error> {
+        let url = self
+            .orchestrator_url
+            .join(&format!("/admin/test-plan/{uuid}"))
+            .expect("base url should be valid");
+        let response = self.request(Method::PUT, url).json(req).send().await?;
+        let status = response.status();
+
+        if status.is_success() {
+            let summary = response.json().await?;
+            evict_test_plan_details(uuid).await;
+
+            return Ok(summary);
+        }
+
+        Err(Error::UpdateKnownTestPlan {
+            status,
+            uuid,
+            message: error_message(response).await,
+        })
     }
 }
 
@@ -391,8 +442,8 @@ pub enum Download {
 // The key must include every param that changes the response.
 #[cached(
     ttl_secs = 300,
-    key = "String",
-    convert = r#"{ format!("{uuid}-{:?}-{}-{}", params.git_ref, params.days_back, params.days) }"#
+    key = "(Uuid, Option<String>, u32, u32)",
+    convert = r#"{ (uuid, params.git_ref.clone(), params.days_back, params.days) }"#
 )]
 async fn fetch_test_plan_details(
     request: RequestBuilder,
@@ -405,6 +456,31 @@ async fn fetch_test_plan_details(
         StatusCode::OK => Ok(Some(response.json().await?)),
         StatusCode::NOT_FOUND => Ok(None),
         status => Err(Error::TestPlanDetailsStatus { status, uuid }),
+    }
+}
+
+#[expect(dead_code)]
+async fn evict_test_plan_details(uuid: Uuid) {
+    FETCH_TEST_PLAN_DETAILS
+        .write()
+        .await
+        .retain(|(id, ..), _| *id != uuid);
+}
+
+async fn error_message(response: reqwest::Response) -> String {
+    let status = response.status();
+
+    return response
+        .json::<ErrorBody>()
+        .await
+        .map(|body| body.message)
+        .unwrap_or_else(|_| status.to_string());
+
+    // serde structs
+
+    #[derive(Debug, serde::Deserialize)]
+    struct ErrorBody {
+        message: String,
     }
 }
 
@@ -954,6 +1030,18 @@ pub(crate) mod mocks {
 
         async fn trigger(&self, _payload: &TriggerPayload) -> Result<TestRunSummary, Error> {
             Ok(self.test_run_summary.clone())
+        }
+
+        async fn whoami(&self) -> Result<WhoAmIResponse, Error> {
+            Ok(WhoAmIResponse::Unknown)
+        }
+
+        async fn update_known_test_plan(
+            &self,
+            uuid: Uuid,
+            _req: &UpdateKnownTestPlanRequest,
+        ) -> Result<KnownTestPlanSummary, Error> {
+            Ok(sample_known_test_plan(uuid))
         }
     }
 }
