@@ -6,7 +6,7 @@ use crate::{
     error::Error,
     event_loop::SubmitError,
     rate_limit,
-    state::{ServerState, TestRunWithPayload},
+    state::{ServerState, TestRunWithPayload, UserType},
 };
 use axum::{Json, extract::State, http::HeaderMap};
 use rtf_orchestrator_shared::{
@@ -25,7 +25,7 @@ pub async fn handler(
 ) -> Result<Json<TestRunSummary>, Error> {
     let user = state.identify_user(&headers).await?;
     let cfg = Config::get();
-    let payload = PayloadWithMeta::resolve(trigger_payload, conn!()).await?;
+    let payload = PayloadWithMeta::resolve(trigger_payload, &user, conn!()).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.pool)?;
 
     payload.workload_config_patch.validate(
@@ -36,7 +36,7 @@ pub async fn handler(
             .unwrap_or_else(|| DEFAULT_POOL_NAME),
         payload.pinned_pool.is_some(),
         payload.requires_dedicated_cluster,
-        |pool| state.eq_state.supports_dedicated(pool),
+        &state.eq_state.dedicated_pools(),
     )?;
 
     let workload_config = cfg
@@ -175,6 +175,7 @@ struct PayloadWithMeta<T> {
 impl PayloadWithMeta<PreparedOrGitHub> {
     async fn resolve(
         trigger_payload: TriggerPayload,
+        user: &UserType,
         conn: &mut PgConnection,
     ) -> Result<Self, Error> {
         let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
@@ -231,6 +232,10 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                         identifier: kp.test_plan_uuid.to_string(),
                     })?;
 
+                if !known.user_can_trigger(user, conn).await? {
+                    return Err(Error::Unauthorized);
+                }
+
                 from_known(known, kp.git_ref, kp.variables)?
             }
 
@@ -241,6 +246,10 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                     .ok_or_else(|| Error::UnknownTestPlan {
                         identifier: kp.test_plan_name.clone(),
                     })?;
+
+                if !known.user_can_trigger(user, conn).await? {
+                    return Err(Error::Unauthorized);
+                }
 
                 from_known(known, kp.git_ref, kp.variables)?
             }
@@ -302,7 +311,7 @@ mod tests {
     use super::*;
     use crate::test_helpers::{TestServerState, stub_payload};
     use reqwest::StatusCode;
-    use rtf_orchestrator_shared::{known_test_plan::UpdateKnownTestPlanRequest, status::Status};
+    use rtf_orchestrator_shared::status::Status;
     use uuid::Uuid;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -510,44 +519,6 @@ mod tests {
         assert_eq!(body["reason"]["current"], 10);
         assert_eq!(body["reason"]["max"], 10);
         assert_eq!(body["pool"], "default");
-
-        Ok(())
-    }
-
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
-    async fn handler_rejects_dedicated_plans_pinned_to_pools_without_dedicated_support()
-    -> anyhow::Result<()> {
-        let tss = TestServerState::new();
-        let plan = KnownTestPlan::register(
-            &format!("plan-{}", Uuid::new_v4()),
-            None,
-            "org",
-            "repo",
-            &format!("path-{}", Uuid::new_v4()),
-            conn!(),
-        )
-        .await?
-        .update(
-            UpdateKnownTestPlanRequest {
-                requires_dedicated_cluster: Some(true),
-                ..Default::default()
-            },
-            conn!(),
-        )
-        .await?;
-
-        let resp = tss
-            .test_server
-            .post("/test-run/trigger")
-            .json(&serde_json::json!({ "test_plan_uuid": plan.uuid() }))
-            .await;
-
-        assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST);
-        assert!(
-            tss.resolver_rx.is_empty(),
-            "should not have submitted the test plan"
-        );
 
         Ok(())
     }

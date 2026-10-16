@@ -57,17 +57,17 @@ pub enum Error {
     #[error("FAILED status updates must have a non-zero exit code")]
     InvalidFailedExitCode,
 
-    #[error("FAILED status updates must include an exit code")]
-    MissingExitCode,
-
     #[error("a known test plan with this name, or this org/repo/path, is already registered")]
     KnownTestPlanAlreadyExists,
+
+    #[error("the stored workload config for this test run is malformed: {0}")]
+    MalformedWorkloadConfig(serde_json::Error),
 
     #[error("the stored workload config patch for this known test plan is malformed: {0}")]
     MalformedWorkloadConfigPatch(serde_json::Error),
 
-    #[error("the stored workload config for this test run is malformed: {0}")]
-    MalformedWorkloadConfig(serde_json::Error),
+    #[error("FAILED status updates must include an exit code")]
+    MissingExitCode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]

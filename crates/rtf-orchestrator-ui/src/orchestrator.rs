@@ -507,7 +507,10 @@ pub(crate) mod mocks {
             path: "test-plans/example.yaml".to_owned(),
             pinned_workload_pool: None,
             workload_config_patch: Default::default(),
+            associated_users: Default::default(),
             requires_dedicated_cluster: false,
+            restrict_triggers: false,
+            restrict_automated_triggers: false,
         }
     }
 

@@ -1,12 +1,15 @@
 use crate::{
-    Result,
+    Error, Result,
     config::Config,
     db::TestRun,
     event_loop::EventQueueState,
     gcs::GCSClient,
     iap_identity::{extract_authenticated_user_email, try_extract_trigger_repo},
 };
-use axum::http::HeaderMap;
+use axum::{
+    extract::FromRequestParts,
+    http::{HeaderMap, request::Parts},
+};
 use rtf_orchestrator_shared::{payload::PreparedPayload, workload_config::WorkloadConfig};
 use std::{io::ErrorKind, sync::Arc};
 use tokio::fs;
@@ -119,6 +122,24 @@ impl UserType {
                 Some(format!("automation:{email}:{org}:{repo}"))
             }
             Self::Unknown => None,
+        }
+    }
+}
+
+/// A subset of [UserType] that is used to gate requests that modify details for known test plans.
+pub enum KnownUser {
+    Admin(String),
+    User(String),
+}
+
+impl FromRequestParts<ServerState> for KnownUser {
+    type Rejection = Error;
+
+    async fn from_request_parts(parts: &mut Parts, state: &ServerState) -> Result<Self> {
+        match state.identify_user(&parts.headers).await? {
+            UserType::Admin(email) => Ok(Self::Admin(email)),
+            UserType::User(email) => Ok(Self::User(email)),
+            UserType::Automation { .. } | UserType::Unknown => Err(Error::Unauthorized),
         }
     }
 }

@@ -489,12 +489,13 @@ impl CachedPayload {
 mod tests {
     use super::*;
     use crate::{
-        config::DEFAULT_POOL,
+        config::{DEFAULT_POOL, DEFAULT_POOL_NAME},
         conn,
         db::{
             KnownTestPlan, KnownTestPlanRun,
             status::{Status, StatusTracked},
         },
+        state::KnownUser,
         test_helpers::stub_payload,
     };
     use Status::*;
@@ -502,6 +503,7 @@ mod tests {
     use rtf_orchestrator_shared::known_test_plan::UpdateKnownTestPlanRequest;
     use serde_json::json;
     use simple_test_case::test_case;
+    use std::collections::HashSet;
 
     fn perf_pool() -> PoolId {
         PoolId::new("perf")
@@ -970,7 +972,7 @@ mod tests {
     async fn requires_dedicated_cluster_follows_the_linked_known_test_plan(
         plan_requires: Option<bool>,
         expected: bool,
-    ) -> Result<()> {
+    ) -> crate::Result<()> {
         let c = conn!();
         let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
 
@@ -978,11 +980,14 @@ mod tests {
             let known =
                 KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
                     .await?
-                    .update(
+                    .validate_and_update(
+                        &KnownUser::Admin("alice@apollographql.com".into()),
                         UpdateKnownTestPlanRequest {
                             requires_dedicated_cluster: Some(requires),
                             ..Default::default()
                         },
+                        &HashSet::from([DEFAULT_POOL_NAME]),
+                        &HashSet::from([DEFAULT_POOL_NAME]),
                         c,
                     )
                     .await?;

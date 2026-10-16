@@ -29,6 +29,9 @@ pub enum Error {
     #[error(transparent)]
     GitHub(#[from] github::Error),
 
+    #[error("invalid workload config: {0}")]
+    InvalidWorkloadConfig(#[from] workload_config::Error),
+
     #[error(transparent)]
     Io(#[from] io::Error),
 
@@ -43,6 +46,12 @@ pub enum Error {
 
     #[error(transparent)]
     Yaml(#[from] serde_yaml::Error),
+
+    #[error("only admins can modify {field} on a known test plan")]
+    AdminOnlyField { field: &'static str },
+
+    #[error("this test plan requires a dedicated cluster but pool {pool} does not support them")]
+    DedicatedClusterNotSupported { pool: String },
 
     #[error("file upload has already been requested for this execution")]
     FileUploadAlreadyRequested,
@@ -59,6 +68,12 @@ pub enum Error {
     #[error("manual file provider volume mounts are not supported. Invalid services: {services:?}")]
     InvalidFileProviderUsage { services: Vec<String> },
 
+    #[error("node labels can only be set for a test plan that requires a dedicated cluster")]
+    NodeLabelsRequireDedicatedCluster,
+
+    #[error("node labels can only be set for a test plan that is pinned to pool")]
+    NodeLabelsRequirePinnedPool,
+
     #[error("{reason} in pool {pool} for this user")]
     RateLimited {
         pool: PoolId,
@@ -68,32 +83,20 @@ pub enum Error {
     #[error("resolver channel closed")]
     ResolverChannelClosed,
 
-    #[error("{id} is not a known test execution ID")]
-    UnknownTestExecution { id: Uuid },
-
     #[error("not authorized for this execution")]
     Unauthorized,
 
-    #[error("{id} is not a known test run ID")]
-    UnknownTestRun { id: Uuid },
+    #[error("{id} is not a known test execution ID")]
+    UnknownTestExecution { id: Uuid },
 
     #[error("{identifier} is not a registered test plan")]
     UnknownTestPlan { identifier: String },
 
+    #[error("{id} is not a known test run ID")]
+    UnknownTestRun { id: Uuid },
+
     #[error("{pool} is not a configured workload cluster pool")]
     UnknownWorkloadPool { pool: String },
-
-    #[error("this test plan requires a dedicated cluster but pool {pool} does not support them")]
-    DedicatedClusterNotSupported { pool: String },
-
-    #[error("invalid workload config: {0}")]
-    InvalidWorkloadConfig(#[from] workload_config::Error),
-
-    #[error("node labels can only be set for a test plan that requires a dedicated cluster")]
-    NodeLabelsRequireDedicatedCluster,
-
-    #[error("node labels can only be set for a test plan that is pinned to pool")]
-    NodeLabelsRequirePinnedPool,
 }
 
 impl IntoResponse for Error {
@@ -109,10 +112,10 @@ impl IntoResponse for Error {
             | Self::NodeLabelsRequireDedicatedCluster
             | Self::NodeLabelsRequirePinnedPool
             | Self::Prepare(_)
-            | Self::Db(db::Error::MissingExitCode)
-            | Self::Db(db::Error::InvalidFailedExitCode)
+            | Self::Db(db::Error::InvalidExecutionStatus { .. })
             | Self::Db(db::Error::InvalidExitCode { .. })
-            | Self::Db(db::Error::InvalidExecutionStatus { .. }) => (
+            | Self::Db(db::Error::InvalidFailedExitCode)
+            | Self::Db(db::Error::MissingExitCode) => (
                 StatusCode::BAD_REQUEST,
                 Json(json!({ "error": "BAD_REQUEST", "message": msg })),
             ),
@@ -139,7 +142,7 @@ impl IntoResponse for Error {
                 ),
             ),
 
-            Self::Unauthorized => (
+            Self::Unauthorized | Self::AdminOnlyField { .. } => (
                 StatusCode::FORBIDDEN,
                 Json(json!({ "error": "FORBIDDEN", "message": msg })),
             ),

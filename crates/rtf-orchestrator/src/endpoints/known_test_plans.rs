@@ -28,15 +28,22 @@ pub async fn list_handler(
     let test_plans = filter.matching(limit, offset, conn).await?;
     let total = filter.n_matching(conn).await?;
 
+    let mut summaries = Vec::with_capacity(test_plans.len());
+    for tp in test_plans.into_iter() {
+        summaries.push(tp.try_into_summary(conn).await?);
+    }
+
     Ok(Json(KnownTestPlanListResponse {
-        test_plans: test_plans.into_iter().map(|tp| tp.into_summary()).collect(),
+        test_plans: summaries,
         total,
     }))
 }
 
 pub async fn by_uuid_handler(Path(uuid): Path<Uuid>) -> Result<Json<KnownTestPlanSummary>> {
-    match KnownTestPlan::get_by_uuid(&uuid, conn!()).await? {
-        Some(plan) => Ok(Json(plan.into_summary())),
+    let conn = conn!();
+
+    match KnownTestPlan::get_by_uuid(&uuid, conn).await? {
+        Some(plan) => Ok(Json(plan.try_into_summary(conn).await?)),
         None => Err(Error::UnknownTestPlan {
             identifier: uuid.to_string(),
         }),

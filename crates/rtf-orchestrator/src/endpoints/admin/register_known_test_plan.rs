@@ -19,7 +19,7 @@ pub async fn handler(
     )
     .await?;
 
-    Ok(Json(known.into_summary()))
+    Ok(Json(known.try_into_summary(conn!()).await?))
 }
 
 #[cfg(test)]
