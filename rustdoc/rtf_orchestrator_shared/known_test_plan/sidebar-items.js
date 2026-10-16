@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["KnownTestPlanListParams","KnownTestPlanListResponse","KnownTestPlanRunsParams","KnownTestPlanSummary","RegisterTestPlanRequest","UpdateKnownTestPlanRequest"]};
+window.SIDEBAR_ITEMS = {"enum":["Role"],"struct":["KnownTestPlanListParams","KnownTestPlanListResponse","KnownTestPlanRunsParams","KnownTestPlanSummary","RegisterTestPlanRequest","UpdateKnownTestPlanRequest"]};
