@@ -30,7 +30,10 @@ const PAGES: &[(&str, &str)] = &[
         "Execution — linked to a parent run",
     ),
     ("/ui/execution/not-found", "Execution — not found"),
-    ("/ui/test-plans", "Known test plans — list"),
+    (
+        "/ui/test-plans",
+        "Known test plans — list, viewed as an owner/trigger user of some plans",
+    ),
     (
         "/ui/test-plan/detail",
         "Known test plan — detail + trigger form (docker-compose environment), viewed as an admin",

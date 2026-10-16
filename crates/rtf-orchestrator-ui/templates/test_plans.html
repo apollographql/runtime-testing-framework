@@ -12,13 +12,19 @@
 {% match list %}
 {% when Some with (list) %}
 {% for row in list.rows %}
+{% let plan = row.plan %}
 <div class="card">
-    <h3><a href="/ui/test-plan/{{ row.uuid }}">{{ row.name }}</a></h3>
-    {% if row.description != "" %}
-    <p>{{ row.description }}</p>
+    <h3>
+        <a href="/ui/test-plan/{{ plan.uuid }}">{{ plan.name }}</a>
+        {% if let Some(role) = row.role %}{% call macros::status_pill(role) %}{% endcall %}{% endif %}
+        {% if plan.restrict_triggers %}<span class="status status--unrunnable">Triggers restricted</span>{% endif %}
+        {% if plan.restrict_automated_triggers %}<span class="status status--unrunnable">Automation triggers restricted</span>{% endif %}
+    </h3>
+    {% if plan.description != "" %}
+    <p>{{ plan.description }}</p>
     {% endif %}
     <p class="muted location">
-        <a href="{{ row.github_url }}" target="_blank" rel="noopener noreferrer">{{ row.org }}/{{ row.repo }}/{{ row.path }} &#8599;</a>
+        <a href="{{ plan.github_url }}" target="_blank" rel="noopener noreferrer">{{ plan.org }}/{{ plan.repo }}/{{ plan.path }} &#8599;</a>
     </p>
 </div>
 {% endfor %}

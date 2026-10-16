@@ -1,6 +1,7 @@
-use crate::view::Pagination;
-use rtf_orchestrator_shared::known_test_plan::{
-    KnownTestPlanListResponse, KnownTestPlanSummary, Role,
+use crate::view::{Pagination, ViewerBadge};
+use rtf_orchestrator_shared::{
+    known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary, Role},
+    whoami::WhoAmIResponse,
 };
 use url::form_urlencoded;
 use uuid::Uuid;
@@ -57,17 +58,31 @@ fn known_test_plan_github_url(org: &str, repo: &str, path: &str) -> String {
 }
 
 #[derive(Debug)]
+pub struct KnownTestPlanListRow {
+    pub plan: KnownTestPlanRowView,
+    pub role: Option<ViewerBadge>,
+}
+
+#[derive(Debug)]
 pub struct KnownTestPlanListView {
-    pub rows: Vec<KnownTestPlanRowView>,
+    pub rows: Vec<KnownTestPlanListRow>,
     pagination: Pagination,
 }
 
 impl KnownTestPlanListView {
-    pub fn new(response: KnownTestPlanListResponse, limit: i64, offset: i64) -> Self {
-        let rows: Vec<KnownTestPlanRowView> = response
+    pub fn new(
+        response: KnownTestPlanListResponse,
+        whoami: &WhoAmIResponse,
+        limit: i64,
+        offset: i64,
+    ) -> Self {
+        let rows: Vec<KnownTestPlanListRow> = response
             .test_plans
             .into_iter()
-            .map(KnownTestPlanRowView::from)
+            .map(|plan| KnownTestPlanListRow {
+                role: whoami.role_for(&plan).map(ViewerBadge::for_role),
+                plan: KnownTestPlanRowView::from(plan),
+            })
             .collect();
         let pagination = Pagination {
             total: response.total,
@@ -146,7 +161,8 @@ mod tests {
                 .collect(),
             total,
         };
-        KnownTestPlanListView::new(response, limit, offset)
+
+        KnownTestPlanListView::new(response, &WhoAmIResponse::Unknown, limit, offset)
     }
 
     #[test]

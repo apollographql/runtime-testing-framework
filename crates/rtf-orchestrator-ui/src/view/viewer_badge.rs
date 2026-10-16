@@ -25,15 +25,19 @@ impl ViewerBadge {
     }
 
     pub fn for_test_plan(whoami: &WhoAmIResponse, plan: &KnownTestPlanSummary) -> Option<Self> {
-        Self::for_whoami(whoami).or_else(|| match whoami.role_for(plan)? {
-            Role::Owner => Some(Self {
+        Self::for_whoami(whoami).or_else(|| whoami.role_for(plan).map(Self::for_role))
+    }
+
+    pub fn for_role(role: Role) -> Self {
+        match role {
+            Role::Owner => Self {
                 label: "Owner",
                 class: "status--success",
-            }),
-            Role::CanTrigger => Some(Self {
+            },
+            Role::CanTrigger => Self {
                 label: "Can trigger",
                 class: "status--pending",
-            }),
-        })
+            },
+        }
     }
 }

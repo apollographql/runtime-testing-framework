@@ -17,7 +17,7 @@ mod viewer_badge;
 
 pub use dashboard::DashboardView;
 pub use execution_detail::ExecutionDetailView;
-pub use known_test_plan_list::{KnownTestPlanListView, KnownTestPlanRowView};
+pub use known_test_plan_list::{KnownTestPlanListRow, KnownTestPlanListView, KnownTestPlanRowView};
 pub use run::RunView;
 pub use run_list::RunListView;
 pub use test_plan_details::{EnvironmentDetailView, TestPlanDetailsView};

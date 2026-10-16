@@ -2,13 +2,14 @@
 use crate::{links::sample_config, orchestrator::mocks};
 use chrono::Utc;
 use rtf_orchestrator_shared::{
-    known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary},
+    known_test_plan::{KnownTestPlanListResponse, KnownTestPlanSummary, Role},
     status::Status,
     summary::{TestRunListResponse, TestRunSummary},
     test_plan_details::{DEFAULT_DAYS, DEFAULT_DAYS_BACK, TestPlanDetails},
     whoami::WhoAmIResponse,
 };
 use serde_json::json;
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 pub use crate::templates::*;
@@ -109,13 +110,28 @@ pub fn test_plans() -> TestPlansTemplate {
     let response = KnownTestPlanListResponse {
         test_plans: vec![
             mocks::sample_known_test_plan(id(10)),
-            mocks::sample_known_test_plan(id(11)),
+            KnownTestPlanSummary {
+                associated_users: BTreeMap::from([(OWNER_EMAIL.to_owned(), Role::CanTrigger)]),
+                restrict_automated_triggers: false,
+                ..mocks::sample_known_test_plan(id(11))
+            },
+            KnownTestPlanSummary {
+                associated_users: BTreeMap::new(),
+                restrict_triggers: false,
+                restrict_automated_triggers: false,
+                ..mocks::sample_known_test_plan(id(12))
+            },
         ],
-        total: 2,
+        total: 3,
     };
 
     TestPlansTemplate {
-        list: Some(KnownTestPlanListView::new(response, 20, 0)),
+        list: Some(KnownTestPlanListView::new(
+            response,
+            &user(OWNER_EMAIL),
+            20,
+            0,
+        )),
         list_error: None,
     }
 }
