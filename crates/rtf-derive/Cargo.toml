@@ -17,4 +17,4 @@ syn = "3.0.5"
 rtf-config = { path = "../rtf-config" }
 rustversion = "=1.0.23"
 simple_test_case.workspace = true
-trybuild = "=1.0.121"
+trybuild = "=1.0.122"
