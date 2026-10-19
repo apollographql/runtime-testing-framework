@@ -73,7 +73,7 @@ run = "cd $(git rev-parse --show-toplevel) && cargo deny --exclude-dev check lic
 dprint = "0.63.0"
 "helm-docs" = "1.14.2"
 mdbook = "0.5.2"
-rust = "1.99.0"
+rust = "1.99.1"
 
 [env]
 _.file = '../../.env'
