@@ -588,7 +588,7 @@
 <a href=#588 id=588 data-nosnippet>588</a>        <span class="kw">let </span><span class="kw-2">mut </span>zip = ZipArchive::new(Cursor::new(bytes)).unwrap();
 <a href=#589 id=589 data-nosnippet>589</a>
 <a href=#590 id=590 data-nosnippet>590</a>        <span class="kw">let </span>names: Vec&lt;String&gt; = (<span class="number">0</span>..zip.len())
-<a href=#591 id=591 data-nosnippet>591</a>            .map(|i| zip.by_index(i).unwrap().name().to_owned())
+<a href=#591 id=591 data-nosnippet>591</a>            .map(|i| zip.by_index(i).unwrap().name().unwrap().to_string())
 <a href=#592 id=592 data-nosnippet>592</a>            .collect();
 <a href=#593 id=593 data-nosnippet>593</a>        <span class="macro">assert!</span>(
 <a href=#594 id=594 data-nosnippet>594</a>            names.iter().all(|n| n.starts_with(<span class="string">"output/"</span>)),
