@@ -11,7 +11,7 @@ proc-macro = true
 darling = "0.24.1"
 proc-macro2 = "1.0.107"
 quote = "1.0.47"
-syn = "3.0.5"
+syn = "3.0.9"
 
 [dev-dependencies]
 rtf-config = { path = "../rtf-config" }
