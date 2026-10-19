@@ -17,7 +17,7 @@ chrono.workspace = true
 envy.workspace = true
 humantime.workspace = true
 reqwest.workspace = true
-rust-embed = { version = "8.12.0", features = ["mime-guess"] }
+rust-embed = { version = "8.13.0", features = ["mime-guess"] }
 rustls.workspace = true
 serde.workspace = true
 serde_json.workspace = true
