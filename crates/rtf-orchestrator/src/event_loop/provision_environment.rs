@@ -165,9 +165,8 @@ async fn wait_and_update<K>(
 mod tests {
     use super::*;
     use crate::{
-        config::{ClusterExecutionConfig, ClusterRoles},
+        config::{ClusterRoles, PerClusterConfig, WorkloadClusterConfig},
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
-        event_loop::WorkloadClusterConfig,
         k8s::{
             self,
             mock_client::{MockClient, Resp},
@@ -176,10 +175,7 @@ mod tests {
     use rtf_config::formats::{ComposeResources, DockerComposeEnvironment};
     use rtf_orchestrator_shared::OtelConfig;
     use simple_test_case::test_case;
-    use std::{
-        assert_matches,
-        collections::{BTreeMap, HashMap},
-    };
+    use std::{assert_matches, collections::HashMap};
     use tokio::sync::mpsc;
 
     fn alpha_cluster() -> ClusterId {
@@ -203,15 +199,6 @@ mod tests {
             name: "alpha".into(),
             kubeconfig_secret_name: "workload-kubeconfig".into(),
             workload_context: "alpha-context".into(),
-            execution: ClusterExecutionConfig {
-                max_concurrent: 1,
-                failed_execution_ttl_secs: 300,
-                retry_window_secs: 10,
-                poll_interval_secs: 10,
-                exclusive_nodes: false,
-                scenario_node_selector: BTreeMap::new(),
-                namespace_cleanup_timeout_secs: 90,
-            },
         }
     }
 
@@ -237,9 +224,12 @@ mod tests {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),
                 },
-                workload_clusters: &HashMap::from([(
+                per_cluster_config: &HashMap::from([(
                     alpha_cluster(),
-                    stub_workload_cluster_config(),
+                    PerClusterConfig {
+                        workload: &stub_workload_cluster_config(),
+                        execution: &Default::default(),
+                    },
                 )]),
                 cluster_roles: &ClusterRoles {
                     cluster_read: "scenario-cluster-read".into(),
@@ -291,9 +281,12 @@ mod tests {
                     grpc: "http://otel:4317".to_string(),
                     http: "http://otel:4318".to_string(),
                 },
-                workload_clusters: &HashMap::from([(
+                per_cluster_config: &HashMap::from([(
                     alpha_cluster(),
-                    stub_workload_cluster_config(),
+                    PerClusterConfig {
+                        workload: &stub_workload_cluster_config(),
+                        execution: &Default::default(),
+                    },
                 )]),
                 cluster_roles: &ClusterRoles {
                     cluster_read: "scenario-cluster-read".into(),

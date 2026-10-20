@@ -2,8 +2,8 @@
 use crate::{
     Result,
     config::{
-        ClusterExecutionConfig, Config, PerUserExecutionConfig, WorkloadClusterConfig,
-        WorkloadClusters,
+        Config, PerUserExecutionConfig, WorkloadClusterConfig, WorkloadClusters,
+        WorkloadExecutionConfig,
     },
     conn,
     db::{ClusterId, cluster_history::hourly_execution_counts},
@@ -41,7 +41,7 @@ async fn cached_node_summaries(clusters: Vec<ClusterId>) -> HashMap<ClusterId, N
 
     let fetches = clusters.iter().filter_map(|id| {
         per_cluster.get(id).map(|cfg| async move {
-            cluster_node_summary(cfg)
+            cluster_node_summary(cfg.workload)
                 .await
                 .map(|summary| (id.clone(), summary))
         })
@@ -89,7 +89,7 @@ fn cluster_summary(
                 })
                 .map(|cfg| WorkloadClusterSummary {
                     name: cfg.name.clone(),
-                    execution: execution_summary(&cfg.execution),
+                    execution: execution_summary(&pool.execution),
                     hourly_executions: hourly
                         .remove(&ClusterId::new(&cfg.name))
                         .unwrap_or_default(),
@@ -114,7 +114,7 @@ fn per_user_summary(per_user: &PerUserExecutionConfig) -> PerUserExecutionSummar
     }
 }
 
-fn execution_summary(cfg: &ClusterExecutionConfig) -> ClusterExecutionSummary {
+fn execution_summary(cfg: &WorkloadExecutionConfig) -> ClusterExecutionSummary {
     ClusterExecutionSummary {
         max_concurrent: cfg.max_concurrent,
         failed_execution_ttl_secs: cfg.failed_execution_ttl_secs,
@@ -148,6 +148,7 @@ mod tests {
             available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
             per_user_limits: Default::default(),
             workload_config: Default::default(),
+            execution: Default::default(),
         }
     }
 
