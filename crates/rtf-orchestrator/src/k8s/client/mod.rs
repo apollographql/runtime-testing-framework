@@ -414,6 +414,17 @@ impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Avai
         Ok(())
     }
 
+    async fn list_workload_namespaces(&mut self) -> Result<Vec<String>> {
+        let api: Api<Namespace> = Api::all(self.workload_client());
+        let namespaces = api.list(&ListParams::default()).await?;
+
+        Ok(namespaces
+            .items
+            .into_iter()
+            .map(|ns| ns.name_any())
+            .collect())
+    }
+
     async fn wait_for_namespace_pods_deleted(
         &mut self,
         ns: &str,

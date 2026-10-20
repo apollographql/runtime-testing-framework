@@ -24,10 +24,12 @@ pub struct MockClient {
     pub wait_for_workflow: Resp<WatchOutcome>,
     pub wait_for_job: Resp<WatchOutcome>,
     pub delete_workload_namespace: Resp<Result<()>>,
+    pub list_workload_namespaces: Resp<Result<Vec<String>>>,
     pub wait_for_namespace_pods_deleted: Resp<bool>,
     pub get_nodes: Resp<Result<Vec<Node>>>,
     pub apply_node_label_allocation: Resp<Result<()>>,
     pub remove_all_prefixed_labels: Resp<Result<()>>,
+    pub deleted_namespaces: Arc<Mutex<Vec<String>>>,
 }
 
 impl MockClient {
@@ -41,10 +43,12 @@ impl MockClient {
             wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
             wait_for_job: Resp::new(WatchOutcome::Succeeded),
             delete_workload_namespace: Resp::new(Ok(())),
+            list_workload_namespaces: Resp::new(Ok(Vec::new())),
             wait_for_namespace_pods_deleted: Resp::new(true),
             get_nodes: Resp::new(Ok(Vec::new())),
             apply_node_label_allocation: Resp::new(Ok(())),
             remove_all_prefixed_labels: Resp::new(Ok(())),
+            deleted_namespaces: Default::default(),
         }
     }
 }
@@ -88,10 +92,17 @@ impl WorkloadClient for MockClient {
             .expect("wait_for_job called but no outcome configured")
     }
 
-    async fn delete_workload_namespace(&mut self, _ns: &str) -> Result<()> {
+    async fn delete_workload_namespace(&mut self, ns: &str) -> Result<()> {
+        self.deleted_namespaces.lock().unwrap().push(ns.to_string());
         self.delete_workload_namespace
             .take()
             .expect("delete_workload_namespace called but no outcome configured")
+    }
+
+    async fn list_workload_namespaces(&mut self) -> Result<Vec<String>> {
+        self.list_workload_namespaces
+            .take()
+            .expect("list_workload_namespaces called but no outcome configured")
     }
 
     async fn wait_for_namespace_pods_deleted(

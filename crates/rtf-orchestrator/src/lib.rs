@@ -20,6 +20,7 @@ pub mod gcs;
 pub mod iap_identity;
 pub mod k8s;
 pub mod rate_limit;
+pub mod reaper;
 pub mod resolver;
 pub mod state;
 
@@ -43,10 +44,11 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     event_queue.init_queue_state(cfg, conn!()).await?;
 
     let gcs_client = GCSClient::new_from_config(cfg).await?;
-    let state = ServerState::new(eq_state, gcs_client);
+    let state = ServerState::new(eq_state.clone(), gcs_client);
 
     tokio::spawn(resolver::resolver_task(rx, prov_handle));
     tokio::spawn(event_loop::event_loop_task(event_queue));
+    tokio::spawn(reaper::stale_namespace_reaper_task(eq_state, cfg));
 
     info!("starting axum server");
     let routes = build_routes(cfg, state, Some(reload_handle));
