@@ -40,8 +40,12 @@ static CONFIG: LazyLock<Config> = LazyLock::new(|| match Config::try_parse_from_
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ConfigError {
-    #[error("invalid YAML: {inner}")]
-    Yaml { inner: String },
+    #[error("cluster {cluster} appears in multiple pools: {first}, {second}")]
+    ClusterInMultiplePools {
+        cluster: String,
+        first: String,
+        second: String,
+    },
 
     #[error("duplicate cluster name: {name}")]
     DuplicateClusterName { name: String },
@@ -52,16 +56,6 @@ pub enum ConfigError {
     #[error("empty pool: {pool}")]
     EmptyPool { pool: String },
 
-    #[error("pool {pool} contains unknown cluster: {cluster}")]
-    UnknownCluster { pool: String, cluster: String },
-
-    #[error("cluster {cluster} appears in multiple pools: {first}, {second}")]
-    ClusterInMultiplePools {
-        cluster: String,
-        first: String,
-        second: String,
-    },
-
     #[error("pool {pool} has invalid workload config: {reason}")]
     InvalidWorkloadConfig {
         pool: String,
@@ -70,6 +64,12 @@ pub enum ConfigError {
 
     #[error("pool {pool} sets node_label_weights but does not support dedicated clusters")]
     NodeLabelsWithoutDedicated { pool: String },
+
+    #[error("pool {pool} contains unknown cluster: {cluster}")]
+    UnknownCluster { pool: String, cluster: String },
+
+    #[error("invalid YAML: {inner}")]
+    Yaml { inner: String },
 }
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
@@ -313,19 +313,40 @@ impl WorkloadClusters {
             .collect()
     }
 
-    pub fn per_cluster_config(&self) -> HashMap<ClusterId, WorkloadClusterConfig> {
+    pub fn per_cluster_config(&self) -> HashMap<ClusterId, PerClusterConfig<'_>> {
         self.available_clusters
             .iter()
-            .map(|c| (ClusterId::new(&c.name), c.clone()))
+            .flat_map(|c| {
+                Some((
+                    ClusterId::new(&c.name),
+                    PerClusterConfig {
+                        workload: c,
+                        execution: &self
+                            .cluster_pools
+                            .pool_config_for_cluster(&c.name)?
+                            .execution,
+                    },
+                ))
+            })
             .collect()
     }
 
     pub fn max_concurrent_executions(&self) -> HashMap<ClusterId, usize> {
-        self.available_clusters
+        self.cluster_pools
             .iter()
-            .map(|c| (ClusterId::new(&c.name), c.execution.max_concurrent))
+            .flat_map(|(_, pool)| {
+                pool.available_clusters
+                    .iter()
+                    .map(|id| (ClusterId::new(id), pool.execution.max_concurrent))
+            })
             .collect()
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PerClusterConfig<'a> {
+    pub workload: &'a WorkloadClusterConfig,
+    pub execution: &'a WorkloadExecutionConfig,
 }
 
 /// Names of the cluster roles that we bind to the scenario service account.
@@ -380,6 +401,7 @@ pub struct PoolConfig {
     pub per_user_limits: PerUserExecutionConfig,
     #[serde(flatten)]
     pub workload_config: WorkloadConfig,
+    pub execution: WorkloadExecutionConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -387,7 +409,6 @@ pub struct WorkloadClusterConfig {
     pub name: String,
     pub kubeconfig_secret_name: String,
     pub workload_context: String,
-    pub execution: ClusterExecutionConfig,
 }
 
 impl WorkloadClusterConfig {
@@ -396,8 +417,8 @@ impl WorkloadClusterConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct ClusterExecutionConfig {
+#[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct WorkloadExecutionConfig {
     pub max_concurrent: usize,
     pub failed_execution_ttl_secs: u64,
     pub retry_window_secs: u64,
@@ -537,6 +558,18 @@ mod tests {
         }
     }
 
+    fn workload_execution_config(max_concurrent: usize) -> WorkloadExecutionConfig {
+        WorkloadExecutionConfig {
+            max_concurrent,
+            failed_execution_ttl_secs: 600,
+            retry_window_secs: 5 * 60,
+            poll_interval_secs: 10,
+            exclusive_nodes: false,
+            scenario_node_selector: BTreeMap::new(),
+            namespace_cleanup_timeout_secs: 90,
+        }
+    }
+
     impl WorkloadClusters {
         pub fn for_test() -> Self {
             Self::for_test_with_available_clusters(10, "alpha", &["alpha"])
@@ -554,6 +587,7 @@ mod tests {
                         available_clusters: vec![default_cluster.to_string()],
                         per_user_limits: Default::default(),
                         workload_config: Default::default(),
+                        execution: workload_execution_config(max_concurrent),
                     },
                     additional: names
                         .iter()
@@ -565,6 +599,7 @@ mod tests {
                                 available_clusters: vec![name.to_string()],
                                 per_user_limits: Default::default(),
                                 workload_config: Default::default(),
+                                execution: workload_execution_config(max_concurrent),
                             },
                         })
                         .collect(),
@@ -582,15 +617,6 @@ mod tests {
                         name: name.to_string(),
                         kubeconfig_secret_name: "workload-kubeconfig".to_string(),
                         workload_context: "dummy".to_string(),
-                        execution: ClusterExecutionConfig {
-                            max_concurrent,
-                            failed_execution_ttl_secs: 600,
-                            retry_window_secs: 5 * 60,
-                            poll_interval_secs: 10,
-                            exclusive_nodes: false,
-                            scenario_node_selector: BTreeMap::new(),
-                            namespace_cleanup_timeout_secs: 90,
-                        },
                     })
                     .collect(),
             }
@@ -610,6 +636,7 @@ mod tests {
             available_clusters: clusters.iter().map(|c| c.to_string()).collect(),
             per_user_limits: Default::default(),
             workload_config: Default::default(),
+            execution: workload_execution_config(1),
         }
     }
 

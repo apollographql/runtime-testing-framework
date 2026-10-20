@@ -9,7 +9,7 @@
 //! functions must be written to return a Result that the `Event::handle` method will use to record
 //! an Unrunnable status.
 use crate::{
-    config::{ClusterRoles, Config, WorkloadClusterConfig},
+    config::{ClusterRoles, Config, PerClusterConfig},
     conn,
     db::{ClusterId, PoolId, TestExecution, UpdateHandle},
     event_loop::provision_environment::MSG_ARGO_COMPLETE,
@@ -47,22 +47,23 @@ struct EventLoopConfig<'a> {
     toolbox_pull_policy: &'a str,
     toolbox_image: &'a str,
     otel: &'a OtelConfig,
-    workload_clusters: &'a HashMap<ClusterId, WorkloadClusterConfig>,
+    per_cluster_config: &'a HashMap<ClusterId, PerClusterConfig<'a>>,
     cluster_roles: &'a ClusterRoles,
 }
 
 impl<'a> EventLoopConfig<'a> {
-    fn workload_cluster_config(&self, cluster: &ClusterId) -> Result<&'a WorkloadClusterConfig> {
-        self.workload_clusters
+    fn per_cluster_config(&self, cluster: &ClusterId) -> Result<PerClusterConfig<'a>> {
+        self.per_cluster_config
             .get(cluster)
             .ok_or_else(|| Error::UnknownWorkloadCluster(cluster.to_string()))
+            .copied()
     }
 
     /// Only used on an error path reached after `workload_cluster_config` has already been
     /// looked up successfully for `cluster` earlier in the same event handler, so the fallback
     /// here is unreachable in practice.
     fn failed_execution_ttl_secs(&self, cluster: &ClusterId) -> u64 {
-        self.workload_cluster_config(cluster)
+        self.per_cluster_config(cluster)
             .map(|c| c.execution.failed_execution_ttl_secs)
             .unwrap_or(600)
     }
@@ -73,7 +74,7 @@ impl<'a> EventLoopConfig<'a> {
 pub async fn event_loop_task(mut event_queue: EventQueue) {
     let cfg_ref = Config::get();
     let toolbox_image = cfg_ref.toolbox_image();
-    let workload_clusters = cfg_ref.workload_clusters.per_cluster_config();
+    let per_cluster_config = cfg_ref.workload_clusters.per_cluster_config();
 
     let cfg = EventLoopConfig {
         orchestrator_url: &cfg_ref.server.orchestrator_url,
@@ -84,7 +85,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
             grpc: cfg_ref.otel.collector_grpc.clone(),
             http: cfg_ref.otel.collector_http.clone(),
         },
-        workload_clusters: &workload_clusters,
+        per_cluster_config: &per_cluster_config,
         cluster_roles: &cfg_ref.workload_clusters.cluster_roles,
     };
 
@@ -261,9 +262,9 @@ impl Event {
 
         let res = match self.data {
             EventData::AcquireCluster => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let workload_cfg = cfg.per_cluster_config(&self.cluster)?.workload;
                 event_queue
-                    .handle_acquire(&self.test_execution, &self.cluster, cluster_cfg, conn)
+                    .handle_acquire(&self.test_execution, &self.cluster, workload_cfg, conn)
                     .await
             }
 
@@ -299,13 +300,13 @@ impl Event {
                         Error::Resolve(ResolverError::UnknownExecution(self.test_execution.uuid()))
                     })?;
 
-                match cfg.workload_cluster_config(&self.cluster) {
-                    Ok(cluster_cfg) => {
+                match cfg.per_cluster_config(&self.cluster) {
+                    Ok(pc_cfg) => {
                         provision_environment::create_workflow(
                             self.test_execution.clone(),
                             &environment,
-                            &cluster_cfg.kubeconfig_secret_name,
-                            cluster_cfg.execution.exclusive_nodes,
+                            &pc_cfg.workload.kubeconfig_secret_name,
+                            pc_cfg.execution.exclusive_nodes,
                             cfg,
                             clients,
                             conn,
@@ -318,10 +319,10 @@ impl Event {
             }
 
             EventData::WaitForEnvArgoWorkflow => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let pc_cfg = cfg.per_cluster_config(&self.cluster)?;
                 let clients = ClusterClients::try_new_full(
-                    &cluster_cfg.kubeconfig_path(),
-                    &cluster_cfg.workload_context,
+                    &pc_cfg.workload.kubeconfig_path(),
+                    &pc_cfg.workload.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -331,9 +332,9 @@ impl Event {
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
                     self.cluster.clone(),
-                    cluster_cfg.execution.failed_execution_ttl_secs,
-                    cluster_cfg.execution.poll_interval_secs,
-                    cluster_cfg.execution.retry_window_secs,
+                    pc_cfg.execution.failed_execution_ttl_secs,
+                    pc_cfg.execution.poll_interval_secs,
+                    pc_cfg.execution.retry_window_secs,
                     event_queue.tx(),
                     clients,
                     conn,
@@ -352,10 +353,10 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let pc_cfg = cfg.per_cluster_config(&self.cluster)?;
                 let mut clients = ClusterClients::try_new_workload(
-                    &cluster_cfg.kubeconfig_path(),
-                    &cluster_cfg.workload_context,
+                    &pc_cfg.workload.kubeconfig_path(),
+                    &pc_cfg.workload.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -379,10 +380,8 @@ impl Event {
                                 toolbox_image: cfg.toolbox_image,
                                 cluster_roles: cfg.cluster_roles,
                                 allow_namespace_write: params.allow_k8s_write,
-                                exclusive_nodes: cluster_cfg.execution.exclusive_nodes,
-                                scenario_node_selector: &cluster_cfg
-                                    .execution
-                                    .scenario_node_selector,
+                                exclusive_nodes: pc_cfg.execution.exclusive_nodes,
+                                scenario_node_selector: &pc_cfg.execution.scenario_node_selector,
                             },
                             &mut clients,
                             conn,
@@ -396,10 +395,10 @@ impl Event {
             }
 
             EventData::WaitForScenarioJob => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let pc_cfg = cfg.per_cluster_config(&self.cluster)?;
                 let clients = ClusterClients::try_new_workload(
-                    &cluster_cfg.kubeconfig_path(),
-                    &cluster_cfg.workload_context,
+                    &pc_cfg.workload.kubeconfig_path(),
+                    &pc_cfg.workload.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -409,9 +408,9 @@ impl Event {
                 run_scenario::wait_for_job(
                     self.test_execution.clone(),
                     self.cluster.clone(),
-                    cluster_cfg.execution.failed_execution_ttl_secs,
-                    cluster_cfg.execution.poll_interval_secs,
-                    cluster_cfg.execution.retry_window_secs,
+                    pc_cfg.execution.failed_execution_ttl_secs,
+                    pc_cfg.execution.poll_interval_secs,
+                    pc_cfg.execution.retry_window_secs,
                     event_queue.tx(),
                     clients,
                     conn,
@@ -437,10 +436,10 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let workload_cfg = cfg.per_cluster_config(&self.cluster)?.workload;
                 let mut clients = ClusterClients::try_new_workload(
-                    &cluster_cfg.kubeconfig_path(),
-                    &cluster_cfg.workload_context,
+                    &workload_cfg.kubeconfig_path(),
+                    &workload_cfg.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -457,10 +456,10 @@ impl Event {
             }
 
             EventData::WaitForNamespacePodDeletion => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let pc_cfg = cfg.per_cluster_config(&self.cluster)?;
                 let clients = ClusterClients::try_new_workload(
-                    &cluster_cfg.kubeconfig_path(),
-                    &cluster_cfg.workload_context,
+                    &pc_cfg.workload.kubeconfig_path(),
+                    &pc_cfg.workload.workload_context,
                 )
                 .await
                 .inspect_err(
@@ -470,8 +469,8 @@ impl Event {
                 cleanup_namespace::wait_for_deletion(
                     self.test_execution.clone(),
                     self.cluster.clone(),
-                    cluster_cfg.execution.poll_interval_secs,
-                    cluster_cfg.execution.namespace_cleanup_timeout_secs,
+                    pc_cfg.execution.poll_interval_secs,
+                    pc_cfg.execution.namespace_cleanup_timeout_secs,
                     event_queue.tx(),
                     clients,
                 )
@@ -495,19 +494,19 @@ impl Event {
             }
 
             EventData::ReleaseCluster => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let workload_cfg = cfg.per_cluster_config(&self.cluster)?.workload;
                 event_queue
-                    .handle_release(&self.cluster, cluster_cfg)
+                    .handle_release(&self.cluster, workload_cfg)
                     .await?;
 
                 return Ok(());
             }
 
             EventData::PurgeNamespace => {
-                let cluster_cfg = cfg.workload_cluster_config(&self.cluster)?;
+                let workload_cfg = cfg.per_cluster_config(&self.cluster)?.workload;
                 let mut clients = ClusterClients::try_new_workload(
-                    &cluster_cfg.kubeconfig_path(),
-                    &cluster_cfg.workload_context,
+                    &workload_cfg.kubeconfig_path(),
+                    &workload_cfg.workload_context,
                 )
                 .await
                 .inspect_err(

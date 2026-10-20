@@ -33,15 +33,15 @@ workload_clusters:
     - name: alpha
       kubeconfig_secret_name: dummy
       workload_context: dummy
+  cluster_pools:
+    default:
+      available_clusters:
+        - alpha
       execution:
         max_concurrent: 10
         failed_execution_ttl_secs: 60
         retry_window_secs: 300
         poll_interval_secs: 10
-  cluster_pools:
-    default:
-      available_clusters:
-        - alpha
 
 toolbox:
   pull_policy: IfNotPresent

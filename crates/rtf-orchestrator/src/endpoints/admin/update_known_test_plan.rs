@@ -91,6 +91,7 @@ mod tests {
                     available_clusters: vec!["beta".into()],
                     per_user_limits: Default::default(),
                     workload_config: Default::default(),
+                    execution: Default::default(),
                 },
             });
 
