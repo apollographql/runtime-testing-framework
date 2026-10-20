@@ -45,8 +45,9 @@ impl StatusTracked for TestExecution {
 
     async fn after_set_status(&self, status: Status, conn: &mut PgConnection) -> Result<()> {
         let tr = self.test_run(conn).await?;
-        if let Some(new_status) = tr.status_after_execution_update(status, conn).await? {
-            tr.set_status(new_status, None, conn).await?;
+        if let Some(change) = tr.status_after_execution_update(status, conn).await? {
+            tr.set_status_with_completion(change.status, None, change.completed, conn)
+                .await?;
         };
 
         Ok(())
