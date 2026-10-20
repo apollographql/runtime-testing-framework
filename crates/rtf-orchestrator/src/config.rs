@@ -189,9 +189,15 @@ pub struct ServerConfig {
     pub orchestrator_url: String,
 }
 
+fn orphaned_namespace_prune_interval_secs() -> u64 {
+    600
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct WorkloadClusters {
     pub max_queued_executions: usize,
+    #[serde(default = "orphaned_namespace_prune_interval_secs")]
+    pub orphaned_namespace_prune_interval_secs: u64,
     pub cluster_roles: ClusterRoles,
     pub available_clusters: Vec<WorkloadClusterConfig>,
     pub cluster_pools: ClusterPools,
@@ -564,6 +570,7 @@ mod tests {
                         .collect(),
                 },
                 max_queued_executions: 100,
+                orphaned_namespace_prune_interval_secs: 600,
                 cluster_roles: ClusterRoles {
                     cluster_read: "scenario-cluster-read".into(),
                     namespace_read: "scenario-namespace-read".into(),

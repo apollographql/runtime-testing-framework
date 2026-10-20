@@ -125,6 +125,11 @@ impl EventQueueState {
             .collect()
     }
 
+    pub async fn in_flight_executions(&self) -> HashSet<Uuid> {
+        self.with_shared(|shared| shared.executions.keys().copied().collect())
+            .await
+    }
+
     pub async fn event_queue_snapshot(&self) -> EventQueueSnapshot {
         let InnerSnapshotState {
             mut summary,
@@ -403,6 +408,26 @@ mod tests {
             self.with_shared(|shared| shared.runs.get(&run_uuid)?.initiated_by.clone())
                 .await
         }
+    }
+
+    #[tokio::test]
+    async fn in_flight_executions_lists_registered_executions() {
+        let cfg = Config::for_test().workload_clusters;
+        let (_, _, state, _) = EventQueue::new(&cfg);
+        let run_uuid = Uuid::new_v4();
+        let ex_ids = [Uuid::new_v4(), Uuid::new_v4()];
+
+        assert!(state.in_flight_executions().await.is_empty());
+
+        state
+            .with_shared(|shared| {
+                for id in ex_ids {
+                    shared.register_execution(id, run_uuid);
+                }
+            })
+            .await;
+
+        assert_eq!(state.in_flight_executions().await, HashSet::from(ex_ids));
     }
 
     #[test_case(&[(1, true)]; "single claim below max")]

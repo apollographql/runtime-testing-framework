@@ -114,6 +114,9 @@ pub trait WorkloadClient: Clone + Send + Sync + 'static {
     /// Delete an ephemeral namespace within the workload cluster.
     fn delete_workload_namespace(&mut self, ns: &str) -> impl Future<Output = Result<()>> + Send;
 
+    /// List the names of all namespaces in the workload cluster.
+    fn list_workload_namespaces(&mut self) -> impl Future<Output = Result<Vec<String>>> + Send;
+
     /// Poll `ns` until its pods have been deleted
     fn wait_for_namespace_pods_deleted(
         &mut self,
