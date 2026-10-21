@@ -206,7 +206,7 @@
 <a href=#206 id=206 data-nosnippet>206</a>    <span class="kw">let </span>content = definition_source
 <a href=#207 id=207 data-nosnippet>207</a>        .try_get_file_content(file_name, ctx)
 <a href=#208 id=208 data-nosnippet>208</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">let </span>raw: serde_yaml::Value = serde_yaml::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
+<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">let </span>raw: yaml_serde::Value = yaml_serde::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
 <a href=#210 id=210 data-nosnippet>210</a>
 <a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(mapping) = raw.as_mapping()
 <a href=#212 id=212 data-nosnippet>212</a>        &amp;&amp; mapping.contains_key(<span class="string">"custom_providers"</span>)
@@ -214,7 +214,7 @@
 <a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(providers::Error::NestedCustomProvider);
 <a href=#215 id=215 data-nosnippet>215</a>    }
 <a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>    <span class="prelude-val">Ok</span>((definition_source, serde_yaml::from_value(raw)<span class="question-mark">?</span>))
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="prelude-val">Ok</span>((definition_source, yaml_serde::from_value(raw)<span class="question-mark">?</span>))
 <a href=#218 id=218 data-nosnippet>218</a>}
 <a href=#219 id=219 data-nosnippet>219</a>
 <a href=#220 id=220 data-nosnippet>220</a><span class="attr">#[cfg(test)]
@@ -277,8 +277,8 @@
 <a href=#277 id=277 data-nosnippet>277</a>        prelude::{FileWriteStr, PathCreateDir},
 <a href=#278 id=278 data-nosnippet>278</a>    };
 <a href=#279 id=279 data-nosnippet>279</a>    <span class="kw">use </span>indoc::indoc;
-<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">use </span>serde_yaml;
-<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">use </span>simple_test_case::test_case;
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">use </span>simple_test_case::test_case;
+<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">use </span>yaml_serde;
 <a href=#282 id=282 data-nosnippet>282</a>
 <a href=#283 id=283 data-nosnippet>283</a>    <span class="comment">// An example custom provider config to check parsing and templating
 <a href=#284 id=284 data-nosnippet>284</a>    </span><span class="kw">const </span>TEMPLATED_CUSTOM_PROVIDER: <span class="kw-2">&amp;</span>str = <span class="macro">indoc!</span>(
@@ -304,7 +304,7 @@
 <a href=#304 id=304 data-nosnippet>304</a>
 <a href=#305 id=305 data-nosnippet>305</a>    <span class="attr">#[test]
 <a href=#306 id=306 data-nosnippet>306</a>    </span><span class="kw">fn </span>parse_and_template() {
-<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>config: CustomProviderDefinition = serde_yaml::from_str(TEMPLATED_CUSTOM_PROVIDER)
+<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>config: CustomProviderDefinition = yaml_serde::from_str(TEMPLATED_CUSTOM_PROVIDER)
 <a href=#308 id=308 data-nosnippet>308</a>            .expect(<span class="string">"custom provider config to parse"</span>);
 <a href=#309 id=309 data-nosnippet>309</a>
 <a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">let </span><span class="kw-2">mut </span>res = config.required_variables();
@@ -408,7 +408,7 @@
 <a href=#408 id=408 data-nosnippet>408</a>    #[test_case(GITHUB_DIR_DECLARATION_NO_REF; <span class="string">"github dir without ref"</span>)]
 <a href=#409 id=409 data-nosnippet>409</a>    #[test]
 <a href=#410 id=410 data-nosnippet>410</a>    </span><span class="kw">fn </span>parse_declaration(raw: <span class="kw-2">&amp;</span>str) {
-<a href=#411 id=411 data-nosnippet>411</a>        <span class="macro">assert!</span>(serde_yaml::from_str::&lt;<span class="lifetime">'_</span>, CustomProviderDeclaration&gt;(raw).is_ok());
+<a href=#411 id=411 data-nosnippet>411</a>        <span class="macro">assert!</span>(yaml_serde::from_str::&lt;<span class="lifetime">'_</span>, CustomProviderDeclaration&gt;(raw).is_ok());
 <a href=#412 id=412 data-nosnippet>412</a>    }
 <a href=#413 id=413 data-nosnippet>413</a>
 <a href=#414 id=414 data-nosnippet>414</a>    <span class="attr">#[tokio::test]

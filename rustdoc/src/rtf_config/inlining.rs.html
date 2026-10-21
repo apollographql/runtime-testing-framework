@@ -103,7 +103,7 @@
 <a href=#103 id=103 data-nosnippet>103</a>    </span>T: Serialize,
 <a href=#104 id=104 data-nosnippet>104</a>{
 <a href=#105 id=105 data-nosnippet>105</a>    <span class="kw">let </span><span class="kw-2">mut </span>hasher = DefaultHasher::new();
-<a href=#106 id=106 data-nosnippet>106</a>    serde_yaml::to_string(value)
+<a href=#106 id=106 data-nosnippet>106</a>    yaml_serde::to_string(value)
 <a href=#107 id=107 data-nosnippet>107</a>        .expect(<span class="string">"to serialize"</span>)
 <a href=#108 id=108 data-nosnippet>108</a>        .hash(<span class="kw-2">&amp;mut </span>hasher);
 <a href=#109 id=109 data-nosnippet>109</a>

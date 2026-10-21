@@ -414,7 +414,7 @@
 <a href=#414 id=414 data-nosnippet>414</a>    <span class="attr">#[test_case(REQUIRED, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"required"</span>)]
 <a href=#415 id=415 data-nosnippet>415</a>    <span class="attr">#[test]
 <a href=#416 id=416 data-nosnippet>416</a>    </span><span class="kw">fn </span>command_parse_and_template(content: <span class="kw-2">&amp;</span>str, expected_variables: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
-<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">let </span>config: CommandSection = serde_yaml::from_str(content).unwrap();
+<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">let </span>config: CommandSection = yaml_serde::from_str(content).unwrap();
 <a href=#418 id=418 data-nosnippet>418</a>
 <a href=#419 id=419 data-nosnippet>419</a>        <span class="kw">let </span><span class="kw-2">mut </span>res = config.required_variables();
 <a href=#420 id=420 data-nosnippet>420</a>        res.sort(); <span class="comment">// Sorting so variables are in a deterministic order for the assert_eq
@@ -639,13 +639,13 @@
 <a href=#639 id=639 data-nosnippet>639</a>        }
 <a href=#640 id=640 data-nosnippet>640</a>
 <a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">fn </span>store_provider_output_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, provider: Provider&lt;<span class="lifetime">'_</span>&gt;, path: PathBuf) {
-<a href=#642 id=642 data-nosnippet>642</a>            <span class="kw">let </span>key = serde_yaml::to_string(<span class="kw-2">&amp;</span>provider).unwrap();
+<a href=#642 id=642 data-nosnippet>642</a>            <span class="kw">let </span>key = yaml_serde::to_string(<span class="kw-2">&amp;</span>provider).unwrap();
 <a href=#643 id=643 data-nosnippet>643</a>
 <a href=#644 id=644 data-nosnippet>644</a>            <span class="self">self</span>.fp_output_paths.insert(key, path);
 <a href=#645 id=645 data-nosnippet>645</a>        }
 <a href=#646 id=646 data-nosnippet>646</a>
 <a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">fn </span>known_provider_output_path(<span class="kw-2">&amp;</span><span class="self">self</span>, provider: Provider&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;PathBuf&gt; {
-<a href=#648 id=648 data-nosnippet>648</a>            <span class="kw">let </span>key = serde_yaml::to_string(<span class="kw-2">&amp;</span>provider).ok()<span class="question-mark">?</span>;
+<a href=#648 id=648 data-nosnippet>648</a>            <span class="kw">let </span>key = yaml_serde::to_string(<span class="kw-2">&amp;</span>provider).ok()<span class="question-mark">?</span>;
 <a href=#649 id=649 data-nosnippet>649</a>
 <a href=#650 id=650 data-nosnippet>650</a>            <span class="self">self</span>.fp_output_paths.get(<span class="kw-2">&amp;</span>key).cloned()
 <a href=#651 id=651 data-nosnippet>651</a>        }

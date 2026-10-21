@@ -162,9 +162,9 @@
 <a href=#162 id=162 data-nosnippet>162</a>    <span class="attr">#[test]
 <a href=#163 id=163 data-nosnippet>163</a>    </span><span class="kw">fn </span>null_environment_round_trips() {
 <a href=#164 id=164 data-nosnippet>164</a>        <span class="kw">let </span>env = null_env();
-<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>yaml = serde_yaml::to_string(<span class="kw-2">&amp;</span>env).expect(<span class="string">"null environment should serialize"</span>);
+<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>yaml = yaml_serde::to_string(<span class="kw-2">&amp;</span>env).expect(<span class="string">"null environment should serialize"</span>);
 <a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>parsed: OrchestratorEnvironment =
-<a href=#167 id=167 data-nosnippet>167</a>            serde_yaml::from_str(<span class="kw-2">&amp;</span>yaml).expect(<span class="string">"null environment should round-trip"</span>);
+<a href=#167 id=167 data-nosnippet>167</a>            yaml_serde::from_str(<span class="kw-2">&amp;</span>yaml).expect(<span class="string">"null environment should round-trip"</span>);
 <a href=#168 id=168 data-nosnippet>168</a>
 <a href=#169 id=169 data-nosnippet>169</a>        <span class="macro">assert_eq!</span>(parsed, env);
 <a href=#170 id=170 data-nosnippet>170</a>    }
@@ -173,9 +173,9 @@
 <a href=#173 id=173 data-nosnippet>173</a>    </span><span class="kw">fn </span>docker_compose_environment_round_trips() {
 <a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">let </span>env = OrchestratorEnvironment::DockerCompose(docker_compose_env());
 <a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">let </span>yaml =
-<a href=#176 id=176 data-nosnippet>176</a>            serde_yaml::to_string(<span class="kw-2">&amp;</span>env).expect(<span class="string">"docker-compose environment should serialize"</span>);
+<a href=#176 id=176 data-nosnippet>176</a>            yaml_serde::to_string(<span class="kw-2">&amp;</span>env).expect(<span class="string">"docker-compose environment should serialize"</span>);
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>parsed: OrchestratorEnvironment =
-<a href=#178 id=178 data-nosnippet>178</a>            serde_yaml::from_str(<span class="kw-2">&amp;</span>yaml).expect(<span class="string">"docker-compose environment should round-trip"</span>);
+<a href=#178 id=178 data-nosnippet>178</a>            yaml_serde::from_str(<span class="kw-2">&amp;</span>yaml).expect(<span class="string">"docker-compose environment should round-trip"</span>);
 <a href=#179 id=179 data-nosnippet>179</a>
 <a href=#180 id=180 data-nosnippet>180</a>        <span class="macro">assert_eq!</span>(parsed, env);
 <a href=#181 id=181 data-nosnippet>181</a>    }
@@ -197,7 +197,7 @@
 <a href=#197 id=197 data-nosnippet>197</a>    content: "echo bye"
 <a href=#198 id=198 data-nosnippet>198</a>"#</span>;
 <a href=#199 id=199 data-nosnippet>199</a>
-<a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">let </span>res = serde_yaml::from_str::&lt;OrchestratorEnvironment&gt;(yaml);
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">let </span>res = yaml_serde::from_str::&lt;OrchestratorEnvironment&gt;(yaml);
 <a href=#201 id=201 data-nosnippet>201</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected a script environment to be rejected"</span>);
 <a href=#202 id=202 data-nosnippet>202</a>
 <a href=#203 id=203 data-nosnippet>203</a>        <span class="kw">let </span>err = res.unwrap_err().to_string();
@@ -247,7 +247,7 @@
 <a href=#247 id=247 data-nosnippet>247</a>        <span class="kw">let </span>compose_files = providers
 <a href=#248 id=248 data-nosnippet>248</a>            .iter()
 <a href=#249 id=249 data-nosnippet>249</a>            .map(|yaml| {
-<a href=#250 id=250 data-nosnippet>250</a>                serde_yaml::from_str(yaml).expect(<span class="string">"compose file provider should deserialize"</span>)
+<a href=#250 id=250 data-nosnippet>250</a>                yaml_serde::from_str(yaml).expect(<span class="string">"compose file provider should deserialize"</span>)
 <a href=#251 id=251 data-nosnippet>251</a>            })
 <a href=#252 id=252 data-nosnippet>252</a>            .collect();
 <a href=#253 id=253 data-nosnippet>253</a>

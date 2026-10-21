@@ -557,7 +557,7 @@
 <a href=#557 id=557 data-nosnippet>557</a>    </span>);
 <a href=#558 id=558 data-nosnippet>558</a>
 <a href=#559 id=559 data-nosnippet>559</a>    <span class="kw">fn </span>test_plan(yaml: <span class="kw-2">&amp;</span>str) -&gt; OrchestratorTestPlan {
-<a href=#560 id=560 data-nosnippet>560</a>        serde_yaml::from_str(yaml).expect(<span class="string">"test plan should deserialize"</span>)
+<a href=#560 id=560 data-nosnippet>560</a>        yaml_serde::from_str(yaml).expect(<span class="string">"test plan should deserialize"</span>)
 <a href=#561 id=561 data-nosnippet>561</a>    }
 <a href=#562 id=562 data-nosnippet>562</a>
 <a href=#563 id=563 data-nosnippet>563</a>    <span class="kw">fn </span>variables(yaml: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;TestPlanVariable&gt; {

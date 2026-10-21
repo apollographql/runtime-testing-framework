@@ -1352,7 +1352,7 @@
 <a href=#1352 id=1352 data-nosnippet>1352</a>    <span class="attr">#[test_case(TEMPLATED, <span class="kw-2">&amp;</span>[<span class="string">"router_url"</span>, <span class="string">"api_key"</span>]</span>; <span class="string">"templated"</span>)]
 <a href=#1353 id=1353 data-nosnippet>1353</a>    <span class="attr">#[test]
 <a href=#1354 id=1354 data-nosnippet>1354</a>    </span><span class="kw">fn </span>all_fields_templated(content: <span class="kw-2">&amp;</span>str, expected_variables: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
-<a href=#1355 id=1355 data-nosnippet>1355</a>        <span class="kw">let </span>config: FileProvider = serde_yaml::from_str(content).unwrap();
+<a href=#1355 id=1355 data-nosnippet>1355</a>        <span class="kw">let </span>config: FileProvider = yaml_serde::from_str(content).unwrap();
 <a href=#1356 id=1356 data-nosnippet>1356</a>
 <a href=#1357 id=1357 data-nosnippet>1357</a>        <span class="kw">let </span>res = config.required_variables();
 <a href=#1358 id=1358 data-nosnippet>1358</a>        <span class="macro">assert_eq!</span>(res, expected_variables, <span class="string">"expected variables to match"</span>)

@@ -1016,7 +1016,7 @@
 <a href=#1016 id=1016 data-nosnippet>1016</a>    #[test_case(<span class="string">"str: \"{{ foo }}\""</span>, Target::S { str: Field::Pending(<span class="string">"foo"</span>.to_string()) }; <span class="string">"template string"</span>)]
 <a href=#1017 id=1017 data-nosnippet>1017</a>    #[test]
 <a href=#1018 id=1018 data-nosnippet>1018</a>    </span><span class="kw">fn </span>field_parse_works(s: <span class="kw-2">&amp;</span>str, expected: Target) {
-<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>target: Target = serde_yaml::from_str(s).unwrap();
+<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>target: Target = yaml_serde::from_str(s).unwrap();
 <a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="macro">assert_eq!</span>(target, expected)
 <a href=#1021 id=1021 data-nosnippet>1021</a>    }
 <a href=#1022 id=1022 data-nosnippet>1022</a>
@@ -1033,7 +1033,7 @@
 <a href=#1033 id=1033 data-nosnippet>1033</a>    #[test]
 <a href=#1034 id=1034 data-nosnippet>1034</a>    </span><span class="kw">fn </span>field_parse_valid_identifiers(raw: <span class="kw-2">&amp;</span>str) {
 <a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="kw">let </span>s = <span class="macro">format!</span>(<span class="string">"field: \"{{{{ {raw} }}}}\""</span>);
-<a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(<span class="kw-2">&amp;</span>s);
+<a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="kw">let </span>res: yaml_serde::Result&lt;StringField&gt; = yaml_serde::from_str(<span class="kw-2">&amp;</span>s);
 <a href=#1037 id=1037 data-nosnippet>1037</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
 <a href=#1038 id=1038 data-nosnippet>1038</a>
 <a href=#1039 id=1039 data-nosnippet>1039</a>        <span class="kw">let </span>StringField { field } = res.unwrap();
@@ -1049,7 +1049,7 @@
 <a href=#1049 id=1049 data-nosnippet>1049</a>    #[test]
 <a href=#1050 id=1050 data-nosnippet>1050</a>    </span><span class="kw">fn </span>field_parse_invalid_identifiers(raw: <span class="kw-2">&amp;</span>str) {
 <a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="kw">let </span>s = <span class="macro">format!</span>(<span class="string">"field: \"{{{{ {raw} }}}}\""</span>);
-<a href=#1052 id=1052 data-nosnippet>1052</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(<span class="kw-2">&amp;</span>s);
+<a href=#1052 id=1052 data-nosnippet>1052</a>        <span class="kw">let </span>res: yaml_serde::Result&lt;StringField&gt; = yaml_serde::from_str(<span class="kw-2">&amp;</span>s);
 <a href=#1053 id=1053 data-nosnippet>1053</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
 <a href=#1054 id=1054 data-nosnippet>1054</a>    }
 <a href=#1055 id=1055 data-nosnippet>1055</a>
@@ -1064,14 +1064,14 @@
 <a href=#1064 id=1064 data-nosnippet>1064</a>    #[test_case(<span class="string">r#""{{ foo\t }}""#</span>; <span class="string">"trailing tab"</span>)]
 <a href=#1065 id=1065 data-nosnippet>1065</a>    #[test]
 <a href=#1066 id=1066 data-nosnippet>1066</a>    </span><span class="kw">fn </span>field_parse_malformed_template_string(raw: <span class="kw-2">&amp;</span>str) {
-<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"field: {raw}"</span>));
+<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">let </span>res: yaml_serde::Result&lt;StringField&gt; = yaml_serde::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"field: {raw}"</span>));
 <a href=#1068 id=1068 data-nosnippet>1068</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
 <a href=#1069 id=1069 data-nosnippet>1069</a>    }
 <a href=#1070 id=1070 data-nosnippet>1070</a>
 <a href=#1071 id=1071 data-nosnippet>1071</a>    <span class="attr">#[test]
 <a href=#1072 id=1072 data-nosnippet>1072</a>    </span><span class="kw">fn </span>field_parse_single_leading_curly_permitted() {
 <a href=#1073 id=1073 data-nosnippet>1073</a>        <span class="kw">let </span>raw = <span class="string">r#"field: "{ \"some\": { \"valid\": [\"json\", \"data\"] }}""#</span>;
-<a href=#1074 id=1074 data-nosnippet>1074</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(raw);
+<a href=#1074 id=1074 data-nosnippet>1074</a>        <span class="kw">let </span>res: yaml_serde::Result&lt;StringField&gt; = yaml_serde::from_str(raw);
 <a href=#1075 id=1075 data-nosnippet>1075</a>
 <a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
 <a href=#1077 id=1077 data-nosnippet>1077</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(res.unwrap().field, Field::Resolved(<span class="kw">_</span>)));

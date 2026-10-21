@@ -24,7 +24,7 @@
 <a href=#24 id=24 data-nosnippet>24</a>    </span>InvalidScalar {
 <a href=#25 id=25 data-nosnippet>25</a>        key: String,
 <a href=#26 id=26 data-nosnippet>26</a>        <span class="attr">#[source]
-<a href=#27 id=27 data-nosnippet>27</a>        </span>error: serde_yaml::Error,
+<a href=#27 id=27 data-nosnippet>27</a>        </span>error: yaml_serde::Error,
 <a href=#28 id=28 data-nosnippet>28</a>    },
 <a href=#29 id=29 data-nosnippet>29</a>}
 <a href=#30 id=30 data-nosnippet>30</a>
@@ -122,7 +122,7 @@
 <a href=#122 id=122 data-nosnippet>122</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::MissingKey(v.to_string()));
 <a href=#123 id=123 data-nosnippet>123</a>            }
 <a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a>            <span class="kw">let </span>v: Scalar = serde_yaml::from_str(v).map_err(|error| Error::InvalidScalar {
+<a href=#125 id=125 data-nosnippet>125</a>            <span class="kw">let </span>v: Scalar = yaml_serde::from_str(v).map_err(|error| Error::InvalidScalar {
 <a href=#126 id=126 data-nosnippet>126</a>                key: k.to_string(),
 <a href=#127 id=127 data-nosnippet>127</a>                error,
 <a href=#128 id=128 data-nosnippet>128</a>            })<span class="question-mark">?</span>;

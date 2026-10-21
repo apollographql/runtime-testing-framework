@@ -546,9 +546,9 @@
 <a href=#546 id=546 data-nosnippet>546</a>    <span class="kw">use </span>indoc::indoc;
 <a href=#547 id=547 data-nosnippet>547</a>    <span class="kw">use </span>k8s_openapi::api::apps::v1::Deployment;
 <a href=#548 id=548 data-nosnippet>548</a>    <span class="kw">use </span>serde::Deserialize;
-<a href=#549 id=549 data-nosnippet>549</a>    <span class="kw">use </span>serde_yaml::Deserializer;
-<a href=#550 id=550 data-nosnippet>550</a>    <span class="kw">use </span>simple_test_case::test_case;
-<a href=#551 id=551 data-nosnippet>551</a>    <span class="kw">use </span>std::{fs, process::Command};
+<a href=#549 id=549 data-nosnippet>549</a>    <span class="kw">use </span>simple_test_case::test_case;
+<a href=#550 id=550 data-nosnippet>550</a>    <span class="kw">use </span>std::{fs, process::Command};
+<a href=#551 id=551 data-nosnippet>551</a>    <span class="kw">use </span>yaml_serde::Deserializer;
 <a href=#552 id=552 data-nosnippet>552</a>
 <a href=#553 id=553 data-nosnippet>553</a>    <span class="kw">fn </span>otel() -&gt; OtelConfig {
 <a href=#554 id=554 data-nosnippet>554</a>        OtelConfig {
@@ -638,7 +638,7 @@
 <a href=#638 id=638 data-nosnippet>638</a>            exclusive_nodes,
 <a href=#639 id=639 data-nosnippet>639</a>        );
 <a href=#640 id=640 data-nosnippet>640</a>
-<a href=#641 id=641 data-nosnippet>641</a>        serde_yaml::from_str::&lt;serde_yaml::Value&gt;(<span class="kw-2">&amp;</span>patch)
+<a href=#641 id=641 data-nosnippet>641</a>        yaml_serde::from_str::&lt;yaml_serde::Value&gt;(<span class="kw-2">&amp;</span>patch)
 <a href=#642 id=642 data-nosnippet>642</a>            .expect(<span class="string">"substituted kustomization.yaml should be valid YAML"</span>);
 <a href=#643 id=643 data-nosnippet>643</a>    }
 <a href=#644 id=644 data-nosnippet>644</a>
@@ -702,9 +702,9 @@
 <a href=#702 id=702 data-nosnippet>702</a>
 <a href=#703 id=703 data-nosnippet>703</a>        <span class="kw">let </span>output = fs::read_to_string(output_file.path()).unwrap();
 <a href=#704 id=704 data-nosnippet>704</a>        <span class="kw">let </span>deployment: Deployment = Deserializer::from_str(<span class="kw-2">&amp;</span>output)
-<a href=#705 id=705 data-nosnippet>705</a>            .map(|doc| serde_yaml::Value::deserialize(doc).expect(<span class="string">"valid yaml document"</span>))
+<a href=#705 id=705 data-nosnippet>705</a>            .map(|doc| yaml_serde::Value::deserialize(doc).expect(<span class="string">"valid yaml document"</span>))
 <a href=#706 id=706 data-nosnippet>706</a>            .find(|doc| doc.get(<span class="string">"kind"</span>).and_then(|k| k.as_str()) == <span class="prelude-val">Some</span>(<span class="string">"Deployment"</span>))
-<a href=#707 id=707 data-nosnippet>707</a>            .map(|doc| serde_yaml::from_value(doc).expect(<span class="string">"valid Deployment manifest"</span>))
+<a href=#707 id=707 data-nosnippet>707</a>            .map(|doc| yaml_serde::from_value(doc).expect(<span class="string">"valid Deployment manifest"</span>))
 <a href=#708 id=708 data-nosnippet>708</a>            .expect(<span class="string">"expected a Deployment in the kustomize output"</span>);
 <a href=#709 id=709 data-nosnippet>709</a>
 <a href=#710 id=710 data-nosnippet>710</a>        <span class="kw">let </span>affinity = deployment

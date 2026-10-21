@@ -510,7 +510,7 @@
 <a href=#510 id=510 data-nosnippet>510</a>    <span class="kw">fn </span>content_from_details(<span class="kw-2">&amp;</span><span class="self">self</span>, sg: Arc&lt;SupergraphDetails&gt;) -&gt; providers::Result&lt;String&gt; {
 <a href=#511 id=511 data-nosnippet>511</a>        <span class="kw">let </span>subgraph_urls = <span class="self">self</span>.url_format.urls_for_subgraphs(<span class="kw-2">&amp;</span>sg.subgraphs.clone());
 <a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">let </span>overrides_yaml =
-<a href=#513 id=513 data-nosnippet>513</a>            serde_yaml::to_string(<span class="kw-2">&amp;</span><span class="macro">serde_json::json!</span>({<span class="string">"override_subgraph_url"</span>: subgraph_urls}))<span class="question-mark">?</span>;
+<a href=#513 id=513 data-nosnippet>513</a>            yaml_serde::to_string(<span class="kw-2">&amp;</span><span class="macro">serde_json::json!</span>({<span class="string">"override_subgraph_url"</span>: subgraph_urls}))<span class="question-mark">?</span>;
 <a href=#514 id=514 data-nosnippet>514</a>
 <a href=#515 id=515 data-nosnippet>515</a>        <span class="prelude-val">Ok</span>(overrides_yaml)
 <a href=#516 id=516 data-nosnippet>516</a>    }
@@ -1332,7 +1332,7 @@
 <a href=#1332 id=1332 data-nosnippet>1332</a>            "#
 <a href=#1333 id=1333 data-nosnippet>1333</a>        </span>);
 <a href=#1334 id=1334 data-nosnippet>1334</a>
-<a href=#1335 id=1335 data-nosnippet>1335</a>        <span class="kw">let </span>provider: FileProvider = serde_yaml::from_str(yaml).expect(<span class="string">"valid yaml"</span>);
+<a href=#1335 id=1335 data-nosnippet>1335</a>        <span class="kw">let </span>provider: FileProvider = yaml_serde::from_str(yaml).expect(<span class="string">"valid yaml"</span>);
 <a href=#1336 id=1336 data-nosnippet>1336</a>        <span class="kw">let </span>FileProvider::GraphosCannedOps(canned_ops) = provider <span class="kw">else </span>{
 <a href=#1337 id=1337 data-nosnippet>1337</a>            <span class="macro">panic!</span>(<span class="string">"expected GraphosCannedOps variant"</span>);
 <a href=#1338 id=1338 data-nosnippet>1338</a>        };

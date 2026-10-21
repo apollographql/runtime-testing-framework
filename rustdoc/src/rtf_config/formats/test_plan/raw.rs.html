@@ -175,7 +175,7 @@
 <a href=#175 id=175 data-nosnippet>175</a>    Inline {
 <a href=#176 id=176 data-nosnippet>176</a>        <span class="doccomment">/// Inline YAML configuration
 <a href=#177 id=177 data-nosnippet>177</a>        </span><span class="attr">#[schemars(schema_with = <span class="string">"arbitrary_map"</span>)]
-<a href=#178 id=178 data-nosnippet>178</a>        </span>inline: serde_yaml::Value,
+<a href=#178 id=178 data-nosnippet>178</a>        </span>inline: yaml_serde::Value,
 <a href=#179 id=179 data-nosnippet>179</a>    },
 <a href=#180 id=180 data-nosnippet>180</a>    From {
 <a href=#181 id=181 data-nosnippet>181</a>        <span class="doccomment">/// A source file to read to obtain the required configuration
@@ -183,7 +183,7 @@
 <a href=#183 id=183 data-nosnippet>183</a>        <span class="doccomment">/// Optional overrides to merge on top of the base configuration
 <a href=#184 id=184 data-nosnippet>184</a>        </span><span class="attr">#[serde(default)]
 <a href=#185 id=185 data-nosnippet>185</a>        #[schemars(schema_with = <span class="string">"arbitrary_map"</span>)]
-<a href=#186 id=186 data-nosnippet>186</a>        </span>overrides: serde_yaml::Value,
+<a href=#186 id=186 data-nosnippet>186</a>        </span>overrides: yaml_serde::Value,
 <a href=#187 id=187 data-nosnippet>187</a>    },
 <a href=#188 id=188 data-nosnippet>188</a>}
 <a href=#189 id=189 data-nosnippet>189</a>
@@ -204,7 +204,7 @@
 <a href=#204 id=204 data-nosnippet>204</a>    {
 <a href=#205 id=205 data-nosnippet>205</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#206 id=206 data-nosnippet>206</a>            <span class="self">Self</span>::Inline { inline } =&gt; {
-<a href=#207 id=207 data-nosnippet>207</a>                <span class="kw">let </span><span class="kw-2">mut </span>t: T = serde_yaml::from_value(inline)<span class="question-mark">?</span>;
+<a href=#207 id=207 data-nosnippet>207</a>                <span class="kw">let </span><span class="kw-2">mut </span>t: T = yaml_serde::from_value(inline)<span class="question-mark">?</span>;
 <a href=#208 id=208 data-nosnippet>208</a>                t.ensure_no_duplicate_keys()<span class="question-mark">?</span>;
 <a href=#209 id=209 data-nosnippet>209</a>                t.sort_arrays();
 <a href=#210 id=210 data-nosnippet>210</a>
@@ -218,18 +218,18 @@
 <a href=#218 id=218 data-nosnippet>218</a>                // before we start and then re-validate following the merge.
 <a href=#219 id=219 data-nosnippet>219</a>                </span><span class="kw">let </span>(src, file_name) = from.try_into_source_and_filename(tp_source, ctx)<span class="question-mark">?</span>;
 <a href=#220 id=220 data-nosnippet>220</a>                <span class="kw">let </span>file_content = src.try_get_file_content(file_name, ctx).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#221 id=221 data-nosnippet>221</a>                <span class="kw">let </span><span class="kw-2">mut </span>t: T = serde_yaml::from_str(<span class="kw-2">&amp;</span>file_content)<span class="question-mark">?</span>;
+<a href=#221 id=221 data-nosnippet>221</a>                <span class="kw">let </span><span class="kw-2">mut </span>t: T = yaml_serde::from_str(<span class="kw-2">&amp;</span>file_content)<span class="question-mark">?</span>;
 <a href=#222 id=222 data-nosnippet>222</a>                t.ensure_no_duplicate_keys()<span class="question-mark">?</span>;
 <a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a>                <span class="kw">if </span>overrides != serde_yaml::Value::Null {
+<a href=#224 id=224 data-nosnippet>224</a>                <span class="kw">if </span>overrides != yaml_serde::Value::Null {
 <a href=#225 id=225 data-nosnippet>225</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = overrides.as_mapping()
 <a href=#226 id=226 data-nosnippet>226</a>                        &amp;&amp; m.contains_key(<span class="string">"custom_providers"</span>)
 <a href=#227 id=227 data-nosnippet>227</a>                    {
 <a href=#228 id=228 data-nosnippet>228</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::InvalidCustomProviderOverride);
 <a href=#229 id=229 data-nosnippet>229</a>                    }
 <a href=#230 id=230 data-nosnippet>230</a>
-<a href=#231 id=231 data-nosnippet>231</a>                    <span class="kw">let </span><span class="kw-2">mut </span>base: serde_yaml::Value = serde_yaml::from_str(<span class="kw-2">&amp;</span>file_content)<span class="question-mark">?</span>;
-<a href=#232 id=232 data-nosnippet>232</a>                    <span class="kw">let </span>yaml_src = serde_yaml::to_value(<span class="kw-2">&amp;</span>StableSource::TestPlan)<span class="question-mark">?</span>;
+<a href=#231 id=231 data-nosnippet>231</a>                    <span class="kw">let </span><span class="kw-2">mut </span>base: yaml_serde::Value = yaml_serde::from_str(<span class="kw-2">&amp;</span>file_content)<span class="question-mark">?</span>;
+<a href=#232 id=232 data-nosnippet>232</a>                    <span class="kw">let </span>yaml_src = yaml_serde::to_value(<span class="kw-2">&amp;</span>StableSource::TestPlan)<span class="question-mark">?</span>;
 <a href=#233 id=233 data-nosnippet>233</a>                    set_source_for_relative_paths(<span class="kw-2">&amp;mut </span>overrides, <span class="kw-2">&amp;</span>yaml_src);
 <a href=#234 id=234 data-nosnippet>234</a>                    merge_yaml(overrides, <span class="kw-2">&amp;mut </span>base);
 <a href=#235 id=235 data-nosnippet>235</a>
@@ -237,7 +237,7 @@
 <a href=#237 id=237 data-nosnippet>237</a>                    // retain any data from the overrides in favour of what was in the base config
 <a href=#238 id=238 data-nosnippet>238</a>                    // file. try_dedup_and_sort can error at this stage if there were duplicates
 <a href=#239 id=239 data-nosnippet>239</a>                    // within the overrides themselves.
-<a href=#240 id=240 data-nosnippet>240</a>                    </span><span class="kw">let </span><span class="kw-2">mut </span>merged: T = serde_yaml::from_value(base)<span class="question-mark">?</span>;
+<a href=#240 id=240 data-nosnippet>240</a>                    </span><span class="kw">let </span><span class="kw-2">mut </span>merged: T = yaml_serde::from_value(base)<span class="question-mark">?</span>;
 <a href=#241 id=241 data-nosnippet>241</a>                    merged.try_dedup_and_sort()<span class="question-mark">?</span>;
 <a href=#242 id=242 data-nosnippet>242</a>                    t = merged;
 <a href=#243 id=243 data-nosnippet>243</a>                }
@@ -259,8 +259,8 @@
 <a href=#259 id=259 data-nosnippet>259</a>///
 <a href=#260 id=260 data-nosnippet>260</a>/// !! If something strange is happening around relative paths defined in test plan overrides then
 <a href=#261 id=261 data-nosnippet>261</a>///    this is likely the best place to start looking!
-<a href=#262 id=262 data-nosnippet>262</a></span><span class="kw">fn </span>set_source_for_relative_paths(val: <span class="kw-2">&amp;mut </span>serde_yaml::Value, src: <span class="kw-2">&amp;</span>serde_yaml::Value) {
-<a href=#263 id=263 data-nosnippet>263</a>    <span class="kw">use </span>serde_yaml::Value;
+<a href=#262 id=262 data-nosnippet>262</a></span><span class="kw">fn </span>set_source_for_relative_paths(val: <span class="kw-2">&amp;mut </span>yaml_serde::Value, src: <span class="kw-2">&amp;</span>yaml_serde::Value) {
+<a href=#263 id=263 data-nosnippet>263</a>    <span class="kw">use </span>yaml_serde::Value;
 <a href=#264 id=264 data-nosnippet>264</a>
 <a href=#265 id=265 data-nosnippet>265</a>    <span class="kw">match </span>val {
 <a href=#266 id=266 data-nosnippet>266</a>        Value::Mapping(map) =&gt; {

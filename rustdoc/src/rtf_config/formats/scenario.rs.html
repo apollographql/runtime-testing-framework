@@ -50,7 +50,7 @@
 <a href=#50 id=50 data-nosnippet>50</a>    <span class="kw">pub fn </span>try_load_from_path(p: <span class="kw">impl </span>AsRef&lt;Path&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
 <a href=#51 id=51 data-nosnippet>51</a>        <span class="kw">let </span>content = fs::read_to_string(p)<span class="question-mark">?</span>;
 <a href=#52 id=52 data-nosnippet>52</a>
-<a href=#53 id=53 data-nosnippet>53</a>        <span class="prelude-val">Ok</span>(serde_yaml::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>)
+<a href=#53 id=53 data-nosnippet>53</a>        <span class="prelude-val">Ok</span>(yaml_serde::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>)
 <a href=#54 id=54 data-nosnippet>54</a>    }
 <a href=#55 id=55 data-nosnippet>55</a>
 <a href=#56 id=56 data-nosnippet>56</a>    <span class="kw">pub fn </span>output_collection(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>OutputCollection&gt; {
@@ -700,7 +700,7 @@
 <a href=#700 id=700 data-nosnippet>700</a>    #[test]
 <a href=#701 id=701 data-nosnippet>701</a>    </span><span class="kw">fn </span>parse_and_template(raw: <span class="kw-2">&amp;</span>str) {
 <a href=#702 id=702 data-nosnippet>702</a>        <span class="kw">let </span>config: ScenarioConfig&lt;ScenarioExecution&gt; =
-<a href=#703 id=703 data-nosnippet>703</a>            serde_yaml::from_str(raw).expect(<span class="string">"scenario config to parse"</span>);
+<a href=#703 id=703 data-nosnippet>703</a>            yaml_serde::from_str(raw).expect(<span class="string">"scenario config to parse"</span>);
 <a href=#704 id=704 data-nosnippet>704</a>
 <a href=#705 id=705 data-nosnippet>705</a>        <span class="kw">let </span><span class="kw-2">mut </span>res = config.required_variables();
 <a href=#706 id=706 data-nosnippet>706</a>        res.sort(); <span class="comment">// Sorting so variables are in a deterministic order for the assert_eq
@@ -964,7 +964,7 @@
 <a href=#964 id=964 data-nosnippet>964</a>        </span>);
 <a href=#965 id=965 data-nosnippet>965</a>
 <a href=#966 id=966 data-nosnippet>966</a>        <span class="kw">let </span>scenario_config: ScenarioConfig&lt;ScenarioExecution&gt; =
-<a href=#967 id=967 data-nosnippet>967</a>            serde_yaml::from_str(scenario_config_yaml).expect(<span class="string">"scenario config to parse"</span>);
+<a href=#967 id=967 data-nosnippet>967</a>            yaml_serde::from_str(scenario_config_yaml).expect(<span class="string">"scenario config to parse"</span>);
 <a href=#968 id=968 data-nosnippet>968</a>
 <a href=#969 id=969 data-nosnippet>969</a>        <span class="macro">assert_eq!</span>(scenario_config.custom_providers.len(), <span class="number">1</span>);
 <a href=#970 id=970 data-nosnippet>970</a>

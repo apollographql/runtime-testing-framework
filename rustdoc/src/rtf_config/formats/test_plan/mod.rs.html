@@ -93,7 +93,7 @@
 <a href=#93 id=93 data-nosnippet>93</a>        ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
 <a href=#94 id=94 data-nosnippet>94</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>, Sources)&gt; {
 <a href=#95 id=95 data-nosnippet>95</a>        <span class="kw">let </span>content = ctx.read_path_to_string(p.as_ref())<span class="question-mark">?</span>;
-<a href=#96 id=96 data-nosnippet>96</a>        <span class="kw">let </span>raw: RawTestPlanConfig = serde_yaml::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
+<a href=#96 id=96 data-nosnippet>96</a>        <span class="kw">let </span>raw: RawTestPlanConfig = yaml_serde::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
 <a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">let </span>abs_path = ctx.canonicalize_path(p.as_ref())<span class="question-mark">?</span>;
 <a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span>tp_source = SourceDir::local(abs_path.parent().unwrap());
 <a href=#99 id=99 data-nosnippet>99</a>
@@ -116,7 +116,7 @@
 <a href=#116 id=116 data-nosnippet>116</a>            .string_file_content(org, repo, path, git_ref.as_ref())
 <a href=#117 id=117 data-nosnippet>117</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#118 id=118 data-nosnippet>118</a>
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>raw: RawTestPlanConfig = serde_yaml::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>raw: RawTestPlanConfig = yaml_serde::from_str(<span class="kw-2">&amp;</span>content)<span class="question-mark">?</span>;
 <a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>tp_source =
 <a href=#121 id=121 data-nosnippet>121</a>            SourceDir::github(org, repo, PathBuf::from(path).parent().unwrap(), git_ref);
 <a href=#122 id=122 data-nosnippet>122</a>
@@ -417,7 +417,7 @@
 <a href=#417 id=417 data-nosnippet>417</a>    <span class="attr">#[tokio::test]
 <a href=#418 id=418 data-nosnippet>418</a>    </span><span class="kw">async fn </span>parse_and_template_inline_config() {
 <a href=#419 id=419 data-nosnippet>419</a>        <span class="kw">let </span>raw_test_plan: RawTestPlanConfig =
-<a href=#420 id=420 data-nosnippet>420</a>            serde_yaml::from_str(INLINE_TEST_PLAN).expect(<span class="string">"test plan config to parse"</span>);
+<a href=#420 id=420 data-nosnippet>420</a>            yaml_serde::from_str(INLINE_TEST_PLAN).expect(<span class="string">"test plan config to parse"</span>);
 <a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">let </span>ctx = Context::new();
 <a href=#422 id=422 data-nosnippet>422</a>
 <a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">let </span>expected_sources = Sources::with_custom_providers(
@@ -456,7 +456,7 @@
 <a href=#456 id=456 data-nosnippet>456</a>
 <a href=#457 id=457 data-nosnippet>457</a>    <span class="attr">#[test]
 <a href=#458 id=458 data-nosnippet>458</a>    </span><span class="kw">fn </span>parse_custom_providers() {
-<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>config: RawTestPlanConfig = serde_yaml::from_str(RAW_TEST_PLAN_WITH_CUSTOM_PROVIDERS)
+<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>config: RawTestPlanConfig = yaml_serde::from_str(RAW_TEST_PLAN_WITH_CUSTOM_PROVIDERS)
 <a href=#460 id=460 data-nosnippet>460</a>            .expect(<span class="string">"test plan config to parse"</span>);
 <a href=#461 id=461 data-nosnippet>461</a>
 <a href=#462 id=462 data-nosnippet>462</a>        <span class="macro">assert_eq!</span>(config.custom_providers.len(), <span class="number">2</span>);
@@ -1064,12 +1064,12 @@
 <a href=#1064 id=1064 data-nosnippet>1064</a>
 <a href=#1065 id=1065 data-nosnippet>1065</a>        <span class="kw">let </span>scenario_file = temp.child(<span class="string">"scenario.yaml"</span>);
 <a href=#1066 id=1066 data-nosnippet>1066</a>        scenario_file
-<a href=#1067 id=1067 data-nosnippet>1067</a>            .write_str(<span class="kw-2">&amp;</span>serde_yaml::to_string(<span class="kw-2">&amp;</span>ScenarioConfig::empty()).unwrap())
+<a href=#1067 id=1067 data-nosnippet>1067</a>            .write_str(<span class="kw-2">&amp;</span>yaml_serde::to_string(<span class="kw-2">&amp;</span>ScenarioConfig::empty()).unwrap())
 <a href=#1068 id=1068 data-nosnippet>1068</a>            .unwrap();
 <a href=#1069 id=1069 data-nosnippet>1069</a>
 <a href=#1070 id=1070 data-nosnippet>1070</a>        <span class="kw">let </span>environment_file = temp.child(<span class="string">"environment.yaml"</span>);
 <a href=#1071 id=1071 data-nosnippet>1071</a>        environment_file
-<a href=#1072 id=1072 data-nosnippet>1072</a>            .write_str(<span class="kw-2">&amp;</span>serde_yaml::to_string(<span class="kw-2">&amp;</span>EnvironmentConfig::empty()).unwrap())
+<a href=#1072 id=1072 data-nosnippet>1072</a>            .write_str(<span class="kw-2">&amp;</span>yaml_serde::to_string(<span class="kw-2">&amp;</span>EnvironmentConfig::empty()).unwrap())
 <a href=#1073 id=1073 data-nosnippet>1073</a>            .unwrap();
 <a href=#1074 id=1074 data-nosnippet>1074</a>
 <a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="kw">let </span>test_plan_file = temp.child(<span class="string">"test-plan.yaml"</span>);
@@ -1141,10 +1141,10 @@
 <a href=#1141 id=1141 data-nosnippet>1141</a>            .write_str(test_plan)
 <a href=#1142 id=1142 data-nosnippet>1142</a>            .expect(<span class="string">"failed to write test plan file"</span>);
 <a href=#1143 id=1143 data-nosnippet>1143</a>        scenario_file
-<a href=#1144 id=1144 data-nosnippet>1144</a>            .write_str(<span class="kw-2">&amp;</span>serde_yaml::to_string(<span class="kw-2">&amp;</span>ScenarioConfig::empty()).unwrap())
+<a href=#1144 id=1144 data-nosnippet>1144</a>            .write_str(<span class="kw-2">&amp;</span>yaml_serde::to_string(<span class="kw-2">&amp;</span>ScenarioConfig::empty()).unwrap())
 <a href=#1145 id=1145 data-nosnippet>1145</a>            .expect(<span class="string">"failed to write scenario file"</span>);
 <a href=#1146 id=1146 data-nosnippet>1146</a>        environment_file
-<a href=#1147 id=1147 data-nosnippet>1147</a>            .write_str(<span class="kw-2">&amp;</span>serde_yaml::to_string(<span class="kw-2">&amp;</span>EnvironmentConfig::empty()).unwrap())
+<a href=#1147 id=1147 data-nosnippet>1147</a>            .write_str(<span class="kw-2">&amp;</span>yaml_serde::to_string(<span class="kw-2">&amp;</span>EnvironmentConfig::empty()).unwrap())
 <a href=#1148 id=1148 data-nosnippet>1148</a>            .expect(<span class="string">"failed to write environment file"</span>);
 <a href=#1149 id=1149 data-nosnippet>1149</a>
 <a href=#1150 id=1150 data-nosnippet>1150</a>        <span class="kw">let </span>ctx = Context::new();
@@ -1234,10 +1234,10 @@
 <a href=#1234 id=1234 data-nosnippet>1234</a>            .write_str(OVERRIDES_TEST_PLAN)
 <a href=#1235 id=1235 data-nosnippet>1235</a>            .expect(<span class="string">"failed to write test plan file"</span>);
 <a href=#1236 id=1236 data-nosnippet>1236</a>        scenario_file
-<a href=#1237 id=1237 data-nosnippet>1237</a>            .write_str(<span class="kw-2">&amp;</span>serde_yaml::to_string(<span class="kw-2">&amp;</span>ScenarioConfig::empty()).unwrap())
+<a href=#1237 id=1237 data-nosnippet>1237</a>            .write_str(<span class="kw-2">&amp;</span>yaml_serde::to_string(<span class="kw-2">&amp;</span>ScenarioConfig::empty()).unwrap())
 <a href=#1238 id=1238 data-nosnippet>1238</a>            .expect(<span class="string">"failed to write scenario file"</span>);
 <a href=#1239 id=1239 data-nosnippet>1239</a>        environment_file
-<a href=#1240 id=1240 data-nosnippet>1240</a>            .write_str(<span class="kw-2">&amp;</span>serde_yaml::to_string(<span class="kw-2">&amp;</span>EnvironmentConfig::empty()).unwrap())
+<a href=#1240 id=1240 data-nosnippet>1240</a>            .write_str(<span class="kw-2">&amp;</span>yaml_serde::to_string(<span class="kw-2">&amp;</span>EnvironmentConfig::empty()).unwrap())
 <a href=#1241 id=1241 data-nosnippet>1241</a>            .expect(<span class="string">"failed to write environment file"</span>);
 <a href=#1242 id=1242 data-nosnippet>1242</a>
 <a href=#1243 id=1243 data-nosnippet>1243</a>        <span class="kw">let </span>expected_scenario_name = <span class="string">"scenario"</span>;

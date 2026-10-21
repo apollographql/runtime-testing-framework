@@ -109,8 +109,8 @@
 <a href=#109 id=109 data-nosnippet>109</a><span class="doccomment">/// A function for merging yaml overrides with the base config. It is expected
 <a href=#110 id=110 data-nosnippet>110</a>/// behaviour that lists will be a combination of the base and override lists
 <a href=#111 id=111 data-nosnippet>111</a>/// for the same key. This function performs no deduplication.
-<a href=#112 id=112 data-nosnippet>112</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>merge_yaml(overrides: serde_yaml::Value, base: <span class="kw-2">&amp;mut </span>serde_yaml::Value) {
-<a href=#113 id=113 data-nosnippet>113</a>    <span class="kw">use </span>serde_yaml::Value;
+<a href=#112 id=112 data-nosnippet>112</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>merge_yaml(overrides: yaml_serde::Value, base: <span class="kw-2">&amp;mut </span>yaml_serde::Value) {
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="kw">use </span>yaml_serde::Value;
 <a href=#114 id=114 data-nosnippet>114</a>
 <a href=#115 id=115 data-nosnippet>115</a>    <span class="kw">match </span>(overrides, base) {
 <a href=#116 id=116 data-nosnippet>116</a>        <span class="comment">// If both values are mappings we add all keys from src into dst.
@@ -230,12 +230,12 @@
 <a href=#230 id=230 data-nosnippet>230</a>    </span>)]
 <a href=#231 id=231 data-nosnippet>231</a>    #[test]
 <a href=#232 id=232 data-nosnippet>232</a>    </span><span class="kw">fn </span>merge_yaml_returns_expected_structure(base: <span class="kw-2">&amp;</span>str, overrides: <span class="kw-2">&amp;</span>str, expected: <span class="kw-2">&amp;</span>str) {
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span><span class="kw-2">mut </span>base: serde_yaml::Value = serde_yaml::from_str(base).unwrap();
-<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">let </span>overrides: serde_yaml::Value = serde_yaml::from_str(overrides).unwrap();
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span><span class="kw-2">mut </span>base: yaml_serde::Value = yaml_serde::from_str(base).unwrap();
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">let </span>overrides: yaml_serde::Value = yaml_serde::from_str(overrides).unwrap();
 <a href=#235 id=235 data-nosnippet>235</a>
 <a href=#236 id=236 data-nosnippet>236</a>        merge_yaml(overrides, <span class="kw-2">&amp;mut </span>base);
 <a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>        <span class="kw">let </span>merged = serde_yaml::to_string(<span class="kw-2">&amp;</span>base).unwrap().trim().to_string();
+<a href=#238 id=238 data-nosnippet>238</a>        <span class="kw">let </span>merged = yaml_serde::to_string(<span class="kw-2">&amp;</span>base).unwrap().trim().to_string();
 <a href=#239 id=239 data-nosnippet>239</a>
 <a href=#240 id=240 data-nosnippet>240</a>        <span class="macro">assert_eq!</span>(merged, expected);
 <a href=#241 id=241 data-nosnippet>241</a>    }

@@ -362,9 +362,9 @@
 <a href=#362 id=362 data-nosnippet>362</a>    <span class="kw">use </span>assert_fs::{TempDir, prelude::<span class="kw-2">*</span>};
 <a href=#363 id=363 data-nosnippet>363</a>    <span class="kw">use </span>indoc::indoc;
 <a href=#364 id=364 data-nosnippet>364</a>    <span class="kw">use </span>serde::Deserialize;
-<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">use </span>serde_yaml::{Deserializer, Value};
-<a href=#366 id=366 data-nosnippet>366</a>    <span class="kw">use </span>simple_test_case::test_case;
-<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">use </span>std::{fs, iter::once, path::PathBuf};
+<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">use </span>simple_test_case::test_case;
+<a href=#366 id=366 data-nosnippet>366</a>    <span class="kw">use </span>std::{fs, iter::once, path::PathBuf};
+<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">use </span>yaml_serde::{Deserializer, Value};
 <a href=#368 id=368 data-nosnippet>368</a>
 <a href=#369 id=369 data-nosnippet>369</a>    <span class="attr">#[test]
 <a href=#370 id=370 data-nosnippet>370</a>    </span><span class="kw">fn </span>parse_env_preserves_values_containing_equals() -&gt; anyhow::Result&lt;()&gt; {
