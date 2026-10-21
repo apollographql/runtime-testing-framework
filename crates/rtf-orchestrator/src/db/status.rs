@@ -34,6 +34,16 @@ pub trait StatusTracked: Queryable {
         message: Option<String>,
         conn: &mut PgConnection,
     ) -> impl Future<Output = Result<()>> + Send {
+        self.set_status_with_completion(status, message, status.is_terminal(), conn)
+    }
+
+    fn set_status_with_completion(
+        &self,
+        status: Status,
+        message: Option<String>,
+        set_completed_at: bool,
+        conn: &mut PgConnection,
+    ) -> impl Future<Output = Result<()>> + Send {
         async move {
             conn.execute(
                 sqlx::query(AssertSqlSafe(format!(
@@ -46,7 +56,7 @@ pub trait StatusTracked: Queryable {
             )
             .await?;
 
-            if status.is_terminal() {
+            if set_completed_at {
                 conn.execute(
                     sqlx::query(AssertSqlSafe(format!(
                         "UPDATE {} SET completed_at = NOW() WHERE id = $1;",

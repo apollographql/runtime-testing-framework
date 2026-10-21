@@ -200,28 +200,47 @@ impl TestRun {
         )
     }
 
+    async fn execution_statuses(&self, conn: &mut PgConnection) -> Result<Vec<Status>> {
+        Ok(sqlx::query_scalar(
+            r#"SELECT
+               COALESCE(latest.status, $1)
+             FROM
+               test_execution te
+             LEFT JOIN LATERAL (
+               SELECT status
+               FROM test_execution_status
+               WHERE parent_id = te.id
+               ORDER BY updated_at DESC
+               LIMIT 1
+             ) latest ON TRUE
+             WHERE
+               te.test_run_id = $2;"#,
+        )
+        .bind(Status::Initialising)
+        .bind(self.id)
+        .fetch_all(conn)
+        .await?)
+    }
+
     /// Following a status update for a child [TestExecution] we need to determine whether or not
     /// the overall status of this [TestRun] needs to be updated. This method will return
-    /// `Some(status)` if the given `execution_status` triggers an update for the run as a whole,
+    /// `Some(change)` if the given `execution_status` triggers an update for the run as a whole,
     /// otherwise `None`.
     pub(super) async fn status_after_execution_update(
         &self,
         execution_status: Status,
         conn: &mut PgConnection,
-    ) -> Result<Option<Status>> {
+    ) -> Result<Option<RunStatusChange>> {
         let StatusUpdate {
             status: run_status, ..
         } = self.current_status(conn).await?;
 
-        status_after_execution_update(run_status, execution_status, async move || {
-            let sibling_executions = self.executions(conn).await?;
-            let mut execution_statuses = Vec::with_capacity(sibling_executions.len());
-            for ex in sibling_executions.iter() {
-                execution_statuses.push(ex.current_status(conn).await?.status);
-            }
-
-            Ok(execution_statuses)
-        })
+        RunStatusChange::after_execution_update(
+            run_status,
+            self.completed_at.is_some(),
+            execution_status,
+            async move || self.execution_statuses(conn).await,
+        )
         .await
     }
 
@@ -408,59 +427,88 @@ impl TestRun {
     }
 }
 
-async fn status_after_execution_update<F, Fut>(
-    run_status: Status,
-    execution_status: Status,
-    get_sibling_statuses: F,
-) -> Result<Option<Status>>
-where
-    F: FnOnce() -> Fut,
-    Fut: Future<Output = Result<Vec<Status>>>,
-{
-    use Status::*;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RunStatusChange {
+    pub(super) status: Status,
+    pub(super) completed: bool,
+}
 
-    let new_run_status = match (run_status, execution_status) {
-        // Once at least one execution reports resolving, the run as a whole is resolving
-        (Initialising, Resolving) => Some(Resolving),
+impl RunStatusChange {
+    fn ongoing(status: Status) -> Option<Self> {
+        Some(Self {
+            status,
+            completed: false,
+        })
+    }
 
-        // Once at least one execution reports provisioning, the run as a whole is provisioning
-        (Initialising | Resolving, Provisioning) => Some(Provisioning),
+    async fn after_execution_update<F, Fut>(
+        run_status: Status,
+        run_completed: bool,
+        execution_status: Status,
+        get_sibling_statuses: F,
+    ) -> Result<Option<Self>>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<Vec<Status>>>,
+    {
+        use Status::*;
 
-        // Once at least one execution reports environment_ready, the run as a whole is
-        // environment_ready (Argo workflow completed, scenario job being set up)
-        (Initialising | Resolving | Provisioning, EnvironmentReady) => Some(EnvironmentReady),
+        let change = match (run_status, execution_status) {
+            // Once at least one execution reports resolving, the run as a whole is resolving
+            (Initialising, Resolving) => Self::ongoing(Resolving),
 
-        // Once at least one execution reports running, the run as a whole is running
-        (Initialising | Resolving | Provisioning | EnvironmentReady, Running) => Some(Running),
+            // Once at least one execution reports provisioning, the run as a whole is provisioning
+            (Initialising | Resolving, Provisioning) => Self::ongoing(Provisioning),
 
-        // Once all executions are complete we can determine the terminal status of the run.
-        // Once the run has a terminal status, further updates are ignored
-        (s_run, s_ex) if s_ex.is_terminal() && !s_run.is_terminal() => {
-            let execution_statuses = (get_sibling_statuses)().await?;
+            // Once at least one execution reports environment_ready, the run as a whole is
+            // environment_ready (Argo workflow completed, scenario job being set up)
+            (Initialising | Resolving | Provisioning, EnvironmentReady) => {
+                Self::ongoing(EnvironmentReady)
+            }
 
-            // Combine the statuses of all executions in this run. If the result is a terminal
-            // status then we need to update.
-            execution_statuses
-                .into_iter()
-                .reduce(|l, r| l.combine(r))
-                .filter(|&s| s.is_terminal())
-        }
+            // Once at least one execution reports running, the run as a whole is running
+            (Initialising | Resolving | Provisioning | EnvironmentReady, Running) => {
+                Self::ongoing(Running)
+            }
 
-        // Cancelled is allowed to override a pre-emptive Unrunnable run status that was set from
-        // the branch above.
-        (Unrunnable, Cancelled) => {
-            let execution_statuses = (get_sibling_statuses)().await?;
+            // Cancelled is allowed to override a pre-emptive Unrunnable run status that was set from
+            // the branch below.
+            (Unrunnable, Cancelled) => {
+                let execution_statuses = (get_sibling_statuses)().await?;
+                let completed = execution_statuses.iter().all(Status::is_terminal);
 
-            execution_statuses
-                .into_iter()
-                .reduce(|l, r| l.combine(r))
-                .filter(|&s| s == Cancelled)
-        }
+                execution_statuses
+                    .into_iter()
+                    .reduce(|l, r| l.combine(r))
+                    .filter(|&s| s == Cancelled)
+                    .map(|status| Self { status, completed })
+            }
 
-        _ => None,
-    };
+            // A terminal execution status sets completed_at once all execution statuses are
+            // terminal.
+            (s_run, s_ex) if s_ex.is_terminal() && !run_completed => {
+                let execution_statuses = (get_sibling_statuses)().await?;
+                let completed = execution_statuses.iter().all(Status::is_terminal);
 
-    Ok(new_run_status)
+                if s_run.is_terminal() {
+                    completed.then_some(Self {
+                        status: s_run,
+                        completed,
+                    })
+                } else {
+                    execution_statuses
+                        .into_iter()
+                        .reduce(|l, r| l.combine(r))
+                        .filter(|&s| s.is_terminal())
+                        .map(|status| Self { status, completed })
+                }
+            }
+
+            _ => None,
+        };
+
+        Ok(change)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, FromRow)]
@@ -739,48 +787,79 @@ mod tests {
     }
 
     // First execution to hit Resolving/Provisioning/Running should update
-    #[test_case(Initialising, Resolving, &[], Some(Resolving); "init to resolving")]
-    #[test_case(Initialising, Provisioning, &[], Some(Provisioning); "init to provisioning")]
-    #[test_case(Initialising, Running, &[], Some(Running); "init to running")]
-    #[test_case(Resolving, Provisioning, &[], Some(Provisioning); "resolving to provisioning")]
-    #[test_case(Resolving, Running, &[], Some(Running); "resolving to running")]
-    #[test_case(Provisioning, Running, &[], Some(Running); "provisioning to running")]
+    #[test_case(Initialising, false, Resolving, &[], Some((Resolving, false)); "init to resolving")]
+    #[test_case(Initialising, false, Provisioning, &[], Some((Provisioning, false)); "init to provisioning")]
+    #[test_case(Initialising, false, Running, &[], Some((Running, false)); "init to running")]
+    #[test_case(Resolving, false, Provisioning, &[], Some((Provisioning, false)); "resolving to provisioning")]
+    #[test_case(Resolving, false, Running, &[], Some((Running, false)); "resolving to running")]
+    #[test_case(Provisioning, false, Running, &[], Some((Running, false)); "provisioning to running")]
     // Moving to Resolving/Provisioning/Running should only happen once
-    #[test_case(Resolving, Resolving, &[], None; "already resolving")]
-    #[test_case(Provisioning, Provisioning, &[], None; "already provisioning")]
-    #[test_case(Running, Running, &[], None; "already running")]
+    #[test_case(Resolving, false, Resolving, &[], None; "already resolving")]
+    #[test_case(Provisioning, false, Provisioning, &[], None; "already provisioning")]
+    #[test_case(Running, false, Running, &[], None; "already running")]
     // Successful while siblings are ongoing
-    #[test_case(Running, Successful, &[Running], None; "successful sibling running")]
-    // Non-successful terminal while siblings are ongoing
-    #[test_case(Running, Failed, &[Running, Successful], Some(Failed); "failed sibling running")]
-    #[test_case(Running, Unrunnable, &[Running, Successful], Some(Unrunnable); "unrunnable sibling running")]
+    #[test_case(Running, false, Successful, &[Running], None; "successful sibling running")]
+    // Non-successful terminal while siblings are ongoing: eagerly set without completing the run
+    #[test_case(Running, false, Failed, &[Running, Successful], Some((Failed, false)); "failed sibling running")]
+    #[test_case(Running, false, Unrunnable, &[Running, Successful], Some((Unrunnable, false)); "unrunnable sibling running")]
     // Last execution reporting terminal status
-    #[test_case(Running, Successful, &[Successful], Some(Successful); "final successful")]
-    #[test_case(Running, Unrunnable, &[Successful], Some(Unrunnable); "final unrunnable")]
-    #[test_case(Running, Failed, &[Successful], Some(Failed); "final failed")]
-    // Failed and Unrunnable eagerly update run status, so further terminal execution updates
-    // should be ignored
-    #[test_case(Failed, Successful, &[Failed], None; "final successful but already failed")]
-    #[test_case(Unrunnable, Successful, &[Unrunnable], None; "final successful but already unrunnable")]
-    #[test_case(Unrunnable, Failed, &[Unrunnable], None; "final failed but already unrunnable")]
+    #[test_case(Running, false, Successful, &[Successful], Some((Successful, true)); "final successful")]
+    #[test_case(Running, false, Unrunnable, &[Successful], Some((Unrunnable, true)); "final unrunnable")]
+    #[test_case(Running, false, Failed, &[Successful], Some((Failed, true)); "final failed")]
+    // Failed and Unrunnable eagerly update run status, so terminal execution updates are ignored
+    // until the last execution finishes
+    #[test_case(Failed, false, Successful, &[Failed, Running], None; "successful but already failed and sibling running")]
+    #[test_case(Unrunnable, false, Failed, &[Unrunnable, Running], None; "failed but already unrunnable and sibling running")]
+    #[test_case(Failed, false, Successful, &[Failed], Some((Failed, true)); "final successful but already failed")]
+    #[test_case(Unrunnable, false, Successful, &[Unrunnable], Some((Unrunnable, true)); "final successful but already unrunnable")]
+    #[test_case(Unrunnable, false, Failed, &[Unrunnable], Some((Unrunnable, true)); "final failed but already unrunnable")]
+    // Once the run is completed further updates are ignored
+    #[test_case(Unrunnable, true, Successful, &[Unrunnable], None; "already completed")]
     // Cancelled is allowed to override an existing Unrunnable status
-    #[test_case(Unrunnable, Cancelled, &[Unrunnable], Some(Cancelled); "cancelled overrides unrunnable")]
-    #[test_case(Unrunnable, Cancelled, &[Unrunnable, Failed], None; "failed sibling outranks cancelled")]
+    #[test_case(Unrunnable, false, Cancelled, &[Unrunnable], Some((Cancelled, true)); "cancelled overrides unrunnable")]
+    #[test_case(Unrunnable, false, Cancelled, &[Unrunnable, Running], Some((Cancelled, false)); "cancelled overrides unrunnable sibling running")]
+    #[test_case(Unrunnable, false, Cancelled, &[Unrunnable, Failed], None; "failed sibling outranks cancelled")]
     #[tokio::test]
     async fn status_after_execution_update(
         run_status: Status,
+        run_completed: bool,
         ex_status: Status,
         siblings: &[Status],
-        expected: Option<Status>,
+        expected: Option<(Status, bool)>,
     ) -> Result<()> {
         let mut ex_statuses = siblings.to_vec();
         ex_statuses.push(ex_status);
 
-        let new_status =
-            status_after_execution_update(run_status, ex_status, async move || Ok(ex_statuses))
-                .await?;
+        let change = RunStatusChange::after_execution_update(
+            run_status,
+            run_completed,
+            ex_status,
+            async move || Ok(ex_statuses),
+        )
+        .await?;
 
-        assert_eq!(new_status, expected);
+        assert_eq!(change.map(|c| (c.status, c.completed)), expected);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn execution_statuses_reports_latest_status_per_execution() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init_unknown_initiator("test", None, &DEFAULT_POOL, c).await?;
+        let ex1 = tr.init_execution("a", 0, c).await?;
+        let ex2 = tr.init_execution("b", 1, c).await?;
+        tr.init_execution("no-status", 2, c).await?;
+
+        ex1.set_status(Running, None, c).await?;
+        ex2.set_status(Running, None, c).await?;
+        ex2.set_status(Unrunnable, None, c).await?;
+
+        let mut statuses = tr.execution_statuses(c).await?;
+        statuses.sort_by_key(|s| *s as i32);
+
+        assert_eq!(statuses, vec![Initialising, Running, Unrunnable]);
 
         Ok(())
     }
