@@ -546,9 +546,9 @@ mod tests {
     use indoc::indoc;
     use k8s_openapi::api::apps::v1::Deployment;
     use serde::Deserialize;
-    use serde_yaml::Deserializer;
     use simple_test_case::test_case;
     use std::{fs, process::Command};
+    use yaml_serde::Deserializer;
 
     fn otel() -> OtelConfig {
         OtelConfig {
@@ -638,7 +638,7 @@ mod tests {
             exclusive_nodes,
         );
 
-        serde_yaml::from_str::<serde_yaml::Value>(&patch)
+        yaml_serde::from_str::<yaml_serde::Value>(&patch)
             .expect("substituted kustomization.yaml should be valid YAML");
     }
 
@@ -702,9 +702,9 @@ mod tests {
 
         let output = fs::read_to_string(output_file.path()).unwrap();
         let deployment: Deployment = Deserializer::from_str(&output)
-            .map(|doc| serde_yaml::Value::deserialize(doc).expect("valid yaml document"))
+            .map(|doc| yaml_serde::Value::deserialize(doc).expect("valid yaml document"))
             .find(|doc| doc.get("kind").and_then(|k| k.as_str()) == Some("Deployment"))
-            .map(|doc| serde_yaml::from_value(doc).expect("valid Deployment manifest"))
+            .map(|doc| yaml_serde::from_value(doc).expect("valid Deployment manifest"))
             .expect("expected a Deployment in the kustomize output");
 
         let affinity = deployment

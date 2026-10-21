@@ -93,7 +93,7 @@ impl<P: Prepare> TestPlan<P> {
         ctx: &impl ResolutionContext,
     ) -> Result<(Self, Sources)> {
         let content = ctx.read_path_to_string(p.as_ref())?;
-        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let raw: RawTestPlanConfig = yaml_serde::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
         let tp_source = SourceDir::local(abs_path.parent().unwrap());
 
@@ -116,7 +116,7 @@ impl<P: Prepare> TestPlan<P> {
             .string_file_content(org, repo, path, git_ref.as_ref())
             .await?;
 
-        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let raw: RawTestPlanConfig = yaml_serde::from_str(&content)?;
         let tp_source =
             SourceDir::github(org, repo, PathBuf::from(path).parent().unwrap(), git_ref);
 
@@ -417,7 +417,7 @@ mod tests {
     #[tokio::test]
     async fn parse_and_template_inline_config() {
         let raw_test_plan: RawTestPlanConfig =
-            serde_yaml::from_str(INLINE_TEST_PLAN).expect("test plan config to parse");
+            yaml_serde::from_str(INLINE_TEST_PLAN).expect("test plan config to parse");
         let ctx = Context::new();
 
         let expected_sources = Sources::with_custom_providers(
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn parse_custom_providers() {
-        let config: RawTestPlanConfig = serde_yaml::from_str(RAW_TEST_PLAN_WITH_CUSTOM_PROVIDERS)
+        let config: RawTestPlanConfig = yaml_serde::from_str(RAW_TEST_PLAN_WITH_CUSTOM_PROVIDERS)
             .expect("test plan config to parse");
 
         assert_eq!(config.custom_providers.len(), 2);
@@ -1064,12 +1064,12 @@ mod tests {
 
         let scenario_file = temp.child("scenario.yaml");
         scenario_file
-            .write_str(&serde_yaml::to_string(&ScenarioConfig::empty()).unwrap())
+            .write_str(&yaml_serde::to_string(&ScenarioConfig::empty()).unwrap())
             .unwrap();
 
         let environment_file = temp.child("environment.yaml");
         environment_file
-            .write_str(&serde_yaml::to_string(&EnvironmentConfig::empty()).unwrap())
+            .write_str(&yaml_serde::to_string(&EnvironmentConfig::empty()).unwrap())
             .unwrap();
 
         let test_plan_file = temp.child("test-plan.yaml");
@@ -1141,10 +1141,10 @@ mod tests {
             .write_str(test_plan)
             .expect("failed to write test plan file");
         scenario_file
-            .write_str(&serde_yaml::to_string(&ScenarioConfig::empty()).unwrap())
+            .write_str(&yaml_serde::to_string(&ScenarioConfig::empty()).unwrap())
             .expect("failed to write scenario file");
         environment_file
-            .write_str(&serde_yaml::to_string(&EnvironmentConfig::empty()).unwrap())
+            .write_str(&yaml_serde::to_string(&EnvironmentConfig::empty()).unwrap())
             .expect("failed to write environment file");
 
         let ctx = Context::new();
@@ -1234,10 +1234,10 @@ mod tests {
             .write_str(OVERRIDES_TEST_PLAN)
             .expect("failed to write test plan file");
         scenario_file
-            .write_str(&serde_yaml::to_string(&ScenarioConfig::empty()).unwrap())
+            .write_str(&yaml_serde::to_string(&ScenarioConfig::empty()).unwrap())
             .expect("failed to write scenario file");
         environment_file
-            .write_str(&serde_yaml::to_string(&EnvironmentConfig::empty()).unwrap())
+            .write_str(&yaml_serde::to_string(&EnvironmentConfig::empty()).unwrap())
             .expect("failed to write environment file");
 
         let expected_scenario_name = "scenario";

@@ -197,9 +197,9 @@ impl ProvisioningHandle {
         let command = test_plan.scenario.execution.command();
         let environment = test_plan.environment.execution.clone();
 
-        let env_yaml = serde_yaml::to_string(&test_plan.environment)
+        let env_yaml = yaml_serde::to_string(&test_plan.environment)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
-        let scenario_yaml = serde_yaml::to_string(&test_plan.scenario)
+        let scenario_yaml = yaml_serde::to_string(&test_plan.scenario)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
         let execution_variables = serde_json::to_string_pretty(&test_plan.variables)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;

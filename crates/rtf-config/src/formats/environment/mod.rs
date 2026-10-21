@@ -60,7 +60,7 @@ impl EnvironmentConfig<EnvironmentExecution> {
     pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
         let content = fs::read_to_string(p)?;
 
-        Ok(serde_yaml::from_str(&content)?)
+        Ok(yaml_serde::from_str(&content)?)
     }
 
     pub fn output_collection(&self) -> Option<&OutputCollection> {
@@ -562,7 +562,7 @@ pub(crate) mod tests {
         );
 
         let config: EnvironmentConfig<EnvironmentExecution> =
-            serde_yaml::from_str(yaml).expect("environment config to parse");
+            yaml_serde::from_str(yaml).expect("environment config to parse");
 
         assert_matches!(config.execution, EnvironmentExecution::Null(_));
     }
@@ -581,7 +581,7 @@ pub(crate) mod tests {
         );
 
         let config: EnvironmentConfig<EnvironmentExecution> =
-            serde_yaml::from_str(yaml).expect("environment config to parse");
+            yaml_serde::from_str(yaml).expect("environment config to parse");
 
         assert_matches!(config.execution, EnvironmentExecution::DockerCompose(_));
     }
@@ -778,7 +778,7 @@ pub(crate) mod tests {
         );
 
         let env_config: EnvironmentConfig<EnvironmentExecution> =
-            serde_yaml::from_str(env_config_yaml).expect("environment config to parse");
+            yaml_serde::from_str(env_config_yaml).expect("environment config to parse");
 
         assert_eq!(env_config.custom_providers.len(), 1);
 

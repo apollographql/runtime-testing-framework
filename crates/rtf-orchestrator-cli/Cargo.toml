@@ -29,5 +29,5 @@ zip.workspace = true
 assert_fs.workspace = true
 indoc.workspace = true
 predicates.workspace = true
-serde_yaml.workspace = true
+yaml_serde.workspace = true
 simple_test_case.workspace = true

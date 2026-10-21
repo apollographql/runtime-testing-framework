@@ -134,7 +134,7 @@ async fn inline_one(
         Some(name) => outdir.join(format!("{name}-{INLINED_TEST_PLAN_PATH}")),
         None => outdir.join(INLINED_TEST_PLAN_PATH),
     };
-    ctx.write(output_path, serde_yaml::to_string(test_plan)?)?;
+    ctx.write(output_path, yaml_serde::to_string(test_plan)?)?;
 
     info!("done");
 

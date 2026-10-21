@@ -142,7 +142,7 @@ async fn run_one(
     )?;
     ctx.write(
         out_dir.join(RESOLVED_TP_PATH),
-        serde_yaml::to_string(&test_plan)?,
+        yaml_serde::to_string(&test_plan)?,
     )?;
 
     info!("done");

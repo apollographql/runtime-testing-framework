@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn parse_skip_true_succeeds() {
-        let res = serde_yaml::from_str::<'_, NullEnvironment>("skip: true");
+        let res = yaml_serde::from_str::<'_, NullEnvironment>("skip: true");
 
         assert!(res.is_ok(), "expected OK, got {res:?}");
         assert!(res.unwrap().skip, "skip should be true")
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn parse_skip_false_errors() {
-        let res = serde_yaml::from_str::<'_, NullEnvironment>("skip: false");
+        let res = yaml_serde::from_str::<'_, NullEnvironment>("skip: false");
 
         assert!(res.is_err(), "expected error, got {res:?}");
     }

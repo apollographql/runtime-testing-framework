@@ -114,7 +114,7 @@ impl Config {
     }
 
     fn try_parse(text: &str) -> Result<Self, Vec<ConfigError>> {
-        let cfg: Self = serde_yaml::from_str(text).map_err(|e| {
+        let cfg: Self = yaml_serde::from_str(text).map_err(|e| {
             vec![ConfigError::Yaml {
                 inner: e.to_string(),
             }]

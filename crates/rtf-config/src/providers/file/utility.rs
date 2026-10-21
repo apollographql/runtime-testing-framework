@@ -319,7 +319,7 @@ impl AsUtf8FileContent for MergeYaml {
             }
         }
 
-        let mut base: serde_yaml::Value = match serde_yaml::from_str(&base_str) {
+        let mut base: yaml_serde::Value = match yaml_serde::from_str(&base_str) {
             Ok(v) => v,
             Err(e) => {
                 error!("found invalid YAML in base file for merge_yaml file provider");
@@ -328,7 +328,7 @@ impl AsUtf8FileContent for MergeYaml {
         };
 
         for (i, s) in overrides.iter().enumerate() {
-            let overrides: serde_yaml::Value = match serde_yaml::from_str(s) {
+            let overrides: yaml_serde::Value = match yaml_serde::from_str(s) {
                 Ok(v) => v,
                 Err(e) => {
                     let i = i + 1;
@@ -342,7 +342,7 @@ impl AsUtf8FileContent for MergeYaml {
             merge_yaml(overrides, &mut base);
         }
 
-        Ok(serde_yaml::to_string(&base)?.trim().to_string())
+        Ok(yaml_serde::to_string(&base)?.trim().to_string())
     }
 }
 

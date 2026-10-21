@@ -629,7 +629,7 @@ mod tests {
         let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
         // compose_files with a required provider — try_check always fails for RequiredFile
-        let required_compose: NamedManifestFileProvider = serde_yaml::from_str(indoc!(
+        let required_compose: NamedManifestFileProvider = yaml_serde::from_str(indoc!(
             r#"
                 name: required-compose
                 kind: required

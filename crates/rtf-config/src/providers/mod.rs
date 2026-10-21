@@ -25,7 +25,7 @@ pub enum Error {
     Json(#[from] serde_json::Error),
 
     #[error(transparent)]
-    Yaml(#[from] serde_yaml::Error),
+    Yaml(#[from] yaml_serde::Error),
 
     #[error("Unable to execute the {name} command: {err}")]
     CommandFailed { name: String, err: String },

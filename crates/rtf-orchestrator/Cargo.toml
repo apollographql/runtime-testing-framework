@@ -45,7 +45,7 @@ reqwest.workspace = true
 rustls.workspace = true
 schemars.workspace = true
 serde_json.workspace = true
-serde_yaml.workspace = true
+yaml_serde.workspace = true
 serde.workspace = true
 sqlx = { version = "0.9.0", features = ["runtime-tokio", "tls-rustls-aws-lc-rs","postgres", "migrate", "chrono", "json", "uuid"] }
 thiserror.workspace = true

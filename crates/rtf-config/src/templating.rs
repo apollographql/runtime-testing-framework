@@ -1016,7 +1016,7 @@ mod tests {
     #[test_case("str: \"{{ foo }}\"", Target::S { str: Field::Pending("foo".to_string()) }; "template string")]
     #[test]
     fn field_parse_works(s: &str, expected: Target) {
-        let target: Target = serde_yaml::from_str(s).unwrap();
+        let target: Target = yaml_serde::from_str(s).unwrap();
         assert_eq!(target, expected)
     }
 
@@ -1033,7 +1033,7 @@ mod tests {
     #[test]
     fn field_parse_valid_identifiers(raw: &str) {
         let s = format!("field: \"{{{{ {raw} }}}}\"");
-        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&s);
+        let res: yaml_serde::Result<StringField> = yaml_serde::from_str(&s);
         assert!(res.is_ok(), "expected ok, got {res:?}");
 
         let StringField { field } = res.unwrap();
@@ -1049,7 +1049,7 @@ mod tests {
     #[test]
     fn field_parse_invalid_identifiers(raw: &str) {
         let s = format!("field: \"{{{{ {raw} }}}}\"");
-        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&s);
+        let res: yaml_serde::Result<StringField> = yaml_serde::from_str(&s);
         assert!(res.is_err(), "expected error, got {res:?}");
     }
 
@@ -1064,14 +1064,14 @@ mod tests {
     #[test_case(r#""{{ foo\t }}""#; "trailing tab")]
     #[test]
     fn field_parse_malformed_template_string(raw: &str) {
-        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&format!("field: {raw}"));
+        let res: yaml_serde::Result<StringField> = yaml_serde::from_str(&format!("field: {raw}"));
         assert!(res.is_err(), "expected error, got {res:?}");
     }
 
     #[test]
     fn field_parse_single_leading_curly_permitted() {
         let raw = r#"field: "{ \"some\": { \"valid\": [\"json\", \"data\"] }}""#;
-        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(raw);
+        let res: yaml_serde::Result<StringField> = yaml_serde::from_str(raw);
 
         assert!(res.is_ok(), "expected ok, got {res:?}");
         assert!(matches!(res.unwrap().field, Field::Resolved(_)));
