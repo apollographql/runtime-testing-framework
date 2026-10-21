@@ -362,9 +362,9 @@ mod tests {
     use assert_fs::{TempDir, prelude::*};
     use indoc::indoc;
     use serde::Deserialize;
-    use yaml_serde::{Deserializer, Value};
     use simple_test_case::test_case;
     use std::{fs, iter::once, path::PathBuf};
+    use yaml_serde::{Deserializer, Value};
 
     #[test]
     fn parse_env_preserves_values_containing_equals() -> anyhow::Result<()> {

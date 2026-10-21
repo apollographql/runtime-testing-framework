@@ -19,13 +19,13 @@ use crate::{
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use yaml_serde::{Mapping, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::{Path, PathBuf},
     pin::Pin,
 };
 use tracing::warn;
+use yaml_serde::{Mapping, Value};
 
 const PROVIDERS_CONTAINER_PATH: &str = "/providers";
 

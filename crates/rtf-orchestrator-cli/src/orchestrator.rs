@@ -546,9 +546,9 @@ mod tests {
     use indoc::indoc;
     use k8s_openapi::api::apps::v1::Deployment;
     use serde::Deserialize;
-    use yaml_serde::Deserializer;
     use simple_test_case::test_case;
     use std::{fs, process::Command};
+    use yaml_serde::Deserializer;
 
     fn otel() -> OtelConfig {
         OtelConfig {

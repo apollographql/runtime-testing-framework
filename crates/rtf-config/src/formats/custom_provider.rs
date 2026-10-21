@@ -277,8 +277,8 @@ mod tests {
         prelude::{FileWriteStr, PathCreateDir},
     };
     use indoc::indoc;
-    use yaml_serde;
     use simple_test_case::test_case;
+    use yaml_serde;
 
     // An example custom provider config to check parsing and templating
     const TEMPLATED_CUSTOM_PROVIDER: &str = indoc!(
