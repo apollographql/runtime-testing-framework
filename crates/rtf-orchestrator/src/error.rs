@@ -45,7 +45,7 @@ pub enum Error {
     Prepare(#[from] PrepareError),
 
     #[error(transparent)]
-    Yaml(#[from] serde_yaml::Error),
+    Yaml(#[from] yaml_serde::Error),
 
     #[error("only admins can modify {field} on a known test plan")]
     AdminOnlyField { field: &'static str },

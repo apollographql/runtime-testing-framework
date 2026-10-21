@@ -109,8 +109,8 @@ impl VariableDefinition {
 /// A function for merging yaml overrides with the base config. It is expected
 /// behaviour that lists will be a combination of the base and override lists
 /// for the same key. This function performs no deduplication.
-pub(crate) fn merge_yaml(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
-    use serde_yaml::Value;
+pub(crate) fn merge_yaml(overrides: yaml_serde::Value, base: &mut yaml_serde::Value) {
+    use yaml_serde::Value;
 
     match (overrides, base) {
         // If both values are mappings we add all keys from src into dst.
@@ -230,12 +230,12 @@ mod tests {
     )]
     #[test]
     fn merge_yaml_returns_expected_structure(base: &str, overrides: &str, expected: &str) {
-        let mut base: serde_yaml::Value = serde_yaml::from_str(base).unwrap();
-        let overrides: serde_yaml::Value = serde_yaml::from_str(overrides).unwrap();
+        let mut base: yaml_serde::Value = yaml_serde::from_str(base).unwrap();
+        let overrides: yaml_serde::Value = yaml_serde::from_str(overrides).unwrap();
 
         merge_yaml(overrides, &mut base);
 
-        let merged = serde_yaml::to_string(&base).unwrap().trim().to_string();
+        let merged = yaml_serde::to_string(&base).unwrap().trim().to_string();
 
         assert_eq!(merged, expected);
     }

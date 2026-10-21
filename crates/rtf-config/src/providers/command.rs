@@ -414,7 +414,7 @@ mod tests {
     #[test_case(REQUIRED, &[]; "required")]
     #[test]
     fn command_parse_and_template(content: &str, expected_variables: &[&str]) {
-        let config: CommandSection = serde_yaml::from_str(content).unwrap();
+        let config: CommandSection = yaml_serde::from_str(content).unwrap();
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -639,13 +639,13 @@ mod tests {
         }
 
         fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {
-            let key = serde_yaml::to_string(&provider).unwrap();
+            let key = yaml_serde::to_string(&provider).unwrap();
 
             self.fp_output_paths.insert(key, path);
         }
 
         fn known_provider_output_path(&self, provider: Provider<'_>) -> Option<PathBuf> {
-            let key = serde_yaml::to_string(&provider).ok()?;
+            let key = yaml_serde::to_string(&provider).ok()?;
 
             self.fp_output_paths.get(&key).cloned()
         }

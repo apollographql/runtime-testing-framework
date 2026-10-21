@@ -362,7 +362,7 @@ mod tests {
     use assert_fs::{TempDir, prelude::*};
     use indoc::indoc;
     use serde::Deserialize;
-    use serde_yaml::{Deserializer, Value};
+    use yaml_serde::{Deserializer, Value};
     use simple_test_case::test_case;
     use std::{fs, iter::once, path::PathBuf};
 

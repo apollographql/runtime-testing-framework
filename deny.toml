@@ -22,8 +22,6 @@ git-fetch-with-cli = true
 ignore = [
     # Bincode is unmaintained but stable for our use case
     "RUSTSEC-2025-0141",
-    # serde_yaml is unmaintained; replacing it is tracked separately
-    "RUSTSEC-2024-0449",
 ]
 
 # This section is considered when running `cargo deny check licenses`

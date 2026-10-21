@@ -103,7 +103,7 @@ where
     T: Serialize,
 {
     let mut hasher = DefaultHasher::new();
-    serde_yaml::to_string(value)
+    yaml_serde::to_string(value)
         .expect("to serialize")
         .hash(&mut hasher);
 

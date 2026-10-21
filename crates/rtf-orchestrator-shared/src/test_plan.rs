@@ -162,9 +162,9 @@ mod tests {
     #[test]
     fn null_environment_round_trips() {
         let env = null_env();
-        let yaml = serde_yaml::to_string(&env).expect("null environment should serialize");
+        let yaml = yaml_serde::to_string(&env).expect("null environment should serialize");
         let parsed: OrchestratorEnvironment =
-            serde_yaml::from_str(&yaml).expect("null environment should round-trip");
+            yaml_serde::from_str(&yaml).expect("null environment should round-trip");
 
         assert_eq!(parsed, env);
     }
@@ -173,9 +173,9 @@ mod tests {
     fn docker_compose_environment_round_trips() {
         let env = OrchestratorEnvironment::DockerCompose(docker_compose_env());
         let yaml =
-            serde_yaml::to_string(&env).expect("docker-compose environment should serialize");
+            yaml_serde::to_string(&env).expect("docker-compose environment should serialize");
         let parsed: OrchestratorEnvironment =
-            serde_yaml::from_str(&yaml).expect("docker-compose environment should round-trip");
+            yaml_serde::from_str(&yaml).expect("docker-compose environment should round-trip");
 
         assert_eq!(parsed, env);
     }
@@ -197,7 +197,7 @@ teardown:
     content: "echo bye"
 "#;
 
-        let res = serde_yaml::from_str::<OrchestratorEnvironment>(yaml);
+        let res = yaml_serde::from_str::<OrchestratorEnvironment>(yaml);
         assert!(res.is_err(), "expected a script environment to be rejected");
 
         let err = res.unwrap_err().to_string();
@@ -247,7 +247,7 @@ teardown:
         let compose_files = providers
             .iter()
             .map(|yaml| {
-                serde_yaml::from_str(yaml).expect("compose file provider should deserialize")
+                yaml_serde::from_str(yaml).expect("compose file provider should deserialize")
             })
             .collect();
 

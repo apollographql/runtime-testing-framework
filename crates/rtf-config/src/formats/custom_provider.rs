@@ -206,7 +206,7 @@ async fn load_one(
     let content = definition_source
         .try_get_file_content(file_name, ctx)
         .await?;
-    let raw: serde_yaml::Value = serde_yaml::from_str(&content)?;
+    let raw: yaml_serde::Value = yaml_serde::from_str(&content)?;
 
     if let Some(mapping) = raw.as_mapping()
         && mapping.contains_key("custom_providers")
@@ -214,7 +214,7 @@ async fn load_one(
         return Err(providers::Error::NestedCustomProvider);
     }
 
-    Ok((definition_source, serde_yaml::from_value(raw)?))
+    Ok((definition_source, yaml_serde::from_value(raw)?))
 }
 
 #[cfg(test)]
@@ -277,7 +277,7 @@ mod tests {
         prelude::{FileWriteStr, PathCreateDir},
     };
     use indoc::indoc;
-    use serde_yaml;
+    use yaml_serde;
     use simple_test_case::test_case;
 
     // An example custom provider config to check parsing and templating
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn parse_and_template() {
-        let config: CustomProviderDefinition = serde_yaml::from_str(TEMPLATED_CUSTOM_PROVIDER)
+        let config: CustomProviderDefinition = yaml_serde::from_str(TEMPLATED_CUSTOM_PROVIDER)
             .expect("custom provider config to parse");
 
         let mut res = config.required_variables();
@@ -408,7 +408,7 @@ mod tests {
     #[test_case(GITHUB_DIR_DECLARATION_NO_REF; "github dir without ref")]
     #[test]
     fn parse_declaration(raw: &str) {
-        assert!(serde_yaml::from_str::<'_, CustomProviderDeclaration>(raw).is_ok());
+        assert!(yaml_serde::from_str::<'_, CustomProviderDeclaration>(raw).is_ok());
     }
 
     #[tokio::test]

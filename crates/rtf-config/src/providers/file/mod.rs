@@ -1352,7 +1352,7 @@ mod tests {
     #[test_case(TEMPLATED, &["router_url", "api_key"]; "templated")]
     #[test]
     fn all_fields_templated(content: &str, expected_variables: &[&str]) {
-        let config: FileProvider = serde_yaml::from_str(content).unwrap();
+        let config: FileProvider = yaml_serde::from_str(content).unwrap();
 
         let res = config.required_variables();
         assert_eq!(res, expected_variables, "expected variables to match")

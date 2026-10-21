@@ -175,7 +175,7 @@ pub enum ConfigSpec {
     Inline {
         /// Inline YAML configuration
         #[schemars(schema_with = "arbitrary_map")]
-        inline: serde_yaml::Value,
+        inline: yaml_serde::Value,
     },
     From {
         /// A source file to read to obtain the required configuration
@@ -183,7 +183,7 @@ pub enum ConfigSpec {
         /// Optional overrides to merge on top of the base configuration
         #[serde(default)]
         #[schemars(schema_with = "arbitrary_map")]
-        overrides: serde_yaml::Value,
+        overrides: yaml_serde::Value,
     },
 }
 
@@ -204,7 +204,7 @@ impl ConfigSpec {
     {
         match self {
             Self::Inline { inline } => {
-                let mut t: T = serde_yaml::from_value(inline)?;
+                let mut t: T = yaml_serde::from_value(inline)?;
                 t.ensure_no_duplicate_keys()?;
                 t.sort_arrays();
 
@@ -218,18 +218,18 @@ impl ConfigSpec {
                 // before we start and then re-validate following the merge.
                 let (src, file_name) = from.try_into_source_and_filename(tp_source, ctx)?;
                 let file_content = src.try_get_file_content(file_name, ctx).await?;
-                let mut t: T = serde_yaml::from_str(&file_content)?;
+                let mut t: T = yaml_serde::from_str(&file_content)?;
                 t.ensure_no_duplicate_keys()?;
 
-                if overrides != serde_yaml::Value::Null {
+                if overrides != yaml_serde::Value::Null {
                     if let Some(m) = overrides.as_mapping()
                         && m.contains_key("custom_providers")
                     {
                         return Err(Error::InvalidCustomProviderOverride);
                     }
 
-                    let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
-                    let yaml_src = serde_yaml::to_value(&StableSource::TestPlan)?;
+                    let mut base: yaml_serde::Value = yaml_serde::from_str(&file_content)?;
+                    let yaml_src = yaml_serde::to_value(&StableSource::TestPlan)?;
                     set_source_for_relative_paths(&mut overrides, &yaml_src);
                     merge_yaml(overrides, &mut base);
 
@@ -237,7 +237,7 @@ impl ConfigSpec {
                     // retain any data from the overrides in favour of what was in the base config
                     // file. try_dedup_and_sort can error at this stage if there were duplicates
                     // within the overrides themselves.
-                    let mut merged: T = serde_yaml::from_value(base)?;
+                    let mut merged: T = yaml_serde::from_value(base)?;
                     merged.try_dedup_and_sort()?;
                     t = merged;
                 }
@@ -259,8 +259,8 @@ impl ConfigSpec {
 ///
 /// !! If something strange is happening around relative paths defined in test plan overrides then
 ///    this is likely the best place to start looking!
-fn set_source_for_relative_paths(val: &mut serde_yaml::Value, src: &serde_yaml::Value) {
-    use serde_yaml::Value;
+fn set_source_for_relative_paths(val: &mut yaml_serde::Value, src: &yaml_serde::Value) {
+    use yaml_serde::Value;
 
     match val {
         Value::Mapping(map) => {

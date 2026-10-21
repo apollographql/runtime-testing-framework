@@ -71,7 +71,7 @@ where
             .expect("we just read the file so it has a parent"),
     );
 
-    let config: T = serde_yaml::from_str(&content)
+    let config: T = yaml_serde::from_str(&content)
         .with_context(|| format!("Unable to parse {type_name} yaml"))?;
 
     Ok((source, config))

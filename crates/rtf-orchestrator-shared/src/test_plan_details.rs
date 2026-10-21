@@ -557,7 +557,7 @@ mod tests {
     );
 
     fn test_plan(yaml: &str) -> OrchestratorTestPlan {
-        serde_yaml::from_str(yaml).expect("test plan should deserialize")
+        yaml_serde::from_str(yaml).expect("test plan should deserialize")
     }
 
     fn variables(yaml: &str) -> Vec<TestPlanVariable> {

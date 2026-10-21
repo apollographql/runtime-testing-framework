@@ -69,7 +69,7 @@ pub enum Error {
     Provider(#[from] providers::Error),
 
     #[error(transparent)]
-    Yaml(#[from] serde_yaml::Error),
+    Yaml(#[from] yaml_serde::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
