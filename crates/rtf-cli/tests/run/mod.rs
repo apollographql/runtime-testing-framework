@@ -408,3 +408,13 @@ fn run_with_existing_outdir_and_force_succeeds() {
 
     cmd.arg("--force").assert().success();
 }
+
+#[test]
+fn check_errors_in_a_later_matrix_variant_fail_before_any_variant_executes() {
+    prepare_rtf_run("resources/test-plans/invalid/run/matrix-later-variant-fails-check")
+        .env("APOLLO_KEY", "dummy")
+        .assert()
+        .failure()
+        .stderr(contains("(matrix_variant_2.scenario.SUPERGRAPH)"))
+        .stdout(contains("variant has executed").not());
+}

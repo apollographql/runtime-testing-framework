@@ -13,6 +13,7 @@ use rtf_integrations::github::{self, Client};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
+    mem::take,
     path::{Path, PathBuf},
 };
 
@@ -67,6 +68,41 @@ impl<P: Prepare> TestPlan<P> {
 
             (name, new)
         }))
+    }
+
+    /// Bulk template and check all variants within this test plan, discarding the templated output.
+    ///
+    /// This is intended eagerly running static checks ahead of executing any test plan variants.
+    pub fn try_template_and_check_variants(
+        &self,
+        variable_sources: &HashMap<String, StableSource>,
+        check: bool,
+        ctx: &impl ResolutionContext,
+    ) -> Result<(templating::Result<()>, checks::Result<()>)> {
+        let has_matrix = !self.matrix.is_empty();
+        let mut template_errs = templating::ErrorBuilder::new();
+        let mut check_errs = checks::ErrorBuilder::new();
+
+        for (name, mut variant) in self.try_iter_matrix_variants()? {
+            let mut path = if has_matrix { vec![name] } else { Vec::new() };
+
+            let template_ctx = TemplateContext::new(
+                take(&mut variant.variables),
+                variable_sources.clone(),
+                ctx.custom_provider_definitions(),
+            );
+
+            let template_res =
+                variant.try_template(&mut path.clone(), &StableSource::TestPlan, &template_ctx);
+
+            if check && template_res.is_ok() {
+                check_errs.append(variant.try_check(&mut path, ctx));
+            }
+
+            template_errs.append(template_res);
+        }
+
+        Ok((template_errs.into_result(()), check_errs.into_result(())))
     }
 
     /// Try to expand a single matrix variant by index.

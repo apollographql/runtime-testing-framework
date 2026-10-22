@@ -449,7 +449,7 @@ impl Check for DockerScenario {
         // ultimately execute the test plan.
         // This means that docker _not_ being on the PATH will result in a runtime error during
         // command execution, which matches the behaviour of missing dependencies in other
-        // CommandProivider variants where we don't even know what dependencies the script has.
+        // CommandProvider variants where we don't even know what dependencies the script has.
 
         let mut errs = checks::ErrorBuilder::new();
 

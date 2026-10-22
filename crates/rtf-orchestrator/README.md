@@ -37,7 +37,7 @@ for testing logic that doesn't need to directly interact with the database.
 
 DB tests can be executed against the [local stack][5] if it is already spun up, but bringing the
 full stack up when we don't need to interact with kubernetes is time consuming and resource
-intesive. As a light weight alternative we also have a simple [docker compose setup][6] that can be
+intensive. As a light weight alternative we also have a simple [docker compose setup][6] that can be
 started with `make db-up` which is significantly faster to bring up.
 
 ```bash
