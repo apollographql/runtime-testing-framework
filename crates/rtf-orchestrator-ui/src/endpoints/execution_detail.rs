@@ -77,6 +77,7 @@ mod tests {
             Err(orchestrator::Error::TestExecutionStatus {
                 status: StatusCode::BAD_GATEWAY,
                 id: ex_id,
+                message: "bad gateway".to_owned(),
             }),
             &sample_config(),
         );

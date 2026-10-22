@@ -337,6 +337,7 @@ mod tests {
                 })),
                 whoami: Err(orchestrator::Error::WhoAmI {
                     status: StatusCode::BAD_GATEWAY,
+                    message: "bad gateway".to_owned(),
                 }),
                 ..ok_results(uuid)
             },
@@ -379,6 +380,7 @@ mod tests {
                 plan: Err(orchestrator::Error::KnownTestPlanStatus {
                     status: StatusCode::BAD_GATEWAY,
                     uuid,
+                    message: "bad gateway".to_owned(),
                 }),
                 ..ok_results(uuid)
             },
@@ -397,6 +399,7 @@ mod tests {
                 runs: Err(orchestrator::Error::ListKnownTestPlanRuns {
                     status: StatusCode::BAD_GATEWAY,
                     uuid,
+                    message: "bad gateway".to_owned(),
                 }),
                 ..ok_results(uuid)
             },
@@ -416,6 +419,7 @@ mod tests {
                 details: Err(orchestrator::Error::TestPlanDetailsStatus {
                     status: StatusCode::BAD_GATEWAY,
                     uuid,
+                    message: "bad gateway".to_owned(),
                 }),
                 ..ok_results(uuid)
             },
@@ -424,6 +428,31 @@ mod tests {
         .unwrap_found();
 
         assert!(t.details_error.is_some());
+    }
+
+    #[test]
+    fn selected_template_details_error_includes_the_orchestrator_message() {
+        let uuid = Uuid::from_u128(1);
+        let t = select_template(
+            uuid,
+            TestPlanDetailResults {
+                details: Err(orchestrator::Error::TestPlanDetailsStatus {
+                    status: StatusCode::INTERNAL_SERVER_ERROR,
+                    uuid,
+                    message: "templating pre-check failed: Unknown templating variable".to_owned(),
+                }),
+                ..ok_results(uuid)
+            },
+            TestPlanDetailPage::default(),
+        )
+        .unwrap_found();
+
+        let details_error = t.details_error.expect("details error should be set");
+
+        assert!(
+            details_error.contains("templating pre-check failed: Unknown templating variable"),
+            "{details_error}"
+        );
     }
 
     #[test]

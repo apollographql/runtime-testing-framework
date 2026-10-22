@@ -182,6 +182,7 @@ mod tests {
         let t = index_template(
             Err(orchestrator::Error::ListRuns {
                 status: StatusCode::BAD_GATEWAY,
+                message: "bad gateway".to_owned(),
             }),
             DEFAULT_LIMIT,
             0,
