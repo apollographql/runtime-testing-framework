@@ -97,6 +97,7 @@ mod tests {
             Err(orchestrator::Error::TestRunStatus {
                 status: StatusCode::BAD_GATEWAY,
                 id,
+                message: "bad gateway".to_owned(),
             }),
             Utc::now(),
             &sample_config(),

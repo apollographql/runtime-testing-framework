@@ -101,6 +101,7 @@ mod tests {
         let t = test_plans_template(
             Err(orchestrator::Error::ListKnownTestPlans {
                 status: StatusCode::BAD_GATEWAY,
+                message: "bad gateway".to_owned(),
             }),
             &WhoAmIResponse::Unknown,
             DEFAULT_LIMIT,

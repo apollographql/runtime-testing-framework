@@ -245,6 +245,7 @@ mod tests {
         Err(orchestrator::Error::Download {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             path: "/test-execution/1/log.txt".to_owned(),
+            message: "internal error".to_owned(),
         }),
         StatusCode::BAD_GATEWAY;
         "failed fetch from orchestrator"

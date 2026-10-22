@@ -199,6 +199,7 @@ mod tests {
             sample_form(),
             orchestrator::Error::ListRuns {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
+                message: "internal error".to_owned(),
             },
         );
 

@@ -26,41 +26,69 @@ pub(crate) const IAP_USER_EMAIL_HEADER: &str = "x-goog-authenticated-user-email"
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("orchestrator returned {status} fetching run id {id}")]
-    TestRunStatus { status: StatusCode, id: Uuid },
+    #[error("orchestrator returned {status} fetching run id {id}: {message}")]
+    TestRunStatus {
+        status: StatusCode,
+        id: Uuid,
+        message: String,
+    },
 
-    #[error("orchestrator returned {status} fetching execution id {id}")]
-    TestExecutionStatus { status: StatusCode, id: Uuid },
+    #[error("orchestrator returned {status} fetching execution id {id}: {message}")]
+    TestExecutionStatus {
+        status: StatusCode,
+        id: Uuid,
+        message: String,
+    },
 
-    #[error("orchestrator returned {status} listing test runs")]
-    ListRuns { status: StatusCode },
+    #[error("orchestrator returned {status} listing test runs: {message}")]
+    ListRuns { status: StatusCode, message: String },
 
-    #[error("orchestrator returned {status} listing known test plans")]
-    ListKnownTestPlans { status: StatusCode },
+    #[error("orchestrator returned {status} listing known test plans: {message}")]
+    ListKnownTestPlans { status: StatusCode, message: String },
 
-    #[error("orchestrator returned {status} fetching known test plan id {uuid}")]
-    KnownTestPlanStatus { status: StatusCode, uuid: Uuid },
+    #[error("orchestrator returned {status} fetching known test plan id {uuid}: {message}")]
+    KnownTestPlanStatus {
+        status: StatusCode,
+        uuid: Uuid,
+        message: String,
+    },
 
-    #[error("orchestrator returned {status} fetching details for known test plan id {uuid}")]
-    TestPlanDetailsStatus { status: StatusCode, uuid: Uuid },
+    #[error(
+        "orchestrator returned {status} fetching details for known test plan id {uuid}: {message}"
+    )]
+    TestPlanDetailsStatus {
+        status: StatusCode,
+        uuid: Uuid,
+        message: String,
+    },
 
-    #[error("orchestrator returned {status} listing test runs for known test plan id {uuid}")]
-    ListKnownTestPlanRuns { status: StatusCode, uuid: Uuid },
+    #[error(
+        "orchestrator returned {status} listing test runs for known test plan id {uuid}: {message}"
+    )]
+    ListKnownTestPlanRuns {
+        status: StatusCode,
+        uuid: Uuid,
+        message: String,
+    },
 
-    #[error("orchestrator returned {status} fetching the event queue snapshot")]
-    EventQueueSnapshot { status: StatusCode },
+    #[error("orchestrator returned {status} fetching the event queue snapshot: {message}")]
+    EventQueueSnapshot { status: StatusCode, message: String },
 
-    #[error("orchestrator returned {status} fetching the cluster summary")]
-    ClusterSummary { status: StatusCode },
+    #[error("orchestrator returned {status} fetching the cluster summary: {message}")]
+    ClusterSummary { status: StatusCode, message: String },
 
-    #[error("orchestrator returned unexpected status {status} fetching {path}")]
-    Download { status: StatusCode, path: String },
+    #[error("orchestrator returned unexpected status {status} fetching {path}: {message}")]
+    Download {
+        status: StatusCode,
+        path: String,
+        message: String,
+    },
 
     #[error("orchestrator returned {status} triggering a run: {message}")]
     Trigger { status: StatusCode, message: String },
 
-    #[error("orchestrator returned {status} identifying the current user")]
-    WhoAmI { status: StatusCode },
+    #[error("orchestrator returned {status} identifying the current user: {message}")]
+    WhoAmI { status: StatusCode, message: String },
 
     #[error("orchestrator returned {status} updating known test plan id {uuid}: {message}")]
     UpdateKnownTestPlan {
@@ -197,9 +225,10 @@ impl HttpClient {
                 .get(LOCATION)
                 .and_then(|value| value.to_str().ok())
                 .map(str::to_owned)
-                .ok_or(Error::Download {
+                .ok_or_else(|| Error::Download {
                     status,
                     path: path.to_owned(),
+                    message: "redirect response had no usable Location header".to_owned(),
                 })?;
 
             return Ok(Download::Redirect { status, location });
@@ -212,6 +241,7 @@ impl HttpClient {
             status => Err(Error::Download {
                 status,
                 path: path.to_owned(),
+                message: error_message(response).await,
             }),
         }
     }
@@ -232,7 +262,11 @@ impl Client for HttpClient {
         match response.status() {
             StatusCode::OK => Ok(Some(response.json().await?)),
             StatusCode::NOT_FOUND => Ok(None),
-            status => Err(Error::TestRunStatus { status, id }),
+            status => Err(Error::TestRunStatus {
+                status,
+                id,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -243,7 +277,11 @@ impl Client for HttpClient {
         match response.status() {
             StatusCode::OK => Ok(Some(response.json().await?)),
             StatusCode::NOT_FOUND => Ok(None),
-            status => Err(Error::TestExecutionStatus { status, id }),
+            status => Err(Error::TestExecutionStatus {
+                status,
+                id,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -268,7 +306,10 @@ impl Client for HttpClient {
 
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ListRuns { status }),
+            status => Err(Error::ListRuns {
+                status,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -284,7 +325,10 @@ impl Client for HttpClient {
 
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ListKnownTestPlans { status }),
+            status => Err(Error::ListKnownTestPlans {
+                status,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -298,7 +342,11 @@ impl Client for HttpClient {
         match response.status() {
             StatusCode::OK => Ok(Some(response.json().await?)),
             StatusCode::NOT_FOUND => Ok(None),
-            status => Err(Error::KnownTestPlanStatus { status, uuid }),
+            status => Err(Error::KnownTestPlanStatus {
+                status,
+                uuid,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -322,7 +370,11 @@ impl Client for HttpClient {
 
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ListKnownTestPlanRuns { status, uuid }),
+            status => Err(Error::ListKnownTestPlanRuns {
+                status,
+                uuid,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -335,7 +387,10 @@ impl Client for HttpClient {
 
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::EventQueueSnapshot { status }),
+            status => Err(Error::EventQueueSnapshot {
+                status,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -348,7 +403,10 @@ impl Client for HttpClient {
 
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::ClusterSummary { status }),
+            status => Err(Error::ClusterSummary {
+                status,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -379,7 +437,10 @@ impl Client for HttpClient {
 
         match response.status() {
             StatusCode::OK => Ok(response.json().await?),
-            status => Err(Error::WhoAmI { status }),
+            status => Err(Error::WhoAmI {
+                status,
+                message: error_message(response).await,
+            }),
         }
     }
 
@@ -451,7 +512,11 @@ async fn fetch_test_plan_details(
     match response.status() {
         StatusCode::OK => Ok(Some(response.json().await?)),
         StatusCode::NOT_FOUND => Ok(None),
-        status => Err(Error::TestPlanDetailsStatus { status, uuid }),
+        status => Err(Error::TestPlanDetailsStatus {
+            status,
+            uuid,
+            message: error_message(response).await,
+        }),
     }
 }
 
@@ -1018,6 +1083,7 @@ pub(crate) mod mocks {
             if self.service_status_fails {
                 return Err(Error::EventQueueSnapshot {
                     status: StatusCode::BAD_GATEWAY,
+                    message: "bad gateway".to_owned(),
                 });
             }
 
@@ -1028,6 +1094,7 @@ pub(crate) mod mocks {
             if self.service_status_fails {
                 return Err(Error::ClusterSummary {
                     status: StatusCode::BAD_GATEWAY,
+                    message: "bad gateway".to_owned(),
                 });
             }
 
