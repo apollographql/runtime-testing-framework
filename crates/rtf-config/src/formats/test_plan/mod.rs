@@ -70,7 +70,7 @@ impl<P: Prepare> TestPlan<P> {
         }))
     }
 
-    /// Bulk template and check all variants wihin this test plan, discarding the templated output.
+    /// Bulk template and check all variants within this test plan, discarding the templated output.
     ///
     /// This is intended eagerly running static checks ahead of executing any test plan variants.
     pub fn try_template_and_check_variants(
