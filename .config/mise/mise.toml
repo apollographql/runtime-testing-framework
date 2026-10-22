@@ -66,13 +66,13 @@ run = "cd $(git rev-parse --show-toplevel) && cargo deny --exclude-dev check lic
 
 [tools]
 "cargo:cargo-edit" = "0.13.9"
-"cargo:cargo-expand" = "1.0.121"
+"cargo:cargo-expand" = "1.0.127"
 "cargo:cargo-llvm-cov" = "0.9.1"
-"cargo:typos-cli" = "1.44.0"
+"cargo:typos-cli" = "1.51.1"
 "github:EmbarkStudios/cargo-deny" = "0.20.2"
 dprint = "0.63.0"
 "helm-docs" = "1.14.2"
-mdbook = "0.5.2"
+mdbook = "0.5.4"
 rust = "1.99.1"
 
 [env]

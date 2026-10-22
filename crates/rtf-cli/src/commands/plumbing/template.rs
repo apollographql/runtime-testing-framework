@@ -1,9 +1,9 @@
 use crate::commands::{
-    get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
+    bail_on_template_and_check_errors, get_context, load_and_resolve_test_plan_from_github,
+    load_and_resolve_test_plan_from_local,
 };
 use rtf_config::{
     StableSource,
-    checks::Check,
     context::ResolutionContext,
     formats::{PrepareOnlyTestPlanConfig, Sources},
     templating::{Template, TemplateContext},
@@ -42,6 +42,13 @@ async fn template_test_plan_with_context(
     info!("checking if templating will work");
     test_plan.check_templating_will_work(&variable_sources, &ctx)?;
 
+    info!("templating all test plan variants");
+    bail_on_template_and_check_errors(test_plan.try_template_and_check_variants(
+        &variable_sources,
+        check,
+        &ctx,
+    )?)?;
+
     let (_, variables) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
     let template_ctx = TemplateContext::new(
         variables,
@@ -51,12 +58,7 @@ async fn template_test_plan_with_context(
 
     test_plan.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
 
-    if check {
-        info!("checking test plan");
-        test_plan.try_check(&mut Vec::new(), &ctx)?;
-    }
-
-    println!("{}", serde_yaml::to_string(&test_plan)?);
+    println!("{}", yaml_serde::to_string(&test_plan)?);
 
     Ok(())
 }

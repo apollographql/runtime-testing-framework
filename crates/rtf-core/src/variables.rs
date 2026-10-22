@@ -24,7 +24,7 @@ pub enum Error {
     InvalidScalar {
         key: String,
         #[source]
-        error: serde_yaml::Error,
+        error: yaml_serde::Error,
     },
 }
 
@@ -122,7 +122,7 @@ impl Variables {
                 return Err(Error::MissingKey(v.to_string()));
             }
 
-            let v: Scalar = serde_yaml::from_str(v).map_err(|error| Error::InvalidScalar {
+            let v: Scalar = yaml_serde::from_str(v).map_err(|error| Error::InvalidScalar {
                 key: k.to_string(),
                 error,
             })?;

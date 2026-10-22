@@ -510,7 +510,7 @@ impl GraphosSubgraphRouterUrlOverrides {
     fn content_from_details(&self, sg: Arc<SupergraphDetails>) -> providers::Result<String> {
         let subgraph_urls = self.url_format.urls_for_subgraphs(&sg.subgraphs.clone());
         let overrides_yaml =
-            serde_yaml::to_string(&serde_json::json!({"override_subgraph_url": subgraph_urls}))?;
+            yaml_serde::to_string(&serde_json::json!({"override_subgraph_url": subgraph_urls}))?;
 
         Ok(overrides_yaml)
     }
@@ -1332,7 +1332,7 @@ mod tests {
             "#
         );
 
-        let provider: FileProvider = serde_yaml::from_str(yaml).expect("valid yaml");
+        let provider: FileProvider = yaml_serde::from_str(yaml).expect("valid yaml");
         let FileProvider::GraphosCannedOps(canned_ops) = provider else {
             panic!("expected GraphosCannedOps variant");
         };

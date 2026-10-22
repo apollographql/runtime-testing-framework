@@ -1,6 +1,9 @@
 use assert_cmd::cargo::cargo_bin_cmd;
 use indoc::indoc;
-use predicates::str::{contains, is_match};
+use predicates::{
+    boolean::PredicateBooleanExt,
+    str::{contains, is_match},
+};
 use simple_test_case::test_case;
 
 #[test]
@@ -320,4 +323,22 @@ fn load_and_resolve_from_github_missing_token_fails() {
         .assert();
 
     res.failure().stderr(contains("no GitHub client available"));
+}
+
+#[test]
+fn check_fails_for_matrix_variant_that_is_not_the_first() {
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .env("APOLLO_KEY", "dummy")
+        .arg("template")
+        .arg("resources/test-plans/invalid/checks/matrix-later-variant-invalid-graph-ref.yaml")
+        .arg("--check")
+        .assert();
+
+    res.failure()
+        .stderr(contains(
+            "(matrix_variant_2.scenario.SUPERGRAPH) The provided string was not a valid graph ref",
+        ))
+        .stderr(contains("matrix_variant_1.").not());
 }

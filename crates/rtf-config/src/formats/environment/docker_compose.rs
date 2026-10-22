@@ -19,13 +19,13 @@ use crate::{
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_yaml::{Mapping, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::{Path, PathBuf},
     pin::Pin,
 };
 use tracing::warn;
+use yaml_serde::{Mapping, Value};
 
 const PROVIDERS_CONTAINER_PATH: &str = "/providers";
 
@@ -226,7 +226,7 @@ fn merge_services_from(
     merged: &mut BTreeMap<String, PartialService>,
     yaml_content: &str,
 ) -> Option<()> {
-    let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
+    let value = yaml_serde::from_str::<Value>(yaml_content).ok()?;
     let services = value.get("services").and_then(|s| s.as_mapping())?;
 
     for (name, service) in services.into_iter() {
@@ -419,7 +419,7 @@ impl FileProviderServices {
     }
 
     fn add_services_from(&mut self, yaml_content: &str) -> Option<()> {
-        let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
+        let value = yaml_serde::from_str::<Value>(yaml_content).ok()?;
         let services = value.get("services").and_then(|s| s.as_mapping())?;
 
         for (name, service) in services.into_iter() {
@@ -488,7 +488,7 @@ impl FileProviderServices {
             Value::Mapping(services_map),
         );
 
-        serde_yaml::to_string(&Value::Mapping(root))
+        yaml_serde::to_string(&Value::Mapping(root))
             .expect("yaml mapping should always convert to valid string")
     }
 }
@@ -527,7 +527,7 @@ impl PullPolicyServices {
             return Some(());
         }
 
-        let value = serde_yaml::from_str::<Value>(yaml_content).ok()?;
+        let value = yaml_serde::from_str::<Value>(yaml_content).ok()?;
         let services = value.get("services").and_then(|s| s.as_mapping())?;
 
         for (name, service) in services.into_iter() {
@@ -584,7 +584,7 @@ impl PullPolicyServices {
             Value::Mapping(services_map),
         );
 
-        serde_yaml::to_string(&Value::Mapping(root))
+        yaml_serde::to_string(&Value::Mapping(root))
             .expect("yaml mapping should always convert to valid string")
     }
 }
@@ -667,7 +667,7 @@ pub(crate) mod tests {
     #[test]
     fn parse_compose_environment_success() {
         let config: EnvironmentConfig<EnvironmentExecution> =
-            serde_yaml::from_str(TEMPLATED_COMPOSE_ENVIRONMENT)
+            yaml_serde::from_str(TEMPLATED_COMPOSE_ENVIRONMENT)
                 .expect("environment config to parse");
 
         let mut res = config.required_variables();

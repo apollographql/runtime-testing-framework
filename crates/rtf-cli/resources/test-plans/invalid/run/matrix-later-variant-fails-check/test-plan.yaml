@@ -1,0 +1,46 @@
+name: matrix-later-variant-fails-check
+description: |
+  Check that errors are reported for a matrix variant that is not the first one. The second variant
+  has a graph_ref that is not in the form graph@variant. APOLLO_KEY must be set to a (dummy) value
+  in the environment so that only the invalid graph ref is reported.
+
+matrix:
+  graph_ref: ["starstuff@current", "starstuff-no-variant"]
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    variable_definitions:
+      - name: graph_ref
+        description: the graph ref to use
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "variant has executed"
+    file_providers:
+      - name: supergraph.graphql
+        env_var: SUPERGRAPH
+        kind: graphos_supergraph
+        graph_ref: "{{ graph_ref }}"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "variant has executed"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "variant has executed"

@@ -1,13 +1,12 @@
 use crate::{
     cli::RunTarget,
     commands::{
-        get_context_and_check_outdir, load_and_resolve_test_plan_from_github,
-        load_and_resolve_test_plan_from_local,
+        bail_on_template_and_check_errors, get_context_and_check_outdir,
+        load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
     },
 };
 use rtf_config::{
     StableSource,
-    checks::Check,
     context::ResolutionContext,
     formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
@@ -71,6 +70,13 @@ async fn check_and_run_test_plan_with_context(
         )
     }
 
+    info!("templating and checking all test plan variants");
+    bail_on_template_and_check_errors(test_plan.try_template_and_check_variants(
+        &variable_sources,
+        true,
+        &ctx,
+    )?)?;
+
     if test_plan.matrix.is_empty() {
         info!("executing test plan");
         return run_one(
@@ -115,8 +121,8 @@ async fn run_one(
     info!("templating test plan");
     test_plan.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
 
-    info!("checking test plan");
-    test_plan.try_check(&mut Vec::new(), ctx)?;
+    // checks are already run for all variants check_and_run_test_plan_with_context
+    // so we don't need to run them again here.
 
     let (run_setup, run_scenario, run_teardown) = run_target.as_flags();
 
@@ -142,7 +148,7 @@ async fn run_one(
     )?;
     ctx.write(
         out_dir.join(RESOLVED_TP_PATH),
-        serde_yaml::to_string(&test_plan)?,
+        yaml_serde::to_string(&test_plan)?,
     )?;
 
     info!("done");

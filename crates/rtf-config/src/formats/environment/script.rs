@@ -177,7 +177,7 @@ pub(crate) mod tests {
     #[test]
     fn parse_script_environment_success() {
         let config: EnvironmentConfig<EnvironmentExecution> =
-            serde_yaml::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
+            yaml_serde::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
                 .expect("environment config to parse");
 
         let mut res = config.required_variables();

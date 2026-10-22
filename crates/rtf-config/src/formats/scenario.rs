@@ -50,7 +50,7 @@ impl ScenarioConfig<ScenarioExecution> {
     pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
         let content = fs::read_to_string(p)?;
 
-        Ok(serde_yaml::from_str(&content)?)
+        Ok(yaml_serde::from_str(&content)?)
     }
 
     pub fn output_collection(&self) -> Option<&OutputCollection> {
@@ -449,7 +449,7 @@ impl Check for DockerScenario {
         // ultimately execute the test plan.
         // This means that docker _not_ being on the PATH will result in a runtime error during
         // command execution, which matches the behaviour of missing dependencies in other
-        // CommandProivider variants where we don't even know what dependencies the script has.
+        // CommandProvider variants where we don't even know what dependencies the script has.
 
         let mut errs = checks::ErrorBuilder::new();
 
@@ -700,7 +700,7 @@ mod tests {
     #[test]
     fn parse_and_template(raw: &str) {
         let config: ScenarioConfig<ScenarioExecution> =
-            serde_yaml::from_str(raw).expect("scenario config to parse");
+            yaml_serde::from_str(raw).expect("scenario config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -964,7 +964,7 @@ mod tests {
         );
 
         let scenario_config: ScenarioConfig<ScenarioExecution> =
-            serde_yaml::from_str(scenario_config_yaml).expect("scenario config to parse");
+            yaml_serde::from_str(scenario_config_yaml).expect("scenario config to parse");
 
         assert_eq!(scenario_config.custom_providers.len(), 1);
 

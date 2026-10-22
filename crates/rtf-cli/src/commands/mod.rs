@@ -6,9 +6,10 @@
 //! [0]: https://git-scm.com/docs
 use anyhow::{Context as _, anyhow, bail};
 use rtf_config::{
-    Prepare, SourceDir,
+    Prepare, SourceDir, checks,
     context::{Context, PathKind, ResolutionContext},
     formats::{self, Sources, TestPlan},
+    templating,
 };
 use serde::Deserialize;
 use std::{
@@ -71,7 +72,7 @@ where
             .expect("we just read the file so it has a parent"),
     );
 
-    let config: T = serde_yaml::from_str(&content)
+    let config: T = yaml_serde::from_str(&content)
         .with_context(|| format!("Unable to parse {type_name} yaml"))?;
 
     Ok((source, config))
@@ -109,4 +110,24 @@ pub async fn load_and_resolve_test_plan_from_github<E: Prepare>(
         Ok(result) => Ok(result),
         Err(e) => bail!("Unable to load and resolve test plan from GitHub: {e}"),
     }
+}
+
+/// Fail with the full set of templating and check errors if either is non-empty.
+pub(crate) fn bail_on_template_and_check_errors(
+    errs: (templating::Result<()>, checks::Result<()>),
+) -> anyhow::Result<()> {
+    let (templated, checked) = errs;
+    let msgs: Vec<String> = [
+        templated.err().map(|e| e.to_string()),
+        checked.err().map(|e| e.to_string()),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
+    if msgs.is_empty() {
+        return Ok(());
+    }
+
+    bail!("{}", msgs.join("\n\n"))
 }
