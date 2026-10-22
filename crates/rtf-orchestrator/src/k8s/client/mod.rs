@@ -591,15 +591,20 @@ fn check_pod_for_unrunnable(pod: &Pod) -> Option<WatchOutcome> {
     None
 }
 
-/// Detect a `scenario-runner` container that was killed by the OOM killer. Unlike the Waiting
-/// reasons in `check_pod_for_unrunnable`, this container *did* terminate with a real exit code —
-/// but its sibling `output-collector` sidecar waits on a sentinel file that a SIGKILLed process
-/// never gets to write, so the pod hangs indefinitely without this check.
+/// Detect a `scenario-runner` container whose `run.sh` was killed by a signal (OOM kill, SIGKILL,
+/// etc). Unlike the Waiting reasons in `check_pod_for_unrunnable`, this container *did*
+/// terminate — but its sibling `output-collector` sidecar waits on a sentinel file written by
+/// `run.sh`'s EXIT trap, which never runs on signal death, so the pod hangs indefinitely without
+/// this check.
+///
+/// Keys on the exit code rather than the `OOMKilled` reason, which containerd does not always
+/// report. `run.sh` ends in a `tee` pipeline so exits 0 on every normal path (the scenario's own
+/// exit code goes to a file instead), making an exit code >= 128 unambiguous signal death.
 ///
 /// Scoped to the named `scenario-runner` container specifically: this must only ever run against
-/// the scenario Job's pod, never against environment pods, where an OOMKilled container is
-/// expected to self-heal via the Deployment's normal restart behaviour.
-fn check_scenario_runner_oomkilled(pod: &Pod) -> Option<WatchOutcome> {
+/// the scenario Job's pod, never against environment pods, where a killed container is expected
+/// to self-heal via the Deployment's normal restart behaviour.
+fn check_scenario_runner_killed_by_signal(pod: &Pod) -> Option<WatchOutcome> {
     let statuses = pod.status.as_ref()?.container_statuses.as_deref()?;
     let status = statuses
         .iter()
@@ -608,6 +613,11 @@ fn check_scenario_runner_oomkilled(pod: &Pod) -> Option<WatchOutcome> {
 
     if terminated.reason.as_deref() == Some("OOMKilled") {
         Some(WatchOutcome::ContainerUnrunnable("OOMKilled".to_owned()))
+    } else if terminated.exit_code >= 128 {
+        Some(WatchOutcome::ContainerUnrunnable(format!(
+            "killed by signal {}",
+            terminated.exit_code - 128
+        )))
     } else {
         None
     }
@@ -677,14 +687,14 @@ async fn poll_pods(api: &Api<Pod>, params: &ListParams) -> Result<Option<WatchOu
     Ok(pods.items.iter().find_map(check_pod_for_unrunnable))
 }
 
-/// List pods matching `params` and check each for a permanently-stuck waiting state or an
-/// OOMKilled `scenario-runner` container. Only used for the scenario Job's own pod — see
-/// `check_scenario_runner_oomkilled`.
+/// List pods matching `params` and check each for a permanently-stuck waiting state or a
+/// signal-killed `scenario-runner` container. Only used for the scenario Job's own pod — see
+/// `check_scenario_runner_killed_by_signal`.
 async fn poll_scenario_pods(api: &Api<Pod>, params: &ListParams) -> Result<Option<WatchOutcome>> {
     let pods = api.list(params).await?;
 
     Ok(pods.items.iter().find_map(|pod| {
-        check_pod_for_unrunnable(pod).or_else(|| check_scenario_runner_oomkilled(pod))
+        check_pod_for_unrunnable(pod).or_else(|| check_scenario_runner_killed_by_signal(pod))
     }))
 }
 
@@ -909,26 +919,39 @@ mod tests {
     }
 
     #[test]
-    fn check_scenario_runner_oomkilled_flags_oomkilled_scenario_runner() {
+    fn check_scenario_runner_killed_by_signal_flags_oomkilled_scenario_runner() {
         let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "OOMKilled", 137);
         assert!(matches!(
-            check_scenario_runner_oomkilled(&pod),
+            check_scenario_runner_killed_by_signal(&pod),
             Some(WatchOutcome::ContainerUnrunnable(_))
         ));
     }
 
     #[test]
-    fn check_scenario_runner_oomkilled_ignores_other_terminated_reasons() {
-        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "Error", 1);
-        assert!(check_scenario_runner_oomkilled(&pod).is_none());
+    fn check_scenario_runner_killed_by_signal_flags_signal_exit_without_oomkilled_reason() {
+        // containerd does not always emit a TaskOOM event (e.g. when the OOM fires in a parent
+        // cgroup), leaving the reason as "Error" with only the SIGKILL exit code to go on.
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, "Error", 137);
+        assert!(matches!(
+            check_scenario_runner_killed_by_signal(&pod),
+            Some(WatchOutcome::ContainerUnrunnable(msg)) if msg == "killed by signal 9"
+        ));
+    }
+
+    #[test_case("Completed", 0; "normal exit")]
+    #[test_case("Error", 1; "non signal error exit")]
+    #[test]
+    fn check_scenario_runner_killed_by_signal_ignores_non_signal_exits(reason: &str, code: i32) {
+        let pod = pod_with_terminated_container(SCENARIO_RUNNER_CONTAINER, reason, code);
+        assert!(check_scenario_runner_killed_by_signal(&pod).is_none());
     }
 
     #[test]
-    fn check_scenario_runner_oomkilled_ignores_oomkilled_sidecar() {
+    fn check_scenario_runner_killed_by_signal_ignores_oomkilled_sidecar() {
         // The output-collector sidecar is never the scenario itself; an OOMKill there is not a
         // scenario failure.
         let pod = pod_with_terminated_container(SCENARIO_SA_NAME, "OOMKilled", 137);
-        assert!(check_scenario_runner_oomkilled(&pod).is_none());
+        assert!(check_scenario_runner_killed_by_signal(&pod).is_none());
     }
 
     #[test]
