@@ -53,7 +53,9 @@ pub enum Error {
     #[error("this test plan requires a dedicated cluster but pool {pool} does not support them")]
     DedicatedClusterNotSupported { pool: String },
 
-    #[error("test execution {id} is no longer in flight: it has already completed or been cancelled")]
+    #[error(
+        "test execution {id} is no longer in flight: it has already completed or been cancelled"
+    )]
     ExecutionNotInFlight { id: Uuid },
 
     #[error("file upload has already been requested for this execution")]

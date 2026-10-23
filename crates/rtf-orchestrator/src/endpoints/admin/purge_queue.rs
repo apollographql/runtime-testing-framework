@@ -7,18 +7,17 @@ use crate::{
     db::{TestExecution, TestRun},
     state::{KnownUser, ServerState},
 };
-use axum::{
-    Json,
-    extract::{Path, State},
+use axum::{Json, extract::State};
+use rtf_orchestrator_shared::{
+    PurgeRequest,
+    summary::{TestExecutionSummary, TestRunSummary},
 };
-use rtf_orchestrator_shared::summary::{TestExecutionSummary, TestRunSummary};
 use tracing::warn;
-use uuid::Uuid;
 
 pub async fn ex_handler(
     user: KnownUser,
-    Path(ex_id): Path<Uuid>,
     State(ServerState { eq_state, .. }): State<ServerState>,
+    Json(PurgeRequest { id: ex_id }): Json<PurgeRequest>,
 ) -> Result<Json<TestExecutionSummary>> {
     let conn = conn!();
     let ex = TestExecution::get_by_uuid(&ex_id, conn)
@@ -40,8 +39,8 @@ pub async fn ex_handler(
 
 pub async fn run_handler(
     user: KnownUser,
-    Path(run_id): Path<Uuid>,
     State(ServerState { eq_state, .. }): State<ServerState>,
+    Json(PurgeRequest { id: run_id }): Json<PurgeRequest>,
 ) -> Result<Json<TestRunSummary>> {
     let conn = conn!();
     let tr = TestRun::get_by_uuid(&run_id, conn)
@@ -77,6 +76,7 @@ mod tests {
     };
     use simple_test_case::test_case;
     use std::collections::{BTreeMap, HashSet};
+    use uuid::Uuid;
 
     const ADMIN_EMAIL: &str = "admin@test.com";
     const OWNER_EMAIL: &str = "owner@test.com";
@@ -160,8 +160,13 @@ mod tests {
         Ok((tr, ex))
     }
 
-    async fn get_as(tss: &TestServerState, path: &str, email: Option<&str>) -> TestResponse {
-        let req = tss.test_server.get(path);
+    async fn post_as(
+        tss: &TestServerState,
+        path: &str,
+        id: Uuid,
+        email: Option<&str>,
+    ) -> TestResponse {
+        let req = tss.test_server.post(path).json(&PurgeRequest { id });
         match email {
             Some(email) => {
                 req.add_header(
@@ -183,12 +188,7 @@ mod tests {
         let tss = test_server();
         let (tr, _) = seed_run(&tss, true).await?;
 
-        let resp = get_as(
-            &tss,
-            &format!("/admin/purge-run/{}", tr.uuid()),
-            Some(email),
-        )
-        .await;
+        let resp = post_as(&tss, "/admin/purge-run", tr.uuid(), Some(email)).await;
         assert_eq!(resp.status_code(), StatusCode::OK, "{:?}", resp.text());
 
         let summary: TestRunSummary = resp.json();
@@ -210,7 +210,7 @@ mod tests {
         let tss = test_server();
         let (tr, _) = seed_run(&tss, true).await?;
 
-        let resp = get_as(&tss, &format!("/admin/purge-run/{}", tr.uuid()), email).await;
+        let resp = post_as(&tss, "/admin/purge-run", tr.uuid(), email).await;
         assert_eq!(
             resp.status_code(),
             StatusCode::FORBIDDEN,
@@ -230,12 +230,7 @@ mod tests {
         let tss = test_server();
         let (tr, _) = seed_run(&tss, false).await?;
 
-        let resp = get_as(
-            &tss,
-            &format!("/admin/purge-run/{}", tr.uuid()),
-            Some(ADMIN_EMAIL),
-        )
-        .await;
+        let resp = post_as(&tss, "/admin/purge-run", tr.uuid(), Some(ADMIN_EMAIL)).await;
         assert_eq!(
             resp.status_code(),
             StatusCode::BAD_REQUEST,
@@ -251,12 +246,7 @@ mod tests {
     async fn run_handler_unknown_run_returns_404() -> Result<()> {
         let tss = test_server();
 
-        let resp = get_as(
-            &tss,
-            &format!("/admin/purge-run/{}", Uuid::new_v4()),
-            Some(ADMIN_EMAIL),
-        )
-        .await;
+        let resp = post_as(&tss, "/admin/purge-run", Uuid::new_v4(), Some(ADMIN_EMAIL)).await;
         assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
 
         Ok(())
@@ -271,12 +261,7 @@ mod tests {
         let tss = test_server();
         let (_, ex) = seed_run(&tss, true).await?;
 
-        let resp = get_as(
-            &tss,
-            &format!("/admin/purge-execution/{}", ex.uuid()),
-            Some(email),
-        )
-        .await;
+        let resp = post_as(&tss, "/admin/purge-execution", ex.uuid(), Some(email)).await;
         assert_eq!(resp.status_code(), StatusCode::OK, "{:?}", resp.text());
 
         let summary: TestExecutionSummary = resp.json();
@@ -298,12 +283,7 @@ mod tests {
         let tss = test_server();
         let (_, ex) = seed_run(&tss, true).await?;
 
-        let resp = get_as(
-            &tss,
-            &format!("/admin/purge-execution/{}", ex.uuid()),
-            email,
-        )
-        .await;
+        let resp = post_as(&tss, "/admin/purge-execution", ex.uuid(), email).await;
         assert_eq!(
             resp.status_code(),
             StatusCode::FORBIDDEN,
@@ -323,12 +303,7 @@ mod tests {
         let tss = test_server();
         let (_, ex) = seed_run(&tss, false).await?;
 
-        let resp = get_as(
-            &tss,
-            &format!("/admin/purge-execution/{}", ex.uuid()),
-            Some(ADMIN_EMAIL),
-        )
-        .await;
+        let resp = post_as(&tss, "/admin/purge-execution", ex.uuid(), Some(ADMIN_EMAIL)).await;
         assert_eq!(
             resp.status_code(),
             StatusCode::BAD_REQUEST,
@@ -344,9 +319,10 @@ mod tests {
     async fn ex_handler_unknown_execution_returns_404() -> Result<()> {
         let tss = test_server();
 
-        let resp = get_as(
+        let resp = post_as(
             &tss,
-            &format!("/admin/purge-execution/{}", Uuid::new_v4()),
+            "/admin/purge-execution",
+            Uuid::new_v4(),
             Some(ADMIN_EMAIL),
         )
         .await;
