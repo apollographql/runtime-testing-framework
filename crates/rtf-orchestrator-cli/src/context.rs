@@ -1,4 +1,4 @@
-use crate::{kubernetes, orchestrator};
+use crate::{kubernetes, orchestrator, retry::RetryConfig};
 use anyhow::Context;
 use rtf_orchestrator_shared::{
     EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR,
@@ -166,8 +166,12 @@ impl EnvironmentContext {
                 ))
             })?;
 
-        let orchestrator_client =
-            orchestrator::HttpClient::try_new(orchestrator_url, execution_id, execution_token)?;
+        let orchestrator_client = orchestrator::HttpClient::try_new(
+            orchestrator_url,
+            execution_id,
+            execution_token,
+            RetryConfig::default(),
+        )?;
         let kube_client = kubernetes::HttpClient::from_kubeconfig(kubeconfig).await?;
 
         Ok(Self {

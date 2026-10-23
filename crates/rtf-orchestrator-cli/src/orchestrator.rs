@@ -1,3 +1,4 @@
+use crate::retry::{Failure, RetryConfig};
 use reqwest::Url;
 use rtf_orchestrator_shared::{
     FILE_PROVIDERS_LABEL, LOG_COLLECTION_LABEL, OTEL_LABEL, OtelConfig, OutputCollectionResponse,
@@ -86,6 +87,7 @@ pub struct HttpClient {
     orchestrator_url: Url,
     execution_id: Uuid,
     execution_token: Uuid,
+    retry: RetryConfig,
 }
 
 impl HttpClient {
@@ -95,11 +97,13 @@ impl HttpClient {
         orchestrator_url: String,
         execution_id: Uuid,
         execution_token: Uuid,
+        retry: RetryConfig,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             orchestrator_url: Url::parse(&orchestrator_url)?,
             execution_id,
             execution_token,
+            retry,
         })
     }
 
@@ -116,35 +120,36 @@ impl HttpClient {
             })?;
 
         info!(id=%self.execution_id, "fetching {kind} config");
-        let resp = reqwest::Client::new()
-            .get(url)
-            .bearer_auth(self.execution_token)
-            .send()
-            .await
-            .map_err(|e| Error::FetchConfig {
-                kind,
-                message: e.to_string(),
-            })?;
+        let url = &url;
+        self.retry
+            .run(|| async move {
+                let err = |message| Error::FetchConfig { kind, message };
 
-        let status_code = resp.status();
-        if !status_code.is_success() {
-            let body = resp.text().await.unwrap_or_default();
-            return Err(Error::FetchConfig {
-                kind,
-                message: format!(
-                    "{kind} fetch failed for {}; ({status_code}): {body}",
-                    self.execution_id,
-                ),
-            });
-        }
+                let resp = reqwest::Client::new()
+                    .get(url.clone())
+                    .bearer_auth(self.execution_token)
+                    .send()
+                    .await
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))?;
 
-        resp.bytes()
-            .await
-            .map(|b| b.to_vec())
-            .map_err(|e| Error::FetchConfig {
-                kind,
-                message: e.to_string(),
+                let status_code = resp.status();
+                if !status_code.is_success() {
+                    let body = resp.text().await.unwrap_or_default();
+                    return Err(Failure::from_status(
+                        err(format!(
+                            "{kind} fetch failed for {}; ({status_code}): {body}",
+                            self.execution_id,
+                        )),
+                        status_code,
+                    ));
+                }
+
+                resp.bytes()
+                    .await
+                    .map(|b| b.to_vec())
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))
             })
+            .await
     }
 }
 
@@ -226,32 +231,38 @@ impl Client for HttpClient {
         };
 
         info!(id=%self.execution_id, %status, "updating execution status");
-        let resp = reqwest::Client::new()
-            .post(url)
-            .bearer_auth(self.execution_token)
-            .json(&payload)
-            .send()
-            .await
-            .map_err(|e| Error::UpdateStatus {
-                message: e.to_string(),
-            })?;
+        let (url, payload) = (&url, &payload);
+        self.retry
+            .run(|| async move {
+                let err = |message| Error::UpdateStatus { message };
 
-        let status_code = resp.status();
-        if status_code.is_success() {
-            info!(id=%self.execution_id, %status, "update successful");
-            Ok(())
-        } else {
-            let body = match resp.text().await {
-                Ok(body) => body,
-                Err(err) => format!("[body could not be read: {err}]"),
-            };
-            Err(Error::UpdateStatus {
-                message: format!(
-                    "status update to {status} failed for {}; ({status_code}): {body}",
-                    self.execution_id
-                ),
+                let resp = reqwest::Client::new()
+                    .post(url.clone())
+                    .bearer_auth(self.execution_token)
+                    .json(payload)
+                    .send()
+                    .await
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))?;
+
+                let status_code = resp.status();
+                if status_code.is_success() {
+                    info!(id=%self.execution_id, %status, "update successful");
+                    Ok(())
+                } else {
+                    let body = match resp.text().await {
+                        Ok(body) => body,
+                        Err(err) => format!("[body could not be read: {err}]"),
+                    };
+                    Err(Failure::from_status(
+                        err(format!(
+                            "status update to {status} failed for {}; ({status_code}): {body}",
+                            self.execution_id
+                        )),
+                        status_code,
+                    ))
+                }
             })
-        }
+            .await
     }
 
     async fn generate_upload_urls(&self) -> Result<UploadUrls, Error> {
@@ -266,52 +277,64 @@ impl Client for HttpClient {
             })?;
 
         info!(id=%self.execution_id, "requesting upload URLs");
-        let resp = reqwest::Client::new()
-            .post(url)
-            .bearer_auth(self.execution_token)
-            .json(&GenerateUploadUrlsPayload {})
-            .send()
+        let url = &url;
+        self.retry
+            .run(|| async move {
+                let err = |message| Error::GenerateUploadUrls { message };
+
+                let resp = reqwest::Client::new()
+                    .post(url.clone())
+                    .bearer_auth(self.execution_token)
+                    .json(&GenerateUploadUrlsPayload {})
+                    .send()
+                    .await
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))?;
+
+                let status_code = resp.status();
+                if !status_code.is_success() {
+                    let body = resp.text().await.unwrap_or_default();
+                    return Err(Failure::from_status(
+                        err(format!(
+                            "generate-upload-urls failed for {}; ({status_code}): {body}",
+                            self.execution_id,
+                        )),
+                        status_code,
+                    ));
+                }
+
+                resp.json()
+                    .await
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))
+            })
             .await
-            .map_err(|e| Error::GenerateUploadUrls {
-                message: e.to_string(),
-            })?;
-
-        let status_code = resp.status();
-        if !status_code.is_success() {
-            let body = resp.text().await.unwrap_or_default();
-            return Err(Error::GenerateUploadUrls {
-                message: format!(
-                    "generate-upload-urls failed for {}; ({status_code}): {body}",
-                    self.execution_id,
-                ),
-            });
-        }
-
-        resp.json().await.map_err(|e| Error::GenerateUploadUrls {
-            message: e.to_string(),
-        })
     }
 
     async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> Result<(), Error> {
         info!(id=%self.execution_id, "uploading artifact");
-        let resp = reqwest::Client::new()
-            .put(url)
-            .body(body)
-            .send()
+        let body = &body;
+        self.retry
+            .run(|| async move {
+                let err = |message| Error::Upload { message };
+
+                let resp = reqwest::Client::new()
+                    .put(url)
+                    .body(body.clone())
+                    .send()
+                    .await
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))?;
+
+                let status_code = resp.status();
+                if !status_code.is_success() {
+                    let body = resp.text().await.unwrap_or_default();
+                    return Err(Failure::from_status(
+                        err(format!("signed upload PUT failed ({status_code}): {body}")),
+                        status_code,
+                    ));
+                }
+
+                Ok(())
+            })
             .await
-            .map_err(|e| Error::Upload {
-                message: e.to_string(),
-            })?;
-
-        let status_code = resp.status();
-        if !status_code.is_success() {
-            let body = resp.text().await.unwrap_or_default();
-            return Err(Error::Upload {
-                message: format!("signed upload PUT failed ({status_code}): {body}"),
-            });
-        }
-
-        Ok(())
     }
 
     async fn fetch_environment_config(&self) -> Result<Vec<u8>, Error> {
@@ -334,31 +357,35 @@ impl Client for HttpClient {
             })?;
 
         info!(id=%self.execution_id, "fetching prometheus queries");
-        let resp = reqwest::Client::new()
-            .get(url)
-            .bearer_auth(self.execution_token)
-            .send()
-            .await
-            .map_err(|e| Error::FetchPrometheusQueries {
-                message: e.to_string(),
-            })?;
+        let url = &url;
+        self.retry
+            .run(|| async move {
+                let err = |message| Error::FetchPrometheusQueries { message };
 
-        let status_code = resp.status();
-        if !status_code.is_success() {
-            let body = resp.text().await.unwrap_or_default();
-            return Err(Error::FetchPrometheusQueries {
-                message: format!(
-                    "prometheus queries fetch failed for {}; ({status_code}): {body}",
-                    self.execution_id,
-                ),
-            });
-        }
+                let resp = reqwest::Client::new()
+                    .get(url.clone())
+                    .bearer_auth(self.execution_token)
+                    .send()
+                    .await
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))?;
 
-        resp.json()
-            .await
-            .map_err(|e| Error::FetchPrometheusQueries {
-                message: e.to_string(),
+                let status_code = resp.status();
+                if !status_code.is_success() {
+                    let body = resp.text().await.unwrap_or_default();
+                    return Err(Failure::from_status(
+                        err(format!(
+                            "prometheus queries fetch failed for {}; ({status_code}): {body}",
+                            self.execution_id,
+                        )),
+                        status_code,
+                    ));
+                }
+
+                resp.json()
+                    .await
+                    .map_err(|e| Failure::from_reqwest(err(e.to_string()), &e))
             })
+            .await
     }
 }
 
@@ -562,6 +589,7 @@ mod tests {
             "http://localhost:8035".to_string(),
             Uuid::nil(),
             Uuid::nil(),
+            RetryConfig::default(),
         )
         .unwrap()
     }
