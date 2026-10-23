@@ -4295,6 +4295,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "predicates",
+ "rand 0.10.3",
  "reqwest 0.13.5",
  "rtf-cli-shared",
  "rtf-config",

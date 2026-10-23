@@ -14,6 +14,7 @@ mod context;
 mod error;
 mod kubernetes;
 mod orchestrator;
+mod retry;
 mod status;
 
 pub use cli::Args;
