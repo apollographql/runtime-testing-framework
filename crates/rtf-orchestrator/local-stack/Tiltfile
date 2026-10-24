@@ -203,6 +203,7 @@ k8s_resource(
         "postgres:secret:orchestrator",
         "postgres:poddisruptionbudget:orchestrator",
         "postgres:networkpolicy:orchestrator",
+        "postgres-extended-configuration:configmap:orchestrator",
     ],
     new_name="postgres-config",
     resource_deps=["cluster-setup"],
