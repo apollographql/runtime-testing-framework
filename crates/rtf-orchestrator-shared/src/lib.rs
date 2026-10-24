@@ -1,5 +1,6 @@
 use rtf_config::formats::PrometheusQuery;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub mod cluster_summary;
 pub mod event_queue;
@@ -50,4 +51,9 @@ pub struct OutputCollectionResponse {
 pub struct PrometheusQueries {
     pub environment: Vec<PrometheusQuery>,
     pub scenario: Vec<PrometheusQuery>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PurgeRequest {
+    pub id: Uuid,
 }

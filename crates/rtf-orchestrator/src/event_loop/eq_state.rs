@@ -1,4 +1,5 @@
 use crate::{
+    Error,
     config::WorkloadClusters,
     db::{ClusterId, PoolId, TestExecution, TestRun, UpdateHandle},
     event_loop::{
@@ -274,16 +275,19 @@ impl EventQueueState {
     pub async fn purge_run(
         &self,
         tr: TestRun,
-        admin_email: String,
+        email: &str,
         conn: &mut PgConnection,
-    ) -> Option<()> {
+    ) -> crate::Result<()> {
         // Lock everything to prevent further work being done while we purge state
         let mut shared = self.shared.lock().await;
         let mut inner = self.eq_inner.lock().await;
         let run_id = tr.uuid();
 
-        let run = shared.runs.remove(&run_id)?;
-        conn.mark_run_as_cancelled(&tr, format!("cancelled by {admin_email}"))
+        let run = shared
+            .runs
+            .remove(&run_id)
+            .ok_or(Error::RunNotInFlight { id: run_id })?;
+        conn.mark_run_as_cancelled(&tr, format!("cancelled by {email}"))
             .await;
         conn.clear_cached_payload_for_run(run_id).await;
 
@@ -299,23 +303,28 @@ impl EventQueueState {
             inner.schedule_cluster_release(run_id, &ex);
         }
 
-        None
+        Ok(())
     }
 
     pub async fn purge_execution(
         &self,
         ex: TestExecution,
-        admin_email: String,
+        email: &str,
         conn: &mut PgConnection,
-    ) -> Option<()> {
+    ) -> crate::Result<()> {
         // Lock everything to prevent further work being done while we purge state
         let mut shared = self.shared.lock().await;
         let mut inner = self.eq_inner.lock().await;
 
-        conn.mark_execution_as_cancelled(&ex, format!("cancelled by {admin_email}"))
-            .await;
+        if !shared.executions.contains_key(&ex.uuid()) {
+            return Err(Error::ExecutionNotInFlight { id: ex.uuid() });
+        }
 
-        purge_execution_inner(ex, &mut shared, &mut inner, conn).await
+        conn.mark_execution_as_cancelled(&ex, format!("cancelled by {email}"))
+            .await;
+        purge_execution_inner(ex, &mut shared, &mut inner, conn).await;
+
+        Ok(())
     }
 }
 

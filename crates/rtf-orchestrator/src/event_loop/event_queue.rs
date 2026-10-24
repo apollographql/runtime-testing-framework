@@ -1313,7 +1313,7 @@ mod tests {
         };
         eq.push_event(evt).await;
 
-        eqs.purge_execution(ex.clone(), "X".into(), c).await;
+        eqs.purge_execution(ex.clone(), "X", c).await.unwrap();
 
         eq.with_inner(|inner| {
             // We need to match like this as the different cases result in these fields being
@@ -1388,7 +1388,7 @@ mod tests {
         eq.with_inner(|i| i.insert_running_execution(ex_2.uuid(), alpha_cluster()))
             .await;
 
-        eqs.purge_run(tr.clone(), "X".into(), c).await;
+        eqs.purge_run(tr.clone(), "X", c).await.unwrap();
 
         // should have nothing cached
         eqs.with_shared(|shared| {
@@ -1431,7 +1431,7 @@ mod tests {
         let (_eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);
         cache_stub_run(&ph, tr.uuid()).await;
 
-        eqs.purge_run(tr.clone(), "X".into(), c).await;
+        eqs.purge_run(tr.clone(), "X", c).await.unwrap();
 
         let mut mock = MockUpdateHandle::with_run(tr.clone());
         let res = ph

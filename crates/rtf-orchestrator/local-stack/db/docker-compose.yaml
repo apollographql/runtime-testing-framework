@@ -4,6 +4,8 @@ services:
   db:
     container_name: db
     image: postgres:18
+    # Kept in line with max_connections in helm/postgres/values.yaml
+    command: postgres -c max_connections=400
     environment:
       POSTGRES_USER: service_user
       POSTGRES_PASSWORD: password

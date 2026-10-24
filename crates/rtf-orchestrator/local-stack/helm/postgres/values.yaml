@@ -6,6 +6,10 @@ postgresql:
     database: rtf_orchestrator
     postgresPassword: postgres_admin_password
   primary:
+    # DB tests open a fresh connection per query and closed connections are slow to free up
+    # through the port-forward, so allow headroom above the default of 100.
+    extendedConfiguration: |
+      max_connections = 400
     resources:
       requests:
         cpu: 100m

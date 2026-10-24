@@ -132,6 +132,14 @@ pub enum KnownUser {
     User(String),
 }
 
+impl KnownUser {
+    pub fn email(&self) -> &str {
+        match self {
+            Self::Admin(email) | Self::User(email) => email,
+        }
+    }
+}
+
 impl FromRequestParts<ServerState> for KnownUser {
     type Rejection = Error;
 
