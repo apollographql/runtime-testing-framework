@@ -53,6 +53,11 @@ pub enum Error {
     #[error("this test plan requires a dedicated cluster but pool {pool} does not support them")]
     DedicatedClusterNotSupported { pool: String },
 
+    #[error(
+        "test execution {id} is no longer in flight: it has already completed or been cancelled"
+    )]
+    ExecutionNotInFlight { id: Uuid },
+
     #[error("file upload has already been requested for this execution")]
     FileUploadAlreadyRequested,
 
@@ -83,6 +88,9 @@ pub enum Error {
     #[error("resolver channel closed")]
     ResolverChannelClosed,
 
+    #[error("test run {id} is no longer in flight: it has already completed or been cancelled")]
+    RunNotInFlight { id: Uuid },
+
     #[error("not authorized for this execution")]
     Unauthorized,
 
@@ -105,6 +113,8 @@ impl IntoResponse for Error {
 
         let raw = match self {
             Self::FileUploadAlreadyRequested
+            | Self::ExecutionNotInFlight { .. }
+            | Self::RunNotInFlight { .. }
             | Self::InvalidFileProviderUsage { .. }
             | Self::UnknownWorkloadPool { .. }
             | Self::DedicatedClusterNotSupported { .. }

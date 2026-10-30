@@ -1,7 +1,10 @@
-use crate::db::{
-    self, PoolId, Queryable, Result,
-    status::{Status, StatusTracked, StatusUpdate},
-    test_execution::TestExecution,
+use crate::{
+    db::{
+        self, KnownTestPlan, PoolId, Queryable, Result,
+        status::{Status, StatusTracked, StatusUpdate},
+        test_execution::TestExecution,
+    },
+    state::KnownUser,
 };
 use chrono::{DateTime, Utc};
 use rtf_orchestrator_shared::{
@@ -410,6 +413,39 @@ impl TestRun {
         .fetch_optional(conn)
         .await?
         .unwrap_or(false))
+    }
+
+    /// Admins can cancel any run, other users can only cancel runs they initiated or runs of a
+    /// known test plan they own.
+    pub async fn check_cancel_permitted(
+        &self,
+        user: &KnownUser,
+        conn: &mut PgConnection,
+    ) -> crate::Result<()> {
+        let email = match user {
+            KnownUser::Admin(_) => return Ok(()),
+            KnownUser::User(email) => email,
+        };
+
+        if self.initiated_by() == Some(email.as_str()) {
+            return Ok(());
+        }
+
+        let plan = match self.test_plan_uuid(conn).await? {
+            Some(uuid) => KnownTestPlan::get_by_uuid(&uuid, conn).await?,
+            None => None,
+        };
+
+        let is_owner = match plan {
+            Some(plan) => plan.is_owner(email, conn).await?,
+            None => false,
+        };
+
+        if is_owner {
+            Ok(())
+        } else {
+            Err(crate::Error::Unauthorized)
+        }
     }
 
     async fn variables(&self, conn: &mut PgConnection) -> Result<Option<Value>> {

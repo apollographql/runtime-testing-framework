@@ -28,13 +28,7 @@ pub use workload_config::{get_workload_config, upsert_workload_config};
 #[macro_export]
 macro_rules! conn {
     { } => {
-        &mut *(
-            $crate::db::pool::get_pool()
-                .await?
-                .acquire()
-                .await
-                .map_err($crate::db::Error::from)?
-        )
+        &mut *($crate::db::pool::get_conn().await?)
     }
 }
 

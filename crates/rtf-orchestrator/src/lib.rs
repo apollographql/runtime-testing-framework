@@ -76,13 +76,10 @@ fn build_routes(
             post(admin::register_known_test_plan::handler),
         )
         .route(
-            "/admin/purge-execution/{uuid}",
-            get(admin::purge_queue::ex_handler),
+            "/admin/purge-execution",
+            post(admin::purge_queue::ex_handler),
         )
-        .route(
-            "/admin/purge-run/{uuid}",
-            get(admin::purge_queue::run_handler),
-        )
+        .route("/admin/purge-run", post(admin::purge_queue::run_handler))
         .route(
             "/admin/test-plan/{uuid}",
             put(admin::update_known_test_plan::handler),
