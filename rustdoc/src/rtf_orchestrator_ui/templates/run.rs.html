@@ -2,7 +2,7 @@
 <a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>askama::Template;
 <a href=#3 id=3 data-nosnippet>3</a>
 <a href=#4 id=4 data-nosnippet>4</a><span class="attr">#[derive(Debug, Template)]
-<a href=#5 id=5 data-nosnippet>5</a>#[template(path = <span class="string">"run.html"</span>, blocks = [<span class="string">"back_links"</span>, <span class="string">"run"</span>]</span>)]
+<a href=#5 id=5 data-nosnippet>5</a>#[template(path = <span class="string">"run.html"</span>, blocks = [<span class="string">"back_links"</span>, <span class="string">"cancel"</span>, <span class="string">"run"</span>]</span>)]
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">pub struct </span>RunTemplate {
 <a href=#7 id=7 data-nosnippet>7</a>    <span class="kw">pub </span>run: RunView,
 <a href=#8 id=8 data-nosnippet>8</a>}
@@ -126,5 +126,30 @@
 <a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">fn </span>run_snapshot_terminal_without_test_plan() {
 <a href=#127 id=127 data-nosnippet>127</a>        <span class="macro">insta::assert_snapshot!</span>(<span class="macro">render_fragment!</span>(terminal_run_without_test_plan().as_run()));
 <a href=#128 id=128 data-nosnippet>128</a>    }
-<a href=#129 id=129 data-nosnippet>129</a>}
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="kw">fn </span>cancellable_run() -&gt; RunTemplate {
+<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">let </span><span class="kw-2">mut </span>t = running_run();
+<a href=#132 id=132 data-nosnippet>132</a>        t.run.can_cancel = <span class="bool-val">true</span>;
+<a href=#133 id=133 data-nosnippet>133</a>        t.run.cancel_error = <span class="prelude-val">Some</span>(<span class="string">"run is no longer in flight"</span>.to_owned());
+<a href=#134 id=134 data-nosnippet>134</a>
+<a href=#135 id=135 data-nosnippet>135</a>        t
+<a href=#136 id=136 data-nosnippet>136</a>    }
+<a href=#137 id=137 data-nosnippet>137</a>
+<a href=#138 id=138 data-nosnippet>138</a>    <span class="attr">#[test]
+<a href=#139 id=139 data-nosnippet>139</a>    </span><span class="kw">fn </span>cancel_snapshot_cancellable_with_error() {
+<a href=#140 id=140 data-nosnippet>140</a>        <span class="macro">insta::assert_snapshot!</span>(<span class="macro">render_fragment!</span>(cancellable_run().as_cancel()));
+<a href=#141 id=141 data-nosnippet>141</a>    }
+<a href=#142 id=142 data-nosnippet>142</a>
+<a href=#143 id=143 data-nosnippet>143</a>    <span class="attr">#[test]
+<a href=#144 id=144 data-nosnippet>144</a>    </span><span class="kw">fn </span>cancel_block_is_empty_when_not_cancellable() {
+<a href=#145 id=145 data-nosnippet>145</a>        <span class="kw">let </span>rendered = running_run().as_cancel().render().unwrap();
+<a href=#146 id=146 data-nosnippet>146</a>
+<a href=#147 id=147 data-nosnippet>147</a>        <span class="macro">assert!</span>(rendered.trim().is_empty(), <span class="string">"{rendered}"</span>);
+<a href=#148 id=148 data-nosnippet>148</a>    }
+<a href=#149 id=149 data-nosnippet>149</a>
+<a href=#150 id=150 data-nosnippet>150</a>    <span class="attr">#[test]
+<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">fn </span>run_snapshot_cancellable() {
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="macro">insta::assert_snapshot!</span>(<span class="macro">render_fragment!</span>(cancellable_run().as_run()));
+<a href=#153 id=153 data-nosnippet>153</a>    }
+<a href=#154 id=154 data-nosnippet>154</a>}
 </code></pre></div></section></main></body></html>
