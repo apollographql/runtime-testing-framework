@@ -48,6 +48,7 @@ where
         .route("/ui", get(index::handler::<C>))
         .route("/ui/health", get(health))
         .route("/ui/run/{id}", get(run_status::handler::<C>))
+        .route("/ui/run/{id}/cancel", post(run_status::post_cancel::<C>))
         .route("/ui/test-plans", get(test_plans::handler::<C>))
         .route("/ui/test-plan/{uuid}", get(test_plan_detail::handler::<C>))
         .route(

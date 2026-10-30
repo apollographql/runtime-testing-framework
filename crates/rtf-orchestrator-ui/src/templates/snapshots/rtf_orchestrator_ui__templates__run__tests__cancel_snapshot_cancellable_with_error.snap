@@ -1,0 +1,20 @@
+---
+source: crates/rtf-orchestrator-ui/src/templates/run.rs
+expression: render_fragment!(cancellable_run().as_cancel())
+---
+
+
+
+<p class="error-box">run is no longer in flight</p>
+
+
+
+<div id="cancel-run-confirm" popover>
+    <p>Cancel <strong>nightly-smoke</strong>? All of its in-flight executions will be stopped. This
+        can't be undone.</p>
+    <form method="post" action="/ui/run/00000000-0000-0000-0000-000000000001/cancel">
+        <button type="submit" class="danger">Cancel run</button>
+        <button type="button" popovertarget="cancel-run-confirm" popovertargetaction="hide">Keep
+            running</button>
+    </form>
+</div>

@@ -6,6 +6,7 @@ use cached::cached;
 use chrono::{DateTime, Utc};
 use reqwest::{Method, RequestBuilder, StatusCode, Url, header::LOCATION, redirect::Policy};
 use rtf_orchestrator_shared::{
+    PurgeRequest,
     cluster_summary::ClusterSummaryResponse,
     event_queue::EventQueueSnapshot,
     known_test_plan::{
@@ -97,6 +98,13 @@ pub enum Error {
         message: String,
     },
 
+    #[error("orchestrator returned {status} cancelling run id {id}: {message}")]
+    CancelRun {
+        status: StatusCode,
+        id: Uuid,
+        message: String,
+    },
+
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
 }
@@ -181,6 +189,8 @@ pub trait Client: Send + Sync + Clone + 'static {
         uuid: Uuid,
         req: &UpdateKnownTestPlanRequest,
     ) -> impl Future<Output = Result<KnownTestPlanSummary, Error>> + Send;
+
+    fn cancel_run(&self, id: Uuid) -> impl Future<Output = Result<TestRunSummary, Error>> + Send;
 }
 
 #[derive(Debug, Clone)]
@@ -466,6 +476,29 @@ impl Client for HttpClient {
         Err(Error::UpdateKnownTestPlan {
             status,
             uuid,
+            message: error_message(response).await,
+        })
+    }
+
+    async fn cancel_run(&self, id: Uuid) -> Result<TestRunSummary, Error> {
+        let url = self
+            .orchestrator_url
+            .join("/admin/purge-run")
+            .expect("base url should be valid");
+        let response = self
+            .request(Method::POST, url)
+            .json(&PurgeRequest { id })
+            .send()
+            .await?;
+        let status = response.status();
+
+        if status.is_success() {
+            return Ok(response.json().await?);
+        }
+
+        Err(Error::CancelRun {
+            status,
+            id,
             message: error_message(response).await,
         })
     }
@@ -990,6 +1023,8 @@ pub(crate) mod mocks {
         test_run_summary: TestRunSummary,
         test_execution_summary: TestExecutionSummary,
         service_status_fails: bool,
+        cancel_fails: bool,
+        whoami: WhoAmIResponse,
     }
 
     #[cfg(test)]
@@ -999,13 +1034,27 @@ pub(crate) mod mocks {
                 test_run_summary: sample_summary(run_id, ex_id, status),
                 test_execution_summary: sample_execution(run_id, ex_id),
                 service_status_fails: false,
+                cancel_fails: false,
+                whoami: WhoAmIResponse::Unknown,
             }
+        }
+
+        pub fn with_whoami(self, whoami: WhoAmIResponse) -> Self {
+            Self { whoami, ..self }
         }
 
         /// Fails the event queue snapshot and cluster summary requests.
         pub fn with_failing_service_status(self) -> Self {
             Self {
                 service_status_fails: true,
+                ..self
+            }
+        }
+
+        /// Fails requests to cancel a run.
+        pub fn with_failing_cancel(self) -> Self {
+            Self {
+                cancel_fails: true,
                 ..self
             }
         }
@@ -1106,7 +1155,7 @@ pub(crate) mod mocks {
         }
 
         async fn whoami(&self) -> Result<WhoAmIResponse, Error> {
-            Ok(WhoAmIResponse::Unknown)
+            Ok(self.whoami.clone())
         }
 
         async fn update_known_test_plan(
@@ -1115,6 +1164,21 @@ pub(crate) mod mocks {
             _req: &UpdateKnownTestPlanRequest,
         ) -> Result<KnownTestPlanSummary, Error> {
             Ok(sample_known_test_plan(uuid))
+        }
+
+        async fn cancel_run(&self, id: Uuid) -> Result<TestRunSummary, Error> {
+            if self.cancel_fails {
+                return Err(Error::CancelRun {
+                    status: StatusCode::BAD_REQUEST,
+                    id,
+                    message: "run is no longer in flight".to_owned(),
+                });
+            }
+
+            Ok(TestRunSummary {
+                current_status: Status::Cancelled,
+                ..self.test_run_summary.clone()
+            })
         }
     }
 }

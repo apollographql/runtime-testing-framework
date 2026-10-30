@@ -2,7 +2,7 @@ use crate::view::RunView;
 use askama::Template;
 
 #[derive(Debug, Template)]
-#[template(path = "run.html", blocks = ["back_links", "run"])]
+#[template(path = "run.html", blocks = ["back_links", "cancel", "run"])]
 pub struct RunTemplate {
     pub run: RunView,
 }
@@ -125,5 +125,30 @@ mod tests {
     #[test]
     fn run_snapshot_terminal_without_test_plan() {
         insta::assert_snapshot!(render_fragment!(terminal_run_without_test_plan().as_run()));
+    }
+
+    fn cancellable_run() -> RunTemplate {
+        let mut t = running_run();
+        t.run.can_cancel = true;
+        t.run.cancel_error = Some("run is no longer in flight".to_owned());
+
+        t
+    }
+
+    #[test]
+    fn cancel_snapshot_cancellable_with_error() {
+        insta::assert_snapshot!(render_fragment!(cancellable_run().as_cancel()));
+    }
+
+    #[test]
+    fn cancel_block_is_empty_when_not_cancellable() {
+        let rendered = running_run().as_cancel().render().unwrap();
+
+        assert!(rendered.trim().is_empty(), "{rendered}");
+    }
+
+    #[test]
+    fn run_snapshot_cancellable() {
+        insta::assert_snapshot!(render_fragment!(cancellable_run().as_run()));
     }
 }

@@ -37,6 +37,8 @@ pub struct RunView {
     pub execution_status_filter: String,
     pub status_breakdown: Vec<StatusCountView>,
     pub executions: Vec<ExecutionView>,
+    pub can_cancel: bool,
+    pub cancel_error: Option<String>,
 }
 
 impl RunView {
@@ -85,6 +87,8 @@ impl RunView {
                 .map(|execution| ExecutionView::new(execution, links_cfg))
                 .collect(),
             execution_status_filter,
+            can_cancel: false,
+            cancel_error: None,
         }
     }
 
