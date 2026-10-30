@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_db_conn","get_pool","init_pool","init_pool_and_migrate"]};
+window.SIDEBAR_ITEMS = {"fn":["check_db_conn","get_conn","get_pool","init_pool","init_pool_and_migrate"]};
