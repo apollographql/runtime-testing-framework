@@ -12,6 +12,21 @@
 {% when None %}
 {% endmatch %}
 {% endblock %}
+{# Kept outside of #run so that polling doesn't replace them while they are open or being read #}
+{% block cancel %}
+{% call macros::error_message(run.cancel_error) %}{% endcall %}
+{% if run.can_cancel %}
+<div id="cancel-run-confirm" popover>
+    <p>Cancel <strong>{{ run.name }}</strong>? All of its in-flight executions will be stopped. This
+        can't be undone.</p>
+    <form method="post" action="/ui/run/{{ run.id }}/cancel">
+        <button type="submit" class="danger">Cancel run</button>
+        <button type="button" popovertarget="cancel-run-confirm" popovertargetaction="hide">Keep
+            running</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}
 {% block run %}
 <div id="run" {% if run.should_poll %} hx-get="{{ run.poll_url() }}" hx-select="#run" hx-trigger="every 10s"
     hx-swap="outerHTML" {% endif %}>
@@ -75,6 +90,9 @@
         <p><a href="{{ rerun_url }}">Re-run</a></p>
         {% when None %}
         {% endmatch %}
+        {%- if run.can_cancel %}
+        <p><button type="button" class="danger" popovertarget="cancel-run-confirm">Cancel run</button></p>
+        {%- endif %}
     </section>
 
     <h3>Status breakdown</h3>

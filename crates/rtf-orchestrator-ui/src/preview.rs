@@ -68,7 +68,10 @@ pub fn run_running() -> RunTemplate {
     };
 
     RunTemplate {
-        run: RunView::new(run, Utc::now(), &sample_config(), String::new()),
+        run: RunView {
+            can_cancel: true,
+            ..RunView::new(run, Utc::now(), &sample_config(), String::new())
+        },
     }
 }
 

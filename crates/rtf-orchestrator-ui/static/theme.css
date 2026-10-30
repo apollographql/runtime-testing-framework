@@ -354,6 +354,19 @@ button[type="submit"]:hover, button.primary:hover {
     background: var(--color-btn-primary-hover);
 }
 
+button.danger {
+    background: var(--status-unrunnable-bg);
+    color: var(--status-unrunnable-text);
+    border: 1px solid var(--status-unrunnable-text);
+    border-radius: 4px;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+}
+
+button.danger:hover {
+    filter: brightness(0.9);
+}
+
 .copy-btn {
     border: none;
     background: transparent;

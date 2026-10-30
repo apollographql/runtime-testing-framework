@@ -46,4 +46,14 @@ impl WhoAmIResponse {
             Self::Unknown => !plan.restrict_triggers,
         }
     }
+
+    pub fn can_cancel(&self, initiated_by: &str, plan: Option<&KnownTestPlanSummary>) -> bool {
+        match self {
+            Self::Admin { .. } => true,
+            Self::User { email } => {
+                email == initiated_by || plan.is_some_and(|p| self.role_for(p) == Some(Role::Owner))
+            }
+            Self::Automation { .. } | Self::Unknown => false,
+        }
+    }
 }
