@@ -90,7 +90,7 @@ adding that context to inline comments.
 
 The `scenario` is used to define the configuration and command that runs the actual testing logic in
 the Test Plan. The `scenario` can be defined inline within the Test Plan or in its own file. In this
-guide, we'll define the [Scenario][0] inline. The guide on [writing a new Scenario][1] covers how to
+guide, we'll define the [Scenario][8] inline. The guide on [writing a new Scenario][1] covers how to
 define a Scenario in a separate file.
 
 We'll use a `docker` based Scenario — the recommended approach in RTF. If `docker` isn't an option,
@@ -125,7 +125,7 @@ scenario:
 
 ### `environment`
 
-The `environment` is used to define the configuration and commands that set up the [Environment][0]
+The `environment` is used to define the configuration and commands that set up the [Environment][9]
 for testing and tear it down after the test has completed. The `environment` can be defined inline
 within the Test Plan or in its own file. In this guide, we'll define the Environment inline. The
 guide on [writing a new Environment][4] covers how to define an Environment in a separate file.
@@ -456,7 +456,7 @@ scenarios in more detail.
 
 [Writing a scenario][1]
 
-[0]: ../../reference/glossary.md
+[0]: ../../reference/glossary.md#test-plan
 [1]: writing-a-scenario.md
 [2]: ../script-test-plans/index.md
 [3]: https://docs.docker.com/reference/cli/docker/container/run/
@@ -464,3 +464,5 @@ scenarios in more detail.
 [5]: https://docs.docker.com/compose/
 [6]: ../hello-world.md#modifying-variables
 [7]: ../hello-world.md#matrix-variables
+[8]: ../../reference/glossary.md#scenario
+[9]: ../../reference/glossary.md#environment

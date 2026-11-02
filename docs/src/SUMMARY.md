@@ -31,6 +31,9 @@
   - [Troubleshooting](howto/troubleshooting.md)
   - [Generating CLI shell completions](howto/shell-completions.md)
   - [Generating JSON Schemas](howto/json-schemas.md)
+  - [Getting set up with the Orchestrator](howto/orchestrator/getting-set-up.md)
+  - [Registering and managing Known Test Plans](howto/orchestrator/known-test-plans.md)
+  - [Working with the Orchestrator UI](howto/orchestrator/orchestrator-ui.md)
 
 - [Reference](reference/index.md)
   - [Framework](reference/framework/index.md)
@@ -40,6 +43,11 @@
     - [Command providers](reference/framework/command-providers.md)
     - [File providers](reference/framework/file-providers.md)
     - [Custom providers](reference/framework/custom-providers.md)
+  - [Orchestrator](reference/orchestrator/index.md)
+    - [Using `rtf remote`](reference/orchestrator/rtf-remote.md)
+    - [Limits, permissions, and concepts](reference/orchestrator/limits-permissions-and-concepts.md)
+    - [Known Test Plan configuration](reference/orchestrator/known-test-plan-configuration.md)
+    - [Orchestrator internal processes](reference/orchestrator/internal-processes.md)
   - [CLI reference](reference/cli-help.md)
   - [Glossary](reference/glossary.md)
 

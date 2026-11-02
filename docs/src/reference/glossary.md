@@ -2,6 +2,12 @@
 
 # Glossary
 
+## Automation User
+
+The identity used by a CI workflow that triggers Known Test Plans on the RTF Orchestrator Service
+using the Orchestrator GitHub Action. Test Runs triggered by an Automation User are attributed to,
+and rate limited per, the GitHub repository that triggered them.
+
 ## Custom Provider Declaration
 
 A YAML snippet within an RTF configuration file (Test Plan, Environment or Scenario) that specifies
@@ -16,11 +22,23 @@ the Variables, File Providers and Command required to produce one or more files 
 supplied to a Custom Provider. Custom Provider Definitions support Templating using arguments from
 the invoking Custom Provider.
 
+## Dedicated Cluster
+
+A Kubernetes cluster claimed by a single Test Run of a Known Test Plan for its whole duration, so
+that no other Test Runs share its nodes. Dedicated Clusters are only available in Workload Pools
+that support them.
+
 ## Environment
 
 An RTF configuration file for specifying how to set up and tear down the services and infrastructure
 under test using Command and File providers. Like all RTF configuration files, Environment
 configurations support Templating using Variables from the Test Plan.
+
+## Known Test Plan
+
+A Test Plan in GitHub that's registered with the RTF Orchestrator Service. A Known Test Plan has a
+UUID and a unique name, and stores settings for who can trigger it and where it runs. Known Test
+Plans are read from GitHub each time they're triggered.
 
 ## Provider
 
@@ -108,7 +126,18 @@ referenced by its File Providers, so the RTF Orchestrator Service — which has 
 to the machine the Test Plan was prepared on — has everything it needs to run it. Submitted to the
 Orchestrator via `POST /test-run/trigger`.
 
+## Trigger Variables
+
+The Variables of a Test Plan that can be overridden when triggering a Test Run on the RTF
+Orchestrator Service, for example from the Orchestrator UI or with `--var`.
+
 ## Variables
 
 Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.
+
+## Workload Pool
+
+A named group of Kubernetes clusters that the RTF Orchestrator Service runs Test Executions on. Each
+Workload Pool has its own capacity, rate limits, and workload settings. Test Runs use the default
+pool unless their Known Test Plan is pinned to another one.

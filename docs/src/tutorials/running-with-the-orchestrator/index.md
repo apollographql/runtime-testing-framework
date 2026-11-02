@@ -31,41 +31,29 @@ test plan in an isolated Kubernetes namespace. This provides several advantages:
 
 ## Accessing the Orchestrator
 
-The Orchestrator is deployed at `https://api.rtf.apollographql.com` and is protected by Google Cloud
-IAP. Access is managed in GCP by the Runtime Readiness team.
+The Orchestrator is deployed at [api.rtf.apollographql.com][6], with the [Orchestrator UI][7]
+alongside it, and is protected by Google Cloud IAP. Access is managed by the Runtime Readiness team.
 
-Once access is granted, you can authenticate with GCP using the following command:
-
-```bash
-gcloud auth application-default login
-```
-
-You can check whether or not you have access by attempting to hit the healthcheck endpoint on the
-Orchestrator using the `rtf` CLI like so:
-
-```bash
-rtf remote request health
-```
-
-If you see `{"ok":true}` in your terminal then you are correctly authenticated. If you are unable to
-reach the Orchestrator, reach out to the Runtime Readiness team in Slack and we will set up access
-for you and your team.
+Before starting this tutorial, follow the [Getting set up with the Orchestrator][8] guide to request
+access, authenticate with GCP, and check that you are able to reach the Orchestrator.
 
 > **Prerequisites**
 >
 > - you have completed the ["Writing test plans"][4] tutorial series
 > - the `rtf` CLI installed
 > - the `gcloud` CLI installed
-> - you have authenticated with `gcloud auth application-default login`
-> - you have validated your access to the Orchestrator using `rtf remote request health`
+> - you have completed the [Getting set up with the Orchestrator][8] guide
 
 ---
 
 **Next:** [Making your test plan Orchestrator-ready][5]
 
-[0]: ../../reference/glossary.md
+[0]: ../../reference/glossary.md#rtf-orchestrator-service
 [1]: ../../reference/framework/test-plans.md
 [2]: ../../reference/framework/environments.md
 [3]: ../../reference/framework/scenarios.md
 [4]: ../test-plans/index.md
 [5]: making-your-test-plan-orchestrator-ready.md
+[6]: https://api.rtf.apollographql.com
+[7]: https://api.rtf.apollographql.com/ui
+[8]: ../../howto/orchestrator/getting-set-up.md

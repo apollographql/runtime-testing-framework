@@ -21,6 +21,6 @@ already manages its own lifecycle, or in environments where docker is not permit
 
 **Next:** [Writing a test plan][2]
 
-[0]: ../../reference/glossary.md
+[0]: ../../reference/glossary.md#test-plan
 [1]: ../test-plans/index.md
 [2]: writing-a-test-plan.md

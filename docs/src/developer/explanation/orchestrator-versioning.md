@@ -147,5 +147,5 @@ running Orchestrator.
 | 1 + 2 | `edge` (values override)     | No — intentional deviation | None — manual PRs to `kanaveral` |
 | 3     | Git SHA (`appVersion`)       | Yes                        | None — manual PRs to `kanaveral` |
 
-[0]: ../../reference/glossary.md
+[0]: ../../reference/glossary.md#rtf-orchestrator-service
 [1]: #current-phase

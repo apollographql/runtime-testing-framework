@@ -181,6 +181,6 @@ at runtime.
 [Using variables and overrides][3]
 
 [0]: writing-a-test-plan.md
-[1]: ../../reference/glossary.md
+[1]: ../../reference/glossary.md#test-plan
 [2]: https://en.wikipedia.org/wiki/Shebang_%28Unix%29
 [3]: using-variables-and-overrides.md

@@ -255,17 +255,18 @@ Guidelines:
 RTF maintains a central [glossary][2]. When using RTF-specific terms:
 
 1. **Always** ensure the term is defined in the glossary
-2. **Link to the glossary** on first use in a page
+2. **Link to the term's glossary entry** on first use in a page, using the entry's heading anchor
+   (for example, `glossary.md#test-plan`) rather than the top of the glossary
 3. **Inline definitions are encouraged** in Tutorials where clicking away disrupts flow
 
 Example (Tutorial):
 
 > A **Test Plan** is the top-level entry point for RTF that defines variables and references to
-> Scenarios and Environments. See the [glossary][2] for the full definition.
+> Scenarios and Environments. See the [glossary][4] for the full definition.
 
 Example (How-to/Reference):
 
-> Configure the [Test Plan][2] with your variables.
+> Configure the [Test Plan][4] with your variables.
 
 ### RTF concepts
 
@@ -394,3 +395,4 @@ Before submitting documentation:
 [1]: https://diataxis.fr/
 [2]: ../../reference/glossary.md
 [3]: https://learn.microsoft.com/en-us/style-guide/bias-free-communication
+[4]: ../../reference/glossary.md#test-plan
