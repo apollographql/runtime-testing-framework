@@ -10,6 +10,8 @@ use crate::{
         shared::Shared,
     },
     resolver::{self, ResolverError, ResolverInput},
+    state::UserType,
+    state::read_admins,
 };
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorEnvironment};
 use sqlx::PgConnection;
@@ -259,6 +261,7 @@ impl EventQueue {
     ) -> crate::Result<()> {
         let h = self.provisioning_handle();
         let mut recovered_runs: HashMap<Uuid, (TestRun, Vec<TestExecution>)> = HashMap::new();
+        let admins = read_admins(&cfg.admins_path).await?;
 
         for (run_uuid, (tr, payload)) in cache.into_iter() {
             let pool = tr.workload_pool();
@@ -281,9 +284,10 @@ impl EventQueue {
                 custom_providers,
                 variable_sources,
             );
+
             h.cache_for_test_run(
                 run_uuid,
-                tr.initiated_by().map(|s| s.to_owned()),
+                UserType::from_identity(tr.initiated_by(), &admins),
                 workload_config,
                 requires_dedicated,
                 ctx,

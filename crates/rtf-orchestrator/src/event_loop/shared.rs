@@ -2,6 +2,7 @@ use crate::{
     context::OrchestratorContext,
     db::TestExecution,
     resolver::{self, ResolverError},
+    state::UserType,
 };
 use rtf_orchestrator_shared::{
     OutputCollectionResponse,
@@ -101,7 +102,7 @@ pub(super) struct RunState {
     pub(super) ctx: Arc<OrchestratorContext>,
     pub(super) test_plan: OrchestratorTestPlan,
     pub(super) executions: HashSet<Uuid>,
-    pub(super) initiated_by: Option<String>,
+    pub(super) initiated_by: UserType,
     pub(super) workload_config: WorkloadConfig,
     pub(super) requires_dedicated: bool,
 }

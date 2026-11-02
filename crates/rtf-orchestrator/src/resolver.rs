@@ -5,7 +5,7 @@ use crate::{
     context::OrchestratorContext,
     db::{ClusterId, TestExecution, UpdateHandle},
     event_loop::{EventData, ProvisioningHandle},
-    state::TestRunWithPayload,
+    state::{TestRunWithPayload, UserType, read_admins},
 };
 use rtf_config::{StableSource, checks::Check, templating::Template};
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorTestPlan};
@@ -24,6 +24,9 @@ const MSG_RUN_CHECKS: &str = "running test plan static checks";
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResolverError {
+    #[error("unable to read admins file: {0}")]
+    AdminsFile(String),
+
     #[error("event loop channel closed")]
     EventChannelClosed,
 
@@ -216,11 +219,15 @@ where
         return Err(ResolverError::UnknownPool(pool.to_string()));
     }
 
+    let admins = read_admins(&cfg.admins_path)
+        .await
+        .map_err(|e| ResolverError::AdminsFile(e.to_string()))?;
+
     update_handle.cache_payload_for_run(test_run, payload).await;
     prov_handle
         .cache_for_test_run(
             test_run.uuid(),
-            test_run.initiated_by().map(|s| s.to_owned()),
+            UserType::from_identity(test_run.initiated_by(), &admins),
             workload_config.clone(),
             *requires_dedicated,
             ctx,

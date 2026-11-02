@@ -82,7 +82,7 @@ impl EventQueueState {
                 shared
                     .runs
                     .get(run)
-                    .is_some_and(|r| r.initiated_by.as_deref() == Some(user))
+                    .is_some_and(|r| r.initiated_by.user_identity().as_deref() == Some(user))
             };
 
             let ongoing_runs: HashSet<Uuid> = running
@@ -140,7 +140,12 @@ impl EventQueueState {
         } = self.eq_inner.lock().await.snapshot_state();
 
         self.with_shared(|shared| {
-            let initiator = |run: &Uuid| shared.runs.get(run).and_then(|r| r.initiated_by.clone());
+            let initiator = |run: &Uuid| {
+                shared
+                    .runs
+                    .get(run)
+                    .and_then(|r| r.initiated_by.user_identity())
+            };
 
             for (cid, claim, running) in claims.into_iter() {
                 clusters.entry(cid).or_default().claim = Some(match claim {

@@ -6,6 +6,7 @@ use crate::{
         shared::{ResolvedExecutionConfig, RunState, Shared},
     },
     resolver::{self, ResolverError},
+    state::UserType,
 };
 use rtf_config::{
     StableSource,
@@ -52,7 +53,7 @@ impl ProvisioningHandle {
     pub(crate) async fn cache_for_test_run(
         &self,
         run_uuid: Uuid,
-        initiated_by: Option<String>,
+        initiated_by: UserType,
         workload_config: WorkloadConfig,
         requires_dedicated: bool,
         ctx: OrchestratorContext,
@@ -304,7 +305,7 @@ mod tests {
         );
         h.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
