@@ -44,10 +44,10 @@ A run's page refreshes automatically while the run is in progress. It shows the 
 status, the Trigger Variables it was started with, and a breakdown of its Test Executions by status.
 The list of executions can be filtered by status, and each execution provides links to:
 
-- the execution's own page, showing its exit code and status history
-- the container logs for the execution in GCP
-- the execution's metrics in Grafana
-- the execution's `log.txt` and `output.zip`
+- The execution's own page, showing its exit code and status history
+- The container logs for the execution in GCP
+- The execution's metrics in Grafana
+- The execution's `log.txt` and `output.zip`
 
 To download the output for every execution in the run at once, select **Download full run output**
 and run the `rtf` command that it shows.

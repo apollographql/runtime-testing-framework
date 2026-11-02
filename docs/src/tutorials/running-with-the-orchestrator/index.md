@@ -39,10 +39,10 @@ access, authenticate with GCP, and check that you are able to reach the Orchestr
 
 > **Prerequisites**
 >
-> - you have completed the ["Writing test plans"][4] tutorial series
-> - the `rtf` CLI installed
-> - the `gcloud` CLI installed
-> - you have completed the [Getting set up with the Orchestrator][8] guide
+> - You have completed the ["Writing test plans"][4] tutorial series
+> - The `rtf` CLI installed
+> - The `gcloud` CLI installed
+> - You have completed the [Getting set up with the Orchestrator][8] guide
 
 ---
 

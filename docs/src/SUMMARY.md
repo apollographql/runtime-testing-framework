@@ -45,6 +45,7 @@
     - [Custom providers](reference/framework/custom-providers.md)
   - [Orchestrator](reference/orchestrator/index.md)
     - [Using `rtf remote`](reference/orchestrator/rtf-remote.md)
+    - [Workload Pools](reference/orchestrator/workload-pools.md)
     - [Limits, permissions, and concepts](reference/orchestrator/limits-permissions-and-concepts.md)
     - [Known Test Plan configuration](reference/orchestrator/known-test-plan-configuration.md)
     - [Orchestrator internal processes](reference/orchestrator/internal-processes.md)

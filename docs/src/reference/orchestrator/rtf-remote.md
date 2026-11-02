@@ -11,8 +11,8 @@ summarizes each subcommand. For every flag, see the [CLI reference][2].
 
 All subcommands except `prepare` authenticate with the Orchestrator through Google IAP and require:
 
-- access to the Orchestrator (see [Orchestrator internal processes][3])
-- application default credentials from `gcloud auth application-default login`
+- Access to the Orchestrator (see [Orchestrator internal processes][3])
+- Application default credentials from `gcloud auth application-default login`
 
 On first use, the CLI opens a browser window to complete sign-in and caches the resulting token.
 

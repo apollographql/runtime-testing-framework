@@ -3,7 +3,8 @@
 # Limits, permissions, and concepts
 
 This page describes Orchestrator behavior that isn't visible from the `rtf` CLI: identities,
-permissions, rate limits, Workload Pools, statuses, and output storage.
+permissions, rate limits, statuses, and output storage. See [Workload Pools][3] for how runs are
+scheduled.
 
 ## Identities
 
@@ -46,10 +47,10 @@ Rate limits are configured per [Workload Pool][8] and are applied to each user s
 Automation Users are limited separately for each repository. Admins are exempt. Each pool limits the
 number of:
 
-- runs in progress at once
-- runs waiting to start
+- Runs in progress at once
+- Runs waiting to start
 - Test Executions waiting to start
-- runs triggered in the last hour
+- Runs triggered in the last hour
 
 The current limits for each pool are shown under **Workload pool configuration** in the Orchestrator
 UI, and are set in the [Orchestrator configuration file][2].
@@ -58,24 +59,6 @@ Triggering a run that would exceed one of these limits fails with a `429 Too Man
 naming the pool and the limit that was exceeded. The Orchestrator also has an overall limit on
 queued Test Executions: when the queue is full, triggers fail with a `503 Service Unavailable` error
 until capacity frees up.
-
-## Workload Pools and clusters
-
-A [Workload Pool][8] is a group of Kubernetes clusters that Test Executions run on. Each pool
-defines:
-
-- the clusters in the pool and how many Test Executions each cluster runs at once
-- the per-user rate limits for the pool
-- whether Scenarios get write access to their namespace by default
-- whether the pool supports [Dedicated Clusters][9]
-
-Unregistered Test Plans always run in the default pool. Known Test Plans run in the default pool
-unless an Admin pins them to another pool.
-
-A Known Test Plan that requires a Dedicated Cluster claims a whole cluster in its pool for each run.
-Its nodes can be split between labels using node label weights, and services select the labelled
-nodes using the `rtf.io/required-node-label-key` and `rtf.io/required-node-label-value`
-[service labels][3].
 
 ## Statuses
 
@@ -107,6 +90,7 @@ served using time-limited signed URLs.
 
 ## Related pages
 
+- [Workload Pools][3]
 - [Using `rtf remote`][4]
 - [Known Test Plan configuration][5]
 - [Orchestrator internal processes][6]
@@ -114,10 +98,9 @@ served using time-limited signed URLs.
 [0]: ../glossary.md#automation-user
 [1]: https://api.rtf.apollographql.com/ui
 [2]: https://github.com/mdg-private/kanaveral/blob/main/management-cluster/orchestrator/orchestrator-config.yaml
-[3]: ../framework/environments.md
+[3]: workload-pools.md
 [4]: rtf-remote.md
 [5]: known-test-plan-configuration.md
 [6]: internal-processes.md
 [7]: ../glossary.md#known-test-plan
 [8]: ../glossary.md#workload-pool
-[9]: ../glossary.md#dedicated-cluster

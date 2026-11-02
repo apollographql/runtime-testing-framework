@@ -42,9 +42,9 @@ an error describing the problem.
 Registering a Test Plan is an Admin action. To request it, start a conversation in
 [#proj-runtime-testing-framework][3]. You will need to provide:
 
-- a unique name and an optional description for the Known Test Plan
-- the GitHub organization, repository, and path to your `test-plan.yaml`
-- the email addresses of the owners of the Known Test Plan
+- A unique name and an optional description for the Known Test Plan
+- The GitHub organization, repository, and path to your `test-plan.yaml`
+- The email addresses of the owners of the Known Test Plan
 
 Once registered, your Known Test Plan will be listed under **Registered Test Plans** in the
 Orchestrator UI.
@@ -54,12 +54,12 @@ Orchestrator UI.
 Owners of a Known Test Plan are able to edit its configuration from the **Edit test plan** section
 of its page in the Orchestrator UI. As an owner you are able to:
 
-- update the name, description, and GitHub location of the Known Test Plan
-- add or remove **Trigger users**
-- restrict **Triggers** so that only owners and trigger users can trigger runs
-- disable **Automated triggers** to prevent the Known Test Plan from being run from CI
-- enable or disable **Namespace write access** for your Scenario
-- set **Node label weights** for runs on a [Dedicated Cluster][9]
+- Update the name, description, and GitHub location of the Known Test Plan
+- Add or remove **Trigger users**
+- Restrict **Triggers** so that only owners and trigger users can trigger runs
+- Disable **Automated triggers** to prevent the Known Test Plan from being run from CI
+- Enable or disable **Namespace write access** for your Scenario
+- Set **Node label weights** for runs on a [Dedicated Cluster][9]
 
 Adding or removing owners, pinning the Known Test Plan to a Workload Pool, and requiring a Dedicated
 Cluster can only be done by an Admin. To request these changes, start a conversation in

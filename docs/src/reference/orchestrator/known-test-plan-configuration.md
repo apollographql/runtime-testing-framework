@@ -27,21 +27,61 @@ A user can be an owner or a trigger user, but not both.
 
 ## Node label weights
 
-Node label weights split the nodes of a Dedicated Cluster between labels, in proportion to each
-label's weight. Services select the nodes for a label using the `rtf.io/required-node-label-key` and
-`rtf.io/required-node-label-value` [service labels][2].
+Node label weights split the nodes of a Dedicated Cluster between labels. Each label receives a
+share of the cluster's nodes equal to its weight divided by the total of all weights, so only the
+ratio between the weights matters, not their absolute values.
 
 Node label weights:
 
-- require the Known Test Plan to be pinned to a pool and to require a Dedicated Cluster
-- use Kubernetes label value syntax for each label, and each label must be unique
-- must include at least one non-zero weight
+- Require the Known Test Plan to be pinned to a pool and to require a Dedicated Cluster
+- Use Kubernetes label value syntax for each label, and each label must be unique
+- Must include at least one non-zero weight
 
-For example, to split a cluster's nodes evenly between the services under test and the Scenario:
+### Examples
+
+The following examples split a Dedicated Cluster with 6 nodes between a router and its subgraphs.
+
+Weights of `1` and `1` split the nodes evenly, giving each label 3 nodes:
 
 ```text
-environment=1
-scenario=1
+router=1
+subgraphs=1
+```
+
+Weights of `2` and `2` have the same ratio as `1` and `1`, so they produce exactly the same even
+split of 3 nodes each:
+
+```text
+router=2
+subgraphs=2
+```
+
+To give a third of the nodes to the subgraphs and two thirds to the router, use weights of `1` and
+`2`. This gives the `subgraphs` label 2 nodes and the `router` label 4 nodes:
+
+```text
+router=2
+subgraphs=1
+```
+
+When the nodes can't be split exactly, each label's share is rounded down and the remaining nodes
+are handed out one at a time to whichever label currently has the fewest nodes. For example, the
+same `2` and `1` weights on a 7 node cluster give the `router` label 4 nodes and the `subgraphs`
+label 3 nodes.
+
+### Selecting labelled nodes
+
+Each node is labelled `rtf.io/node-allocation=<label>`. Environment services select the nodes for a
+label using the `rtf.io/required-node-label-key` and `rtf.io/required-node-label-value`
+[service labels][2]:
+
+```yaml
+services:
+  router:
+    image: ghcr.io/apollographql/router:v2.14.0
+    labels:
+      rtf.io/required-node-label-key: "rtf.io/node-allocation"
+      rtf.io/required-node-label-value: "router"
 ```
 
 ## Related pages

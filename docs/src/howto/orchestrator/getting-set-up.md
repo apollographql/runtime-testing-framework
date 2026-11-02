@@ -96,7 +96,7 @@ Depending on the configuration of the pool in question, it may also be possible 
 tests run on a [Dedicated Cluster][13] for increased stability and limited control over how the
 cluster is configured before your run starts. See [Orchestrator internal processes][4] for further
 details on how to get your Test Plan pinned to a particular pool or request that a new pool be
-provisioned.
+provisioned, and [Workload Pools][15] for details of how runs are scheduled within each pool.
 
 > In order for your Known Test Plan to be associated with your server side configuration, you _must_
 > trigger runs using `rtf remote run-known`, `rtf remote ci-run-known` or directly from the UI.
@@ -209,3 +209,4 @@ else you will need to request that an Admin cancel the run. See
 [12]: ../../reference/glossary.md#workload-pool
 [13]: ../../reference/glossary.md#dedicated-cluster
 [14]: ../../reference/glossary.md#automation-user
+[15]: ../../reference/orchestrator/workload-pools.md

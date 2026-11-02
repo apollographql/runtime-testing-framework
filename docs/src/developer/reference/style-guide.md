@@ -218,6 +218,9 @@ Explain placeholders if not self-evident:
 - Use numbered lists for sequential steps
 - Use bullet lists for non-sequential items
 - Use the Oxford comma in inline lists ("setup, run, and teardown")
+- Always start list items with a capital letter, including items that continue an introductory
+  sentence. Items that start with code, a literal value, or a name with fixed casing (such as a
+  crate name) keep their original casing; format code and literal values as inline code
 
 ### Links
 
@@ -386,6 +389,7 @@ Before submitting documentation:
 - [ ] Voice matches doc type (no "we" in how-to/reference)
 - [ ] No shell prompts in command examples
 - [ ] Placeholders use angle brackets
+- [ ] List items start with a capital letter
 - [ ] RTF terminology capitalized correctly
 - [ ] New terms added to glossary and linked on first use
 - [ ] Links use reference-style with definitions at bottom
