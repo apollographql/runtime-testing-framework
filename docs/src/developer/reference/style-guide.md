@@ -218,6 +218,9 @@ Explain placeholders if not self-evident:
 - Use numbered lists for sequential steps
 - Use bullet lists for non-sequential items
 - Use the Oxford comma in inline lists ("setup, run, and teardown")
+- Always start list items with a capital letter, including items that continue an introductory
+  sentence. Items that start with code, a literal value, or a name with fixed casing (such as a
+  crate name) keep their original casing; format code and literal values as inline code
 
 ### Links
 
@@ -255,17 +258,18 @@ Guidelines:
 RTF maintains a central [glossary][2]. When using RTF-specific terms:
 
 1. **Always** ensure the term is defined in the glossary
-2. **Link to the glossary** on first use in a page
+2. **Link to the term's glossary entry** on first use in a page, using the entry's heading anchor
+   (for example, `glossary.md#test-plan`) rather than the top of the glossary
 3. **Inline definitions are encouraged** in Tutorials where clicking away disrupts flow
 
 Example (Tutorial):
 
 > A **Test Plan** is the top-level entry point for RTF that defines variables and references to
-> Scenarios and Environments. See the [glossary][2] for the full definition.
+> Scenarios and Environments. See the [glossary][4] for the full definition.
 
 Example (How-to/Reference):
 
-> Configure the [Test Plan][2] with your variables.
+> Configure the [Test Plan][4] with your variables.
 
 ### RTF concepts
 
@@ -385,6 +389,7 @@ Before submitting documentation:
 - [ ] Voice matches doc type (no "we" in how-to/reference)
 - [ ] No shell prompts in command examples
 - [ ] Placeholders use angle brackets
+- [ ] List items start with a capital letter
 - [ ] RTF terminology capitalized correctly
 - [ ] New terms added to glossary and linked on first use
 - [ ] Links use reference-style with definitions at bottom
@@ -394,3 +399,4 @@ Before submitting documentation:
 [1]: https://diataxis.fr/
 [2]: ../../reference/glossary.md
 [3]: https://learn.microsoft.com/en-us/style-guide/bias-free-communication
+[4]: ../../reference/glossary.md#test-plan

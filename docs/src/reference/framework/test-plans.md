@@ -194,12 +194,12 @@ Each variant is run individually and writes its output to its own subdirectory, 
 ordered alphanumerically and the cartesian product is formed from the user provided ordering of
 values for each dimension (as shown below).
 
-- a=foo b=1 (matrix_variant_1)
-- a=foo b=2 (matrix_variant_2)
-- a=foo b=3 (matrix_variant_3)
-- a=bar b=1 (matrix_variant_4)
-- a=bar b=2 (matrix_variant_5)
-- a=bar b=3 (matrix_variant_6)
+- `a=foo b=1` (`matrix_variant_1`)
+- `a=foo b=2` (`matrix_variant_2`)
+- `a=foo b=3` (`matrix_variant_3`)
+- `a=bar b=1` (`matrix_variant_4`)
+- `a=bar b=2` (`matrix_variant_5`)
+- `a=bar b=3` (`matrix_variant_6`)
 
 ### Naming variants
 
@@ -217,12 +217,12 @@ matrix:
 When doing so, the ordering for variants remains the same but the output directory names are
 generated using the template provided:
 
-- a=foo b=1 (foo_1)
-- a=foo b=2 (foo_2)
-- a=foo b=3 (foo_3)
-- a=bar b=1 (bar_1)
-- a=bar b=2 (bar_2)
-- a=bar b=3 (bar_3)
+- `a=foo b=1` (`foo_1`)
+- `a=foo b=2` (`foo_2`)
+- `a=foo b=3` (`foo_3`)
+- `a=bar b=1` (`bar_1`)
+- `a=bar b=2` (`bar_2`)
+- `a=bar b=3` (`bar_3`)
 
 The syntax used for template strings involves placing _matrix dimension names_ inside of `${}` along
 with static string content in order to generate a unique name for each variant. The resulting string

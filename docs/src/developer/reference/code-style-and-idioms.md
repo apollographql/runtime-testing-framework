@@ -39,7 +39,8 @@ without explicit configuration:
 
 - Imports specific to a single function that would otherwise pollute the file-scope namespace may be
   placed at the start of that function body
-  - e.g. use statements for enum variants, external API structs for building request payloads
+  - For example, `use` statements for enum variants, or external API structs for building request
+    payloads
 
 **Reasoning**
 

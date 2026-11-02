@@ -12,7 +12,7 @@ has its own README file explaining its purpose at the crate's root.
 
 The `rtf-config` crate is the heart of RTF. It handles:
 
-- **Parsing** - YAML config files ([Test Plans][1], [Environments][1], [Scenarios][1]) are parsed
+- **Parsing** - YAML config files ([Test Plans][1], [Environments][8], [Scenarios][9]) are parsed
   into strongly typed Rust structs
 - **Templating** - Variable substitution using the `{{ variable }}` syntax
 - **Validation** - Static analysis checks before execution
@@ -83,11 +83,11 @@ RTF and the Orchestrator are related but distinct systems that serve different e
 
 - **RTF CLI** (`rtf`) is a local command-line tool. A developer runs it directly to perform actions
   against test plans on the same system the CLI is hosted on.
-- **[RTF Orchestrator Service][1]** is a server-side system. It receives Test Plans over HTTP,
+- **[RTF Orchestrator Service][10]** is a server-side system. It receives Test Plans over HTTP,
   manages their execution in a provisioned cluster asynchronously, and reports results back to
   callers via status endpoints.
 
-The handoff point between the two systems is the [Trigger Payload][1] — a resolved Test Plan
+The handoff point between the two systems is the [Trigger Payload][11] — a resolved Test Plan
 produced by `rtf remote prepare` and submitted to the Orchestrator via `POST /test-run/trigger`. The
 Orchestrator does not replace the RTF CLI; they are complementary tools for different execution
 contexts.
@@ -220,10 +220,14 @@ RTF follows several key design principles:
   than failing on the first error. See [Error Handling][7].
 
 [0]: https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
-[1]: ../../reference/glossary.md
+[1]: ../../reference/glossary.md#test-plan
 [2]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs
 [3]: context.md
 [4]: ../../explanation/overview.md
 [5]: cli-design/plumbing-vs-porcelain.md
 [6]: cli-design/no-built-in-magic.md
 [7]: ../reference/error-handling.md
+[8]: ../../reference/glossary.md#environment
+[9]: ../../reference/glossary.md#scenario
+[10]: ../../reference/glossary.md#rtf-orchestrator-service
+[11]: ../../reference/glossary.md#trigger-payload

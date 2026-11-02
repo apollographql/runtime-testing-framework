@@ -10,7 +10,7 @@ This section explains the design decisions and architectural thinking behind RTF
 - [Use of IO in Providers][3] - the ResolutionContext pattern
 - [CLI Design][4] - principles behind CLI subcommand design
 
-[0]: ../../reference/glossary.md
+[0]: ../../reference/glossary.md#rtf-orchestrator-service
 [1]: concepts-and-architecture.md
 [2]: logging-philosophy.md
 [3]: context.md

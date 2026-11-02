@@ -24,7 +24,7 @@ CLI runs `rtf run`, it constructs a `Context` and passes it through to all provi
 [`OrchestratorContext`][3] is the concrete implementation used by the [RTF Orchestrator Service][4]
 (`rtf-orchestrator`). It wraps an inner `Context` but overrides the file IO behaviour: instead of
 reading from the filesystem, it reads from an in-memory map of file contents that was pre-bundled by
-`rtf remote prepare` into the [Trigger Payload][4].
+`rtf remote prepare` into the [Trigger Payload][5].
 
 This is a deliberate design constraint. The Orchestrator is a server — it has no access to the
 filesystem paths that existed on the developer's machine when the test plan was prepared. The
@@ -51,4 +51,5 @@ the inner `Context`.
 [1]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L35
 [2]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157
 [3]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-orchestrator/src/context.rs
-[4]: ../../reference/glossary.md
+[4]: ../../reference/glossary.md#rtf-orchestrator-service
+[5]: ../../reference/glossary.md#trigger-payload

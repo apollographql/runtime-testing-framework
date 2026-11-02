@@ -170,7 +170,7 @@ You've now completed the script-based test plan tutorials. To go further:
 - [Using file providers][6] — manage files that your Environment and Scenario depend on
 
 [0]: ../test-plans/writing-a-scenario.md
-[1]: ../../reference/glossary.md
+[1]: ../../reference/glossary.md#test-plan
 [2]: writing-a-command.md
 [3]: ../test-plans/writing-a-scenario.md#using-variables
 [4]: ../test-plans/writing-a-scenario.md#using-overrides

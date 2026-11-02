@@ -38,7 +38,9 @@ should handle your services during deployment and execution. These labels have n
 run a Test Plan locally with `rtf run`: they exist solely to allow the Orchestrator to replicate the
 execution behaviour of `rtf run` in Kubernetes where we can't rely on shared local filesystem.
 
-Currently there are three labels available:
+The three labels used in this tutorial are listed below. The [Environments reference][5] lists every
+available label, including labels for scheduling services onto specific nodes of a
+[Dedicated Cluster][6].
 
 | Label                   | Value  | Effect                                                                                                                                                                                                                                                                                                                             |
 | ----------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -146,3 +148,5 @@ look at how we monitor the status of the execution before fetching the results.
 [2]: https://kustomize.io/
 [3]: ../../reference/framework/file-providers.md
 [4]: running-and-fetching-results.md
+[5]: ../../reference/framework/environments.md#service-labels
+[6]: ../../reference/glossary.md#dedicated-cluster

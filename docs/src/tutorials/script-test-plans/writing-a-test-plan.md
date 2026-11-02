@@ -74,12 +74,12 @@ teardown:
 
 ## Scenario config
 
-A script [Scenario][0] uses `command:` instead of `docker:`. The `command:` defines a shell script
+A script [Scenario][6] uses `command:` instead of `docker:`. The `command:` defines a shell script
 that runs directly on the host. We cover `command:` in detail in the [Writing a command][2] guide.
 
 ## Environment config
 
-A script [Environment][0] uses `setup:` and `teardown:` instead of `compose_files:`. Each phase
+A script [Environment][7] uses `setup:` and `teardown:` instead of `compose_files:`. Each phase
 defines a `command:` that runs a shell script on the host, bracketing the Scenario's execution. See
 the [framework reference][3] for the full Environment config structure.
 
@@ -126,9 +126,11 @@ In this guide, we wrote a script-based Test Plan and ran it successfully. Next, 
 
 [Writing a command][2]
 
-[0]: ../../reference/glossary.md
+[0]: ../../reference/glossary.md#test-plan
 [1]: ../test-plans/writing-a-test-plan.md
 [2]: writing-a-command.md
 [3]: ../../reference/framework/environments.md
 [4]: ../test-plans/writing-a-test-plan.md#setting-variables
 [5]: ../test-plans/writing-a-test-plan.md#using-a-matrix
+[6]: ../../reference/glossary.md#scenario
+[7]: ../../reference/glossary.md#environment

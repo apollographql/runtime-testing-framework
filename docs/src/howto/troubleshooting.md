@@ -66,7 +66,7 @@ ERROR Static analysis checks failed
 You must provide a file for MY_FILE
 ```
 
-**Cause:** A `required` [File Provider][0] exists that must be replaced with an actual provider in
+**Cause:** A `required` [File Provider][1] exists that must be replaced with an actual provider in
 the Test Plan's overrides.
 
 **Solution:** Add an override in the Test Plan that replaces the required provider:
@@ -94,7 +94,7 @@ ERROR Static analysis checks failed
 provided path was file:///path/to/missing-script.sh
 ```
 
-**Cause:** A `relative_path` [Command Provider][0] or File Provider references a file that doesn't
+**Cause:** A `relative_path` [Command Provider][2] or File Provider references a file that doesn't
 exist.
 
 **Solution:**
@@ -234,4 +234,6 @@ rtf expand-matrix test-plan.yaml
 The output directory contains a `providers/` subdirectory with all resolved File Provider outputs.
 Inspect these files to verify providers produced the expected content.
 
-[0]: ../reference/glossary.md
+[0]: ../reference/glossary.md#test-plan
+[1]: ../reference/glossary.md#file-provider
+[2]: ../reference/glossary.md#command-provider

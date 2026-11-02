@@ -16,7 +16,7 @@ _environment_ level: the confidence that every time you run a [Test Plan][3], th
 test are in the same known-good state, with the same data, in the same configuration. See
 [Understanding RTF][0] for more on the design philosophy behind this.
 
-A further benefit of this approach is consistency. When [Environments][3] and Test Plans are defined
+A further benefit of this approach is consistency. When [Environments][4] and Test Plans are defined
 in RTF, they can be shared, reviewed, and reproduced by any team — whether that's another
 engineering team building on the same services, or Apollo's support team trying to reproduce a
 customer issue. Everyone is working from the same definition, in the same way.
@@ -69,7 +69,7 @@ often you'd run them.
 
 ### End-to-end suites
 
-The most common use of RTF is running a full E2E suite — a set of [Scenarios][3] that together
+The most common use of RTF is running a full E2E suite — a set of [Scenarios][5] that together
 verify the critical behaviour of a service across a set of configurations. A good E2E suite covers
 the flows your users depend on most, not every possible code path. Because E2E tests are expensive
 to run and maintain, selectivity is a virtue.
@@ -153,4 +153,6 @@ running? If the answer is no, it probably doesn't belong here.
 [0]: ./overview.md
 [1]: https://martinfowler.com/bliki/TestPyramid.html
 [2]: https://martinfowler.com/articles/practical-test-pyramid.html
-[3]: ../reference/glossary.md
+[3]: ../reference/glossary.md#test-plan
+[4]: ../reference/glossary.md#environment
+[5]: ../reference/glossary.md#scenario
