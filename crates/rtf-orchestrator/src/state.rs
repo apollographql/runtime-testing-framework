@@ -101,9 +101,10 @@ pub struct TestRunWithPayload {
     pub payload: PreparedPayload,
     pub requires_dedicated: bool,
     pub workload_config: WorkloadConfig,
+    pub initiated_by_user: UserType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UserType {
     Admin(String),
     User(String),
@@ -205,9 +206,9 @@ mod tests {
     #[test_case(Some("admin@test.com"); "admin email")]
     #[test_case(Some("user@test.com"); "user email")]
     #[test_case(Some("automation:bot@test.com:org:test-repo"); "automation")]
-    #[test_case(Some("automation:bot@test.com:org:test-repo:extra"); "automation repo contains a colon")]
+    #[test_case(Some("automation:bot@test.com:org:test:repo"); "automation repo contains a colon")]
     #[test_case(Some("automation:malformed"); "malformed automation falls back to user")]
-    #[test_case(Some("automation:::"); "automation empty org and repo")]
+    #[test_case(Some("automation:::"); "automation with empty org and repo")]
     #[test_case(None; "no identity")]
     #[test]
     fn user_identity_returns_the_string_identity_was_built_from(identity: Option<&str>) {

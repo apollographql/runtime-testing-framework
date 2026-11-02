@@ -136,6 +136,7 @@ pub async fn handler(
                 payload: meta.payload,
                 requires_dedicated: meta.requires_dedicated_cluster,
                 workload_config,
+                initiated_by_user: user,
             },
         )
         .await

@@ -82,7 +82,7 @@ impl EventQueueState {
                 shared
                     .runs
                     .get(run)
-                    .is_some_and(|r| r.initiated_by.user_identity().as_deref() == Some(user))
+                    .is_some_and(|r| r.initiated_by_user.user_identity().as_deref() == Some(user))
             };
 
             let ongoing_runs: HashSet<Uuid> = running
@@ -144,7 +144,7 @@ impl EventQueueState {
                 shared
                     .runs
                     .get(run)
-                    .and_then(|r| r.initiated_by.user_identity())
+                    .and_then(|r| r.initiated_by_user.user_identity())
             };
 
             for (cid, claim, running) in claims.into_iter() {
@@ -397,6 +397,7 @@ mod tests {
         config::{Config, DEFAULT_POOL},
         context::OrchestratorContext,
         event_loop::{EventQueue, PendingProvision, QueueEvent, tests::stub_test_plan},
+        state::UserType,
     };
     use rtf_config::templating::Scalar;
     use rtf_orchestrator_shared::payload::SourceKeyedArrayMap;
@@ -418,8 +419,14 @@ mod tests {
         }
 
         async fn initiator_for_run(&self, run_uuid: Uuid) -> Option<String> {
-            self.with_shared(|shared| shared.runs.get(&run_uuid)?.initiated_by.clone())
-                .await
+            self.with_shared(|shared| {
+                shared
+                    .runs
+                    .get(&run_uuid)?
+                    .initiated_by_user
+                    .user_identity()
+            })
+            .await
         }
     }
 
@@ -529,7 +536,7 @@ mod tests {
         );
         ph.cache_for_test_run(
             run_uuid,
-            Some("alice@example.com".to_string()),
+            UserType::User("alice@example.com".to_string()),
             Default::default(),
             false,
             ctx,
@@ -582,7 +589,7 @@ mod tests {
 
             ph.cache_for_test_run(
                 run_uuid,
-                Some(user.to_string()),
+                UserType::User(user.to_string()),
                 Default::default(),
                 false,
                 ctx.clone(),
@@ -607,7 +614,7 @@ mod tests {
                         .with_inner(|inner| {
                             inner.push_event(QueueEvent::Provision(
                                 pool.clone(),
-                                PendingProvision::new(ex, run_uuid, false),
+                                PendingProvision::new(ex, run_uuid, false, UserType::Unknown),
                             ))
                         })
                         .await
@@ -639,7 +646,7 @@ mod tests {
         let run_uuid = Uuid::new_v4();
         ph.cache_for_test_run(
             run_uuid,
-            Some("alice".to_string()),
+            UserType::User("alice".to_string()),
             Default::default(),
             false,
             ctx,

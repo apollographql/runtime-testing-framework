@@ -102,7 +102,7 @@ pub(super) struct RunState {
     pub(super) ctx: Arc<OrchestratorContext>,
     pub(super) test_plan: OrchestratorTestPlan,
     pub(super) executions: HashSet<Uuid>,
-    pub(super) initiated_by: UserType,
+    pub(super) initiated_by_user: UserType,
     pub(super) workload_config: WorkloadConfig,
     pub(super) requires_dedicated: bool,
 }

@@ -285,9 +285,11 @@ impl EventQueue {
                 variable_sources,
             );
 
+            let initiated_by_user = UserType::from_identity(tr.initiated_by(), &admins);
+
             h.cache_for_test_run(
                 run_uuid,
-                UserType::from_identity(tr.initiated_by(), &admins),
+                initiated_by_user.clone(),
                 workload_config,
                 requires_dedicated,
                 ctx,
@@ -307,6 +309,7 @@ impl EventQueue {
                         &pool,
                         &fallback_cluster,
                         requires_dedicated,
+                        &initiated_by_user,
                         &h,
                         conn,
                     )
@@ -400,6 +403,7 @@ impl EventQueue {
         pool: &PoolId,
         fallback_cluster: &ClusterId,
         requires_dedicated: bool,
+        initiated_by_user: &UserType,
         h: &ProvisioningHandle,
         conn: &mut impl UpdateHandle,
     ) -> crate::Result<Option<Vec<QueueEvent>>> {
@@ -440,7 +444,12 @@ impl EventQueue {
             Status::Initialising | Status::Resolving => {
                 return Ok(Some(vec![QueueEvent::Provision(
                     pool.clone(),
-                    PendingProvision::new(ex.clone(), run_uuid, requires_dedicated),
+                    PendingProvision::new(
+                        ex.clone(),
+                        run_uuid,
+                        requires_dedicated,
+                        initiated_by_user.clone(),
+                    ),
                 )]));
             }
 
@@ -568,7 +577,10 @@ mod tests {
     }
 
     fn provision(pool: PoolId, ex: TestExecution) -> QueueEvent {
-        QueueEvent::Provision(pool, PendingProvision::new(ex, Uuid::new_v4(), false))
+        QueueEvent::Provision(
+            pool,
+            PendingProvision::new(ex, Uuid::new_v4(), false, UserType::Unknown),
+        )
     }
 
     #[tokio::test]
@@ -610,7 +622,7 @@ mod tests {
         );
         h.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
@@ -671,7 +683,7 @@ mod tests {
         );
         h.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
@@ -949,7 +961,7 @@ mod tests {
         );
         ph.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
@@ -1011,8 +1023,15 @@ mod tests {
             empty_source_map(),
             HashMap::new(),
         );
-        ph.cache_for_test_run(run_uuid, None, Default::default(), false, ctx, test_plan)
-            .await;
+        ph.cache_for_test_run(
+            run_uuid,
+            UserType::Unknown,
+            Default::default(),
+            false,
+            ctx,
+            test_plan,
+        )
+        .await;
         eq.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
 
@@ -1243,7 +1262,10 @@ mod tests {
         match (eq.rx.try_recv(), data) {
             (Ok(evt), Some(EventData::ResolveConfig)) => assert_eq!(
                 evt,
-                QueueEvent::Provision(DEFAULT_POOL, PendingProvision::new(ex, run_uuid, false,))
+                QueueEvent::Provision(
+                    DEFAULT_POOL,
+                    PendingProvision::new(ex, run_uuid, false, UserType::Unknown)
+                )
             ),
 
             (Ok(evt), Some(data)) => assert_eq!(
@@ -1483,7 +1505,7 @@ mod tests {
         );
         ph.cache_for_test_run(
             run_uuid,
-            Some(initiator.to_string()),
+            UserType::User(initiator.to_string()),
             Default::default(),
             true,
             ctx,
@@ -1502,7 +1524,7 @@ mod tests {
             .await;
         eq.push_event(QueueEvent::Provision(
             DEFAULT_POOL.clone(),
-            PendingProvision::new(ex.clone(), run_uuid, true),
+            PendingProvision::new(ex.clone(), run_uuid, true, UserType::Unknown),
         ))
         .await;
 

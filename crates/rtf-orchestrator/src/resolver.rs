@@ -5,7 +5,7 @@ use crate::{
     context::OrchestratorContext,
     db::{ClusterId, TestExecution, UpdateHandle},
     event_loop::{EventData, ProvisioningHandle},
-    state::{TestRunWithPayload, UserType, read_admins},
+    state::TestRunWithPayload,
 };
 use rtf_config::{StableSource, checks::Check, templating::Template};
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorTestPlan};
@@ -24,9 +24,6 @@ const MSG_RUN_CHECKS: &str = "running test plan static checks";
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResolverError {
-    #[error("unable to read admins file: {0}")]
-    AdminsFile(String),
-
     #[error("event loop channel closed")]
     EventChannelClosed,
 
@@ -182,6 +179,7 @@ async fn try_resolve<H>(
         payload,
         requires_dedicated,
         workload_config,
+        initiated_by_user,
     }: &TestRunWithPayload,
     update_handle: &mut H,
     cfg: &Config,
@@ -219,15 +217,11 @@ where
         return Err(ResolverError::UnknownPool(pool.to_string()));
     }
 
-    let admins = read_admins(&cfg.admins_path)
-        .await
-        .map_err(|e| ResolverError::AdminsFile(e.to_string()))?;
-
     update_handle.cache_payload_for_run(test_run, payload).await;
     prov_handle
         .cache_for_test_run(
             test_run.uuid(),
-            UserType::from_identity(test_run.initiated_by(), &admins),
+            initiated_by_user.clone(),
             workload_config.clone(),
             *requires_dedicated,
             ctx,
@@ -335,7 +329,7 @@ mod tests {
         config::{Config, DEFAULT_POOL},
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
         event_loop::{EventData, EventQueue},
-        state::TestRunWithPayload,
+        state::{TestRunWithPayload, UserType},
     };
     use indoc::indoc;
     use rtf_config::{
@@ -513,8 +507,15 @@ mod tests {
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(tr.uuid(), None, Default::default(), false, ctx, tp)
-            .await;
+        ph.cache_for_test_run(
+            tr.uuid(),
+            UserType::Unknown,
+            Default::default(),
+            false,
+            ctx,
+            tp,
+        )
+        .await;
         ph.request_provisioning(&tr, "test", 0, DEFAULT_POOL, &mut mock)
             .await
             .unwrap();
@@ -570,6 +571,7 @@ mod tests {
             payload,
             requires_dedicated: false,
             workload_config: Default::default(),
+            initiated_by_user: UserType::Unknown,
         }
     }
 
@@ -716,6 +718,7 @@ mod tests {
                 payload,
                 requires_dedicated: false,
                 workload_config: Default::default(),
+                initiated_by_user: UserType::Unknown,
             },
         )
         .await
@@ -829,6 +832,7 @@ mod tests {
             payload: empty_payload(),
             requires_dedicated: false,
             workload_config: Default::default(),
+            initiated_by_user: UserType::Unknown,
         })))
         .unwrap();
         tx.send(ResolverInput::ResolveConfig(
