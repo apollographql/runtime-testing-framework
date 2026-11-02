@@ -87,11 +87,16 @@ impl TestRun {
 
     #[cfg(test)]
     pub fn create_stub(id: i32, name: &str) -> Self {
+        Self::create_stub_with_initiator(id, name, None)
+    }
+
+    #[cfg(test)]
+    pub fn create_stub_with_initiator(id: i32, name: &str, initiated_by: Option<&str>) -> Self {
         Self {
             id,
             uuid: Uuid::new_v4(),
             name: name.into(),
-            initiated_by: None,
+            initiated_by: initiated_by.map(str::to_owned),
             started_at: Utc::now(),
             completed_at: None,
             variables_id: None,

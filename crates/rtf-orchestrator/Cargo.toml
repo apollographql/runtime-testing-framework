@@ -62,7 +62,8 @@ uuid.workspace = true
 tikv-jemallocator.workspace = true
 
 [dev-dependencies]
-anyhow.workspace = true 
+anyhow.workspace = true
+assert_fs.workspace = true
 axum-test = "=21.1.0"
 indoc.workspace = true
 reqwest.workspace = true

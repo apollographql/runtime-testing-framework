@@ -10,8 +10,7 @@ use crate::{
         shared::Shared,
     },
     resolver::{self, ResolverError, ResolverInput},
-    state::UserType,
-    state::read_admins,
+    state::{UserClassifier, UserType},
 };
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorEnvironment};
 use sqlx::PgConnection;
@@ -247,10 +246,13 @@ impl EventQueue {
         &mut self,
         cfg: &Config,
         conn: &mut PgConnection,
+        user_classifier: UserClassifier,
+        // TODO Ellie: pass in server state
     ) -> crate::Result<()> {
         let cache = try_load_payload_cache(conn).await?;
 
-        self.init_queue_state_from_cache(cache, cfg, conn).await
+        self.init_queue_state_from_cache(cache, cfg, conn, user_classifier)
+            .await
     }
 
     async fn init_queue_state_from_cache(
@@ -258,10 +260,10 @@ impl EventQueue {
         cache: HashMap<Uuid, (TestRun, PreparedPayload)>,
         cfg: &Config,
         conn: &mut impl UpdateHandle,
+        user_classifier: UserClassifier,
     ) -> crate::Result<()> {
         let h = self.provisioning_handle();
         let mut recovered_runs: HashMap<Uuid, (TestRun, Vec<TestExecution>)> = HashMap::new();
-        let admins = read_admins(&cfg.admins_path).await?;
 
         for (run_uuid, (tr, payload)) in cache.into_iter() {
             let pool = tr.workload_pool();
@@ -285,7 +287,9 @@ impl EventQueue {
                 variable_sources,
             );
 
-            let initiated_by_user = UserType::from_identity(tr.initiated_by(), &admins);
+            let initiated_by_user = user_classifier
+                .user_type_from_identity(tr.initiated_by())
+                .await?;
 
             h.cache_for_test_run(
                 run_uuid,
@@ -1176,10 +1180,23 @@ mod tests {
     async fn prepare_init_queue_test<const N: usize>(
         statuses: [Status; N],
     ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
-        let cfg = Config::for_test();
-        let (mut eq, _, _, _) = EventQueue::new(&cfg.workload_clusters);
+        prepare_init_queue_test_with(
+            Config::for_test(),
+            TestRun::create_stub(1, "test"),
+            UserClassifier::default(),
+            statuses,
+        )
+        .await
+    }
 
-        let tr = TestRun::create_stub(1, "test");
+    /// Recovers `tr` with one execution per entry in `statuses` using the given config.
+    async fn prepare_init_queue_test_with<const N: usize>(
+        cfg: Config,
+        tr: TestRun,
+        user_classifier: UserClassifier,
+        statuses: [Status; N],
+    ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
+        let (mut eq, _, _, _) = EventQueue::new(&cfg.workload_clusters);
         let mut c = MockUpdateHandle::with_run(tr.clone());
 
         let mut exs = Vec::with_capacity(statuses.len());
@@ -1194,7 +1211,7 @@ mod tests {
 
         let cache = HashMap::from([(tr.uuid(), (tr.clone(), stub_trigger_payload()))]);
 
-        eq.init_queue_state_from_cache(cache, &cfg, &mut c)
+        eq.init_queue_state_from_cache(cache, &cfg, &mut c, user_classifier)
             .await
             .unwrap();
 
@@ -1278,6 +1295,54 @@ mod tests {
             (Ok(evt), None) => panic!("unexpected event: {evt:?}"),
             (Err(_), Some(data)) => panic!("expected {data:?} but got None"),
         }
+    }
+
+    #[test_case(None, UserType::Unknown; "no initiator")]
+    #[test_case(Some("ellie@test.com"), UserType::User("ellie@test.com".into()); "user")]
+    #[test_case(Some("admin@test.com"), UserType::Admin("admin@test.com".into()); "admin")]
+    #[test_case(
+        Some("automation:bot@test.com:test-org:test-repo"),
+        UserType::Automation { email: "bot@test.com".into(), org: "test-org".into(), repo: "test-repo".into() };
+        "automation"
+    )]
+    #[tokio::test]
+    async fn init_queue_state_recovers_the_initiators_user_type(
+        initiated_by: Option<&str>,
+        expected: UserType,
+    ) {
+        let user_classifier = UserClassifier {
+            test_admins: Some(vec!["admin@test.com".to_string()]),
+        };
+
+        let tr = TestRun::create_stub_with_initiator(1, "test", initiated_by);
+        let (mut eq, _, tr, [ex]) = prepare_init_queue_test_with(
+            Config::for_test(),
+            tr,
+            user_classifier,
+            [Status::Initialising],
+        )
+        .await;
+
+        eq.with_shared(|shared| {
+            assert_eq!(
+                shared
+                    .runs
+                    .get(&tr.uuid())
+                    .map(|run| run.initiated_by_user.clone()),
+                Some(expected.clone()),
+                "run state should hold the initiator's user type"
+            );
+        })
+        .await;
+
+        assert_eq!(
+            eq.rx.try_recv().unwrap(),
+            QueueEvent::Provision(
+                DEFAULT_POOL,
+                PendingProvision::new(ex, tr.uuid(), false, expected)
+            ),
+            "recovered event should carry the initiator's user type"
+        );
     }
 
     #[test_case(Status::Running, Status::Running, true; "both in flight")]
@@ -1604,7 +1669,9 @@ mod tests {
             cache.insert(tr.uuid(), (tr.clone(), stub_trigger_payload()));
         }
 
-        _ = q.init_queue_state_from_cache(cache, &cfg, &mut c).await;
+        _ = q
+            .init_queue_state_from_cache(cache, &cfg, &mut c, UserClassifier::default())
+            .await;
 
         (q, c, exs)
     }
