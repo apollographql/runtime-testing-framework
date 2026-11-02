@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-9b5efe91.js"></script>
+        <script src="toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -335,10 +335,10 @@ everything down cleanly afterwards. What it is <em>not</em> is a framework for w
 provide assertions, test runners, or anything that touches the logic of your test scenarios — that
 part is entirely up to you and your existing tooling.</p>
 <p>This distinction matters. The value RTF provides is reliability and repeatability at the
-<em>environment</em> level: the confidence that every time you run a <a href="#glossary">Test Plan</a>, the services under
+<em>environment</em> level: the confidence that every time you run a <a href="#test-plan">Test Plan</a>, the services under
 test are in the same known-good state, with the same data, in the same configuration. See
 <a href="#overview">Understanding RTF</a> for more on the design philosophy behind this.</p>
-<p>A further benefit of this approach is consistency. When <a href="#glossary">Environments</a> and Test Plans are defined
+<p>A further benefit of this approach is consistency. When <a href="#environment-1">Environments</a> and Test Plans are defined
 in RTF, they can be shared, reviewed, and reproduced by any team — whether that’s another
 engineering team building on the same services, or Apollo’s support team trying to reproduce a
 customer issue. Everyone is working from the same definition, in the same way.</p>
@@ -387,7 +387,7 @@ the question you’re answering is “does this actually work, end to end, in th
 <p>All of the following test types sit at the top of the pyramid. What differs is their purpose and how
 often you’d run them.</p>
 <h3 id="end-to-end-suites"><a class="header" href="#end-to-end-suites">End-to-end suites</a></h3>
-<p>The most common use of RTF is running a full E2E suite — a set of <a href="#glossary">Scenarios</a> that together
+<p>The most common use of RTF is running a full E2E suite — a set of <a href="#scenario-1">Scenarios</a> that together
 verify the critical behaviour of a service across a set of configurations. A good E2E suite covers
 the flows your users depend on most, not every possible code path. Because E2E tests are expensive
 to run and maintain, selectivity is a virtue.</p>
@@ -822,7 +822,7 @@ those tools.</p>
 <p><strong>Next:</strong> <a href="#writing-a-test-plan">Writing a test plan</a></p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
-<p>In this guide, we’ll write a docker-based <a href="#glossary">Test Plan</a> from scratch. We’ll cover the four required
+<p>In this guide, we’ll write a docker-based <a href="#test-plan">Test Plan</a> from scratch. We’ll cover the four required
 fields, run the Test Plan, then add variables and a matrix to parameterize runs across multiple
 configurations.</p>
 <blockquote>
@@ -865,7 +865,7 @@ environment:
                 - "8080:80"
 </code></pre>
 <p>This will all be explained as we progress through the guide, for now all you need to know is this is
-the most basic docker based <a href="#glossary">Test Plan</a> it is possible to write in RTF.</p>
+the most basic docker based <a href="#test-plan">Test Plan</a> it is possible to write in RTF.</p>
 <h2 id="adding-required-fields"><a class="header" href="#adding-required-fields">Adding required fields</a></h2>
 <p>An RTF Test Plan has four required fields: <code>name</code>, <code>description</code>, <code>scenario</code>, and <code>environment</code>. The
 sections below add each of these required fields and explain them in more detail.</p>
@@ -888,7 +888,7 @@ adding that context to inline comments.</p>
 <h3 id="scenario"><a class="header" href="#scenario"><code>scenario</code></a></h3>
 <p>The <code>scenario</code> is used to define the configuration and command that runs the actual testing logic in
 the Test Plan. The <code>scenario</code> can be defined inline within the Test Plan or in its own file. In this
-guide, we’ll define the <a href="#glossary">Scenario</a> inline. The guide on <a href="#writing-a-new-scenario">writing a new Scenario</a> covers how to
+guide, we’ll define the <a href="#scenario-1">Scenario</a> inline. The guide on <a href="#writing-a-new-scenario">writing a new Scenario</a> covers how to
 define a Scenario in a separate file.</p>
 <p>We’ll use a <code>docker</code> based Scenario — the recommended approach in RTF. If <code>docker</code> isn’t an option,
 see <a href="#writing-script-based-test-plans">script based Scenarios</a>. We’ll cover more advanced Scenario configuration in the guide on
@@ -923,7 +923,7 @@ are running <code>docker</code> from is authenticated to pull the image.</li>
 </li>
 </ul>
 <h3 id="environment"><a class="header" href="#environment"><code>environment</code></a></h3>
-<p>The <code>environment</code> is used to define the configuration and commands that set up the <a href="#glossary">Environment</a>
+<p>The <code>environment</code> is used to define the configuration and commands that set up the <a href="#environment-1">Environment</a>
 for testing and tear it down after the test has completed. The <code>environment</code> can be defined inline
 within the Test Plan or in its own file. In this guide, we’ll define the Environment inline. The
 guide on <a href="#writing-a-new-environment">writing a new Environment</a> covers how to define an Environment in a separate file.</p>
@@ -2325,7 +2325,7 @@ cases where docker isn’t available</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="running-test-plans-with-the-rtf-orchestrator-service"><a class="header" href="#running-test-plans-with-the-rtf-orchestrator-service">Running test plans with the RTF Orchestrator Service</a></h1>
-<p>This section guides you through running RTF test plans using the <a href="#glossary">RTF Orchestrator Service</a>: a
+<p>This section guides you through running RTF test plans using the <a href="#rtf-orchestrator-service">RTF Orchestrator Service</a>: a
 managed, remote execution service for running RTF Test Plans at Apollo. Instead of running your
 <a href="#test-plans">Test Plan</a> locally with <code>rtf run</code>, you submit it to the Orchestrator which provisions an
 isolated Kubernetes namespace for deploying your <a href="#environments">Environment</a> before then executing your
@@ -2350,26 +2350,17 @@ consistent performance.</li>
 Orchestrator concurrently, leading to a significant speed up in wall-clock execution time.</li>
 </ul>
 <h2 id="accessing-the-orchestrator"><a class="header" href="#accessing-the-orchestrator">Accessing the Orchestrator</a></h2>
-<p>The Orchestrator is deployed at <code>https://api.rtf.apollographql.com</code> and is protected by Google Cloud
-IAP. Access is managed in GCP by the Runtime Readiness team.</p>
-<p>Once access is granted, you can authenticate with GCP using the following command:</p>
-<pre><code class="language-bash">gcloud auth application-default login
-</code></pre>
-<p>You can check whether or not you have access by attempting to hit the healthcheck endpoint on the
-Orchestrator using the <code>rtf</code> CLI like so:</p>
-<pre><code class="language-bash">rtf remote request health
-</code></pre>
-<p>If you see <code>{"ok":true}</code> in your terminal then you are correctly authenticated. If you are unable to
-reach the Orchestrator, reach out to the Runtime Readiness team in Slack and we will set up access
-for you and your team.</p>
+<p>The Orchestrator is deployed at <a href="https://api.rtf.apollographql.com">api.rtf.apollographql.com</a>, with the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>
+alongside it, and is protected by Google Cloud IAP. Access is managed by the Runtime Readiness team.</p>
+<p>Before starting this tutorial, follow the <a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a> guide to request
+access, authenticate with GCP, and check that you are able to reach the Orchestrator.</p>
 <blockquote>
 <p><strong>Prerequisites</strong></p>
 <ul>
-<li>you have completed the <a href="#writing-test-plans">“Writing test plans”</a> tutorial series</li>
-<li>the <code>rtf</code> CLI installed</li>
-<li>the <code>gcloud</code> CLI installed</li>
-<li>you have authenticated with <code>gcloud auth application-default login</code></li>
-<li>you have validated your access to the Orchestrator using <code>rtf remote request health</code></li>
+<li>You have completed the <a href="#writing-test-plans">“Writing test plans”</a> tutorial series</li>
+<li>The <code>rtf</code> CLI installed</li>
+<li>The <code>gcloud</code> CLI installed</li>
+<li>You have completed the <a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a> guide</li>
 </ul>
 </blockquote>
 <hr>
@@ -2407,7 +2398,9 @@ it will be ready to run!</p>
 should handle your services during deployment and execution. These labels have no effect when you
 run a Test Plan locally with <code>rtf run</code>: they exist solely to allow the Orchestrator to replicate the
 execution behaviour of <code>rtf run</code> in Kubernetes where we can’t rely on shared local filesystem.</p>
-<p>Currently there are three labels available:</p>
+<p>The three labels used in this tutorial are listed below. The <a href="#service-labels">Environments reference</a> lists every
+available label, including labels for scheduling services onto specific nodes of a
+<a href="#dedicated-cluster">Dedicated Cluster</a>.</p>
 <div class="table-wrapper">
 <table>
 <thead>
@@ -2498,61 +2491,32 @@ look at how we monitor the status of the execution before fetching the results.<
 <p><a href="#running-and-fetching-results">Running and fetching results</a></p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="running-and-fetching-results"><a class="header" href="#running-and-fetching-results">Running and fetching results</a></h1>
-<p>In this guide, we’ll submit our <a href="#glossary">Test Plan</a> to the <a href="#glossary">RTF Orchestrator Service</a> using
-<code>rtf remote ci-run</code>, watch it progress through the execution lifecycle, and then fetch the results
-using <code>rtf remote run-output</code>.</p>
+<p>In this guide, we’ll submit our <a href="#test-plan">Test Plan</a> to the <a href="#rtf-orchestrator-service">RTF Orchestrator Service</a> using
+<code>rtf remote ci-run</code>, follow it through the execution lifecycle in the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>, and then
+fetch the results using <code>rtf remote run-output</code>.</p>
 <blockquote>
 <p><strong>Prerequisites</strong></p>
 <ul>
 <li>Completed the <a href="#making-your-test-plan-orchestrator-ready">“Making your test plan Orchestrator-ready”</a> guide</li>
-<li><code>gcloud</code> CLI installed and authenticated with <code>gcloud auth application-default login</code></li>
-<li>Access to the Orchestrator at <code>https://api.rtf.apollographql.com</code> granted by the Runtime
-Readiness team</li>
+<li>Completed the <a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a> guide</li>
 </ul>
 </blockquote>
-<h2 id="doing-things-manually"><a class="header" href="#doing-things-manually">Doing things manually</a></h2>
-<p>For actual execution we recommend using the <code>rtf remote ci-run</code> subcommand which handles all of the
-following steps for you automatically. But before we take a look at how to use that subcommand,
-we’ll first explain what that is doing under the hood so you have an understanding of what is
-happening when the Orchestrator executes a Test Plan.</p>
-<h3 id="preparing-the-trigger-payload"><a class="header" href="#preparing-the-trigger-payload">Preparing the Trigger Payload</a></h3>
+<h2 id="what-happens-when-we-trigger-a-run"><a class="header" href="#what-happens-when-we-trigger-a-run">What happens when we trigger a run</a></h2>
 <p>Before a Test Plan can be submitted to the Orchestrator, it must be converted into a
-<a href="#glossary">Trigger Payload</a>. This is simply a JSON representation of the Test Plan in the inline form
+<a href="#trigger-payload">Trigger Payload</a>. This is simply a JSON representation of the Test Plan in the inline form
 generated by <code>rtf template</code>, along with any local files that are referenced by file providers
 contained in the Test Plan.</p>
-<p>To build the payload manually we use the <code>rtf remote prepare</code> command:</p>
-<pre><code class="language-bash">rtf remote prepare test-plan.yaml
+<p>The <code>rtf remote</code> commands that trigger runs build this payload for us, submit it to the
+Orchestrator, and receive a <strong><a href="#test-run-summary">Test Run Summary</a></strong> in return that contains the ID of our newly
+created <a href="#test-run">Test Run</a>. If we want to see what is being submitted, we can build the payload
+ourselves using <code>rtf remote prepare</code>:</p>
+<pre><code class="language-bash">rtf remote prepare test-plan.yaml | jq
 </code></pre>
-<p><code>rtf remote prepare</code> writes its output as a single JSON object to stdout, allowing you to pipe it
-directly to other tools or inspect it with <code>jq</code>. You should not edit this payload by hand before
-submitting to the Orchestrator as this is likely to result in broken test runs.</p>
-<h3 id="triggering-a-run-with-rtf-remote-request"><a class="header" href="#triggering-a-run-with-rtf-remote-request">Triggering a run with <code>rtf remote request</code></a></h3>
-<p>To manually trigger a <a href="#glossary">Test Run</a> we can use the <code>rtf remote request</code> subcommand that allows for
-making individual requests to the Orchestrator. The trigger request is made using the payload we
-covered in the previous section like so:</p>
-<pre><code class="language-bash">rtf remote request -X POST --body "$(rtf remote prepare test-plan.yaml)" test-run/trigger
-</code></pre>
-<p>Provided the Test Plan is accepted, this will return a <strong><a href="#glossary">Test Run Summary</a></strong> that details the
-current status of our newly created test run. We won’t go into the details of everything that is
-contained in the summary just now, as all we need for the next step is the ID of our run which we
-can extract from the summary by piping it through <code>jq</code> and using the following filter:</p>
-<pre><code class="language-bash">| jq -r '.id'
-</code></pre>
-<h3 id="polling-for-status-updates"><a class="header" href="#polling-for-status-updates">Polling for status updates</a></h3>
-<p>Armed with our test run ID we can use the <code>test-run/$id/status</code> endpoint to see what is happening as
-our run is processed by the Orchestrator:</p>
-<pre><code class="language-bash">rtf remote request "test-run/$RUN_ID/status" | jq
-</code></pre>
-<p>This endpoint returns the same <strong>Test Run Summary</strong> data as the trigger endpoint, but with the
-details being pulled fresh each time we make the request. Using this we can check the value of the
-<code>current_status</code> field to see how our run is progressing (see “The execution lifecycle” below).</p>
-<p>Once our run enters a terminal state we are able to try pulling the results for analysis. But before
-we take a look at that, let’s introduce the <code>rtf remote ci-run</code> subcommand that automates the
-process we’ve just implemented by hand.</p>
+<p><code>rtf remote prepare</code> writes its output as a single JSON object to stdout. You should never need to
+edit this payload by hand, and doing so is likely to result in broken test runs.</p>
 <h2 id="triggering-a-run-with-rtf-remote-ci-run"><a class="header" href="#triggering-a-run-with-rtf-remote-ci-run">Triggering a run with <code>rtf remote ci-run</code></a></h2>
-<p><code>rtf remote ci-run</code> is the primary command for running a Test Plan through the Orchestrator. It
-automates all of the steps we just covered, preparing the Trigger Payload, submitting it for
-execution, and polling for status updates until the run completes.</p>
+<p><code>rtf remote ci-run</code> prepares the Trigger Payload, submits it for execution, and then polls for
+status updates until the run completes:</p>
 <pre><code class="language-bash">rtf remote ci-run test-plan.yaml
 </code></pre>
 <p>The command prints a status table that updates at each poll interval (default: 10 seconds) showing
@@ -2567,13 +2531,16 @@ the most recent activity associated with your run:</p>
 
 Test run complete. Final status: successful
 
-Run 'rtf remote request test-run/&lt;run-id&gt;/status' to view the summary for this run
+Run 'rtf remote run-status &lt;run-id&gt; --with-executions' to view the summary for this run
 
-Run the following to fetch the status, log or output.zip for an execution:
-   rtf remote request test-execution/$ID/status
-   rtf remote request test-execution/$ID/log.txt
-   rtf remote request test-execution/$ID/output.zip &gt; output.zip
+Run the following to fetch the status, log or output.zip for an individual execution:
+   rtf remote execution-status $ID
+   rtf remote execution-log $ID
+   rtf remote execution-output $ID
 </code></pre>
+<p>If you’d rather not wait for the run to complete, <code>rtf remote run</code> triggers the run in the same way
+but exits straight away, printing the ID of the run along with a link to its page in the
+Orchestrator UI.</p>
 <h3 id="the-execution-lifecycle"><a class="header" href="#the-execution-lifecycle">The execution lifecycle</a></h3>
 <p>The <code>status</code> column from that table shows the current execution status of the run as a whole. Each
 test run (and test execution inside of a run) progresses through the following statuses as it
@@ -2592,6 +2559,7 @@ executes:</p>
 <tr><td><code>SUCCESSFUL</code></td><td>The Scenario exited cleanly</td></tr>
 <tr><td><code>FAILED</code></td><td>The Scenario exited with a non-zero exit code</td></tr>
 <tr><td><code>UNRUNNABLE</code></td><td>The execution could not be started (for example, due to an environment failure)</td></tr>
+<tr><td><code>CANCELLED</code></td><td>The run was cancelled by a user</td></tr>
 </tbody>
 </table>
 </div>
@@ -2601,18 +2569,26 @@ Test Plans, the table shows the aggregate count across all executions.</p>
 <ul>
 <li><code>0</code> if all executions were <code>SUCCESSFUL</code></li>
 <li><code>1</code> if any execution <code>FAILED</code></li>
-<li><code>2</code> if any execution was <code>UNRUNNABLE</code></li>
+<li><code>2</code> if the run was <code>UNRUNNABLE</code> or <code>CANCELLED</code></li>
 </ul>
-<p>This makes it suitable for use in CI pipelines, allowing a non-zero exit code to fail the pipeline
-when a test run does not succeed.</p>
+<p>This makes it suitable for scripting, allowing a non-zero exit code to signal that a test run did
+not succeed. To run Test Plans from CI, see <a href="#running-from-ci">Running from CI</a>.</p>
 <h3 id="adjusting-the-poll-interval"><a class="header" href="#adjusting-the-poll-interval">Adjusting the poll interval</a></h3>
 <p>You can use <code>--poll-interval-seconds</code> to change how frequently the command polls for status updates:</p>
 <pre><code class="language-bash">rtf remote ci-run test-plan.yaml --poll-interval-seconds 30
 </code></pre>
+<h2 id="following-the-run-in-the-orchestrator-ui"><a class="header" href="#following-the-run-in-the-orchestrator-ui">Following the run in the Orchestrator UI</a></h2>
+<p>While our run is in progress we can also follow it in the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>. Enter the test run
+ID printed by <code>rtf remote ci-run</code> into the box in the header and select <strong>View status</strong> to open the
+run’s page.</p>
+<p>The run page refreshes automatically while the run is in progress and shows the status of each of
+our Test Executions. Each execution links to its logs in GCP, its metrics in Grafana, and its
+<code>log.txt</code> and <code>output.zip</code>. If we need to stop our run early, we can select <strong>Cancel run</strong>.</p>
+<p>See <a href="#working-with-the-orchestrator-ui">Working with the Orchestrator UI</a> for everything else the UI can do.</p>
 <h2 id="fetching-output-for-a-single-execution"><a class="header" href="#fetching-output-for-a-single-execution">Fetching output for a single execution</a></h2>
 <p>Once our run is complete, we can use <code>rtf remote execution-output</code> to fetch the log and output zip
-for a specific execution. We can find the execution ID in the output of <code>rtf remote ci-run</code>, or by
-querying the run status with <code>rtf remote request test-run/&lt;run-id&gt;/status</code>.</p>
+for a specific execution. We can find the execution ID on the run’s page in the Orchestrator UI, or
+by running <code>rtf remote run-status &lt;run-id&gt; --with-executions</code>.</p>
 <pre><code class="language-bash">rtf remote execution-output &lt;execution-id&gt;
 </code></pre>
 <p>This writes the following to a newly created <code>output/</code> directory by default:</p>
@@ -2651,21 +2627,14 @@ our run in parallel; it groups each execution’s output into a named subdirecto
   ...
 </code></pre>
 <p>We can use the same <code>--outdir</code> and <code>--force</code> flags as with <code>rtf remote execution-output</code>.</p>
-<h2 id="making-raw-api-requests"><a class="header" href="#making-raw-api-requests">Making raw API requests</a></h2>
-<p>As covered above, <code>rtf remote request</code> lets us make arbitrary authenticated requests to the
-Orchestrator directly, for situations where higher level commands such as <code>rtf remote ci-run</code> don’t
-provide the functionality we need:</p>
-<pre><code class="language-bash">rtf remote request test-run/&lt;run-id&gt;/status
-rtf remote request test-execution/&lt;execution-id&gt;/log.txt
-</code></pre>
-<p>The response body for requests we make this way is always written to stdout. We can use <code>-X</code> to
-specify a method and <code>-b</code> to supply a request body. See the <a href="#command-line-help-for-rtf">CLI reference</a> for the full set of
-options.</p>
 <h2 id="next-steps-6"><a class="header" href="#next-steps-6">Next steps</a></h2>
 <p>You’ve now completed the “Running with the Orchestrator” tutorial series: you can submit a Test Plan
-to the Orchestrator, monitor it through to completion, and fetch its results. To go further:</p>
+to the Orchestrator, follow it through to completion, and fetch its results. To go further:</p>
 <ul>
-<li><a href="#command-line-help-for-rtf">CLI reference</a> — full reference for <code>rtf remote</code> and its subcommands</li>
+<li><a href="#registering-and-managing-known-test-plans">Registering and managing Known Test Plans</a> — run your Test Plan from the Orchestrator UI and
+CI</li>
+<li><a href="#working-with-the-orchestrator-ui">Working with the Orchestrator UI</a> — monitor, trigger, and cancel runs from the UI</li>
+<li><a href="#using-rtf-remote">Using <code>rtf remote</code></a> — reference for the <code>rtf remote</code> subcommands</li>
 <li><a href="#troubleshooting">Troubleshooting</a> — common issues and how to resolve them</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
@@ -3360,7 +3329,7 @@ LOG_LEVEL=debug
 and use test plan variables for dynamic configuration.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-script-based-test-plans"><a class="header" href="#writing-script-based-test-plans">Writing script-based test plans</a></h1>
-<p>This section guides you through writing a script-based <a href="#glossary">Test Plan</a> from a blank file. Script
+<p>This section guides you through writing a script-based <a href="#test-plan">Test Plan</a> from a blank file. Script
 environments and scenarios run shell commands directly on the host instead of using <code>docker compose</code>
 and containers.</p>
 <h2 id="when-to-use-script-based-test-plans"><a class="header" href="#when-to-use-script-based-test-plans">When to use script-based test plans</a></h2>
@@ -3378,7 +3347,7 @@ already manages its own lifecycle, or in environments where docker is not permit
 <p><strong>Next:</strong> <a href="#writing-a-test-plan-1">Writing a test plan</a></p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-a-test-plan-1"><a class="header" href="#writing-a-test-plan-1">Writing a test plan</a></h1>
-<p>In this guide, we’ll write a script-based <a href="#glossary">Test Plan</a> from scratch. The Test Plan structure is
+<p>In this guide, we’ll write a script-based <a href="#test-plan">Test Plan</a> from scratch. The Test Plan structure is
 identical to the <a href="#writing-a-test-plan">docker tutorial</a> — the differences are in the Scenario and Environment configs,
 which will use <code>command</code>s instead of <code>docker</code>.</p>
 <p>Create a working directory:</p>
@@ -3433,10 +3402,10 @@ teardown:
       echo "environment teardown"
 </code></pre>
 <h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario config</a></h2>
-<p>A script <a href="#glossary">Scenario</a> uses <code>command:</code> instead of <code>docker:</code>. The <code>command:</code> defines a shell script
+<p>A script <a href="#scenario-1">Scenario</a> uses <code>command:</code> instead of <code>docker:</code>. The <code>command:</code> defines a shell script
 that runs directly on the host. We cover <code>command:</code> in detail in the <a href="#writing-a-command">Writing a command</a> guide.</p>
 <h2 id="environment-config"><a class="header" href="#environment-config">Environment config</a></h2>
-<p>A script <a href="#glossary">Environment</a> uses <code>setup:</code> and <code>teardown:</code> instead of <code>compose_files:</code>. Each phase
+<p>A script <a href="#environment-1">Environment</a> uses <code>setup:</code> and <code>teardown:</code> instead of <code>compose_files:</code>. Each phase
 defines a <code>command:</code> that runs a shell script on the host, bracketing the Scenario’s execution. See
 the <a href="#environments">framework reference</a> for the full Environment config structure.</p>
 <h2 id="checking-the-test-plan-1"><a class="header" href="#checking-the-test-plan-1">Checking the Test Plan</a></h2>
@@ -3500,7 +3469,7 @@ env_vars:
   SCENARIO_ENV: scenario executed
 # ------------------------------------
 </code></pre>
-<p>Run the <a href="#glossary">Test Plan</a> to confirm this works:</p>
+<p>Run the <a href="#test-plan">Test Plan</a> to confirm this works:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>Output:</p>
@@ -3597,7 +3566,7 @@ at runtime.</p>
 <h1 id="using-variables-and-overrides"><a class="header" href="#using-variables-and-overrides">Using variables and overrides</a></h1>
 <p>In this guide, we’ll add a variable to the Scenario and use an override to swap the scenario command
 without modifying the base config. Both features work identically to the <a href="#writing-a-new-scenario">docker tutorial</a> — this
-guide shows them applied to a script-based <a href="#glossary">Test Plan</a>.</p>
+guide shows them applied to a script-based <a href="#test-plan">Test Plan</a>.</p>
 <blockquote>
 <p><strong>Prerequisites</strong></p>
 <ul>
@@ -3974,7 +3943,7 @@ rtf run test-plan.yaml
 (scenario.env_vars.MY_VAR) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
   - my_variable: "Description of the variable"
 </code></pre>
-<p><strong>Cause:</strong> A config file references a variable that isn’t defined in the <a href="#glossary">Test Plan’s</a>
+<p><strong>Cause:</strong> A config file references a variable that isn’t defined in the <a href="#test-plan">Test Plan’s</a>
 <code>variables</code> section and has no default value.</p>
 <p><strong>Solution:</strong> Either define the variable in the Test Plan:</p>
 <pre><code class="language-yaml">variables:
@@ -3992,7 +3961,7 @@ rtf run test-plan.yaml
 (MY_FILE) A required file has not been defined
 You must provide a file for MY_FILE
 </code></pre>
-<p><strong>Cause:</strong> A <code>required</code> <a href="#glossary">File Provider</a> exists that must be replaced with an actual provider in
+<p><strong>Cause:</strong> A <code>required</code> <a href="#file-provider">File Provider</a> exists that must be replaced with an actual provider in
 the Test Plan’s overrides.</p>
 <p><strong>Solution:</strong> Add an override in the Test Plan that replaces the required provider:</p>
 <pre><code class="language-yaml">environment:
@@ -4012,7 +3981,7 @@ the Test Plan’s overrides.</p>
 (scenario.command.command_provider) The requested file did not exist
 provided path was file:///path/to/missing-script.sh
 </code></pre>
-<p><strong>Cause:</strong> A <code>relative_path</code> <a href="#glossary">Command Provider</a> or File Provider references a file that doesn’t
+<p><strong>Cause:</strong> A <code>relative_path</code> <a href="#command-provider">Command Provider</a> or File Provider references a file that doesn’t
 exist.</p>
 <p><strong>Solution:</strong></p>
 <ol>
@@ -4134,12 +4103,301 @@ name: Test Plan
 description: A test plan config validated against its JSON schema
 ...
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="getting-set-up-with-the-orchestrator"><a class="header" href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a></h1>
+<blockquote>
+<p><strong>Note</strong>: This page describes Apollo internal processes. Concrete details are maintained in
+internal Confluence documentation linked below.</p>
+</blockquote>
+<p>This guide covers getting access to the <a href="#rtf-orchestrator-service">RTF Orchestrator Service</a>, running Test Plans with it
+locally and from CI, and diagnosing failed runs. For a step-by-step introduction, see the
+<a href="#running-test-plans-with-the-rtf-orchestrator-service">“Running with the Orchestrator”</a> tutorial.</p>
+<h2 id="authenticating-with-the-orchestrator-service"><a class="header" href="#authenticating-with-the-orchestrator-service">Authenticating with the Orchestrator service</a></h2>
+<p>Access to the Orchestrator is managed by the Runtime Readiness team. See
+<a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/2146893825/GCP+Access+-+Release+Tooling">requesting Orchestrator access</a> for how to request it.</p>
+<p>Once access is granted, authenticate with GCP using the <code>gcloud</code> CLI:</p>
+<pre><code class="language-bash">gcloud auth application-default login
+</code></pre>
+<p>Verify your access and identity:</p>
+<pre><code class="language-bash">rtf remote request whoami
+</code></pre>
+<p>The first time you call the Orchestrator, the <code>rtf</code> CLI will open a browser window to complete the
+sign-in process. The resulting token is cached locally for later requests so you should only have to
+do this once.</p>
+<h2 id="keeping-the-cli-up-to-date"><a class="header" href="#keeping-the-cli-up-to-date">Keeping the CLI up to date</a></h2>
+<p>The <code>rtf</code> CLI can be installed from the root of the RTF repository using the following command:</p>
+<pre><code class="language-bash">cargo install --path crates/rtf-cli
+</code></pre>
+<p>Very occasionally, changes to the Orchestrator API will require you to install a newer build of the
+CLI. If <code>rtf remote</code> commands start failing, please try pulling latest on <code>main</code> and reinstalling.
+If the errors persist, please reach out to the Runtime Readiness team in
+<code>#proj-runtime-testing-framework</code> to report the issue.</p>
+<h2 id="running-a-test-plan-under-the-orchestrator"><a class="header" href="#running-a-test-plan-under-the-orchestrator">Running a Test Plan under the Orchestrator</a></h2>
+<p>Choose the command based on where the Test Plan lives and whether you want to wait for the result:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Test Plan</th><th>Trigger and return</th><th>Trigger and wait for the result</th></tr>
+</thead>
+<tbody>
+<tr><td>Local file or GitHub path</td><td><code>rtf remote run</code></td><td><code>rtf remote ci-run</code></td></tr>
+<tr><td><a href="#known-test-plan">Known Test Plan</a> by UUID</td><td><code>rtf remote run-known</code></td><td><code>rtf remote ci-run-known</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><code>run</code> and <code>run-known</code> print the Test Run ID and a link to the run in the Orchestrator UI. <code>ci-run</code>
+and <code>ci-run-known</code> poll until the run completes and exit non-zero if it doesn’t succeed. As the
+names imply, these commands are intended for programmatic use in CI jobs but they can also be useful
+if you are triggering runs locally from a script or using an agent. That way, the <code>rtf</code> CLI handles
+polling and error reporting for you.</p>
+<p>As with the local <code>rtf run</code> command, Test Plan variables can be set using the <code>--var &lt;key&gt;=&lt;value&gt;</code>
+and <code>--vars &lt;file.json&gt;</code> flags:</p>
+<pre><code class="language-bash">rtf remote ci-run test-plan.yaml --var router_version=v2.18.0
+</code></pre>
+<p>See <a href="#using-rtf-remote">Using <code>rtf remote</code></a> for further details on how each <code>rtf</code> subcommand works.</p>
+<h2 id="understanding-orchestrator-workload-scheduling"><a class="header" href="#understanding-orchestrator-workload-scheduling">Understanding Orchestrator workload scheduling</a></h2>
+<p>When running Test Plans under the Orchestrator each Test Run executes inside of a single
+<a href="#workload-pool">Workload Pool</a> containing one or more Kubernetes clusters. The pool in which a given workload
+is run depends on both how the Test Plan was submitted to the Orchestrator and (optionally) server
+side configuration for Known Test Plans.</p>
+<h3 id="the-default-pool"><a class="header" href="#the-default-pool">The default pool</a></h3>
+<p>If the run was initiated using <code>rtf remote run</code> or <code>rtf remote ci-run</code> then it will always schedule
+inside of the default pool. This is a shared environment where pods from your Environment and
+Scenario will be spread over the available nodes from all clusters present in the pool. For any
+individual execution your Environment and Scenario resources will be scheduled within a single
+cluster, but no guarantee is given that all executions will run on the <em>same</em> cluster.</p>
+<p>Given the shared nature of this pool it is primarily intended for use cases such as functional
+testing, short running CI tests and iterating on new Test Plans. It is <em>not</em> appropriate for heavier
+workloads such as performance testing or workloads that are sensitive to noisy neighbours.</p>
+<h3 id="pinned-pools"><a class="header" href="#pinned-pools">Pinned pools</a></h3>
+<p>All other workload pools are configured for specific purposes and require an Admin to pin your Test
+Plan to that particular pool. This is only possible for Known Test Plans that have been registered
+with the Orchestrator (also an Admin action).</p>
+<p>Depending on the configuration of the pool in question, it may also be possible to request that your
+tests run on a <a href="#dedicated-cluster">Dedicated Cluster</a> for increased stability and limited control over how the
+cluster is configured before your run starts. See <a href="#orchestrator-internal-processes">Orchestrator internal processes</a> for further
+details on how to get your Test Plan pinned to a particular pool or request that a new pool be
+provisioned, and <a href="#workload-pools">Workload Pools</a> for details of how runs are scheduled within each pool.</p>
+<blockquote>
+<p>In order for your Known Test Plan to be associated with your server side configuration, you <em>must</em>
+trigger runs using <code>rtf remote run-known</code>, <code>rtf remote ci-run-known</code> or directly from the UI.
+Triggering using other methods will treat that run as being anonymous, resulting in your Test Plan
+being run in the default pool.</p>
+</blockquote>
+<h3 id="rate-limits-and-test-executions"><a class="header" href="#rate-limits-and-test-executions">Rate limits and Test Executions</a></h3>
+<p>All workload pools run under a set of <a href="#rate-limits">rate limits</a> that are configured per-pool. These limits
+are enforced per-user with automation users being limited per-repo they are running test plans for.
+As such, you should prefer writing Test Plans that make use of RTF’s matrix feature over triggering
+multiple single-execution runs in a loop. Loops will hit your per-user rate limit faster in addition
+to resulting in poorer workload scheduling behaviour from the Orchestrator as we are unable to cache
+file provider data as efficiently.</p>
+<h2 id="running-from-ci"><a class="header" href="#running-from-ci">Running from CI</a></h2>
+<p>The only supported way to run Test Plans under the Orchestrator from CI is the
+<a href="https://github.com/apollographql/release-tooling/tree/main/rtf-orchestrator-run-known"><code>rtf-orchestrator-run-known</code></a> GitHub Action. Calling <code>rtf remote</code> commands directly from a
+GitHub Actions workflow won’t work, as the runner isn’t authenticated with the Orchestrator.</p>
+<p>The action triggers a <a href="#known-test-plan">Known Test Plan</a> as an <a href="#automation-user">Automation User</a> for your repository, waits
+for the run to complete, and fails the job if the run doesn’t succeed. Before you can use it, your
+repository needs to be set up to authenticate with the Orchestrator. See
+<a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/2139947048/Onboarding+To+Our+Tooling">setting up CI for the Orchestrator</a> for how to request this.</p>
+<p>Once your repository is set up, add the action to a workflow:</p>
+<pre><code class="language-yaml">jobs:
+  run-test-plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: apollographql/release-tooling/rtf-orchestrator-run-known@&lt;commit-sha&gt;
+        with:
+          test_plan_id: &lt;test-plan-uuid&gt;
+          git_ref: &lt;git-ref&gt;     # optional
+          vars_file: vars.json   # optional
+</code></pre>
+<h2 id="using-private-docker-images-in-test-plans"><a class="header" href="#using-private-docker-images-in-test-plans">Using private Docker images in Test Plans</a></h2>
+<p>Public Docker images should be usable in Test Plans without any further setup. Images that are not
+public must be published to Apollo’s internal Docker registry first. See
+<a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/2139553811/Build+Publish">publishing private images for the Orchestrator</a>.</p>
+<h2 id="diagnosing-a-failed-run"><a class="header" href="#diagnosing-a-failed-run">Diagnosing a failed run</a></h2>
+<h3 id="fetching-the-output"><a class="header" href="#fetching-the-output">Fetching the output</a></h3>
+<p>The <code>rtf</code> CLI can be used to fetch the scenario log and output zipfile for either a single
+execution, or all executions within a parent run:</p>
+<pre><code class="language-bash">rtf remote execution-output &lt;execution-id&gt;
+rtf remote run-output &lt;run-id&gt;
+</code></pre>
+<p>The run and execution pages in the <a href="#working-with-the-orchestrator-ui">Orchestrator UI</a> provide links to both of these outputs as
+well as further links to each execution’s logs in GCP and its metrics in Grafana. The scenario log
+and output zipfile should be sufficient for successful runs, but we recommend making use of GCP logs
+and Grafana for digging into failures or manual investigation into more complex setups over
+complicating your test plan to export larger amounts of data in your output zipfile.</p>
+<h3 id="unrunnable-timed-out-waiting-for-deployments"><a class="header" href="#unrunnable-timed-out-waiting-for-deployments"><code>UNRUNNABLE: timed out waiting for deployments</code></a></h3>
+<p><strong>Cause:</strong> an Environment service failed to become healthy. This is commonly due to invalid service
+configuration (such as a router config option that the router version doesn’t support) or attempting
+to use a Docker image that the Orchestrator doesn’t have access to.</p>
+<p><strong>Solution:</strong> check the failing service’s container logs via the GCP logs link on the execution
+page. To validate configuration before triggering, run the Test Plan locally with <code>rtf run</code>.</p>
+<h3 id="a-service-fails-to-find-config-or-data-files-on-startup"><a class="header" href="#a-service-fails-to-find-config-or-data-files-on-startup">A service fails to find config or data files on startup</a></h3>
+<p><strong>Cause:</strong> the files are likely not present in the container.</p>
+<p><strong>Solution:</strong> supply them with <a href="#file-providers">File Providers</a> and add the <code>rtf.io/file-providers: "true"</code>
+label to the service. Do not mount provider paths with explicit volumes.</p>
+<h2 id="cancelling-an-in-flight-run"><a class="header" href="#cancelling-an-in-flight-run">Cancelling an in-flight run</a></h2>
+<p>You can cancel an in-flight run using the <code>cancel</code> button on its summary page in the Orchestrator
+UI. Alternatively, you can use the <code>rtf</code> CLI to perform the same action like so:</p>
+<pre><code class="language-bash">rtf remote request -X POST -d '{"id": "&lt;run-id&gt;"}' admin/purge-run
+</code></pre>
+<p>You are able to cancel runs that you initiated and runs of Known Test Plans you own. For anything
+else you will need to request that an Admin cancel the run. See
+<a href="#orchestrator-internal-processes">Orchestrator internal processes</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="registering-and-managing-known-test-plans"><a class="header" href="#registering-and-managing-known-test-plans">Registering and managing Known Test Plans</a></h1>
+<blockquote>
+<p><strong>Note</strong>: This page describes Apollo internal processes. Concrete details are maintained in
+internal Confluence documentation linked below.</p>
+</blockquote>
+<p>A <a href="#known-test-plan">Known Test Plan</a> is a Test Plan stored in GitHub that has been registered with the
+Orchestrator. Registering a Test Plan allows it to be triggered from the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a> and
+from CI, gives you control over who is able to trigger it, and allows it to be scheduled outside of
+the default <a href="#workload-pool">Workload Pool</a>. This guide covers registering a Known Test Plan, configuring it, and
+triggering runs.</p>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>Access to the Orchestrator (see <a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a>)</li>
+<li>A Test Plan committed to a GitHub repository that the Orchestrator is able to read</li>
+</ul>
+</blockquote>
+<h2 id="making-your-test-plan-registrable"><a class="header" href="#making-your-test-plan-registrable">Making your Test Plan registrable</a></h2>
+<p>The Orchestrator reads Known Test Plans directly from GitHub each time they are triggered, so it
+needs to be able to template them without any user supplied <a href="#trigger-variables">Trigger Variables</a>:</p>
+<ol>
+<li>
+<p>Give every variable in your Test Plan a placeholder default value so that it templates without
+any overrides.</p>
+</li>
+<li>
+<p>Make sure every <code>${...}</code> name in <code>matrix.variant_names</code> refers to a variable that is defined in
+the Test Plan.</p>
+</li>
+<li>
+<p>Check that the Test Plan templates correctly when pulled from GitHub:</p>
+<pre><code class="language-bash">rtf template --github &lt;org&gt;/&lt;repo&gt;/&lt;path&gt; --check
+</code></pre>
+</li>
+<li>
+<p>Merge the Test Plan to your repository’s default branch. The Orchestrator UI is only able to
+display details for Known Test Plans that are present on the default branch.</p>
+</li>
+</ol>
+<p>If the Orchestrator is unable to template your Test Plan, its page in the Orchestrator UI will show
+an error describing the problem.</p>
+<h2 id="registering-your-test-plan"><a class="header" href="#registering-your-test-plan">Registering your Test Plan</a></h2>
+<p>Registering a Test Plan is an Admin action. To request it, start a conversation in
+<a href="https://apollograph.slack.com/archives/C08UBLUD19C">#proj-runtime-testing-framework</a>. You will need to provide:</p>
+<ul>
+<li>A unique name and an optional description for the Known Test Plan</li>
+<li>The GitHub organization, repository, and path to your <code>test-plan.yaml</code></li>
+<li>The email addresses of the owners of the Known Test Plan</li>
+</ul>
+<p>Once registered, your Known Test Plan will be listed under <strong>Registered Test Plans</strong> in the
+Orchestrator UI.</p>
+<h2 id="configuring-your-known-test-plan"><a class="header" href="#configuring-your-known-test-plan">Configuring your Known Test Plan</a></h2>
+<p>Owners of a Known Test Plan are able to edit its configuration from the <strong>Edit test plan</strong> section
+of its page in the Orchestrator UI. As an owner you are able to:</p>
+<ul>
+<li>Update the name, description, and GitHub location of the Known Test Plan</li>
+<li>Add or remove <strong>Trigger users</strong></li>
+<li>Restrict <strong>Triggers</strong> so that only owners and trigger users can trigger runs</li>
+<li>Disable <strong>Automated triggers</strong> to prevent the Known Test Plan from being run from CI</li>
+<li>Enable or disable <strong>Namespace write access</strong> for your Scenario</li>
+<li>Set <strong>Node label weights</strong> for runs on a <a href="#dedicated-cluster">Dedicated Cluster</a></li>
+</ul>
+<p>Adding or removing owners, pinning the Known Test Plan to a Workload Pool, and requiring a Dedicated
+Cluster can only be done by an Admin. To request these changes, start a conversation in
+<a href="https://apollograph.slack.com/archives/C08UBLUD19C">#proj-runtime-testing-framework</a>. See <a href="#orchestrator-internal-processes">Orchestrator internal processes</a> for other changes
+that need an Admin.</p>
+<p>See <a href="#known-test-plan-configuration">Known Test Plan configuration</a> for details of each setting.</p>
+<h2 id="triggering-your-known-test-plan"><a class="header" href="#triggering-your-known-test-plan">Triggering your Known Test Plan</a></h2>
+<p>The simplest way to trigger a run is from the <strong>Trigger a run</strong> section of the Known Test Plan’s
+page in the Orchestrator UI. From there you can either trigger a run using the current variable
+values, or use <strong>Customize ref &amp; variables</strong> to run from a different branch, tag, or commit and to
+override individual Trigger Variables.</p>
+<p>To trigger a run from a script or an agent, use the <code>rtf</code> CLI:</p>
+<pre><code class="language-bash">rtf remote run-known &lt;test-plan-uuid&gt;
+rtf remote ci-run-known &lt;test-plan-uuid&gt; --ref &lt;git-ref&gt; --var &lt;key&gt;=&lt;value&gt;
+</code></pre>
+<p>The UUID of your Known Test Plan is the final segment of the URL of its page in the Orchestrator UI.
+To trigger your Known Test Plan from CI, see <a href="#running-from-ci">Running from CI</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="working-with-the-orchestrator-ui"><a class="header" href="#working-with-the-orchestrator-ui">Working with the Orchestrator UI</a></h1>
+<p>The <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a> is the primary way to interact with the Orchestrator. From it you can
+monitor and cancel Test Runs, inspect their results, trigger new runs, and manage your
+<a href="#known-test-plan">Known Test Plans</a>. The <code>rtf</code> CLI is only needed for triggering runs from scripts and for pulling
+run output to your local machine.</p>
+<p>The UI uses the same Google sign-in as the rest of the Orchestrator (see
+<a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a>). Once signed in, a badge in the header shows your role
+for the page you are viewing: <strong>Admin</strong>, <strong>Owner</strong>, or <strong>Can trigger</strong>.</p>
+<h2 id="finding-a-run"><a class="header" href="#finding-a-run">Finding a run</a></h2>
+<p>There are three ways to find a run in the UI:</p>
+<ul>
+<li><strong>Recent runs</strong>: the home page lists recent Test Runs, which can be filtered by who started them
+and how recently they were started.</li>
+<li><strong>By ID</strong>: enter a Test Run ID in the box in the header and select <strong>View status</strong>.</li>
+<li><strong>By Known Test Plan</strong>: open the Known Test Plan from <strong>Registered Test Plans</strong> and look under
+<strong>Previous runs</strong>.</li>
+</ul>
+<p>Runs triggered using <code>rtf remote run</code> or <code>rtf remote run-known</code> also print a direct link to the new
+run’s page.</p>
+<h2 id="checking-queue-and-cluster-capacity"><a class="header" href="#checking-queue-and-cluster-capacity">Checking queue and cluster capacity</a></h2>
+<p>The home page shows the current state of the Orchestrator:</p>
+<ul>
+<li><strong>Current Queue State</strong>: queued and running Test Executions compared to the Orchestrator’s total
+capacity</li>
+<li><strong>Workload Pools</strong>: queued work for each <a href="#workload-pool">Workload Pool</a>, along with the utilization of each
+cluster and any <a href="#dedicated-cluster">Dedicated Cluster</a> claims</li>
+<li><strong>Recent Executions</strong>: the number of Test Executions run over the last 24 hours</li>
+<li><strong>Workload pool configuration</strong>: the rate limits, clusters, and nodes for each pool</li>
+</ul>
+<p>If the Orchestrator is busy, your run will remain queued until capacity becomes available. Check
+these sections before triggering particularly large runs.</p>
+<h2 id="inspecting-a-run"><a class="header" href="#inspecting-a-run">Inspecting a run</a></h2>
+<p>A run’s page refreshes automatically while the run is in progress. It shows the run’s overall
+status, the Trigger Variables it was started with, and a breakdown of its Test Executions by status.
+The list of executions can be filtered by status, and each execution provides links to:</p>
+<ul>
+<li>The execution’s own page, showing its exit code and status history</li>
+<li>The container logs for the execution in GCP</li>
+<li>The execution’s metrics in Grafana</li>
+<li>The execution’s <code>log.txt</code> and <code>output.zip</code></li>
+</ul>
+<p>To download the output for every execution in the run at once, select <strong>Download full run output</strong>
+and run the <code>rtf</code> command that it shows.</p>
+<h2 id="cancelling-and-re-running"><a class="header" href="#cancelling-and-re-running">Cancelling and re-running</a></h2>
+<p>To cancel a run, select <strong>Cancel run</strong> on the run’s page and confirm. This button is only shown on
+runs that you started or that belong to a Known Test Plan that you own. Admins are able to cancel
+any run.</p>
+<p>To run a Known Test Plan again with the same variables, select <strong>Re-run</strong>. This opens the Known Test
+Plan’s trigger form, pre-filled with the variables from the original run.</p>
+<h2 id="triggering-a-run"><a class="header" href="#triggering-a-run">Triggering a run</a></h2>
+<p>To trigger a Known Test Plan, open its page and either select <strong>Trigger <em>N</em> executions</strong> to run with
+the current variable values, or expand <strong>Customize ref &amp; variables</strong> to run from a different branch,
+tag, or commit and to override individual Trigger Variables. If you aren’t permitted to trigger the
+Known Test Plan, the page lists its owners for you to contact.</p>
+<p>To trigger a Test Plan that hasn’t been registered, select <strong>Trigger from GitHub</strong> and provide the
+organization, repository, and path to the <code>test-plan.yaml</code>, along with an optional Git ref and any
+variables as a JSON object. Matrix dimensions are provided as JSON arrays. Runs triggered this way
+always run in the default Workload Pool.</p>
+<h2 id="editing-a-known-test-plan"><a class="header" href="#editing-a-known-test-plan">Editing a Known Test Plan</a></h2>
+<p>Owners and Admins can edit a Known Test Plan from the <strong>Edit test plan</strong> section of its page. Fields
+that can only be changed by an Admin are disabled for owners.</p>
+<p>See <a href="#registering-and-managing-known-test-plans">Registering and managing Known Test Plans</a> for what each setting does.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="reference"><a class="header" href="#reference">Reference</a></h1>
 <p>This section contains reference documentation for RTF.</p>
 <ul>
 <li><a href="#the-framework">Framework</a> - detailed reference for test plans, environments, scenarios, and
 providers</li>
+<li><a href="#orchestrator">Orchestrator</a> - the <code>rtf remote</code> CLI, permissions, limits, Known Test
+Plans, and internal processes</li>
 <li><a href="#command-line-help-for-rtf">CLI reference</a> - command line help</li>
 <li><a href="#glossary">Glossary</a> - definitions of RTF terms</li>
 </ul>
@@ -4332,12 +4590,12 @@ for <code>a</code> and <code>b</code>.</p>
 ordered alphanumerically and the cartesian product is formed from the user provided ordering of
 values for each dimension (as shown below).</p>
 <ul>
-<li>a=foo b=1 (matrix_variant_1)</li>
-<li>a=foo b=2 (matrix_variant_2)</li>
-<li>a=foo b=3 (matrix_variant_3)</li>
-<li>a=bar b=1 (matrix_variant_4)</li>
-<li>a=bar b=2 (matrix_variant_5)</li>
-<li>a=bar b=3 (matrix_variant_6)</li>
+<li><code>a=foo b=1</code> (<code>matrix_variant_1</code>)</li>
+<li><code>a=foo b=2</code> (<code>matrix_variant_2</code>)</li>
+<li><code>a=foo b=3</code> (<code>matrix_variant_3</code>)</li>
+<li><code>a=bar b=1</code> (<code>matrix_variant_4</code>)</li>
+<li><code>a=bar b=2</code> (<code>matrix_variant_5</code>)</li>
+<li><code>a=bar b=3</code> (<code>matrix_variant_6</code>)</li>
 </ul>
 <h3 id="naming-variants"><a class="header" href="#naming-variants">Naming variants</a></h3>
 <p>To customize output subdirectory names, specify the <code>matrix.variant_names</code> key in your test plan
@@ -4351,12 +4609,12 @@ with a template string for generating the variant names:</p>
 <p>When doing so, the ordering for variants remains the same but the output directory names are
 generated using the template provided:</p>
 <ul>
-<li>a=foo b=1 (foo_1)</li>
-<li>a=foo b=2 (foo_2)</li>
-<li>a=foo b=3 (foo_3)</li>
-<li>a=bar b=1 (bar_1)</li>
-<li>a=bar b=2 (bar_2)</li>
-<li>a=bar b=3 (bar_3)</li>
+<li><code>a=foo b=1</code> (<code>foo_1</code>)</li>
+<li><code>a=foo b=2</code> (<code>foo_2</code>)</li>
+<li><code>a=foo b=3</code> (<code>foo_3</code>)</li>
+<li><code>a=bar b=1</code> (<code>bar_1</code>)</li>
+<li><code>a=bar b=2</code> (<code>bar_2</code>)</li>
+<li><code>a=bar b=3</code> (<code>bar_3</code>)</li>
 </ul>
 <p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
 with static string content in order to generate a unique name for each variant. The resulting string
@@ -5827,6 +6085,400 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 </code></pre>
 <p>In this example, <code>config_name</code> and <code>config_value</code> are the arguments to <code>my_provider</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="orchestrator"><a class="header" href="#orchestrator">Orchestrator</a></h1>
+<p>Reference documentation for the <a href="#rtf-orchestrator-service">RTF Orchestrator Service</a> and the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>.</p>
+<ul>
+<li><a href="#using-rtf-remote">Using <code>rtf remote</code></a> - triggering runs and pulling output with the <code>rtf</code> CLI</li>
+<li><a href="#workload-pools">Workload Pools</a> - how runs are scheduled onto clusters, and Dedicated Clusters</li>
+<li><a href="#limits-permissions-and-concepts">Limits, permissions, and concepts</a> - identities, permissions, rate limits, and statuses</li>
+<li><a href="#known-test-plan-configuration">Known Test Plan configuration</a> - the settings available for Known Test Plans</li>
+<li><a href="#orchestrator-internal-processes">Orchestrator internal processes</a> - processes run by the Runtime Readiness team and admins</li>
+</ul>
+<p>For task-focused guides, see <a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="using-rtf-remote"><a class="header" href="#using-rtf-remote">Using <code>rtf remote</code></a></h1>
+<p>The <code>rtf remote</code> subcommands interact with the <a href="#rtf-orchestrator-service">RTF Orchestrator Service</a>. Most interactions with
+the Orchestrator are best carried out using the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>: the <code>rtf</code> CLI is intended for
+triggering runs from scripts and agents, and for pulling run output to the local machine. This page
+summarizes each subcommand. For every flag, see the <a href="#command-line-help-for-rtf">CLI reference</a>.</p>
+<h2 id="authentication"><a class="header" href="#authentication">Authentication</a></h2>
+<p>All subcommands except <code>prepare</code> authenticate with the Orchestrator through Google IAP and require:</p>
+<ul>
+<li>Access to the Orchestrator (see <a href="#orchestrator-internal-processes">Orchestrator internal processes</a>)</li>
+<li>Application default credentials from <code>gcloud auth application-default login</code></li>
+</ul>
+<p>On first use, the CLI opens a browser window to complete sign-in and caches the resulting token.</p>
+<h2 id="environment-variables-1"><a class="header" href="#environment-variables-1">Environment variables</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variable</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>RTF_ORCHESTRATOR_URL</code></td><td>Orchestrator base URL. Defaults to the <a href="https://api.rtf.apollographql.com">production Orchestrator</a>.</td></tr>
+<tr><td><code>GITHUB_TOKEN</code></td><td>GitHub token used by <code>--github</code> to fetch the Test Plan locally.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="triggering-runs"><a class="header" href="#triggering-runs">Triggering runs</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Subcommand</th><th>Arguments</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>run</code></td><td><code>&lt;test-plan-path&gt;</code> <code>[--github]</code> <code>[--ref &lt;ref&gt;]</code></td><td>Triggers a Test Run. Prints the Test Run ID and a UI link.</td></tr>
+<tr><td><code>ci-run</code></td><td><code>&lt;test-plan-path&gt;</code> <code>[--github]</code> <code>[--ref &lt;ref&gt;]</code> <code>[--poll-interval-seconds &lt;n&gt;]</code></td><td>Triggers a Test Run and polls until it completes.</td></tr>
+<tr><td><code>run-known</code></td><td><code>&lt;test-plan-uuid&gt;</code> <code>[--ref &lt;ref&gt;]</code></td><td>Triggers a <a href="#known-test-plan">Known Test Plan</a>. Prints the Test Run ID and a UI link.</td></tr>
+<tr><td><code>ci-run-known</code></td><td><code>&lt;test-plan-uuid&gt;</code> <code>[--ref &lt;ref&gt;]</code> <code>[--poll-interval-seconds &lt;n&gt;]</code></td><td>Triggers a Known Test Plan and polls until it completes.</td></tr>
+<tr><td><code>prepare</code></td><td><code>&lt;test-plan-path&gt;</code> <code>[--github]</code> <code>[--ref &lt;ref&gt;]</code></td><td>Writes the <a href="#trigger-payload">Trigger Payload</a> for a Test Plan to stdout.</td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li><code>--var &lt;key&gt;=&lt;value&gt;</code> and <code>--vars &lt;file.json&gt;</code> set Test Plan variables for these subcommands.</li>
+<li><code>--github</code> reads <code>&lt;test-plan-path&gt;</code> as <code>&lt;org&gt;/&lt;repo&gt;/&lt;path&gt;</code> and fetches the Test Plan from GitHub
+on the local machine before submitting it.</li>
+<li>For <code>run-known</code> and <code>ci-run-known</code>, <code>--ref</code> overrides the Known Test Plan’s default branch.</li>
+<li><code>--poll-interval-seconds</code> defaults to <code>10</code>.</li>
+<li>Runs triggered with <code>run</code> and <code>ci-run</code> always execute in the default <a href="#workload-pool">Workload Pool</a>.</li>
+</ul>
+<p><code>ci-run</code> and <code>ci-run-known</code> exit with:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Exit code</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>0</code></td><td>All executions succeeded</td></tr>
+<tr><td><code>1</code></td><td>At least one execution failed</td></tr>
+<tr><td><code>2</code></td><td>The run was unrunnable or was cancelled</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="pulling-output"><a class="header" href="#pulling-output">Pulling output</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Subcommand</th><th>Arguments</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>run-output</code></td><td><code>&lt;run-id&gt;</code> <code>[--outdir &lt;dir&gt;]</code> <code>[--force]</code></td><td>Downloads the run summary, and each execution’s <code>log.txt</code> and <code>output.zip</code>.</td></tr>
+<tr><td><code>execution-output</code></td><td><code>&lt;execution-id&gt;</code> <code>[--outdir &lt;dir&gt;]</code> <code>[--force]</code></td><td>Downloads an execution’s summary, <code>log.txt</code>, and <code>output.zip</code>.</td></tr>
+<tr><td><code>execution-log</code></td><td><code>&lt;execution-id&gt;</code></td><td>Prints an execution’s <code>log.txt</code>.</td></tr>
+<tr><td><code>run-status</code></td><td><code>&lt;run-id&gt;</code> <code>[--with-executions]</code></td><td>Prints the <a href="#test-run-summary">Test Run Summary</a> as JSON.</td></tr>
+<tr><td><code>execution-status</code></td><td><code>&lt;execution-id&gt;</code></td><td>Prints a Test Execution summary as JSON.</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>--outdir</code> defaults to <code>output</code>. <code>--force</code> removes an existing output directory first.</p>
+<p><code>run-output</code> writes:</p>
+<pre><code class="language-text">&lt;outdir&gt;/
+  run-summary.json
+  &lt;execution-name&gt;/
+    log.txt
+    output.zip
+</code></pre>
+<h2 id="cancelling-a-run"><a class="header" href="#cancelling-a-run">Cancelling a run</a></h2>
+<p>Runs are normally cancelled from their page in the Orchestrator UI. To cancel a run from the CLI,
+use <code>rtf remote request</code>:</p>
+<pre><code class="language-bash">rtf remote request -X POST -d '{"id": "&lt;run-id&gt;"}' admin/purge-run
+</code></pre>
+<p>See <a href="#permissions">Limits, permissions, and concepts</a> for who is able to cancel a run.</p>
+<h2 id="related-pages"><a class="header" href="#related-pages">Related pages</a></h2>
+<ul>
+<li><a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a></li>
+<li><a href="#working-with-the-orchestrator-ui">Working with the Orchestrator UI</a></li>
+<li><a href="#running-test-plans-with-the-rtf-orchestrator-service">Running with the Orchestrator</a> tutorial</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="workload-pools"><a class="header" href="#workload-pools">Workload Pools</a></h1>
+<p>A <a href="#workload-pool">Workload Pool</a> is a group of Kubernetes clusters that the Orchestrator runs Test Executions
+on. The pool that a run is scheduled in determines which clusters it can use, the rate limits it is
+subject to, and whether it can claim a <a href="#dedicated-cluster">Dedicated Cluster</a>. This page describes how pools are
+configured and how runs are scheduled within them.</p>
+<h2 id="pool-configuration"><a class="header" href="#pool-configuration">Pool configuration</a></h2>
+<p>Each pool defines:</p>
+<ul>
+<li>The clusters in the pool, and how many Test Executions each cluster runs at once</li>
+<li>The per-user <a href="#limits-permissions-and-concepts">rate limits</a> for the pool</li>
+<li>Whether Scenarios get write access to their namespace by default</li>
+<li>Whether the pool supports Dedicated Clusters</li>
+</ul>
+<p>The current configuration for each pool is shown under <strong>Workload pool configuration</strong> in the
+<a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>, and is set in the <a href="https://github.com/mdg-private/kanaveral/blob/main/management-cluster/orchestrator/orchestrator-config.yaml">Orchestrator configuration file</a>.</p>
+<h2 id="choosing-a-pool"><a class="header" href="#choosing-a-pool">Choosing a pool</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Pool</th><th>Used by</th><th>Suitable for</th></tr>
+</thead>
+<tbody>
+<tr><td>Default</td><td>Unregistered Test Plans, and unpinned <a href="#known-test-plan">Known Test Plans</a></td><td>Functional testing, short-running CI checks, and developing new Test Plans</td></tr>
+<tr><td>Pinned pools</td><td>Known Test Plans pinned to the pool by an Admin</td><td>Performance testing and other workloads sensitive to noisy neighbours</td></tr>
+</tbody>
+</table>
+</div>
+<p>Runs of unregistered Test Plans always use the default pool. Only Known Test Plans can be pinned to
+another pool, and pinning requires an Admin (see <a href="#orchestrator-internal-processes">Orchestrator internal processes</a>).</p>
+<h2 id="scheduling-in-a-shared-pool"><a class="header" href="#scheduling-in-a-shared-pool">Scheduling in a shared pool</a></h2>
+<p>Unless a run requires a Dedicated Cluster, each of its Test Executions is scheduled independently
+onto the least loaded cluster in the pool that has capacity. All of the services for a single Test
+Execution run in the same cluster, but different Test Executions from the same run may run in
+different clusters, alongside executions from other runs.</p>
+<p>When every cluster in the pool is at capacity, Test Executions wait in the queue until capacity
+frees up.</p>
+<h2 id="dedicated-clusters"><a class="header" href="#dedicated-clusters">Dedicated Clusters</a></h2>
+<p>A Known Test Plan that requires a Dedicated Cluster claims a whole cluster in its pool for each run.
+The pool must support Dedicated Clusters.</p>
+<ul>
+<li>If a cluster in the pool is empty, the run claims it immediately.</li>
+<li>Otherwise, the run reserves a cluster. No new work is scheduled onto a reserved cluster, and the
+run claims it once the executions already running on it have finished.</li>
+<li>All of the run’s Test Executions run on the claimed cluster, up to the cluster’s concurrency
+limit.</li>
+<li>The cluster is released for other runs once the run completes.</li>
+</ul>
+<p>Dedicated Clusters avoid noisy neighbours from other runs and allow the cluster’s nodes to be split
+between the run’s services using <a href="#node-label-weights">node label weights</a>.</p>
+<h2 id="related-pages-1"><a class="header" href="#related-pages-1">Related pages</a></h2>
+<ul>
+<li><a href="#known-test-plan-configuration">Known Test Plan configuration</a></li>
+<li><a href="#limits-permissions-and-concepts">Limits, permissions, and concepts</a></li>
+<li><a href="#getting-set-up-with-the-orchestrator">Getting set up with the Orchestrator</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="limits-permissions-and-concepts"><a class="header" href="#limits-permissions-and-concepts">Limits, permissions, and concepts</a></h1>
+<p>This page describes Orchestrator behavior that isn’t visible from the <code>rtf</code> CLI: identities,
+permissions, rate limits, statuses, and output storage. See <a href="#workload-pools">Workload Pools</a> for how runs are
+scheduled.</p>
+<h2 id="identities"><a class="header" href="#identities">Identities</a></h2>
+<p>The Orchestrator identifies each user from their Google sign-in:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Identity</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>User</td><td>Any Apollo user with access to the Orchestrator.</td></tr>
+<tr><td>Admin</td><td>A member of the Runtime Readiness team who administers the Orchestrator.</td></tr>
+<tr><td><a href="#automation-user">Automation User</a></td><td>A CI workflow using the Orchestrator GitHub Action, identified separately for each repository.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Users can also hold a role on individual <a href="#known-test-plan">Known Test Plans</a>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Role</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Owner</td><td>Can configure the Known Test Plan and cancel any of its runs.</td></tr>
+<tr><td>Can trigger</td><td>Can trigger the Known Test Plan when its triggers are restricted to named users.</td></tr>
+</tbody>
+</table>
+</div>
+<p>The badge in the header of the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a> shows your identity and your role on the Known
+Test Plan you are viewing.</p>
+<h2 id="permissions"><a class="header" href="#permissions">Permissions</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Action</th><th>Admin</th><th>Owner</th><th>Can trigger</th><th>User</th><th>Automation User</th></tr>
+</thead>
+<tbody>
+<tr><td>Trigger an unregistered Test Plan</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Not supported</td></tr>
+<tr><td>Trigger a Known Test Plan</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Unless triggers restricted</td><td>Unless automated triggers disabled</td></tr>
+<tr><td>Register a Known Test Plan</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>Edit a Known Test Plan</td><td>Yes</td><td>Yes¹</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>Add or remove owners</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>Cancel a run</td><td>Yes</td><td>Yes²</td><td>Own runs</td><td>Own runs</td><td>No</td></tr>
+<tr><td>View runs, executions, output, and plans</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+</tbody>
+</table>
+</div>
+<ol>
+<li>Except the pinned Workload Pool, the Dedicated Cluster setting, and owners.</li>
+<li>Runs of Known Test Plans they own, and runs they started.</li>
+</ol>
+<h2 id="rate-limits"><a class="header" href="#rate-limits">Rate limits</a></h2>
+<p>Rate limits are configured per <a href="#workload-pool">Workload Pool</a> and are applied to each user separately.
+Automation Users are limited separately for each repository. Admins are exempt. Each pool limits the
+number of:</p>
+<ul>
+<li>Runs in progress at once</li>
+<li>Runs waiting to start</li>
+<li>Test Executions waiting to start</li>
+<li>Runs triggered in the last hour</li>
+</ul>
+<p>The current limits for each pool are shown under <strong>Workload pool configuration</strong> in the Orchestrator
+UI, and are set in the <a href="https://github.com/mdg-private/kanaveral/blob/main/management-cluster/orchestrator/orchestrator-config.yaml">Orchestrator configuration file</a>.</p>
+<p>Triggering a run that would exceed one of these limits fails with a <code>429 Too Many Requests</code> error
+naming the pool and the limit that was exceeded. The Orchestrator also has an overall limit on
+queued Test Executions: when the queue is full, triggers fail with a <code>503 Service Unavailable</code> error
+until capacity frees up.</p>
+<h2 id="statuses"><a class="header" href="#statuses">Statuses</a></h2>
+<p>Test Runs and Test Executions progress through these statuses:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Status</th><th>Terminal</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>INITIALISING</code></td><td>No</td><td>Accepted and queued</td></tr>
+<tr><td><code>RESOLVING</code></td><td>No</td><td>Resolving the Environment configuration</td></tr>
+<tr><td><code>PROVISIONING</code></td><td>No</td><td>Creating the namespace and deploying services</td></tr>
+<tr><td><code>ENVIRONMENT_READY</code></td><td>No</td><td>Services are healthy and the Scenario is starting</td></tr>
+<tr><td><code>RUNNING</code></td><td>No</td><td>The Scenario is running</td></tr>
+<tr><td><code>SUCCESSFUL</code></td><td>Yes</td><td>The Scenario exited with code <code>0</code></td></tr>
+<tr><td><code>FAILED</code></td><td>Yes</td><td>The Scenario exited with a non-zero code</td></tr>
+<tr><td><code>UNRUNNABLE</code></td><td>Yes</td><td>The execution couldn’t complete, for example due to a failed deploy</td></tr>
+<tr><td><code>CANCELLED</code></td><td>Yes</td><td>The run was cancelled by a user</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="output-storage"><a class="header" href="#output-storage">Output storage</a></h2>
+<p>Each Test Execution’s <code>log.txt</code> and <code>output.zip</code> are stored in Google Cloud Storage and are
+available once the execution has finished. Downloads from the Orchestrator UI and the <code>rtf</code> CLI are
+served using time-limited signed URLs.</p>
+<h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
+<ul>
+<li>Known Test Plans must template without any Trigger Variable overrides.</li>
+<li>The Orchestrator UI only shows details for Known Test Plans on their repository’s default branch.</li>
+<li>Each Test Execution runs a single Scenario pod.</li>
+</ul>
+<h2 id="related-pages-2"><a class="header" href="#related-pages-2">Related pages</a></h2>
+<ul>
+<li><a href="#workload-pools">Workload Pools</a></li>
+<li><a href="#using-rtf-remote">Using <code>rtf remote</code></a></li>
+<li><a href="#known-test-plan-configuration">Known Test Plan configuration</a></li>
+<li><a href="#orchestrator-internal-processes">Orchestrator internal processes</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="known-test-plan-configuration"><a class="header" href="#known-test-plan-configuration">Known Test Plan configuration</a></h1>
+<p>A <a href="#known-test-plan">Known Test Plan</a> is a reference to a Test Plan in GitHub, stored by the Orchestrator along
+with settings that control who can trigger it and where it runs. Owners and Admins edit these
+settings from the <strong>Edit test plan</strong> section of the Known Test Plan’s page in the
+<a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>.</p>
+<h2 id="settings"><a class="header" href="#settings">Settings</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Setting</th><th>Admin only</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Name</td><td></td><td>Unique name for the Known Test Plan.</td></tr>
+<tr><td>Description</td><td></td><td>Optional description.</td></tr>
+<tr><td>Org, Repo, and Path</td><td></td><td>Location of the Test Plan file in GitHub. Each location can only be registered once.</td></tr>
+<tr><td>Triggers</td><td></td><td><strong>Unrestricted</strong>, or <strong>Restricted to owners and trigger users</strong>.</td></tr>
+<tr><td>Automated triggers</td><td></td><td><strong>Allowed</strong>, or <strong>Disabled</strong> to prevent the Known Test Plan from being run from CI.</td></tr>
+<tr><td>Trigger users</td><td></td><td>Users who can trigger the Known Test Plan when triggers are restricted. One email address per line.</td></tr>
+<tr><td>Namespace write access</td><td></td><td>Whether Scenarios can write to Kubernetes resources in their namespace. <strong>Pool default</strong> uses the pool’s setting.</td></tr>
+<tr><td>Node label weights</td><td></td><td>How to split the nodes of a <a href="#dedicated-cluster">Dedicated Cluster</a> between labels. One <code>label=weight</code> per line. See below.</td></tr>
+<tr><td>Owners</td><td>Yes</td><td>Users who can edit the Known Test Plan and cancel its runs. One email address per line.</td></tr>
+<tr><td>Pinned workload pool</td><td>Yes</td><td>The <a href="#workload-pool">Workload Pool</a> to run in. <strong>Not pinned</strong> uses the default pool.</td></tr>
+<tr><td>Dedicated cluster</td><td>Yes</td><td><strong>Required</strong> claims a whole cluster for each run. The pinned pool must support Dedicated Clusters.</td></tr>
+</tbody>
+</table>
+</div>
+<p>A user can be an owner or a trigger user, but not both.</p>
+<h2 id="node-label-weights"><a class="header" href="#node-label-weights">Node label weights</a></h2>
+<p>Node label weights split the nodes of a Dedicated Cluster between labels. Each label receives a
+share of the cluster’s nodes equal to its weight divided by the total of all weights, so only the
+ratio between the weights matters, not their absolute values.</p>
+<p>Node label weights:</p>
+<ul>
+<li>Require the Known Test Plan to be pinned to a pool and to require a Dedicated Cluster</li>
+<li>Use Kubernetes label value syntax for each label, and each label must be unique</li>
+<li>Must include at least one non-zero weight</li>
+</ul>
+<h3 id="examples"><a class="header" href="#examples">Examples</a></h3>
+<p>The following examples split a Dedicated Cluster with 6 nodes between a router and its subgraphs.</p>
+<p>Weights of <code>1</code> and <code>1</code> split the nodes evenly, giving each label 3 nodes:</p>
+<pre><code class="language-text">router=1
+subgraphs=1
+</code></pre>
+<p>Weights of <code>2</code> and <code>2</code> have the same ratio as <code>1</code> and <code>1</code>, so they produce exactly the same even
+split of 3 nodes each:</p>
+<pre><code class="language-text">router=2
+subgraphs=2
+</code></pre>
+<p>To give a third of the nodes to the subgraphs and two thirds to the router, use weights of <code>1</code> and
+<code>2</code>. This gives the <code>subgraphs</code> label 2 nodes and the <code>router</code> label 4 nodes:</p>
+<pre><code class="language-text">router=2
+subgraphs=1
+</code></pre>
+<p>When the nodes can’t be split exactly, each label’s share is rounded down and the remaining nodes
+are handed out one at a time to whichever label currently has the fewest nodes. For example, the
+same <code>2</code> and <code>1</code> weights on a 7 node cluster give the <code>router</code> label 4 nodes and the <code>subgraphs</code>
+label 3 nodes.</p>
+<h3 id="selecting-labelled-nodes"><a class="header" href="#selecting-labelled-nodes">Selecting labelled nodes</a></h3>
+<p>Each node is labelled <code>rtf.io/node-allocation=&lt;label&gt;</code>. Environment services select the nodes for a
+label using the <code>rtf.io/required-node-label-key</code> and <code>rtf.io/required-node-label-value</code>
+<a href="#environments">service labels</a>:</p>
+<pre><code class="language-yaml">services:
+  router:
+    image: ghcr.io/apollographql/router:v2.14.0
+    labels:
+      rtf.io/required-node-label-key: "rtf.io/node-allocation"
+      rtf.io/required-node-label-value: "router"
+</code></pre>
+<h2 id="related-pages-3"><a class="header" href="#related-pages-3">Related pages</a></h2>
+<ul>
+<li><a href="#registering-and-managing-known-test-plans">Registering and managing Known Test Plans</a></li>
+<li><a href="#limits-permissions-and-concepts">Limits, permissions, and concepts</a></li>
+<li><a href="#orchestrator-internal-processes">Orchestrator internal processes</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="orchestrator-internal-processes"><a class="header" href="#orchestrator-internal-processes">Orchestrator internal processes</a></h1>
+<blockquote>
+<p><strong>Note</strong>: This page describes Apollo internal processes. Concrete details are maintained in
+internal Confluence documentation linked below.</p>
+</blockquote>
+<p>Some Orchestrator functionality depends on setup or configuration that only the Runtime Readiness
+team or an Orchestrator admin can provide. This page summarizes each of the internal processes
+involved and links to the documentation that describes how to follow them.</p>
+<h2 id="access"><a class="header" href="#access">Access</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Process</th><th>Summary</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/2146893825/GCP+Access+-+Release+Tooling">Orchestrator access</a></td><td>Granting a user access to the Orchestrator API and the <a href="https://api.rtf.apollographql.com/ui">Orchestrator UI</a>.</td></tr>
+<tr><td><a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/2139947048/Onboarding+To+Our+Tooling">CI access</a></td><td>Setting up a repository so that its GitHub Actions workflows can trigger Known Test Plans.</td></tr>
+<tr><td><a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/2139553811/Build+Publish">Private image publishing</a></td><td>Allowing a repository to publish Docker images to Apollo’s internal registry for Test Plans.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="orchestrator-configuration"><a class="header" href="#orchestrator-configuration">Orchestrator configuration</a></h2>
+<p>Rate limits, Workload Pools, and cluster configuration are set in the
+<a href="https://github.com/mdg-private/kanaveral/blob/main/management-cluster/orchestrator/orchestrator-config.yaml">Orchestrator configuration file</a>. To request a change, start a conversation in
+<a href="https://apollograph.slack.com/archives/C08UBLUD19C">#proj-runtime-testing-framework</a>. If the change is going to go forward, raise a Jira ticket in
+the <code>RR</code> backlog to track it.</p>
+<p>This process covers changes such as:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Change</th><th>Summary</th></tr>
+</thead>
+<tbody>
+<tr><td>GitHub repository access</td><td>Allowing the Orchestrator to read Test Plans from a GitHub repository.</td></tr>
+<tr><td>Rate limit changes</td><td>Changing the per-user <a href="#limits-permissions-and-concepts">rate limits</a> for a Workload Pool.</td></tr>
+<tr><td>Workload cluster capacity</td><td>Provisioning or scaling clusters and Workload Pools.</td></tr>
+<tr><td>Additional Kubernetes permissions</td><td>Granting Scenarios Kubernetes permissions beyond write access to their own namespace.</td></tr>
+<tr><td>Toolbox image changes</td><td>Adding tools to the image used to run Test Executions.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="bugs-and-feature-requests"><a class="header" href="#bugs-and-feature-requests">Bugs and feature requests</a></h2>
+<p>Report bugs and request new Orchestrator functionality in <a href="https://apollograph.slack.com/archives/C08UBLUD19C">#proj-runtime-testing-framework</a>.</p>
+<h2 id="related-pages-4"><a class="header" href="#related-pages-4">Related pages</a></h2>
+<ul>
+<li><a href="#limits-permissions-and-concepts">Limits, permissions, and concepts</a></li>
+<li><a href="#registering-and-managing-known-test-plans">Registering and managing Known Test Plans</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="command-line-help-for-rtf"><a class="header" href="#command-line-help-for-rtf">Command-Line Help for <code>rtf</code></a></h1>
 <p>This document contains the help content for the <code>rtf</code> command-line program.</p>
 <p><strong>Command Overview:</strong></p>
@@ -6317,6 +6969,10 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p><strong>Usage:</strong> <code>rtf version</code></p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
+<h2 id="automation-user"><a class="header" href="#automation-user">Automation User</a></h2>
+<p>The identity used by a CI workflow that triggers Known Test Plans on the RTF Orchestrator Service
+using the Orchestrator GitHub Action. Test Runs triggered by an Automation User are attributed to,
+and rate limited per, the GitHub repository that triggered them.</p>
 <h2 id="custom-provider-declaration"><a class="header" href="#custom-provider-declaration">Custom Provider Declaration</a></h2>
 <p>A YAML snippet within an RTF configuration file (Test Plan, Environment or Scenario) that specifies
 where to load Custom Provider Definitions from. This maps Custom Provider Definitions to the name
@@ -6327,10 +6983,18 @@ defined in its Custom Provider Declaration.</p>
 the Variables, File Providers and Command required to produce one or more files from the arguments
 supplied to a Custom Provider. Custom Provider Definitions support Templating using arguments from
 the invoking Custom Provider.</p>
+<h2 id="dedicated-cluster"><a class="header" href="#dedicated-cluster">Dedicated Cluster</a></h2>
+<p>A Kubernetes cluster claimed by a single Test Run of a Known Test Plan for its whole duration, so
+that no other Test Runs share its nodes. Dedicated Clusters are only available in Workload Pools
+that support them.</p>
 <h2 id="environment-1"><a class="header" href="#environment-1">Environment</a></h2>
 <p>An RTF configuration file for specifying how to set up and tear down the services and infrastructure
 under test using Command and File providers. Like all RTF configuration files, Environment
 configurations support Templating using Variables from the Test Plan.</p>
+<h2 id="known-test-plan"><a class="header" href="#known-test-plan">Known Test Plan</a></h2>
+<p>A Test Plan in GitHub that’s registered with the RTF Orchestrator Service. A Known Test Plan has a
+UUID and a unique name, and stores settings for who can trigger it and where it runs. Known Test
+Plans are read from GitHub each time they’re triggered.</p>
 <h2 id="provider"><a class="header" href="#provider">Provider</a></h2>
 <p>A self contained piece of functionality within RTF that can provide file content for use in
 executing commands found in a Scenario or Environment configuration. Providers are declared as part
@@ -6391,13 +7055,20 @@ the inline Test Plan (as generated by <code>rtf template</code>) together with t
 referenced by its File Providers, so the RTF Orchestrator Service — which has no filesystem access
 to the machine the Test Plan was prepared on — has everything it needs to run it. Submitted to the
 Orchestrator via <code>POST /test-run/trigger</code>.</p>
+<h2 id="trigger-variables"><a class="header" href="#trigger-variables">Trigger Variables</a></h2>
+<p>The Variables of a Test Plan that can be overridden when triggering a Test Run on the RTF
+Orchestrator Service, for example from the Orchestrator UI or with <code>--var</code>.</p>
 <h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
 <p>Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.</p>
+<h2 id="workload-pool"><a class="header" href="#workload-pool">Workload Pool</a></h2>
+<p>A named group of Kubernetes clusters that the RTF Orchestrator Service runs Test Executions on. Each
+Workload Pool has its own capacity, rate limits, and workload settings. Test Runs use the default
+pool unless their Known Test Plan is pinned to another one.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="understanding-rtf-and-the-orchestrator"><a class="header" href="#understanding-rtf-and-the-orchestrator">Understanding RTF and the Orchestrator</a></h1>
 <p>This section explains the design decisions and architectural thinking behind RTF and the
-<a href="#glossary">RTF Orchestrator Service</a>.</p>
+<a href="#rtf-orchestrator-service">RTF Orchestrator Service</a>.</p>
 <ul>
 <li><a href="#concepts-and-architecture">Concepts and Architecture</a> - high-level architecture overview</li>
 <li><a href="#logging-philosophy">Logging Philosophy</a> - why RTF logs the way it does</li>
@@ -6413,7 +7084,7 @@ design.</p>
 has its own README file explaining its purpose at the crate’s root.</p>
 <p>The <code>rtf-config</code> crate is the heart of RTF. It handles:</p>
 <ul>
-<li><strong>Parsing</strong> - YAML config files (<a href="#glossary">Test Plans</a>, <a href="#glossary">Environments</a>, <a href="#glossary">Scenarios</a>) are parsed
+<li><strong>Parsing</strong> - YAML config files (<a href="#test-plan">Test Plans</a>, <a href="#environment-1">Environments</a>, <a href="#scenario-1">Scenarios</a>) are parsed
 into strongly typed Rust structs</li>
 <li><strong>Templating</strong> - Variable substitution using the <code>{{ variable }}</code> syntax</li>
 <li><strong>Validation</strong> - Static analysis checks before execution</li>
@@ -6476,11 +7147,11 @@ requests.</p>
 <ul>
 <li><strong>RTF CLI</strong> (<code>rtf</code>) is a local command-line tool. A developer runs it directly to perform actions
 against test plans on the same system the CLI is hosted on.</li>
-<li><strong><a href="#glossary">RTF Orchestrator Service</a></strong> is a server-side system. It receives Test Plans over HTTP,
+<li><strong><a href="#rtf-orchestrator-service">RTF Orchestrator Service</a></strong> is a server-side system. It receives Test Plans over HTTP,
 manages their execution in a provisioned cluster asynchronously, and reports results back to
 callers via status endpoints.</li>
 </ul>
-<p>The handoff point between the two systems is the <a href="#glossary">Trigger Payload</a> — a resolved Test Plan
+<p>The handoff point between the two systems is the <a href="#trigger-payload">Trigger Payload</a> — a resolved Test Plan
 produced by <code>rtf remote prepare</code> and submitted to the Orchestrator via <code>POST /test-run/trigger</code>. The
 Orchestrator does not replace the RTF CLI; they are complementary tools for different execution
 contexts.</p>
@@ -6636,10 +7307,10 @@ used by the CLI.</p>
 files from the filesystem, executing commands, making HTTP requests to GraphOS and GitHub. When the
 CLI runs <code>rtf run</code>, it constructs a <code>Context</code> and passes it through to all provider logic.</p>
 <h3 id="orchestratorcontext-rtf-orchestrator-service"><a class="header" href="#orchestratorcontext-rtf-orchestrator-service"><code>OrchestratorContext</code> (RTF Orchestrator Service)</a></h3>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-orchestrator/src/context.rs"><code>OrchestratorContext</code></a> is the concrete implementation used by the <a href="#glossary">RTF Orchestrator Service</a>
+<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-orchestrator/src/context.rs"><code>OrchestratorContext</code></a> is the concrete implementation used by the <a href="#rtf-orchestrator-service">RTF Orchestrator Service</a>
 (<code>rtf-orchestrator</code>). It wraps an inner <code>Context</code> but overrides the file IO behaviour: instead of
 reading from the filesystem, it reads from an in-memory map of file contents that was pre-bundled by
-<code>rtf remote prepare</code> into the <a href="#glossary">Trigger Payload</a>.</p>
+<code>rtf remote prepare</code> into the <a href="#trigger-payload">Trigger Payload</a>.</p>
 <p>This is a deliberate design constraint. The Orchestrator is a server — it has no access to the
 filesystem paths that existed on the developer’s machine when the test plan was prepared. The
 Trigger Payload carries everything the server needs, and <code>OrchestratorContext</code> enforces that only
@@ -6676,7 +7347,7 @@ inline logic at the CLI struct level.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="orchestrator-helm-chart-versioning-policy"><a class="header" href="#orchestrator-helm-chart-versioning-policy">Orchestrator Helm chart versioning policy</a></h1>
 <p>This document records the decisions behind how we version and deploy the <code>rtf-orchestrator</code> Helm
-chart for the <a href="#glossary">RTF Orchestrator Service</a>, the rationale for the phased approach, and the options
+chart for the <a href="#rtf-orchestrator-service">RTF Orchestrator Service</a>, the rationale for the phased approach, and the options
 that were considered and rejected.</p>
 <p><strong>When a phase is completed, update the <a href="#current-phase">Current phase</a> section to reflect actual state. The
 phase descriptions below are a permanent historical record of what was done and why — they should
@@ -7059,7 +7730,8 @@ without explicit configuration:</p>
 <li>Imports specific to a single function that would otherwise pollute the file-scope namespace may be
 placed at the start of that function body
 <ul>
-<li>e.g. use statements for enum variants, external API structs for building request payloads</li>
+<li>For example, <code>use</code> statements for enum variants, or external API structs for building request
+payloads</li>
 </ul>
 </li>
 </ul>
@@ -7448,6 +8120,9 @@ You should see output similar to this::
 <li>Use numbered lists for sequential steps</li>
 <li>Use bullet lists for non-sequential items</li>
 <li>Use the Oxford comma in inline lists (“setup, run, and teardown”)</li>
+<li>Always start list items with a capital letter, including items that continue an introductory
+sentence. Items that start with code, a literal value, or a name with fixed casing (such as a
+crate name) keep their original casing; format code and literal values as inline code</li>
 </ul>
 <h3 id="links"><a class="header" href="#links">Links</a></h3>
 <p>Use <strong>reference-style links</strong> with definitions at the bottom of the file:</p>
@@ -7484,17 +8159,18 @@ You should see output similar to this::
 <p>RTF maintains a central <a href="#glossary">glossary</a>. When using RTF-specific terms:</p>
 <ol>
 <li><strong>Always</strong> ensure the term is defined in the glossary</li>
-<li><strong>Link to the glossary</strong> on first use in a page</li>
+<li><strong>Link to the term’s glossary entry</strong> on first use in a page, using the entry’s heading anchor
+(for example, <code>glossary.md#test-plan</code>) rather than the top of the glossary</li>
 <li><strong>Inline definitions are encouraged</strong> in Tutorials where clicking away disrupts flow</li>
 </ol>
 <p>Example (Tutorial):</p>
 <blockquote>
 <p>A <strong>Test Plan</strong> is the top-level entry point for RTF that defines variables and references to
-Scenarios and Environments. See the <a href="#glossary">glossary</a> for the full definition.</p>
+Scenarios and Environments. See the <a href="#test-plan">glossary</a> for the full definition.</p>
 </blockquote>
 <p>Example (How-to/Reference):</p>
 <blockquote>
-<p>Configure the <a href="#glossary">Test Plan</a> with your variables.</p>
+<p>Configure the <a href="#test-plan">Test Plan</a> with your variables.</p>
 </blockquote>
 <h3 id="rtf-concepts"><a class="header" href="#rtf-concepts">RTF concepts</a></h3>
 <p>Use these exact capitalizations:</p>
@@ -7605,6 +8281,7 @@ or you find yourself scrolling extensively, consider splitting into subpages.</p
 <li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in how-to/reference)</li>
 <li><input disabled="" type="checkbox"> No shell prompts in command examples</li>
 <li><input disabled="" type="checkbox"> Placeholders use angle brackets</li>
+<li><input disabled="" type="checkbox"> List items start with a capital letter</li>
 <li><input disabled="" type="checkbox"> RTF terminology capitalized correctly</li>
 <li><input disabled="" type="checkbox"> New terms added to glossary and linked on first use</li>
 <li><input disabled="" type="checkbox"> Links use reference-style with definitions at bottom</li>

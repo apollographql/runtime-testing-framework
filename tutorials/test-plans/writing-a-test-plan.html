@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "../../searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-9b5efe91.js"></script>
+        <script src="../../toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,7 +179,7 @@
                     <main>
                         <!-- diataxis-type: tutorial -->
 <h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
-<p>In this guide, we’ll write a docker-based <a href="../../reference/glossary.html">Test Plan</a> from scratch. We’ll cover the four required
+<p>In this guide, we’ll write a docker-based <a href="../../reference/glossary.html#test-plan">Test Plan</a> from scratch. We’ll cover the four required
 fields, run the Test Plan, then add variables and a matrix to parameterize runs across multiple
 configurations.</p>
 <blockquote>
@@ -222,7 +222,7 @@ environment:
                 - "8080:80"
 </code></pre>
 <p>This will all be explained as we progress through the guide, for now all you need to know is this is
-the most basic docker based <a href="../../reference/glossary.html">Test Plan</a> it is possible to write in RTF.</p>
+the most basic docker based <a href="../../reference/glossary.html#test-plan">Test Plan</a> it is possible to write in RTF.</p>
 <h2 id="adding-required-fields"><a class="header" href="#adding-required-fields">Adding required fields</a></h2>
 <p>An RTF Test Plan has four required fields: <code>name</code>, <code>description</code>, <code>scenario</code>, and <code>environment</code>. The
 sections below add each of these required fields and explain them in more detail.</p>
@@ -245,7 +245,7 @@ adding that context to inline comments.</p>
 <h3 id="scenario"><a class="header" href="#scenario"><code>scenario</code></a></h3>
 <p>The <code>scenario</code> is used to define the configuration and command that runs the actual testing logic in
 the Test Plan. The <code>scenario</code> can be defined inline within the Test Plan or in its own file. In this
-guide, we’ll define the <a href="../../reference/glossary.html">Scenario</a> inline. The guide on <a href="writing-a-scenario.html">writing a new Scenario</a> covers how to
+guide, we’ll define the <a href="../../reference/glossary.html#scenario">Scenario</a> inline. The guide on <a href="writing-a-scenario.html">writing a new Scenario</a> covers how to
 define a Scenario in a separate file.</p>
 <p>We’ll use a <code>docker</code> based Scenario — the recommended approach in RTF. If <code>docker</code> isn’t an option,
 see <a href="../script-test-plans/index.html">script based Scenarios</a>. We’ll cover more advanced Scenario configuration in the guide on
@@ -280,7 +280,7 @@ are running <code>docker</code> from is authenticated to pull the image.</li>
 </li>
 </ul>
 <h3 id="environment"><a class="header" href="#environment"><code>environment</code></a></h3>
-<p>The <code>environment</code> is used to define the configuration and commands that set up the <a href="../../reference/glossary.html">Environment</a>
+<p>The <code>environment</code> is used to define the configuration and commands that set up the <a href="../../reference/glossary.html#environment">Environment</a>
 for testing and tear it down after the test has completed. The <code>environment</code> can be defined inline
 within the Test Plan or in its own file. In this guide, we’ll define the Environment inline. The
 guide on <a href="writing-an-environment.html">writing a new Environment</a> covers how to define an Environment in a separate file.</p>

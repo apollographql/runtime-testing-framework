@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "../searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-9b5efe91.js"></script>
+        <script src="../toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -198,7 +198,7 @@ rtf run test-plan.yaml
 (scenario.env_vars.MY_VAR) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
   - my_variable: "Description of the variable"
 </code></pre>
-<p><strong>Cause:</strong> A config file references a variable that isn’t defined in the <a href="../reference/glossary.html">Test Plan’s</a>
+<p><strong>Cause:</strong> A config file references a variable that isn’t defined in the <a href="../reference/glossary.html#test-plan">Test Plan’s</a>
 <code>variables</code> section and has no default value.</p>
 <p><strong>Solution:</strong> Either define the variable in the Test Plan:</p>
 <pre><code class="language-yaml">variables:
@@ -216,7 +216,7 @@ rtf run test-plan.yaml
 (MY_FILE) A required file has not been defined
 You must provide a file for MY_FILE
 </code></pre>
-<p><strong>Cause:</strong> A <code>required</code> <a href="../reference/glossary.html">File Provider</a> exists that must be replaced with an actual provider in
+<p><strong>Cause:</strong> A <code>required</code> <a href="../reference/glossary.html#file-provider">File Provider</a> exists that must be replaced with an actual provider in
 the Test Plan’s overrides.</p>
 <p><strong>Solution:</strong> Add an override in the Test Plan that replaces the required provider:</p>
 <pre><code class="language-yaml">environment:
@@ -236,7 +236,7 @@ the Test Plan’s overrides.</p>
 (scenario.command.command_provider) The requested file did not exist
 provided path was file:///path/to/missing-script.sh
 </code></pre>
-<p><strong>Cause:</strong> A <code>relative_path</code> <a href="../reference/glossary.html">Command Provider</a> or File Provider references a file that doesn’t
+<p><strong>Cause:</strong> A <code>relative_path</code> <a href="../reference/glossary.html#command-provider">Command Provider</a> or File Provider references a file that doesn’t
 exist.</p>
 <p><strong>Solution:</strong></p>
 <ol>

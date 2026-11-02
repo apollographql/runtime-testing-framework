@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "../../searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-9b5efe91.js"></script>
+        <script src="../../toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -361,12 +361,12 @@ for <code>a</code> and <code>b</code>.</p>
 ordered alphanumerically and the cartesian product is formed from the user provided ordering of
 values for each dimension (as shown below).</p>
 <ul>
-<li>a=foo b=1 (matrix_variant_1)</li>
-<li>a=foo b=2 (matrix_variant_2)</li>
-<li>a=foo b=3 (matrix_variant_3)</li>
-<li>a=bar b=1 (matrix_variant_4)</li>
-<li>a=bar b=2 (matrix_variant_5)</li>
-<li>a=bar b=3 (matrix_variant_6)</li>
+<li><code>a=foo b=1</code> (<code>matrix_variant_1</code>)</li>
+<li><code>a=foo b=2</code> (<code>matrix_variant_2</code>)</li>
+<li><code>a=foo b=3</code> (<code>matrix_variant_3</code>)</li>
+<li><code>a=bar b=1</code> (<code>matrix_variant_4</code>)</li>
+<li><code>a=bar b=2</code> (<code>matrix_variant_5</code>)</li>
+<li><code>a=bar b=3</code> (<code>matrix_variant_6</code>)</li>
 </ul>
 <h3 id="naming-variants"><a class="header" href="#naming-variants">Naming variants</a></h3>
 <p>To customize output subdirectory names, specify the <code>matrix.variant_names</code> key in your test plan
@@ -380,12 +380,12 @@ with a template string for generating the variant names:</p>
 <p>When doing so, the ordering for variants remains the same but the output directory names are
 generated using the template provided:</p>
 <ul>
-<li>a=foo b=1 (foo_1)</li>
-<li>a=foo b=2 (foo_2)</li>
-<li>a=foo b=3 (foo_3)</li>
-<li>a=bar b=1 (bar_1)</li>
-<li>a=bar b=2 (bar_2)</li>
-<li>a=bar b=3 (bar_3)</li>
+<li><code>a=foo b=1</code> (<code>foo_1</code>)</li>
+<li><code>a=foo b=2</code> (<code>foo_2</code>)</li>
+<li><code>a=foo b=3</code> (<code>foo_3</code>)</li>
+<li><code>a=bar b=1</code> (<code>bar_1</code>)</li>
+<li><code>a=bar b=2</code> (<code>bar_2</code>)</li>
+<li><code>a=bar b=3</code> (<code>bar_3</code>)</li>
 </ul>
 <p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
 with static string content in order to generate a unique name for each variant. The resulting string

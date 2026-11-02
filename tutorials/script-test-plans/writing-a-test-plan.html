@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "../../searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-9b5efe91.js"></script>
+        <script src="../../toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,7 +179,7 @@
                     <main>
                         <!-- diataxis-type: tutorial -->
 <h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
-<p>In this guide, we’ll write a script-based <a href="../../reference/glossary.html">Test Plan</a> from scratch. The Test Plan structure is
+<p>In this guide, we’ll write a script-based <a href="../../reference/glossary.html#test-plan">Test Plan</a> from scratch. The Test Plan structure is
 identical to the <a href="../test-plans/writing-a-test-plan.html">docker tutorial</a> — the differences are in the Scenario and Environment configs,
 which will use <code>command</code>s instead of <code>docker</code>.</p>
 <p>Create a working directory:</p>
@@ -234,10 +234,10 @@ teardown:
       echo "environment teardown"
 </code></pre>
 <h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario config</a></h2>
-<p>A script <a href="../../reference/glossary.html">Scenario</a> uses <code>command:</code> instead of <code>docker:</code>. The <code>command:</code> defines a shell script
+<p>A script <a href="../../reference/glossary.html#scenario">Scenario</a> uses <code>command:</code> instead of <code>docker:</code>. The <code>command:</code> defines a shell script
 that runs directly on the host. We cover <code>command:</code> in detail in the <a href="writing-a-command.html">Writing a command</a> guide.</p>
 <h2 id="environment-config"><a class="header" href="#environment-config">Environment config</a></h2>
-<p>A script <a href="../../reference/glossary.html">Environment</a> uses <code>setup:</code> and <code>teardown:</code> instead of <code>compose_files:</code>. Each phase
+<p>A script <a href="../../reference/glossary.html#environment">Environment</a> uses <code>setup:</code> and <code>teardown:</code> instead of <code>compose_files:</code>. Each phase
 defines a <code>command:</code> that runs a shell script on the host, bracketing the Scenario’s execution. See
 the <a href="../../reference/framework/environments.html">framework reference</a> for the full Environment config structure.</p>
 <h2 id="checking-the-test-plan"><a class="header" href="#checking-the-test-plan">Checking the Test Plan</a></h2>

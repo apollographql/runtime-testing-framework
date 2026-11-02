@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "../../searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-9b5efe91.js"></script>
+        <script src="../../toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -186,7 +186,7 @@ design.</p>
 has its own README file explaining its purpose at the crate’s root.</p>
 <p>The <code>rtf-config</code> crate is the heart of RTF. It handles:</p>
 <ul>
-<li><strong>Parsing</strong> - YAML config files (<a href="../../reference/glossary.html">Test Plans</a>, <a href="../../reference/glossary.html">Environments</a>, <a href="../../reference/glossary.html">Scenarios</a>) are parsed
+<li><strong>Parsing</strong> - YAML config files (<a href="../../reference/glossary.html#test-plan">Test Plans</a>, <a href="../../reference/glossary.html#environment">Environments</a>, <a href="../../reference/glossary.html#scenario">Scenarios</a>) are parsed
 into strongly typed Rust structs</li>
 <li><strong>Templating</strong> - Variable substitution using the <code>{{ variable }}</code> syntax</li>
 <li><strong>Validation</strong> - Static analysis checks before execution</li>
@@ -249,11 +249,11 @@ requests.</p>
 <ul>
 <li><strong>RTF CLI</strong> (<code>rtf</code>) is a local command-line tool. A developer runs it directly to perform actions
 against test plans on the same system the CLI is hosted on.</li>
-<li><strong><a href="../../reference/glossary.html">RTF Orchestrator Service</a></strong> is a server-side system. It receives Test Plans over HTTP,
+<li><strong><a href="../../reference/glossary.html#rtf-orchestrator-service">RTF Orchestrator Service</a></strong> is a server-side system. It receives Test Plans over HTTP,
 manages their execution in a provisioned cluster asynchronously, and reports results back to
 callers via status endpoints.</li>
 </ul>
-<p>The handoff point between the two systems is the <a href="../../reference/glossary.html">Trigger Payload</a> — a resolved Test Plan
+<p>The handoff point between the two systems is the <a href="../../reference/glossary.html#trigger-payload">Trigger Payload</a> — a resolved Test Plan
 produced by <code>rtf remote prepare</code> and submitted to the Orchestrator via <code>POST /test-run/trigger</code>. The
 Orchestrator does not replace the RTF CLI; they are complementary tools for different execution
 contexts.</p>

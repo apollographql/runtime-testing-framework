@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "../searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-9b5efe91.js"></script>
+        <script src="../toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -187,10 +187,10 @@ everything down cleanly afterwards. What it is <em>not</em> is a framework for w
 provide assertions, test runners, or anything that touches the logic of your test scenarios — that
 part is entirely up to you and your existing tooling.</p>
 <p>This distinction matters. The value RTF provides is reliability and repeatability at the
-<em>environment</em> level: the confidence that every time you run a <a href="../reference/glossary.html">Test Plan</a>, the services under
+<em>environment</em> level: the confidence that every time you run a <a href="../reference/glossary.html#test-plan">Test Plan</a>, the services under
 test are in the same known-good state, with the same data, in the same configuration. See
 <a href="./overview.html">Understanding RTF</a> for more on the design philosophy behind this.</p>
-<p>A further benefit of this approach is consistency. When <a href="../reference/glossary.html">Environments</a> and Test Plans are defined
+<p>A further benefit of this approach is consistency. When <a href="../reference/glossary.html#environment">Environments</a> and Test Plans are defined
 in RTF, they can be shared, reviewed, and reproduced by any team — whether that’s another
 engineering team building on the same services, or Apollo’s support team trying to reproduce a
 customer issue. Everyone is working from the same definition, in the same way.</p>
@@ -239,7 +239,7 @@ the question you’re answering is “does this actually work, end to end, in th
 <p>All of the following test types sit at the top of the pyramid. What differs is their purpose and how
 often you’d run them.</p>
 <h3 id="end-to-end-suites"><a class="header" href="#end-to-end-suites">End-to-end suites</a></h3>
-<p>The most common use of RTF is running a full E2E suite — a set of <a href="../reference/glossary.html">Scenarios</a> that together
+<p>The most common use of RTF is running a full E2E suite — a set of <a href="../reference/glossary.html#scenario">Scenarios</a> that together
 verify the critical behaviour of a service across a set of configurations. A good E2E suite covers
 the flows your users depend on most, not every possible code path. Because E2E tests are expensive
 to run and maintain, selectivity is a virtue.</p>

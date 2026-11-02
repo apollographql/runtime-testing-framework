@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-c1c0cb71.js";
+            window.path_to_searchindex_js = "../../searchindex-561a2696.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-9b5efe91.js"></script>
+        <script src="../../toc-4d4c8e60.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -377,6 +377,9 @@ You should see output similar to this::
 <li>Use numbered lists for sequential steps</li>
 <li>Use bullet lists for non-sequential items</li>
 <li>Use the Oxford comma in inline lists (“setup, run, and teardown”)</li>
+<li>Always start list items with a capital letter, including items that continue an introductory
+sentence. Items that start with code, a literal value, or a name with fixed casing (such as a
+crate name) keep their original casing; format code and literal values as inline code</li>
 </ul>
 <h3 id="links"><a class="header" href="#links">Links</a></h3>
 <p>Use <strong>reference-style links</strong> with definitions at the bottom of the file:</p>
@@ -413,17 +416,18 @@ You should see output similar to this::
 <p>RTF maintains a central <a href="../../reference/glossary.html">glossary</a>. When using RTF-specific terms:</p>
 <ol>
 <li><strong>Always</strong> ensure the term is defined in the glossary</li>
-<li><strong>Link to the glossary</strong> on first use in a page</li>
+<li><strong>Link to the term’s glossary entry</strong> on first use in a page, using the entry’s heading anchor
+(for example, <code>glossary.md#test-plan</code>) rather than the top of the glossary</li>
 <li><strong>Inline definitions are encouraged</strong> in Tutorials where clicking away disrupts flow</li>
 </ol>
 <p>Example (Tutorial):</p>
 <blockquote>
 <p>A <strong>Test Plan</strong> is the top-level entry point for RTF that defines variables and references to
-Scenarios and Environments. See the <a href="../../reference/glossary.html">glossary</a> for the full definition.</p>
+Scenarios and Environments. See the <a href="../../reference/glossary.html#test-plan">glossary</a> for the full definition.</p>
 </blockquote>
 <p>Example (How-to/Reference):</p>
 <blockquote>
-<p>Configure the <a href="../../reference/glossary.html">Test Plan</a> with your variables.</p>
+<p>Configure the <a href="../../reference/glossary.html#test-plan">Test Plan</a> with your variables.</p>
 </blockquote>
 <h3 id="rtf-concepts"><a class="header" href="#rtf-concepts">RTF concepts</a></h3>
 <p>Use these exact capitalizations:</p>
@@ -534,6 +538,7 @@ or you find yourself scrolling extensively, consider splitting into subpages.</p
 <li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in how-to/reference)</li>
 <li><input disabled="" type="checkbox"> No shell prompts in command examples</li>
 <li><input disabled="" type="checkbox"> Placeholders use angle brackets</li>
+<li><input disabled="" type="checkbox"> List items start with a capital letter</li>
 <li><input disabled="" type="checkbox"> RTF terminology capitalized correctly</li>
 <li><input disabled="" type="checkbox"> New terms added to glossary and linked on first use</li>
 <li><input disabled="" type="checkbox"> Links use reference-style with definitions at bottom</li>
