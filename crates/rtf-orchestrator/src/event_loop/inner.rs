@@ -301,6 +301,10 @@ impl EventQueueInner {
             .map(|evt| evt.test_execution.uuid())
     }
 
+    pub(super) fn n_pending_provisions(&self) -> usize {
+        self.pending_provisions.values().map(VecDeque::len).sum()
+    }
+
     pub(super) fn purge_execution_state(&mut self, ex: TestExecution) -> Option<()> {
         let ex_id = ex.uuid();
 
@@ -338,6 +342,7 @@ impl EventQueueInner {
                     requires_dedicated: evt.requires_dedicated,
                 });
             }
+            summary.queued += events.len();
         }
 
         for (cluster_id, running) in self.running_executions.iter() {

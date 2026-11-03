@@ -166,7 +166,7 @@ impl EventQueueState {
                 resolved_execution_cache,
             } = shared.snapshot_state();
 
-            summary.queued = shared.n_queued;
+            summary.queued += shared.n_queued;
 
             EventQueueSnapshot {
                 summary,
@@ -210,16 +210,15 @@ impl EventQueueState {
     /// Returns `true` if the claim was successful, otherwise `false`.
     pub async fn try_reserve_pending_executions(&self, tp: &OrchestratorTestPlan) -> Option<Claim> {
         let n = tp.matrix.n_variants();
+        let mut shared = self.shared.lock().await;
+        let queued = shared.n_queued + self.eq_inner.lock().await.n_pending_provisions();
 
-        self.with_shared(|shared| {
-            if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
-                shared.n_queued += n;
-                Some(Claim(n))
-            } else {
-                None
-            }
-        })
-        .await
+        if queued.saturating_add(n) <= shared.max_queued_executions {
+            shared.n_queued += n;
+            Some(Claim(n))
+        } else {
+            None
+        }
     }
 
     /// Return `n` queued execution claims back to the shared state.
@@ -458,6 +457,57 @@ mod tests {
             let successful = state.try_reserve_pending_executions(&tp).await;
             assert_eq!(successful.is_some(), expected, "claim {i}");
         }
+    }
+
+    async fn push_pending_provisions(state: &EventQueueState, pool: &str, n: usize) {
+        state
+            .with_inner(|inner| {
+                for i in 0..n {
+                    let ex = TestExecution::create_stub(i as i32 + 1, 1, i, "test");
+                    inner.push_event(QueueEvent::Provision(
+                        PoolId::new(pool),
+                        PendingProvision::new(ex, Uuid::new_v4(), false),
+                    ));
+                }
+            })
+            .await;
+    }
+
+    #[test_case(0, 1, true; "pending provisions below max")]
+    #[test_case(4, 1, true; "pending provisions up to max")]
+    #[test_case(5, 1, false; "pending provisions at max")]
+    #[test_case(3, 3, false; "pending provisions plus claim would exceed max")]
+    #[tokio::test]
+    async fn try_reserve_pending_executions_accounts_for_pending_provisions(
+        n_pending: usize,
+        n_claim: usize,
+        expected: bool,
+    ) {
+        let mut cfg = Config::for_test().workload_clusters;
+        cfg.max_queued_executions = 5;
+        let (_, _, state, _) = EventQueue::new(&cfg);
+        push_pending_provisions(&state, "default", n_pending).await;
+
+        let mut tp = stub_test_plan();
+        tp.matrix.dimensions =
+            HashMap::from([("a".to_string(), vec![Scalar::Bool(true); n_claim])]);
+
+        assert_eq!(
+            state.try_reserve_pending_executions(&tp).await.is_some(),
+            expected
+        );
+    }
+
+    #[tokio::test]
+    async fn event_queue_snapshot_queued_includes_pending_provisions() {
+        let (_, _, state, _) = EventQueue::new(
+            &WorkloadClusters::for_test_with_available_clusters(10, "a", &["a", "b"]),
+        );
+        push_pending_provisions(&state, "default", 2).await;
+        push_pending_provisions(&state, "b", 1).await;
+        state.with_shared(|shared| shared.n_queued = 4).await;
+
+        assert_eq!(state.event_queue_snapshot().await.summary.queued, 7);
     }
 
     #[tokio::test]
