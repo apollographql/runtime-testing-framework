@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-561a2696.js";
+            window.path_to_searchindex_js = "../../searchindex-855d6f2c.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -209,12 +209,12 @@ status updates until the run completes:</p>
 </code></pre>
 <p>The command prints a status table that updates at each poll interval (default: 10 seconds) showing
 the most recent activity associated with your run:</p>
-<pre><code class="language-text"> status        latest_message                                                running  successful  failed  unrunnable
- INITIALISING  run created                                                   1        0           0       0
- RESOLVING     resolving environment config                                  1        0           0       0
- PROVISIONING  deploying environment                                         1        0           0       0
- RUNNING       running scenario                                              1        0           0       0
- SUCCESSFUL    scenario completed successfully                               0        1           0       0
+<pre><code class="language-text"> status        latest_message                                                running  successful  failed  unrunnable  cancelled
+ INITIALISING  run created                                                   1        0           0       0           0
+ RESOLVING     resolving environment config                                  1        0           0       0           0
+ PROVISIONING  deploying environment                                         1        0           0       0           0
+ RUNNING       running scenario                                              1        0           0       0           0
+ SUCCESSFUL    scenario completed successfully                               0        1           0       0           0
 
 
 Test run complete. Final status: successful

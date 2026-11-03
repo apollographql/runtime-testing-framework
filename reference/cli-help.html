@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-561a2696.js";
+            window.path_to_searchindex_js = "../searchindex-855d6f2c.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4d4c8e60.js"></script>
@@ -468,7 +468,11 @@
 </ul>
 <h2 id="rtf-remote"><a class="header" href="#rtf-remote"><code>rtf remote</code></a></h2>
 <p>Interactions with the RTF Orchestrator Service.</p>
-<p>Set the <code>RTF_ORCHESTRATOR_URL</code> environment variable to override the Orchestrator base URL used by these subcommands; it defaults to the production Orchestrator when unset.</p>
+<p>Requests are authenticated via Google Cloud IAP. Before using these subcommands you need Orchestrator access and Google Application Default Credentials (<code>gcloud auth application-default login</code>). The first request opens a browser to complete an OAuth consent flow, and the resulting token is cached on disk.</p>
+<p>Environment variables:</p>
+<ul>
+<li><code>RTF_ORCHESTRATOR_URL</code>: override the Orchestrator base URL (defaults to the production Orchestrator when unset).</li>
+</ul>
 <p><strong>Usage:</strong> <code>rtf remote &lt;COMMAND&gt;</code></p>
 <h6 id="subcommands-4"><a class="header" href="#subcommands-4"><strong>Subcommands:</strong></a></h6>
 <ul>
@@ -494,7 +498,8 @@
 <h6 id="options-11"><a class="header" href="#options-11"><strong>Options:</strong></a></h6>
 <ul>
 <li>
-<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
+<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path.</p>
+<p>The test plan is fetched and resolved locally, so this requires a <code>GITHUB_TOKEN</code> environment variable with read access to the repository.</p>
 <p>Default value: <code>false</code></p>
 </li>
 <li>
@@ -516,10 +521,11 @@
 <p>Default value: <code>GET</code></p>
 </li>
 <li>
-<p><code>-d</code>, <code>--body &lt;BODY&gt;</code> — Request body as a literal string</p>
+<p><code>-d</code>, <code>--body &lt;BODY&gt;</code> — Request body as a literal string.</p>
+<p>For POST and PUT requests this must be valid JSON unless –plain-text is set.</p>
 </li>
 <li>
-<p><code>--plain-text</code> — Skip setting a content type on POST/PUT requests</p>
+<p><code>--plain-text</code> — Send the body as-is without validating it as JSON or setting a content type on POST/PUT requests</p>
 <p>Default value: <code>false</code></p>
 </li>
 </ul>
@@ -534,7 +540,8 @@
 <h6 id="options-13"><a class="header" href="#options-13"><strong>Options:</strong></a></h6>
 <ul>
 <li>
-<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
+<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path.</p>
+<p>The test plan is fetched and resolved locally, so this requires a <code>GITHUB_TOKEN</code> environment variable with read access to the repository.</p>
 <p>Default value: <code>false</code></p>
 </li>
 <li>
@@ -547,40 +554,43 @@
 <p><strong>Usage:</strong> <code>rtf remote run-known [OPTIONS] &lt;TEST_PLAN_ID&gt;</code></p>
 <h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;TEST_PLAN_ID&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
+<li>
+<p><code>&lt;TEST_PLAN_ID&gt;</code> — Known Test Plan ID from the Orchestrator.</p>
+<p>You can find this on the UI page providing your known Test Plan’s details.</p>
+</li>
 </ul>
 <h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
 <ul>
-<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</li>
+<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to run the test plan from, overriding the ref registered for the known test plan</li>
 </ul>
 <h2 id="rtf-remote-ci-run"><a class="header" href="#rtf-remote-ci-run"><code>rtf remote ci-run</code></a></h2>
 <p>Trigger a test run using the Orchestrator and poll for the result.</p>
 <p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
+<p>Exit codes: 0 if the run succeeded, 1 if it failed, and 2 if it was unrunnable or cancelled.</p>
 <p><strong>Usage:</strong> <code>rtf remote ci-run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
 <ul>
-<li>
-<p><code>&lt;TEST_PLAN_PATH&gt;</code> — Known Test Plan ID from the Orchestrator.</p>
-<p>You can find this on the UI page providing your known Test Plan’s details.</p>
-</li>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
 <h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
 <ul>
 <li>
-<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
+<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path.</p>
+<p>The test plan is fetched and resolved locally, so this requires a <code>GITHUB_TOKEN</code> environment variable with read access to the repository.</p>
 <p>Default value: <code>false</code></p>
 </li>
 <li>
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
 <li>
-<p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code></p>
+<p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code> — Number of seconds to wait between polls for the status of the test run</p>
 <p>Default value: <code>10</code></p>
 </li>
 </ul>
 <h2 id="rtf-remote-ci-run-known"><a class="header" href="#rtf-remote-ci-run-known"><code>rtf remote ci-run-known</code></a></h2>
 <p>Trigger a test run of a known test plan using the Orchestrator and poll for the result.</p>
 <p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
+<p>Exit codes: 0 if the run succeeded, 1 if it failed, and 2 if it was unrunnable or cancelled.</p>
 <p><strong>Usage:</strong> <code>rtf remote ci-run-known [OPTIONS] &lt;TEST_PLAN_ID&gt;</code></p>
 <h6 id="arguments-16"><a class="header" href="#arguments-16"><strong>Arguments:</strong></a></h6>
 <ul>
@@ -592,10 +602,10 @@
 <h6 id="options-16"><a class="header" href="#options-16"><strong>Options:</strong></a></h6>
 <ul>
 <li>
-<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull the test plan from</p>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to run the test plan from, overriding the ref registered for the known test plan</p>
 </li>
 <li>
-<p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code></p>
+<p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code> — Number of seconds to wait between polls for the status of the test run</p>
 <p>Default value: <code>10</code></p>
 </li>
 </ul>
@@ -659,7 +669,7 @@
 <h6 id="options-19"><a class="header" href="#options-19"><strong>Options:</strong></a></h6>
 <ul>
 <li>
-<p><code>--with-executions</code> — Whether or not details of the underlying test executions should be included</p>
+<p><code>--with-executions</code> — Include details of the underlying test executions in the summary</p>
 <p>Default value: <code>false</code></p>
 </li>
 </ul>
