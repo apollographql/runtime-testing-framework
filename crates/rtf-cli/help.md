@@ -340,7 +340,11 @@ Output json schemas for environment configuration
 
 Interactions with the RTF Orchestrator Service.
 
-Set the `RTF_ORCHESTRATOR_URL` environment variable to override the Orchestrator base URL used by these subcommands; it defaults to the production Orchestrator when unset.
+Requests are authenticated via Google Cloud IAP. Before using these subcommands you need Orchestrator access and Google Application Default Credentials (`gcloud auth application-default login`). The first request opens a browser to complete an OAuth consent flow, and the resulting token is cached on disk.
+
+Environment variables:
+
+- `RTF_ORCHESTRATOR_URL`: override the Orchestrator base URL (defaults to the production Orchestrator when unset).
 
 **Usage:** `rtf remote <COMMAND>`
 
@@ -372,7 +376,9 @@ Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchest
 
 ###### **Options:**
 
-* `--github` — Prepare a test plan file from GitHub instead of from a local path
+* `--github` — Prepare a test plan file from GitHub instead of from a local path.
+
+   The test plan is fetched and resolved locally, so this requires a `GITHUB_TOKEN` environment variable with read access to the repository.
 
   Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
@@ -396,8 +402,10 @@ The response body is written to stdout on success.
 * `-X`, `--method <METHOD>` — HTTP method
 
   Default value: `GET`
-* `-d`, `--body <BODY>` — Request body as a literal string
-* `--plain-text` — Skip setting a content type on POST/PUT requests
+* `-d`, `--body <BODY>` — Request body as a literal string.
+
+   For POST and PUT requests this must be valid JSON unless --plain-text is set.
+* `--plain-text` — Send the body as-is without validating it as JSON or setting a content type on POST/PUT requests
 
   Default value: `false`
 
@@ -417,7 +425,9 @@ The output of this command will be the test run id and a link to the RTF UI to v
 
 ###### **Options:**
 
-* `--github` — Prepare a test plan file from GitHub instead of from a local path
+* `--github` — Prepare a test plan file from GitHub instead of from a local path.
+
+   The test plan is fetched and resolved locally, so this requires a `GITHUB_TOKEN` environment variable with read access to the repository.
 
   Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
@@ -434,11 +444,13 @@ The output of this command will be the test run id and a link to the RTF UI to v
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_ID>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
+* `<TEST_PLAN_ID>` — Known Test Plan ID from the Orchestrator.
+
+   You can find this on the UI page providing your known Test Plan's details.
 
 ###### **Options:**
 
-* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+* `--ref <GIT_REF>` — Optional git ref to run the test plan from, overriding the ref registered for the known test plan
 
 
 
@@ -448,21 +460,23 @@ Trigger a test run using the Orchestrator and poll for the result.
 
 The output of this command is aimed at being usable in CI runs and is non-interactive.
 
+Exit codes: 0 if the run succeeded, 1 if it failed, and 2 if it was unrunnable or cancelled.
+
 **Usage:** `rtf remote ci-run [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_PATH>` — Known Test Plan ID from the Orchestrator.
-
-   You can find this on the UI page providing your known Test Plan's details.
+* `<TEST_PLAN_PATH>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
 
 ###### **Options:**
 
-* `--github` — Prepare a test plan file from GitHub instead of from a local path
+* `--github` — Prepare a test plan file from GitHub instead of from a local path.
+
+   The test plan is fetched and resolved locally, so this requires a `GITHUB_TOKEN` environment variable with read access to the repository.
 
   Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
-* `--poll-interval-seconds <POLL_INTERVAL_SECONDS>`
+* `--poll-interval-seconds <POLL_INTERVAL_SECONDS>` — Number of seconds to wait between polls for the status of the test run
 
   Default value: `10`
 
@@ -474,6 +488,8 @@ Trigger a test run of a known test plan using the Orchestrator and poll for the 
 
 The output of this command is aimed at being usable in CI runs and is non-interactive.
 
+Exit codes: 0 if the run succeeded, 1 if it failed, and 2 if it was unrunnable or cancelled.
+
 **Usage:** `rtf remote ci-run-known [OPTIONS] <TEST_PLAN_ID>`
 
 ###### **Arguments:**
@@ -484,8 +500,8 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 
 ###### **Options:**
 
-* `--ref <GIT_REF>` — Optional git ref to pull the test plan from
-* `--poll-interval-seconds <POLL_INTERVAL_SECONDS>`
+* `--ref <GIT_REF>` — Optional git ref to run the test plan from, overriding the ref registered for the known test plan
+* `--poll-interval-seconds <POLL_INTERVAL_SECONDS>` — Number of seconds to wait between polls for the status of the test run
 
   Default value: `10`
 
@@ -569,7 +585,7 @@ View the status summary for a test run
 
 ###### **Options:**
 
-* `--with-executions` — Whether or not details of the underlying test executions should be included
+* `--with-executions` — Include details of the underlying test executions in the summary
 
   Default value: `false`
 

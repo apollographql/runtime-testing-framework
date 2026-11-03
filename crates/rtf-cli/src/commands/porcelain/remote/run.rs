@@ -1,4 +1,5 @@
 use crate::commands::{get_context, plumbing::prepare_remote_trigger_payload};
+use reqwest::Url;
 use rtf_core::variables::Variables;
 use rtf_integrations::orchestrator::OrchestratorClient;
 use rtf_orchestrator_shared::{
@@ -28,11 +29,16 @@ pub async fn remote_run(
     let summary: TestRunSummary = client.post_json("test-run/trigger", &payload).await?;
     let id = summary.id;
     println!("Test run id: {id}\n");
-
-    let url = format!("https://api.rtf.apollographql.com/ui/run/{id}");
-    println!("View test run status: {url}");
+    println!(
+        "View test run status: {}",
+        ui_run_url(client.base_url(), id)?
+    );
 
     Ok(())
+}
+
+fn ui_run_url(base_url: &Url, id: Uuid) -> anyhow::Result<Url> {
+    Ok(base_url.join(&format!("ui/run/{id}"))?)
 }
 
 pub async fn remote_run_known(
@@ -56,9 +62,10 @@ pub async fn remote_run_known(
     let summary: TestRunSummary = client.post_json("test-run/trigger", &payload).await?;
     let id = summary.id;
     println!("Test run id: {id}\n");
-
-    let url = format!("https://api.rtf.apollographql.com/ui/run/{id}");
-    println!("View test run status: {url}");
+    println!(
+        "View test run status: {}",
+        ui_run_url(client.base_url(), id)?
+    );
 
     Ok(())
 }

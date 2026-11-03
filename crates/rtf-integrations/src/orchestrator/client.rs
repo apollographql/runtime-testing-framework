@@ -69,6 +69,11 @@ impl OrchestratorClient {
         })
     }
 
+    /// The base URL of the Orchestrator this client sends requests to.
+    pub fn base_url(&self) -> &Url {
+        &self.base_url
+    }
+
     /// Prepare a new authenticated request for sending to the Orchestrator.
     pub async fn request(&self, method: Method, endpoint: &str) -> Result<RequestBuilder> {
         let id_token = id_token(&self.adc, &self.client_id, &self.client_secret).await?;

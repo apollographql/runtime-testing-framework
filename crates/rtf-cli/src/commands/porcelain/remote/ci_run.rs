@@ -96,11 +96,7 @@ async fn trigger_and_poll(
         sleep(poll_interval).await;
     }
 
-    let (s, exit_code) = match summary.current_status {
-        Status::Successful => ("successful", 0),
-        Status::Failed => ("failed", 1),
-        _ => ("unrunnable", 2),
-    };
+    let (s, exit_code) = run_outcome(summary.current_status);
 
     println!("\n\nTest run complete. Final status: {s}\n");
     println!(
@@ -124,6 +120,15 @@ async fn trigger_and_poll(
     Ok(())
 }
 
+fn run_outcome(status: Status) -> (&'static str, i32) {
+    match status {
+        Status::Successful => ("successful", 0),
+        Status::Failed => ("failed", 1),
+        Status::Cancelled => ("cancelled", 2),
+        _ => ("unrunnable", 2),
+    }
+}
+
 fn any_execution_ongoing(trs: &TestRunSummary) -> bool {
     !trs.current_status.is_terminal()
         || trs
@@ -139,6 +144,7 @@ struct UpdateLine {
     successful: usize,
     failed: usize,
     unrunnable: usize,
+    cancelled: usize,
 }
 
 impl UpdateLine {
@@ -151,6 +157,7 @@ impl UpdateLine {
                 Status::Successful => line.successful += 1,
                 Status::Failed => line.failed += 1,
                 Status::Unrunnable => line.unrunnable += 1,
+                Status::Cancelled => line.cancelled += 1,
                 _ => line.running += 1,
             }
         }
@@ -191,7 +198,8 @@ fn failed_execution_report(executions: Vec<TestExecutionSummary>) -> Table {
     let mut failed: Vec<FailedExecution> = executions
         .into_iter()
         .filter_map(|ex| {
-            if [Status::Unrunnable, Status::Failed].contains(&ex.current_status) {
+            if [Status::Unrunnable, Status::Failed, Status::Cancelled].contains(&ex.current_status)
+            {
                 Some(FailedExecution::from(ex))
             } else {
                 None

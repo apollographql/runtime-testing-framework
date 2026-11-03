@@ -141,8 +141,15 @@ pub enum Command {
 
     /// Interactions with the RTF Orchestrator Service.
     ///
-    /// Set the `RTF_ORCHESTRATOR_URL` environment variable to override the Orchestrator base
-    /// URL used by these subcommands; it defaults to the production Orchestrator when unset.
+    /// Requests are authenticated via Google Cloud IAP. Before using these subcommands you need
+    /// Orchestrator access and Google Application Default Credentials
+    /// (`gcloud auth application-default login`). The first request opens a browser to complete
+    /// an OAuth consent flow, and the resulting token is cached on disk.
+    ///
+    /// Environment variables:
+    ///
+    /// - `RTF_ORCHESTRATOR_URL`: override the Orchestrator base URL (defaults to the production
+    ///   Orchestrator when unset).
     Remote {
         #[clap(subcommand)]
         subcommand: RemoteSubcommand,
@@ -312,7 +319,10 @@ pub enum RemoteSubcommand {
         /// format ORG/REPO/PATH
         test_plan_path: String,
 
-        /// Prepare a test plan file from GitHub instead of from a local path
+        /// Prepare a test plan file from GitHub instead of from a local path.
+        ///
+        /// The test plan is fetched and resolved locally, so this requires a `GITHUB_TOKEN`
+        /// environment variable with read access to the repository.
         #[arg(long, default_value = "false")]
         github: bool,
 
@@ -332,11 +342,14 @@ pub enum RemoteSubcommand {
         #[arg(short = 'X', long, default_value = "GET")]
         method: Method,
 
-        /// Request body as a literal string
+        /// Request body as a literal string.
+        ///
+        /// For POST and PUT requests this must be valid JSON unless --plain-text is set.
         #[arg(short = 'd', long)]
         body: Option<String>,
 
-        /// Skip setting a content type on POST/PUT requests
+        /// Send the body as-is without validating it as JSON or setting a content type on
+        /// POST/PUT requests
         #[arg(long, default_value = "false")]
         plain_text: bool,
     },
@@ -350,7 +363,10 @@ pub enum RemoteSubcommand {
         /// format ORG/REPO/PATH
         test_plan_path: String,
 
-        /// Prepare a test plan file from GitHub instead of from a local path
+        /// Prepare a test plan file from GitHub instead of from a local path.
+        ///
+        /// The test plan is fetched and resolved locally, so this requires a `GITHUB_TOKEN`
+        /// environment variable with read access to the repository.
         #[arg(long, default_value = "false")]
         github: bool,
 
@@ -364,11 +380,13 @@ pub enum RemoteSubcommand {
     /// The output of this command will be the test run id and a link to the
     /// RTF UI to view the status
     RunKnown {
-        /// Relative path to the test plan file. When using --github this must be in the
-        /// format ORG/REPO/PATH
+        /// Known Test Plan ID from the Orchestrator.
+        ///
+        /// You can find this on the UI page providing your known Test Plan's details.
         test_plan_id: Uuid,
 
-        /// Optional git ref to pull files from when using --github
+        /// Optional git ref to run the test plan from, overriding the ref registered for the
+        /// known test plan
         #[arg(long = "ref")]
         git_ref: Option<String>,
     },
@@ -376,13 +394,18 @@ pub enum RemoteSubcommand {
     /// Trigger a test run using the Orchestrator and poll for the result.
     ///
     /// The output of this command is aimed at being usable in CI runs and is non-interactive.
+    ///
+    /// Exit codes: 0 if the run succeeded, 1 if it failed, and 2 if it was unrunnable or
+    /// cancelled.
     CiRun {
-        /// Known Test Plan ID from the Orchestrator.
-        ///
-        /// You can find this on the UI page providing your known Test Plan's details.
+        /// Relative path to the test plan file. When using --github this must be in the
+        /// format ORG/REPO/PATH
         test_plan_path: String,
 
-        /// Prepare a test plan file from GitHub instead of from a local path
+        /// Prepare a test plan file from GitHub instead of from a local path.
+        ///
+        /// The test plan is fetched and resolved locally, so this requires a `GITHUB_TOKEN`
+        /// environment variable with read access to the repository.
         #[arg(long, default_value = "false")]
         github: bool,
 
@@ -390,6 +413,7 @@ pub enum RemoteSubcommand {
         #[arg(long = "ref", requires = "github")]
         git_ref: Option<String>,
 
+        /// Number of seconds to wait between polls for the status of the test run
         #[arg(long, default_value = "10")]
         poll_interval_seconds: u64,
     },
@@ -397,16 +421,21 @@ pub enum RemoteSubcommand {
     /// Trigger a test run of a known test plan using the Orchestrator and poll for the result.
     ///
     /// The output of this command is aimed at being usable in CI runs and is non-interactive.
+    ///
+    /// Exit codes: 0 if the run succeeded, 1 if it failed, and 2 if it was unrunnable or
+    /// cancelled.
     CiRunKnown {
         /// Known Test Plan ID from the Orchestrator.
         ///
         /// You can find this on the UI page providing your known Test Plan's details.
         test_plan_id: Uuid,
 
-        /// Optional git ref to pull the test plan from
+        /// Optional git ref to run the test plan from, overriding the ref registered for the
+        /// known test plan
         #[arg(long = "ref")]
         git_ref: Option<String>,
 
+        /// Number of seconds to wait between polls for the status of the test run
         #[arg(long, default_value = "10")]
         poll_interval_seconds: u64,
     },
@@ -417,7 +446,7 @@ pub enum RemoteSubcommand {
         id: Uuid,
     },
 
-    /// Pull all output for a single test execution (log, output.zip & status)
+    /// Pull all output for a single test execution (log, output.zip & status).
     ExecutionOutput {
         /// ID of the Orchestrator test execution you wish to pull output for
         id: Uuid,
@@ -456,7 +485,7 @@ pub enum RemoteSubcommand {
         /// ID of the Orchestrator test run you wish to view the status of
         id: Uuid,
 
-        /// Whether or not details of the underlying test executions should be included
+        /// Include details of the underlying test executions in the summary.
         #[arg(long, default_value = "false")]
         with_executions: bool,
     },

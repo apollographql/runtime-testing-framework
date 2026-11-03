@@ -43,12 +43,12 @@ The command prints a status table that updates at each poll interval (default: 1
 the most recent activity associated with your run:
 
 ```text
- status        latest_message                                                running  successful  failed  unrunnable
- INITIALISING  run created                                                   1        0           0       0
- RESOLVING     resolving environment config                                  1        0           0       0
- PROVISIONING  deploying environment                                         1        0           0       0
- RUNNING       running scenario                                              1        0           0       0
- SUCCESSFUL    scenario completed successfully                               0        1           0       0
+ status        latest_message                                                running  successful  failed  unrunnable  cancelled
+ INITIALISING  run created                                                   1        0           0       0           0
+ RESOLVING     resolving environment config                                  1        0           0       0           0
+ PROVISIONING  deploying environment                                         1        0           0       0           0
+ RUNNING       running scenario                                              1        0           0       0           0
+ SUCCESSFUL    scenario completed successfully                               0        1           0       0           0
 
 
 Test run complete. Final status: successful
