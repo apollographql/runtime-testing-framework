@@ -46,6 +46,24 @@ impl Shared {
         Ok((run_uuid, run.workload_config.clone()))
     }
 
+    /// The runs that any of the given executions belong to which were initiated by the user with
+    /// the given identity. [None] is the identity shared by all [UserType::Unknown] users.
+    pub(super) fn runs_initiated_by<'a>(
+        &self,
+        executions: impl IntoIterator<Item = &'a Uuid>,
+        user_identity: Option<&str>,
+    ) -> HashSet<Uuid> {
+        executions
+            .into_iter()
+            .filter_map(|ex| self.executions.get(ex).map(|e| e.run_uuid))
+            .filter(|run| {
+                self.runs.get(run).is_some_and(|r| {
+                    r.initiated_by_user.user_identity().as_deref() == user_identity
+                })
+            })
+            .collect()
+    }
+
     pub(super) fn register_execution(&mut self, ex_uuid: Uuid, run_uuid: Uuid) {
         self.executions.insert(
             ex_uuid,

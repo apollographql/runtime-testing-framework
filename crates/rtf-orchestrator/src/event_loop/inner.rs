@@ -1,8 +1,10 @@
 use crate::{
     Error,
-    config::WorkloadClusters,
+    config::{PerUserExecutionConfig, WorkloadClusters},
     db::{ClusterId, PoolId, TestExecution},
-    event_loop::{Event, EventData, PendingProvision, QueueEvent},
+    event_loop::{Event, EventData, PendingProvision, QueueEvent, shared::Shared},
+    rate_limit,
+    state::UserType,
 };
 use rtf_orchestrator_shared::event_queue::{
     ClusterQueueState, EventSummary, PendingProvisionSummary, PoolQueueState, SnapshotSummary,
@@ -28,6 +30,8 @@ pub(super) struct EventQueueInner {
     max_concurrent_executions: HashMap<ClusterId, usize>,
     /// Clusters that are reserved for, or owned by, a run that requires a dedicated cluster
     claims: HashMap<ClusterId, ClusterClaim>,
+    /// Per-user execution limits per pool
+    per_user_limits: HashMap<PoolId, PerUserExecutionConfig>,
 }
 
 impl EventQueueInner {
@@ -41,6 +45,18 @@ impl EventQueueInner {
             running_executions: HashMap::new(),
             max_concurrent_executions: cfg.max_concurrent_executions(),
             claims: HashMap::new(),
+            per_user_limits: cfg
+                .available_pools()
+                .into_iter()
+                .filter_map(|pool| {
+                    let limits = cfg
+                        .cluster_pools
+                        .pool_config(&pool)?
+                        .per_user_limits
+                        .clone();
+                    Some((pool, limits))
+                })
+                .collect(),
         }
     }
 
@@ -64,10 +80,10 @@ impl EventQueueInner {
         }
     }
 
-    pub(super) fn next_event(&mut self) -> Option<Event> {
+    pub(super) fn next_event(&mut self, shared: &Shared) -> Option<Event> {
         if let Some(evt) = self.pending_non_provisions.pop_front() {
             return Some(evt);
-        } else if let Some(evt) = self.runnable_provisioning_event() {
+        } else if let Some(evt) = self.runnable_provisioning_event(shared) {
             self.insert_running_execution(evt.test_execution.uuid(), evt.cluster.clone());
             return Some(evt);
         }
@@ -80,17 +96,24 @@ impl EventQueueInner {
     ///
     /// Events within a pool are considered in order, but one that is waiting on a dedicated
     /// cluster does not block the events behind it.
-    pub(super) fn runnable_provisioning_event(&mut self) -> Option<Event> {
+    pub(super) fn runnable_provisioning_event(&mut self, shared: &Shared) -> Option<Event> {
         for _ in 0..self.pool_provision_order.len() {
             let pool = self.pool_provision_order.front()?.clone();
             self.pool_provision_order.rotate_left(1);
 
             let n_pending = self.pending_provisions.get(&pool).map_or(0, VecDeque::len);
             for i in 0..n_pending {
-                let (run_uuid, requires_dedicated) = {
-                    let pending = &self.pending_provisions[&pool][i];
-                    (pending.run_uuid, pending.requires_dedicated)
-                };
+                let pending = &self.pending_provisions[&pool][i];
+                let (run_uuid, requires_dedicated) = (pending.run_uuid, pending.requires_dedicated);
+
+                if self.user_at_max_concurrent_runs(
+                    shared,
+                    &pool,
+                    &pending.initiated_by_user,
+                    run_uuid,
+                ) {
+                    continue;
+                }
 
                 let (cluster, data) = match self.try_assign(&pool, run_uuid, requires_dedicated) {
                     Some(details) => details,
@@ -104,6 +127,30 @@ impl EventQueueInner {
         }
 
         None
+    }
+
+    /// Returns whether starting an execution of `run_uuid` would put `user` over
+    /// their concurrent runs limit for `pool`.
+    fn user_at_max_concurrent_runs(
+        &self,
+        shared: &Shared,
+        pool: &PoolId,
+        user: &UserType,
+        run_uuid: Uuid,
+    ) -> bool {
+        let Some(per_user) = self.per_user_limits.get(pool) else {
+            return false;
+        };
+
+        let running = self
+            .pool_clusters
+            .get(pool)
+            .into_iter()
+            .flatten()
+            .flat_map(|cluster| self.execution_ids_for_cluster(cluster));
+        let ongoing_runs = shared.runs_initiated_by(running, user.user_identity().as_deref());
+
+        rate_limit::user_at_max_concurrent_runs(per_user, user, &ongoing_runs, run_uuid)
     }
 
     /// Attempt to find a cluster that is able to accepts a new execution from the given test run.

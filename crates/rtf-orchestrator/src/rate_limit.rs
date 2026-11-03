@@ -12,6 +12,8 @@ use crate::{
 use chrono::{Duration, Utc};
 use serde::Serialize;
 use sqlx::PgConnection;
+use std::collections::HashSet;
+use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -90,6 +92,19 @@ pub fn check_queued_executions(
     }
 
     Ok(())
+}
+
+/// Returns whether `user` has reached their concurrent runs limit, given
+/// the set of their runs that currently have a running execution.
+pub fn user_at_max_concurrent_runs(
+    per_user: &PerUserExecutionConfig,
+    user: &UserType,
+    ongoing_runs: &HashSet<Uuid>,
+    run_uuid: Uuid,
+) -> bool {
+    !user.is_admin()
+        && !ongoing_runs.contains(&run_uuid)
+        && ongoing_runs.len() >= per_user.max_concurrent_runs
 }
 
 #[cfg(test)]

@@ -104,6 +104,11 @@ impl EventQueue {
         f(&mut *self.inner.lock().await)
     }
 
+    async fn next_inner_event(&self) -> Option<Event> {
+        let shared = self.shared.lock().await;
+        self.inner.lock().await.next_event(&shared)
+    }
+
     pub async fn is_empty(&self) -> bool {
         self.rx.is_empty() && self.with_inner(|inner| inner.is_empty()).await
     }
@@ -137,7 +142,7 @@ impl EventQueue {
                 }
             }
 
-            if let Some(evt) = self.with_inner(EventQueueInner::next_event).await {
+            if let Some(evt) = self.next_inner_event().await {
                 return Some(evt);
             }
 
@@ -1734,5 +1739,179 @@ mod tests {
             assert!(shared.executions.is_empty(), "executions should be evicted");
         })
         .await;
+    }
+
+    fn one_concurrent_run_per_user_pool() -> WorkloadClusters {
+        let mut clusters = two_cluster_pool(10, false);
+        clusters
+            .cluster_pools
+            .default
+            .per_user_limits
+            .max_concurrent_runs = 1;
+
+        clusters
+    }
+
+    /// Cache a run for `user` and queue `n_executions` of it for provisioning.
+    /// Returns the uuids of the executions.
+    async fn queue_run(
+        event_queue: &EventQueue,
+        provisioning_handle: &ProvisioningHandle,
+        user: UserType,
+        first_ex_id: i32,
+        n_executions: usize,
+    ) -> Vec<Uuid> {
+        let run_uuid = Uuid::new_v4();
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &Config::for_test(),
+            empty_source_map(),
+            empty_source_map(),
+            HashMap::new(),
+        );
+        provisioning_handle
+            .cache_for_test_run(
+                run_uuid,
+                user.clone(),
+                Default::default(),
+                false,
+                ctx,
+                stub_test_plan(),
+            )
+            .await;
+
+        let mut ex_uuids = Vec::new();
+        for i in 0..n_executions {
+            let ex = TestExecution::create_stub(first_ex_id + i as i32, 1, i, "test");
+            ex_uuids.push(ex.uuid());
+            event_queue
+                .with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
+                .await;
+            event_queue
+                .tx
+                .send(QueueEvent::Provision(
+                    DEFAULT_POOL.clone(),
+                    PendingProvision::new(ex, run_uuid, false, user.clone()),
+                ))
+                .unwrap();
+        }
+
+        ex_uuids
+    }
+
+    async fn next_event_within(q: &mut EventQueue, within: Duration) -> Option<Event> {
+        tokio::time::timeout(within, q.next_event())
+            .await
+            .ok()
+            .flatten()
+    }
+
+    #[tokio::test]
+    async fn next_event_holds_runs_beyond_the_users_concurrent_limit() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let user = UserType::User("test-user".to_string());
+
+        let run_1 = queue_run(&q, &h, user.clone(), 1, 1).await;
+        let run_2 = queue_run(&q, &h, user, 2, 1).await;
+
+        let first = next_event_within(&mut q, Duration::from_secs(1))
+            .await
+            .expect("first run is under the limit");
+        assert_eq!(first.test_execution.uuid(), run_1[0]);
+        assert!(
+            next_event_within(&mut q, Duration::from_millis(50))
+                .await
+                .is_none(),
+            "second run should be held"
+        );
+
+        q.mark_execution_complete(run_1[0]).await;
+
+        let second = next_event_within(&mut q, Duration::from_secs(1))
+            .await
+            .expect("released once the first run finished");
+        assert_eq!(second.test_execution.uuid(), run_2[0]);
+    }
+
+    #[tokio::test]
+    async fn next_event_allows_more_executions_of_an_already_running_run() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let user = UserType::User("test-user".to_string());
+
+        queue_run(&q, &h, user, 1, 2).await;
+
+        for _ in 0..2 {
+            assert!(
+                next_event_within(&mut q, Duration::from_secs(1))
+                    .await
+                    .is_some()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn next_event_ignores_other_users_and_admins_for_the_concurrent_limit() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let admin = UserType::Admin("test-admin".to_string());
+
+        queue_run(&q, &h, UserType::User("test-user-1".to_string()), 1, 1).await;
+        queue_run(&q, &h, UserType::User("test-user-2".to_string()), 2, 1).await;
+        queue_run(&q, &h, admin.clone(), 3, 1).await;
+        queue_run(&q, &h, admin, 4, 1).await;
+
+        for _ in 0..4 {
+            assert!(
+                next_event_within(&mut q, Duration::from_secs(1))
+                    .await
+                    .is_some()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn next_event_limits_unknown_users_as_a_single_user() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+
+        queue_run(&q, &h, UserType::Unknown, 1, 1).await;
+        queue_run(&q, &h, UserType::Unknown, 2, 1).await;
+
+        assert!(
+            next_event_within(&mut q, Duration::from_secs(1))
+                .await
+                .is_some()
+        );
+        assert!(
+            next_event_within(&mut q, Duration::from_millis(50))
+                .await
+                .is_none(),
+            "second unknown run is held"
+        );
+    }
+
+    #[tokio::test]
+    async fn next_event_skips_a_held_run_rather_than_blocking_runs_behind_it() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let alice = UserType::User("alice".to_string());
+
+        let alice_1 = queue_run(&q, &h, alice.clone(), 1, 1).await;
+        queue_run(&q, &h, alice, 2, 1).await;
+        let bob = queue_run(&q, &h, UserType::User("bob".to_string()), 3, 1).await;
+
+        let first = next_event_within(&mut q, Duration::from_secs(1)).await;
+        assert_eq!(first.unwrap().test_execution.uuid(), alice_1[0]);
+
+        let second = next_event_within(&mut q, Duration::from_secs(1)).await;
+        assert_eq!(
+            second
+                .expect("bob's run is behind a held run")
+                .test_execution
+                .uuid(),
+            bob[0]
+        );
+        assert!(
+            next_event_within(&mut q, Duration::from_millis(50))
+                .await
+                .is_none(),
+            "alice's second run should still be held"
+        );
     }
 }

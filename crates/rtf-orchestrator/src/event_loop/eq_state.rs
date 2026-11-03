@@ -85,11 +85,7 @@ impl EventQueueState {
                     .is_some_and(|r| r.initiated_by_user.user_identity().as_deref() == Some(user))
             };
 
-            let ongoing_runs: HashSet<Uuid> = running
-                .iter()
-                .filter_map(run_of)
-                .filter(|run| is_users(run))
-                .collect();
+            let ongoing_runs = shared.runs_initiated_by(&running, Some(user));
 
             let queued_exececutions: Vec<Uuid> = queued
                 .iter()
