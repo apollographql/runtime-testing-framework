@@ -1,8 +1,9 @@
 use crate::commands::{get_context, plumbing::prepare_remote_trigger_payload};
-use reqwest::Url;
+use reqwest::{StatusCode, Url};
 use rtf_core::variables::Variables;
-use rtf_integrations::orchestrator::OrchestratorClient;
+use rtf_integrations::orchestrator::{self, OrchestratorClient};
 use rtf_orchestrator_shared::{
+    PurgeRequest,
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
     summary::TestRunSummary,
 };
@@ -68,4 +69,72 @@ pub async fn remote_run_known(
     );
 
     Ok(())
+}
+
+pub async fn remote_run_cancel(test_run_uuid: Uuid) -> anyhow::Result<()> {
+    eprintln!("Cancelling test run {test_run_uuid}...");
+    let client = OrchestratorClient::new_from_env().await?;
+
+    let payload = PurgeRequest { id: test_run_uuid };
+    let summary: TestRunSummary = client
+        .post_json("admin/purge-run", &payload)
+        .await
+        .map_err(|e| cancel_error(e, test_run_uuid))?;
+    let id = summary.id;
+
+    println!("Test run {id} cancelled");
+    println!(
+        "View test run status: {}",
+        ui_run_url(client.base_url(), id)?
+    );
+
+    Ok(())
+}
+
+fn cancel_error(e: orchestrator::Error, id: Uuid) -> anyhow::Error {
+    match e {
+        orchestrator::Error::FailedRequest { status, .. } if status == StatusCode::FORBIDDEN => {
+            anyhow::anyhow!(
+                "not permitted to cancel test run {id}: only admins, the user who initiated \
+                 the run, or owners of its known test plan can cancel it"
+            )
+        }
+
+        e => e.into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ID: Uuid = Uuid::nil();
+
+    fn failed_request(status: StatusCode) -> orchestrator::Error {
+        orchestrator::Error::FailedRequest {
+            status,
+            body: "body".to_string(),
+        }
+    }
+
+    #[test]
+    fn cancel_error_forbidden_explains_who_can_cancel() {
+        let msg = cancel_error(failed_request(StatusCode::FORBIDDEN), ID).to_string();
+
+        assert_eq!(
+            msg,
+            format!(
+                "not permitted to cancel test run {ID}: only admins, the user who initiated \
+                 the run, or owners of its known test plan can cancel it"
+            )
+        );
+    }
+
+    #[test]
+    fn cancel_error_other_status_is_unchanged() {
+        let original = failed_request(StatusCode::BAD_REQUEST).to_string();
+        let msg = cancel_error(failed_request(StatusCode::BAD_REQUEST), ID).to_string();
+
+        assert_eq!(msg, original);
+    }
 }

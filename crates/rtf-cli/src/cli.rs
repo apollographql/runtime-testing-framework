@@ -489,6 +489,12 @@ pub enum RemoteSubcommand {
         #[arg(long, default_value = "false")]
         with_executions: bool,
     },
+
+    /// Cancel a test run
+    CancelRun {
+        /// ID of the Orchestrator test run you wish to cancel
+        id: Uuid,
+    },
 }
 
 #[derive(Debug, Clone, ValueEnum)]

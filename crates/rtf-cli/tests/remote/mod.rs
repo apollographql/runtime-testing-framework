@@ -152,6 +152,33 @@ fn remote_run_output_bad_orchestrator_url_env_var_fails() {
 }
 
 #[test]
+fn remote_cancel_run_bad_orchestrator_url_env_var_fails() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "cancel-run", DUMMY_ID])
+        .env("RTF_ORCHESTRATOR_URL", "not-a-url")
+        .assert()
+        .failure()
+        .stderr(contains("invalid URL"));
+}
+
+#[test]
+fn remote_cancel_run_help_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "cancel-run", "--help"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn remote_cancel_run_invalid_uuid_fails() {
+    cargo_bin_cmd!("rtf")
+        .args(["remote", "cancel-run", "not-a-uuid"])
+        .assert()
+        .failure()
+        .stderr(contains("invalid value 'not-a-uuid'"));
+}
+
+#[test]
 #[ignore = "requires GCP Application Default Credentials and Secret Manager access"]
 fn remote_request_health_succeeds() {
     cargo_bin_cmd!("rtf")
