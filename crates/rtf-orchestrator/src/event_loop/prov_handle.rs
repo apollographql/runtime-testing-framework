@@ -6,6 +6,7 @@ use crate::{
         shared::{ResolvedExecutionConfig, RunState, Shared},
     },
     resolver::{self, ResolverError},
+    state::UserType,
 };
 use rtf_config::{
     StableSource,
@@ -52,7 +53,7 @@ impl ProvisioningHandle {
     pub(crate) async fn cache_for_test_run(
         &self,
         run_uuid: Uuid,
-        initiated_by: Option<String>,
+        initiated_by_user: UserType,
         workload_config: WorkloadConfig,
         requires_dedicated: bool,
         ctx: OrchestratorContext,
@@ -65,7 +66,7 @@ impl ProvisioningHandle {
                     ctx: Arc::new(ctx),
                     test_plan,
                     executions: HashSet::new(),
-                    initiated_by,
+                    initiated_by_user,
                     workload_config,
                     requires_dedicated,
                 },
@@ -103,8 +104,8 @@ impl ProvisioningHandle {
     {
         let mut shared = self.shared.lock().await;
 
-        let requires_dedicated = match shared.runs.get(&tr.uuid()) {
-            Some(r) => r.requires_dedicated,
+        let (requires_dedicated, initiated_by_user) = match shared.runs.get(&tr.uuid()) {
+            Some(r) => (r.requires_dedicated, r.initiated_by_user.clone()),
             None => {
                 // run was cancelled while we were resolving executions
                 return Ok(false);
@@ -123,7 +124,7 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(QueueEvent::Provision(
             pool,
-            PendingProvision::new(ex, tr.uuid(), requires_dedicated),
+            PendingProvision::new(ex, tr.uuid(), requires_dedicated, initiated_by_user),
         )) {
             error!(%e, "event loop channel closed");
             return Err(ResolverError::EventChannelClosed.into());
@@ -304,7 +305,7 @@ mod tests {
         );
         h.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
@@ -355,7 +356,7 @@ mod tests {
 
         assert_matches!(
             event,
-            QueueEvent::Provision(pool, PendingProvision { test_execution, run_uuid, requires_dedicated: false })
+            QueueEvent::Provision(pool, PendingProvision { test_execution, run_uuid, requires_dedicated: false, initiated_by_user: UserType::Unknown })
                 if pool == DEFAULT_POOL
                     && test_execution.uuid() == ex_uuid
                     && run_uuid == tr.uuid()

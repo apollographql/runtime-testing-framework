@@ -64,6 +64,7 @@ mod tests {
         db::{KnownTestPlan, KnownTestPlanRun, Queryable, Status as DbStatus, StatusTracked},
         event_loop::tests::stub_test_plan,
         iap_identity::IAP_USER_EMAIL_HEADER,
+        state::UserType,
         test_helpers::TestServerState,
     };
     use axum_test::TestResponse;
@@ -144,7 +145,7 @@ mod tests {
             tss.prov_handle
                 .cache_for_test_run(
                     tr.uuid(),
-                    None,
+                    UserType::Unknown,
                     Default::default(),
                     false,
                     ctx,

@@ -82,14 +82,10 @@ impl EventQueueState {
                 shared
                     .runs
                     .get(run)
-                    .is_some_and(|r| r.initiated_by.as_deref() == Some(user))
+                    .is_some_and(|r| r.initiated_by_user.user_identity().as_deref() == Some(user))
             };
 
-            let ongoing_runs: HashSet<Uuid> = running
-                .iter()
-                .filter_map(run_of)
-                .filter(|run| is_users(run))
-                .collect();
+            let ongoing_runs = shared.runs_initiated_by(&running, Some(user));
 
             let queued_exececutions: Vec<Uuid> = queued
                 .iter()
@@ -140,7 +136,12 @@ impl EventQueueState {
         } = self.eq_inner.lock().await.snapshot_state();
 
         self.with_shared(|shared| {
-            let initiator = |run: &Uuid| shared.runs.get(run).and_then(|r| r.initiated_by.clone());
+            let initiator = |run: &Uuid| {
+                shared
+                    .runs
+                    .get(run)
+                    .and_then(|r| r.initiated_by_user.user_identity())
+            };
 
             for (cid, claim, running) in claims.into_iter() {
                 clusters.entry(cid).or_default().claim = Some(match claim {
@@ -210,8 +211,10 @@ impl EventQueueState {
     /// Returns `true` if the claim was successful, otherwise `false`.
     pub async fn try_reserve_pending_executions(&self, tp: &OrchestratorTestPlan) -> Option<Claim> {
         let n = tp.matrix.n_variants();
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
+        let inner = self.eq_inner.lock().await;
         let mut shared = self.shared.lock().await;
-        let queued = shared.n_queued + self.eq_inner.lock().await.n_pending_provisions();
+        let queued = shared.n_queued + inner.n_pending_provisions();
 
         if queued.saturating_add(n) <= shared.max_queued_executions {
             shared.n_queued += n;
@@ -278,8 +281,9 @@ impl EventQueueState {
         conn: &mut PgConnection,
     ) -> crate::Result<()> {
         // Lock everything to prevent further work being done while we purge state
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.eq_inner.lock().await;
+        let mut shared = self.shared.lock().await;
         let run_id = tr.uuid();
 
         let run = shared
@@ -312,8 +316,9 @@ impl EventQueueState {
         conn: &mut PgConnection,
     ) -> crate::Result<()> {
         // Lock everything to prevent further work being done while we purge state
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.eq_inner.lock().await;
+        let mut shared = self.shared.lock().await;
 
         if !shared.executions.contains_key(&ex.uuid()) {
             return Err(Error::ExecutionNotInFlight { id: ex.uuid() });
@@ -392,6 +397,7 @@ mod tests {
         config::{Config, DEFAULT_POOL},
         context::OrchestratorContext,
         event_loop::{EventQueue, PendingProvision, QueueEvent, tests::stub_test_plan},
+        state::UserType,
     };
     use rtf_config::templating::Scalar;
     use rtf_orchestrator_shared::payload::SourceKeyedArrayMap;
@@ -413,8 +419,14 @@ mod tests {
         }
 
         async fn initiator_for_run(&self, run_uuid: Uuid) -> Option<String> {
-            self.with_shared(|shared| shared.runs.get(&run_uuid)?.initiated_by.clone())
-                .await
+            self.with_shared(|shared| {
+                shared
+                    .runs
+                    .get(&run_uuid)?
+                    .initiated_by_user
+                    .user_identity()
+            })
+            .await
         }
     }
 
@@ -466,7 +478,7 @@ mod tests {
                     let ex = TestExecution::create_stub(i as i32 + 1, 1, i, "test");
                     inner.push_event(QueueEvent::Provision(
                         PoolId::new(pool),
-                        PendingProvision::new(ex, Uuid::new_v4(), false),
+                        PendingProvision::new(ex, Uuid::new_v4(), false, UserType::Unknown),
                     ));
                 }
             })
@@ -524,7 +536,7 @@ mod tests {
         );
         ph.cache_for_test_run(
             run_uuid,
-            Some("alice@example.com".to_string()),
+            UserType::User("alice@example.com".to_string()),
             Default::default(),
             false,
             ctx,
@@ -577,7 +589,7 @@ mod tests {
 
             ph.cache_for_test_run(
                 run_uuid,
-                Some(user.to_string()),
+                UserType::User(user.to_string()),
                 Default::default(),
                 false,
                 ctx.clone(),
@@ -602,7 +614,7 @@ mod tests {
                         .with_inner(|inner| {
                             inner.push_event(QueueEvent::Provision(
                                 pool.clone(),
-                                PendingProvision::new(ex, run_uuid, false),
+                                PendingProvision::new(ex, run_uuid, false, UserType::Unknown),
                             ))
                         })
                         .await
@@ -634,7 +646,7 @@ mod tests {
         let run_uuid = Uuid::new_v4();
         ph.cache_for_test_run(
             run_uuid,
-            Some("alice".to_string()),
+            UserType::User("alice".to_string()),
             Default::default(),
             false,
             ctx,

@@ -12,13 +12,12 @@ use crate::{
 use chrono::{Duration, Utc};
 use serde::Serialize;
 use sqlx::PgConnection;
+use std::collections::HashSet;
+use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RateLimitError {
-    #[error("{current}/{max} concurrent runs")]
-    ConcurrentRuns { current: u64, max: u64 },
-
     #[error("{current}/{max} queued runs")]
     QueuedRuns { current: u64, max: u64 },
 
@@ -43,15 +42,7 @@ pub async fn apply_rate_limits(
 
     let counts = eq_state.user_queue_counts(&identity, pool).await;
 
-    if counts.ongoing_runs >= per_user.max_concurrent_runs {
-        return Err(Error::RateLimited {
-            pool: pool.clone(),
-            reason: RateLimitError::ConcurrentRuns {
-                current: counts.ongoing_runs as u64,
-                max: per_user.max_concurrent_runs as u64,
-            },
-        });
-    } else if counts.queued_runs >= per_user.max_queued_runs {
+    if counts.queued_runs >= per_user.max_queued_runs {
         return Err(Error::RateLimited {
             pool: pool.clone(),
             reason: RateLimitError::QueuedRuns {
@@ -101,6 +92,19 @@ pub fn check_queued_executions(
     }
 
     Ok(())
+}
+
+/// Returns whether `user` has reached their concurrent runs limit, given
+/// the set of their runs that currently have a running execution.
+pub fn user_at_max_concurrent_runs(
+    per_user: &PerUserExecutionConfig,
+    user: &UserType,
+    ongoing_runs: &HashSet<Uuid>,
+    run_uuid: Uuid,
+) -> bool {
+    !user.is_admin()
+        && !ongoing_runs.contains(&run_uuid)
+        && ongoing_runs.len() >= per_user.max_concurrent_runs
 }
 
 #[cfg(test)]

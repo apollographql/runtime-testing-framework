@@ -2,6 +2,7 @@ use crate::{
     context::OrchestratorContext,
     db::TestExecution,
     resolver::{self, ResolverError},
+    state::UserType,
 };
 use rtf_orchestrator_shared::{
     OutputCollectionResponse,
@@ -27,6 +28,15 @@ pub(super) struct Shared {
 }
 
 impl Shared {
+    pub(super) fn new(max_queued_executions: usize) -> Self {
+        Self {
+            runs: HashMap::new(),
+            executions: HashMap::new(),
+            max_queued_executions,
+            n_queued: 0,
+        }
+    }
+
     pub(super) fn run_and_workload_config(
         &self,
         ex_id: Uuid,
@@ -43,6 +53,24 @@ impl Shared {
             .ok_or(ResolverError::UnknownRun(run_uuid))?;
 
         Ok((run_uuid, run.workload_config.clone()))
+    }
+
+    /// The runs that any of the given executions belong to which were initiated by the user with
+    /// the given identity. [None] is the identity shared by all [UserType::Unknown] users.
+    pub(super) fn runs_initiated_by<'a>(
+        &self,
+        executions: impl IntoIterator<Item = &'a Uuid>,
+        user_identity: Option<&str>,
+    ) -> HashSet<Uuid> {
+        executions
+            .into_iter()
+            .filter_map(|ex| self.executions.get(ex).map(|e| e.run_uuid))
+            .filter(|run| {
+                self.runs.get(run).is_some_and(|r| {
+                    r.initiated_by_user.user_identity().as_deref() == user_identity
+                })
+            })
+            .collect()
     }
 
     pub(super) fn register_execution(&mut self, ex_uuid: Uuid, run_uuid: Uuid) {
@@ -101,7 +129,7 @@ pub(super) struct RunState {
     pub(super) ctx: Arc<OrchestratorContext>,
     pub(super) test_plan: OrchestratorTestPlan,
     pub(super) executions: HashSet<Uuid>,
-    pub(super) initiated_by: Option<String>,
+    pub(super) initiated_by_user: UserType,
     pub(super) workload_config: WorkloadConfig,
     pub(super) requires_dedicated: bool,
 }

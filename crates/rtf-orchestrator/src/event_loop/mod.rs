@@ -15,6 +15,7 @@ use crate::{
     event_loop::provision_environment::MSG_ARGO_COMPLETE,
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
+    state::UserType,
 };
 use rtf_orchestrator_shared::OtelConfig;
 use serde::Serialize;
@@ -227,14 +228,21 @@ pub struct PendingProvision {
     pub test_execution: TestExecution,
     pub run_uuid: Uuid,
     pub requires_dedicated: bool,
+    pub initiated_by_user: UserType,
 }
 
 impl PendingProvision {
-    pub fn new(test_execution: TestExecution, run_uuid: Uuid, requires_dedicated: bool) -> Self {
+    pub fn new(
+        test_execution: TestExecution,
+        run_uuid: Uuid,
+        requires_dedicated: bool,
+        initiated_by_user: UserType,
+    ) -> Self {
         Self {
             test_execution,
             run_uuid,
             requires_dedicated,
+            initiated_by_user,
         }
     }
 }

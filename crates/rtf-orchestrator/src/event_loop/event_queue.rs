@@ -10,6 +10,7 @@ use crate::{
         shared::Shared,
     },
     resolver::{self, ResolverError, ResolverInput},
+    state::{UserClassifier, UserType},
 };
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorEnvironment};
 use sqlx::PgConnection;
@@ -58,12 +59,8 @@ impl EventQueue {
         EventQueueState,
         UnboundedReceiver<ResolverInput>,
     ) {
-        let shared = Arc::new(Mutex::new(Shared {
-            runs: HashMap::new(),
-            executions: HashMap::new(),
-            max_queued_executions: cfg.max_queued_executions,
-            n_queued: 0,
-        }));
+        let shared = Arc::new(Mutex::new(Shared::new(cfg.max_queued_executions)));
+        let inner = Arc::new(Mutex::new(EventQueueInner::new(cfg, shared.clone())));
         let (tx_resolve, rx_resolve) = unbounded_channel();
         let (tx, rx) = unbounded_channel();
 
@@ -71,7 +68,7 @@ impl EventQueue {
             tx,
             rx,
             shared,
-            inner: Arc::new(Mutex::new(EventQueueInner::new(cfg))),
+            inner,
             tx_resolve: tx_resolve.clone(),
         };
 
@@ -136,7 +133,7 @@ impl EventQueue {
                 }
             }
 
-            if let Some(evt) = self.with_inner(EventQueueInner::next_event).await {
+            if let Some(evt) = self.inner.lock().await.next_event().await {
                 return Some(evt);
             }
 
@@ -183,8 +180,9 @@ impl EventQueue {
         msg: String,
         conn: &mut impl UpdateHandle,
     ) {
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.inner.lock().await;
+        let mut shared = self.shared.lock().await;
 
         let mut aborted = inner.abort_pending_provisions_for(run_uuid);
         aborted.push(ex.clone());
@@ -245,10 +243,12 @@ impl EventQueue {
         &mut self,
         cfg: &Config,
         conn: &mut PgConnection,
+        user_classifier: UserClassifier,
     ) -> crate::Result<()> {
         let cache = try_load_payload_cache(conn).await?;
 
-        self.init_queue_state_from_cache(cache, cfg, conn).await
+        self.init_queue_state_from_cache(cache, cfg, conn, user_classifier)
+            .await
     }
 
     async fn init_queue_state_from_cache(
@@ -256,6 +256,7 @@ impl EventQueue {
         cache: HashMap<Uuid, (TestRun, PreparedPayload)>,
         cfg: &Config,
         conn: &mut impl UpdateHandle,
+        user_classifier: UserClassifier,
     ) -> crate::Result<()> {
         let h = self.provisioning_handle();
         let mut recovered_runs: HashMap<Uuid, (TestRun, Vec<TestExecution>)> = HashMap::new();
@@ -281,9 +282,14 @@ impl EventQueue {
                 custom_providers,
                 variable_sources,
             );
+
+            let initiated_by_user = user_classifier
+                .user_type_from_identity(tr.initiated_by())
+                .await?;
+
             h.cache_for_test_run(
                 run_uuid,
-                tr.initiated_by().map(|s| s.to_owned()),
+                initiated_by_user.clone(),
                 workload_config,
                 requires_dedicated,
                 ctx,
@@ -303,6 +309,7 @@ impl EventQueue {
                         &pool,
                         &fallback_cluster,
                         requires_dedicated,
+                        &initiated_by_user,
                         &h,
                         conn,
                     )
@@ -350,8 +357,9 @@ impl EventQueue {
         recovered_runs: HashMap<Uuid, (TestRun, Vec<TestExecution>)>,
         conn: &mut impl UpdateHandle,
     ) {
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.inner.lock().await;
+        let mut shared = self.shared.lock().await;
 
         let mut conflicting_runs = HashSet::new();
         for (cluster, claim) in inner.iter_claims() {
@@ -396,6 +404,7 @@ impl EventQueue {
         pool: &PoolId,
         fallback_cluster: &ClusterId,
         requires_dedicated: bool,
+        initiated_by_user: &UserType,
         h: &ProvisioningHandle,
         conn: &mut impl UpdateHandle,
     ) -> crate::Result<Option<Vec<QueueEvent>>> {
@@ -436,7 +445,12 @@ impl EventQueue {
             Status::Initialising | Status::Resolving => {
                 return Ok(Some(vec![QueueEvent::Provision(
                     pool.clone(),
-                    PendingProvision::new(ex.clone(), run_uuid, requires_dedicated),
+                    PendingProvision::new(
+                        ex.clone(),
+                        run_uuid,
+                        requires_dedicated,
+                        initiated_by_user.clone(),
+                    ),
                 )]));
             }
 
@@ -564,7 +578,10 @@ mod tests {
     }
 
     fn provision(pool: PoolId, ex: TestExecution) -> QueueEvent {
-        QueueEvent::Provision(pool, PendingProvision::new(ex, Uuid::new_v4(), false))
+        QueueEvent::Provision(
+            pool,
+            PendingProvision::new(ex, Uuid::new_v4(), false, UserType::Unknown),
+        )
     }
 
     #[tokio::test]
@@ -606,7 +623,7 @@ mod tests {
         );
         h.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
@@ -667,7 +684,7 @@ mod tests {
         );
         h.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
@@ -945,7 +962,7 @@ mod tests {
         );
         ph.cache_for_test_run(
             run_uuid,
-            None,
+            UserType::Unknown,
             Default::default(),
             false,
             ctx,
@@ -1007,8 +1024,15 @@ mod tests {
             empty_source_map(),
             HashMap::new(),
         );
-        ph.cache_for_test_run(run_uuid, None, Default::default(), false, ctx, test_plan)
-            .await;
+        ph.cache_for_test_run(
+            run_uuid,
+            UserType::Unknown,
+            Default::default(),
+            false,
+            ctx,
+            test_plan,
+        )
+        .await;
         eq.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
 
@@ -1153,10 +1177,23 @@ mod tests {
     async fn prepare_init_queue_test<const N: usize>(
         statuses: [Status; N],
     ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
-        let cfg = Config::for_test();
-        let (mut eq, _, _, _) = EventQueue::new(&cfg.workload_clusters);
+        prepare_init_queue_test_with(
+            Config::for_test(),
+            TestRun::create_stub(1, "test"),
+            UserClassifier::default(),
+            statuses,
+        )
+        .await
+    }
 
-        let tr = TestRun::create_stub(1, "test");
+    /// Recovers `tr` with one execution per entry in `statuses` using the given config.
+    async fn prepare_init_queue_test_with<const N: usize>(
+        cfg: Config,
+        tr: TestRun,
+        user_classifier: UserClassifier,
+        statuses: [Status; N],
+    ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
+        let (mut eq, _, _, _) = EventQueue::new(&cfg.workload_clusters);
         let mut c = MockUpdateHandle::with_run(tr.clone());
 
         let mut exs = Vec::with_capacity(statuses.len());
@@ -1171,7 +1208,7 @@ mod tests {
 
         let cache = HashMap::from([(tr.uuid(), (tr.clone(), stub_trigger_payload()))]);
 
-        eq.init_queue_state_from_cache(cache, &cfg, &mut c)
+        eq.init_queue_state_from_cache(cache, &cfg, &mut c, user_classifier)
             .await
             .unwrap();
 
@@ -1239,7 +1276,10 @@ mod tests {
         match (eq.rx.try_recv(), data) {
             (Ok(evt), Some(EventData::ResolveConfig)) => assert_eq!(
                 evt,
-                QueueEvent::Provision(DEFAULT_POOL, PendingProvision::new(ex, run_uuid, false,))
+                QueueEvent::Provision(
+                    DEFAULT_POOL,
+                    PendingProvision::new(ex, run_uuid, false, UserType::Unknown)
+                )
             ),
 
             (Ok(evt), Some(data)) => assert_eq!(
@@ -1252,6 +1292,54 @@ mod tests {
             (Ok(evt), None) => panic!("unexpected event: {evt:?}"),
             (Err(_), Some(data)) => panic!("expected {data:?} but got None"),
         }
+    }
+
+    #[test_case(None, UserType::Unknown; "no initiator")]
+    #[test_case(Some("ellie@test.com"), UserType::User("ellie@test.com".into()); "user")]
+    #[test_case(Some("admin@test.com"), UserType::Admin("admin@test.com".into()); "admin")]
+    #[test_case(
+        Some("automation:bot@test.com:test-org:test-repo"),
+        UserType::Automation { email: "bot@test.com".into(), org: "test-org".into(), repo: "test-repo".into() };
+        "automation"
+    )]
+    #[tokio::test]
+    async fn init_queue_state_recovers_the_initiators_user_type(
+        initiated_by: Option<&str>,
+        expected: UserType,
+    ) {
+        let user_classifier = UserClassifier {
+            test_admins: Some(vec!["admin@test.com".to_string()]),
+        };
+
+        let tr = TestRun::create_stub_with_initiator(1, "test", initiated_by);
+        let (mut eq, _, tr, [ex]) = prepare_init_queue_test_with(
+            Config::for_test(),
+            tr,
+            user_classifier,
+            [Status::Initialising],
+        )
+        .await;
+
+        eq.with_shared(|shared| {
+            assert_eq!(
+                shared
+                    .runs
+                    .get(&tr.uuid())
+                    .map(|run| run.initiated_by_user.clone()),
+                Some(expected.clone()),
+                "run state should hold the initiator's user type"
+            );
+        })
+        .await;
+
+        assert_eq!(
+            eq.rx.try_recv().unwrap(),
+            QueueEvent::Provision(
+                DEFAULT_POOL,
+                PendingProvision::new(ex, tr.uuid(), false, expected)
+            ),
+            "recovered event should carry the initiator's user type"
+        );
     }
 
     #[test_case(Status::Running, Status::Running, true; "both in flight")]
@@ -1479,7 +1567,7 @@ mod tests {
         );
         ph.cache_for_test_run(
             run_uuid,
-            Some(initiator.to_string()),
+            UserType::User(initiator.to_string()),
             Default::default(),
             true,
             ctx,
@@ -1498,7 +1586,7 @@ mod tests {
             .await;
         eq.push_event(QueueEvent::Provision(
             DEFAULT_POOL.clone(),
-            PendingProvision::new(ex.clone(), run_uuid, true),
+            PendingProvision::new(ex.clone(), run_uuid, true, UserType::Unknown),
         ))
         .await;
 
@@ -1578,7 +1666,9 @@ mod tests {
             cache.insert(tr.uuid(), (tr.clone(), stub_trigger_payload()));
         }
 
-        _ = q.init_queue_state_from_cache(cache, &cfg, &mut c).await;
+        _ = q
+            .init_queue_state_from_cache(cache, &cfg, &mut c, UserClassifier::default())
+            .await;
 
         (q, c, exs)
     }
@@ -1641,5 +1731,179 @@ mod tests {
             assert!(shared.executions.is_empty(), "executions should be evicted");
         })
         .await;
+    }
+
+    fn one_concurrent_run_per_user_pool() -> WorkloadClusters {
+        let mut clusters = two_cluster_pool(10, false);
+        clusters
+            .cluster_pools
+            .default
+            .per_user_limits
+            .max_concurrent_runs = 1;
+
+        clusters
+    }
+
+    /// Cache a run for `user` and queue `n_executions` of it for provisioning.
+    /// Returns the uuids of the executions.
+    async fn queue_run(
+        event_queue: &EventQueue,
+        provisioning_handle: &ProvisioningHandle,
+        user: UserType,
+        first_ex_id: i32,
+        n_executions: usize,
+    ) -> Vec<Uuid> {
+        let run_uuid = Uuid::new_v4();
+        let ctx = OrchestratorContext::new_from_inlined_files(
+            &Config::for_test(),
+            empty_source_map(),
+            empty_source_map(),
+            HashMap::new(),
+        );
+        provisioning_handle
+            .cache_for_test_run(
+                run_uuid,
+                user.clone(),
+                Default::default(),
+                false,
+                ctx,
+                stub_test_plan(),
+            )
+            .await;
+
+        let mut ex_uuids = Vec::new();
+        for i in 0..n_executions {
+            let ex = TestExecution::create_stub(first_ex_id + i as i32, 1, i, "test");
+            ex_uuids.push(ex.uuid());
+            event_queue
+                .with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
+                .await;
+            event_queue
+                .tx
+                .send(QueueEvent::Provision(
+                    DEFAULT_POOL.clone(),
+                    PendingProvision::new(ex, run_uuid, false, user.clone()),
+                ))
+                .unwrap();
+        }
+
+        ex_uuids
+    }
+
+    async fn next_event_within(q: &mut EventQueue, within: Duration) -> Option<Event> {
+        tokio::time::timeout(within, q.next_event())
+            .await
+            .ok()
+            .flatten()
+    }
+
+    #[tokio::test]
+    async fn next_event_holds_runs_beyond_the_users_concurrent_limit() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let user = UserType::User("test-user".to_string());
+
+        let run_1 = queue_run(&q, &h, user.clone(), 1, 1).await;
+        let run_2 = queue_run(&q, &h, user, 2, 1).await;
+
+        let first = next_event_within(&mut q, Duration::from_secs(1))
+            .await
+            .expect("first run is under the limit");
+        assert_eq!(first.test_execution.uuid(), run_1[0]);
+        assert!(
+            next_event_within(&mut q, Duration::from_millis(50))
+                .await
+                .is_none(),
+            "second run should be held"
+        );
+
+        q.mark_execution_complete(run_1[0]).await;
+
+        let second = next_event_within(&mut q, Duration::from_secs(1))
+            .await
+            .expect("released once the first run finished");
+        assert_eq!(second.test_execution.uuid(), run_2[0]);
+    }
+
+    #[tokio::test]
+    async fn next_event_allows_more_executions_of_an_already_running_run() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let user = UserType::User("test-user".to_string());
+
+        queue_run(&q, &h, user, 1, 2).await;
+
+        for _ in 0..2 {
+            assert!(
+                next_event_within(&mut q, Duration::from_secs(1))
+                    .await
+                    .is_some()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn next_event_ignores_other_users_and_admins_for_the_concurrent_limit() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let admin = UserType::Admin("test-admin".to_string());
+
+        queue_run(&q, &h, UserType::User("test-user-1".to_string()), 1, 1).await;
+        queue_run(&q, &h, UserType::User("test-user-2".to_string()), 2, 1).await;
+        queue_run(&q, &h, admin.clone(), 3, 1).await;
+        queue_run(&q, &h, admin, 4, 1).await;
+
+        for _ in 0..4 {
+            assert!(
+                next_event_within(&mut q, Duration::from_secs(1))
+                    .await
+                    .is_some()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn next_event_limits_unknown_users_as_a_single_user() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+
+        queue_run(&q, &h, UserType::Unknown, 1, 1).await;
+        queue_run(&q, &h, UserType::Unknown, 2, 1).await;
+
+        assert!(
+            next_event_within(&mut q, Duration::from_secs(1))
+                .await
+                .is_some()
+        );
+        assert!(
+            next_event_within(&mut q, Duration::from_millis(50))
+                .await
+                .is_none(),
+            "second unknown run is held"
+        );
+    }
+
+    #[tokio::test]
+    async fn next_event_skips_a_held_run_rather_than_blocking_runs_behind_it() {
+        let (mut q, h, _, _) = EventQueue::new(&one_concurrent_run_per_user_pool());
+        let alice = UserType::User("alice".to_string());
+
+        let alice_1 = queue_run(&q, &h, alice.clone(), 1, 1).await;
+        queue_run(&q, &h, alice, 2, 1).await;
+        let bob = queue_run(&q, &h, UserType::User("bob".to_string()), 3, 1).await;
+
+        let first = next_event_within(&mut q, Duration::from_secs(1)).await;
+        assert_eq!(first.unwrap().test_execution.uuid(), alice_1[0]);
+
+        let second = next_event_within(&mut q, Duration::from_secs(1)).await;
+        assert_eq!(
+            second
+                .expect("bob's run is behind a held run")
+                .test_execution
+                .uuid(),
+            bob[0]
+        );
+        assert!(
+            next_event_within(&mut q, Duration::from_millis(50))
+                .await
+                .is_none(),
+            "alice's second run should still be held"
+        );
     }
 }

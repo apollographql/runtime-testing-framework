@@ -29,7 +29,7 @@ pub use error::{Error, Result};
 use config::Config;
 use db::pool::check_db_conn;
 use event_loop::EventQueue;
-use state::ServerState;
+use state::{ServerState, UserClassifier};
 
 pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
     info!("Loading config from file");
@@ -39,12 +39,15 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     check_db_conn().await?;
 
     let (mut event_queue, prov_handle, eq_state, rx) = EventQueue::new(&cfg.workload_clusters);
+    let user_classifier = UserClassifier::default();
 
     info!("Initialising event queue state");
-    event_queue.init_queue_state(cfg, conn!()).await?;
+    event_queue
+        .init_queue_state(cfg, conn!(), user_classifier.clone())
+        .await?;
 
     let gcs_client = GCSClient::new_from_config(cfg).await?;
-    let state = ServerState::new(eq_state.clone(), gcs_client);
+    let state = ServerState::new(eq_state.clone(), gcs_client, user_classifier);
 
     tokio::spawn(resolver::resolver_task(rx, prov_handle));
     tokio::spawn(event_loop::event_loop_task(event_queue));
@@ -220,9 +223,10 @@ mod test_helpers {
         ) -> Self {
             let (_, prov_handle, eq_state, resolver_rx) = EventQueue::new(&cfg.workload_clusters);
 
-            let mut state = ServerState::new(eq_state, gcs_client);
+            let mut state = ServerState::new(eq_state, gcs_client, UserClassifier::default());
             if let Some(admins) = admins {
-                state.test_admins = Some(admins.iter().map(|s| s.to_string()).collect());
+                state.user_classifier.test_admins =
+                    Some(admins.iter().map(|s| s.to_string()).collect());
             }
 
             let test_server = TestServer::new(build_routes(cfg, state.clone(), None));

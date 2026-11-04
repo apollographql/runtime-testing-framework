@@ -179,6 +179,7 @@ async fn try_resolve<H>(
         payload,
         requires_dedicated,
         workload_config,
+        initiated_by_user,
     }: &TestRunWithPayload,
     update_handle: &mut H,
     cfg: &Config,
@@ -220,7 +221,7 @@ where
     prov_handle
         .cache_for_test_run(
             test_run.uuid(),
-            test_run.initiated_by().map(|s| s.to_owned()),
+            initiated_by_user.clone(),
             workload_config.clone(),
             *requires_dedicated,
             ctx,
@@ -328,7 +329,7 @@ mod tests {
         config::{Config, DEFAULT_POOL},
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
         event_loop::{EventData, EventQueue},
-        state::TestRunWithPayload,
+        state::{TestRunWithPayload, UserType},
     };
     use indoc::indoc;
     use rtf_config::{
@@ -506,8 +507,15 @@ mod tests {
         );
         let tp = minimal_orchestrator_test_plan(vec![]);
         eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(tr.uuid(), None, Default::default(), false, ctx, tp)
-            .await;
+        ph.cache_for_test_run(
+            tr.uuid(),
+            UserType::Unknown,
+            Default::default(),
+            false,
+            ctx,
+            tp,
+        )
+        .await;
         ph.request_provisioning(&tr, "test", 0, DEFAULT_POOL, &mut mock)
             .await
             .unwrap();
@@ -563,6 +571,7 @@ mod tests {
             payload,
             requires_dedicated: false,
             workload_config: Default::default(),
+            initiated_by_user: UserType::Unknown,
         }
     }
 
@@ -709,6 +718,7 @@ mod tests {
                 payload,
                 requires_dedicated: false,
                 workload_config: Default::default(),
+                initiated_by_user: UserType::Unknown,
             },
         )
         .await
@@ -822,6 +832,7 @@ mod tests {
             payload: empty_payload(),
             requires_dedicated: false,
             workload_config: Default::default(),
+            initiated_by_user: UserType::Unknown,
         })))
         .unwrap();
         tx.send(ResolverInput::ResolveConfig(

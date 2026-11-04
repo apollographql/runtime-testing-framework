@@ -64,6 +64,7 @@ mod tests {
         config::{Config, DEFAULT_POOL},
         context::OrchestratorContext,
         db::TestRun,
+        state::UserType,
         test_helpers::TestServerState,
     };
     use axum::http::{HeaderValue, header::AUTHORIZATION};
@@ -121,7 +122,14 @@ mod tests {
             .await
             .unwrap();
         tss.prov_handle
-            .cache_for_test_run(run_uuid, None, Default::default(), false, ctx, test_plan)
+            .cache_for_test_run(
+                run_uuid,
+                UserType::Unknown,
+                Default::default(),
+                false,
+                ctx,
+                test_plan,
+            )
             .await;
         tss.prov_handle
             .register_existing_execution(ex.uuid(), run_uuid)

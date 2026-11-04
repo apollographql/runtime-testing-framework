@@ -115,6 +115,7 @@ mod tests {
             mock_client::{MockClient, Resp},
         },
         resolver::ResolverError,
+        state::UserType,
     };
     use rtf_orchestrator_shared::{payload::SourceKeyedArrayMap, workload_config::WorkloadConfig};
     use simple_test_case::test_case;
@@ -172,7 +173,7 @@ mod tests {
         let run_uuid = Uuid::new_v4();
         ph.cache_for_test_run(
             run_uuid,
-            Some("alice".to_string()),
+            UserType::User("alice".to_string()),
             wcfg,
             false,
             ctx,

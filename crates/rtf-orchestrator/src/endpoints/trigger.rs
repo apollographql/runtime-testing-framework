@@ -23,7 +23,7 @@ pub async fn handler(
     headers: HeaderMap,
     Json(trigger_payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
-    let user = state.identify_user(&headers).await?;
+    let user = state.user_classifier.identify_user(&headers).await?;
     let cfg = Config::get();
     let payload = PayloadWithMeta::resolve(trigger_payload, &user, conn!()).await?;
     let per_user_cfg = cfg.per_user_execution_config(&payload.pool)?;
@@ -136,6 +136,7 @@ pub async fn handler(
                 payload: meta.payload,
                 requires_dedicated: meta.requires_dedicated_cluster,
                 workload_config,
+                initiated_by_user: user,
             },
         )
         .await
