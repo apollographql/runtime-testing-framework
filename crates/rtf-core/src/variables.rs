@@ -238,6 +238,19 @@ impl ParsedVariables {
         dimensions_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
         compound_from_test_plan: &mut HashMap<String, Vec<HashMap<String, Scalar>>>,
     ) -> Result<HashMap<String, StableSource>> {
+        // Compound groups are merged first so that clearing their member keys only affects
+        // definitions from the test plan: a member key also overridden as a variable or dimension
+        // is re-inserted below and reported as a conflict during validation.
+        for (k, entries) in self.compound_dimensions.into_iter() {
+            for member in entries.iter().take(1).flat_map(|e| e.keys()) {
+                variables_from_test_plan.remove(member);
+                dimensions_from_test_plan.remove(member);
+            }
+            variables_from_test_plan.remove(&k);
+            dimensions_from_test_plan.remove(&k);
+            compound_from_test_plan.insert(k.clone(), entries);
+        }
+
         for (k, dim) in self.matrix_dimensions.into_iter() {
             if dim.is_empty() && compound_from_test_plan.contains_key(&k) {
                 // "k" here is the name of a compound dimension rather than a real variable name,
@@ -250,12 +263,6 @@ impl ParsedVariables {
             variables_from_test_plan.remove(&k);
             compound_from_test_plan.remove(&k);
             dimensions_from_test_plan.insert(k.clone(), dim);
-        }
-
-        for (k, entries) in self.compound_dimensions.into_iter() {
-            variables_from_test_plan.remove(&k);
-            dimensions_from_test_plan.remove(&k);
-            compound_from_test_plan.insert(k.clone(), entries);
         }
 
         for (k, v) in self.variables.into_iter() {
@@ -412,6 +419,70 @@ mod tests {
                 variables_map!("setup_subject" => "bread", "scenario_subject" => "butter"),
             ])
         );
+    }
+
+    #[test]
+    fn compound_override_removes_member_keys_from_existing_variables_and_dimensions() {
+        let mut variables = variables_map!("tier" => "free");
+        let mut dimensions: HashMap<String, Vec<Scalar>> = HashMap::default();
+        dimensions.insert(
+            "region".into(),
+            vec!["us-east-1".into(), "eu-west-1".into()],
+        );
+        let mut compound = HashMap::default();
+
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "geo": [
+                        {"region": "us-east-1", "tier": "free"},
+                        {"region": "eu-west-1", "tier": "enterprise"}
+                    ]
+                }),
+            )))
+            .unwrap();
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
+
+        assert!(variables.is_empty(), "tier still a variable: {variables:?}");
+        assert!(
+            dimensions.is_empty(),
+            "region still a dimension: {dimensions:?}"
+        );
+        assert_eq!(compound.len(), 1);
+    }
+
+    #[test]
+    fn compound_override_keeps_member_keys_also_overridden_as_dimensions() {
+        let mut variables = HashMap::default();
+        let mut dimensions = HashMap::default();
+        let mut compound = HashMap::default();
+
+        let from_cli = Variables {
+            var: vec![],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "region": ["us-east-1", "eu-west-1"],
+                    "geo": [{"region": "us-east-1"}]
+                }),
+            )))
+            .unwrap();
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
+
+        assert!(dimensions.contains_key("region"));
+        assert!(compound.contains_key("geo"));
     }
 
     #[test]
