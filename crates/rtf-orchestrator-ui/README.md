@@ -1,7 +1,20 @@
 # RTF Orchestrator UI
 
-The server-rendered (Askama + htmx) web UI served by the orchestrator, for viewing test run and
-execution status, browsing registered test plans, and triggering new runs.
+The server-rendered (Askama + htmx + Alpine.js) web UI served by the orchestrator, for viewing test
+run and execution status, browsing registered test plans, and triggering new runs.
+
+## Libraries
+
+| Library            | Used for                                                               | Docs                              |
+| ------------------ | ---------------------------------------------------------------------- | --------------------------------- |
+| Askama `0.16`      | Server-side HTML templates (`templates/`, structs in `src/templates/`) | [Book][2] · [API][3]              |
+| htmx `2.0.4`       | Partial page updates from the server, e.g. run status polling          | [Docs][4] · [Reference][5]        |
+| Alpine.js `3.14.9` | Client-side interactivity, e.g. the test plan page's trigger form      | [Start here][6] · [Directives][7] |
+| Chart.js `4.4.4`   | Charts on the dashboard and test plan pages                            | [Docs][8]                         |
+
+The JS libraries are vendored into `static/` (see the header comment in each `*.min.js` file for its
+source) and embedded into the binary, so the UI makes no requests to third-party CDNs. To upgrade
+one, replace the file with the new release and update its header comment and the version above.
 
 ## Testing
 
@@ -28,3 +41,10 @@ committed to the repo.
 
 [0]: https://insta.rs
 [1]: https://insta.rs/docs/cli/
+[2]: https://askama.rs/en/stable/
+[3]: https://docs.rs/askama/0.16.1/askama/
+[4]: https://htmx.org/docs/
+[5]: https://htmx.org/reference/
+[6]: https://alpinejs.dev/start-here
+[7]: https://alpinejs.dev/directives/data
+[8]: https://www.chartjs.org/docs/4.4.4/
