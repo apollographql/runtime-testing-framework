@@ -52,6 +52,9 @@ The list of executions can be filtered by status, and each execution provides li
 To download the output for every execution in the run at once, select **Download full run output**
 and run the `rtf` command that it shows.
 
+Execution output is only [retained for a limited time][6], so these downloads stop working for older
+runs.
+
 ## Cancelling and re-running
 
 To cancel a run, select **Cancel run** on the run's page and confirm. This button is only shown on
@@ -86,3 +89,4 @@ See [Registering and managing Known Test Plans][3] for what each setting does.
 [3]: known-test-plans.md
 [4]: ../../reference/glossary.md#workload-pool
 [5]: ../../reference/glossary.md#dedicated-cluster
+[6]: ../../reference/orchestrator/limits-permissions-and-concepts.md#output-storage
