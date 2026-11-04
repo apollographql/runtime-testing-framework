@@ -2,15 +2,44 @@
 
 # Overview
 
-Throughout the rest of the _User Documentation_ you'll see us talking about RTF both as the
-framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
-Readiness team. We feel that it is important to draw a distinction between these two areas in order
-to be able to make the best use of each.
+While the rest of our documentation tends to focus on the "how" of using RTF and its related
+tooling, this page covers some of the "why": the problem RTF is solving, how it approaches that
+problem, and the different options available for making use of it. For a shorter introduction, see
+the [blog post introducing RTF][7].
 
-So, while the rest of our documentation tends to focus on the "how" of using RTF and its related
-tooling, this page instead covers some of the "why" around how things are set up and the different
-options available for making use of it. To kick things off, its probably best to cover what RTF _is_
-(and importantly, what it _isn't_).
+## What problem does RTF solve?
+
+Some tests only tell you something useful when they run against realistic deployments: multiple
+services, production-like resources, real configuration, and representative data. Performance tests
+are the obvious example, but the same is true of many end-to-end tests and bug reproductions. Tests
+like these quickly outgrow what you can run on your own machine.
+
+Without a shared framework, each team that needs tests like this ends up building its own tooling to
+deploy services, wire them together, collect results, and clean up afterwards. That tooling tends to
+be tied to one particular topology, and it's hard to debug a test when the only place it runs is a
+remote cluster.
+
+One of the primary motivating reasons for building RTF was to make it easy to develop and debug this
+style of test. Providing a single [Test Plan][8] format that can be run in two different ways:
+
+- **Locally**, the `rtf` CLI runs your Test Plan against Docker Compose so you can iterate quickly
+  on your own machine, using smaller resources than the real thing.
+- **At scale**, the [RTF Orchestrator][9] runs the same Test Plan in clusters, giving each variant
+  its own ephemeral Kubernetes namespace with production-like resources and storing the output.
+
+Every Test Plan follows the same lifecycle, wherever it runs:
+
+1. Deploy the [Environment][10]: the services under test.
+2. Run the [Scenario][11]: the test itself, as a Docker image and a command.
+3. Collect the output and metrics produced by the test.
+4. Tear everything down and return the results.
+
+Because the Test Plan is the same in both places, you can debug a test locally and have confidence
+that it behaves the same way when you run it at scale. [Variables][12] and matrices let you expand a
+single Test Plan into many variants, and [Providers][13] pull in the files and data each variant
+needs, so that a Test Plan stays self-contained.
+
+The rest of this page covers what RTF _is_ (and, importantly, what it _isn't_) in terms of design.
 
 ## What RTF _is_
 
@@ -159,3 +188,10 @@ Happy testing!
 [4]: ../tutorials/test-plans/index.md
 [5]: ../reference/framework/index.md
 [6]: https://github.com/apollographql/rtf-morgue/tree/0843b875ea896b80309d73ac034b1a42b171c6cf/test-plans/query-planner-memory
+[7]: https://www.apollographql.com/blog/apollos-runtime-testing-framework
+[8]: ../reference/glossary.md#test-plan
+[9]: ../reference/glossary.md#rtf-orchestrator-service
+[10]: ../reference/glossary.md#environment
+[11]: ../reference/glossary.md#scenario
+[12]: ../reference/glossary.md#variables
+[13]: ../reference/glossary.md#provider
