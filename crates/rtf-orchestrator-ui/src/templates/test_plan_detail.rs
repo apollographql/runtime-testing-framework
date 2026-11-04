@@ -59,6 +59,7 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use rtf_orchestrator_shared::{status::Status, summary::TestRunListResponse};
     use simple_test_case::test_case;
+    use std::{env, fs};
     use uuid::Uuid;
 
     fn details_failed() -> TestPlanDetailTemplate {
@@ -97,6 +98,33 @@ mod tests {
         t.plan.allow_k8s_write = allow_k8s_write;
 
         assert_eq!(t.write_access_label(), expected);
+    }
+
+    /// The JS unit tests (tests/js/) load this fixture as the page data, so they exercise exactly
+    /// what the server sends. Run with `UPDATE_JS_FIXTURES=1` to regenerate it after a change.
+    #[test]
+    fn js_data_matches_the_js_test_fixture() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/js/fixtures/test-plan-details.json"
+        );
+        let t = preview::test_plan_detail();
+        let details = t.details.as_ref().expect("preview has details");
+        let actual = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&details.js_data()).unwrap()
+        );
+
+        if env::var_os("UPDATE_JS_FIXTURES").is_some() {
+            fs::write(path, &actual).unwrap();
+        }
+
+        let expected = fs::read_to_string(path).unwrap_or_default();
+
+        assert_eq!(
+            actual, expected,
+            "page data no longer matches {path}: rerun with UPDATE_JS_FIXTURES=1 and check the JS tests still pass"
+        );
     }
 
     #[test]

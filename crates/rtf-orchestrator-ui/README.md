@@ -39,6 +39,24 @@ cargo insta review  # interactively accept or reject each diff
 Accepted snapshots live alongside their test module under `src/view/snapshots/*.snap` and are
 committed to the repo.
 
+### JS unit tests
+
+The trigger form's model (`static/trigger-model.js`) is unit tested with Node's built-in
+[test runner][9], with no npm dependencies. Node is installed by mise:
+
+```bash
+mise run pr-js-test
+```
+
+The tests load `tests/js/fixtures/test-plan-details.json` as the page data. A Rust test fails if
+that fixture no longer matches what the server embeds in the page; after an intentional change,
+regenerate it and check the JS tests still pass:
+
+```bash
+UPDATE_JS_FIXTURES=1 cargo test -p rtf-orchestrator-ui js_data_matches_the_js_test_fixture
+mise run pr-js-test
+```
+
 [0]: https://insta.rs
 [1]: https://insta.rs/docs/cli/
 [2]: https://askama.rs/en/stable/
@@ -48,3 +66,4 @@ committed to the repo.
 [6]: https://alpinejs.dev/start-here
 [7]: https://alpinejs.dev/directives/data
 [8]: https://www.chartjs.org/docs/4.4.4/
+[9]: https://nodejs.org/api/test.html
