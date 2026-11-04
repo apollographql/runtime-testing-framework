@@ -5,5 +5,6 @@
 extend-exclude = [
     "crates/rtf-integrations/resources/engine-prod-schema.graphql",
     "crates/rtf-orchestrator-ui/static/htmx.min.js",
-    "crates/rtf-orchestrator-ui/static/chart.min.js"
+    "crates/rtf-orchestrator-ui/static/chart.min.js",
+    "crates/rtf-orchestrator-ui/static/alpine.min.js"
 ]

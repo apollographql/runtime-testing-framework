@@ -33,6 +33,14 @@ mod tests {
     }
 
     #[test]
+    fn alpine_is_embedded_in_the_binary() {
+        assert!(
+            Assets::get("alpine.min.js").is_some(),
+            "alpine.min.js should be embedded"
+        );
+    }
+
+    #[test]
     fn favicon_is_embedded_in_the_binary() {
         assert!(
             Assets::get("gongphin.png").is_some(),

@@ -958,8 +958,12 @@ textarea.chip-edit {
     display: inline-block;
 }
 
-.picker[hidden] {
-    display: none;
+[x-cloak] {
+    display: none !important;
+}
+
+.chip-slot {
+    display: contents;
 }
 
 .picker {

@@ -14,6 +14,7 @@ expression: "render_fragment!(preview::test_plan_detail_trigger_error().as_trigg
 
 
 
+<div x-data="triggerForm">
 <section class="card" id="trigger-section">
     <form method="get" action="/ui/test-plan/00000000-0000-0000-0000-00000000000a" class="ref-row">
         <input type="hidden" name="days_back" value="30" />
@@ -24,19 +25,89 @@ expression: "render_fragment!(preview::test_plan_detail_trigger_error().as_trigg
         <span class="muted">Branch, tag or SHA (defaults to the default branch). Variables and defaults below come from this ref.</span>
     </form>
 
-    <div id="load-banner"></div>
+    <p class="warn-box" style="margin:0.75rem 0 0" x-show="loadError" x-cloak>The submitted variables couldn't be loaded into the form. They're kept unchanged in <strong>Raw variables JSON</strong> below.</p>
 
     <div class="sub-head">
         <h3>Changed variables</h3>
-        <span class="muted" id="changed-count"></span>
+        <span class="muted" x-show="changedRows.length" x-text="`${nChanged} changed from default`"></span>
     </div>
-    <div id="overrides"></div>
+    <div class="empty-state muted" x-show="!changedRows.length">Nothing changed &mdash; every variable runs at its test plan default.</div>
+    <template x-for="n in changedRows" :key="n">
+        <div class="override-row">
+            <div class="override-row__name">
+                <code x-text="n"></code>
+                <template x-for="s in sectionsOf(n)" :key="s"><span class="tag" x-text="s"></span></template>
+                <div class="muted" x-show="descriptionOf(n)" x-text="descriptionOf(n)"></div>
+            </div>
+
+            <template x-if="allowedOf(n)">
+                <div class="toggles">
+                    <template x-for="opt in allowedOf(n)" :key="fmt(opt)">
+                        <button type="button" class="toggle-opt" :class="hasValue(n, opt) && 'on'" :aria-pressed="hasValue(n, opt)" @click="toggleAllowed(n, opt)" x-text="fmt(opt)"></button>
+                    </template>
+                    <template x-for="(bad, i) in invalidValues(n)" :key="i">
+                        <span class="chip chip--invalid" title="Not an allowed value">
+                            <span class="chip__text" x-text="fmt(bad)"></span>
+                            <button type="button" class="chip__remove" :aria-label="`Remove ${fmt(bad)}`" @click="removeExact(n, bad)">&times;</button>
+                        </span>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="!allowedOf(n)">
+                <div class="chip-input" @mousedown.self.prevent="$el.querySelector('[data-add-input]').focus()">
+                    <template x-for="(val, i) in valuesFor(n)" :key="i">
+                        <span class="chip-slot">
+                            <template x-if="!isEditing(n, i)">
+                                <span class="chip">
+                                    <span class="chip__text" title="Click to edit" @click="startEdit(n, i)" x-text="short(val)"></span>
+                                    <button type="button" class="chip__remove" :aria-label="`Remove ${fmt(val)}`" @click="removeValue(n, i)">&times;</button>
+                                </span>
+                            </template>
+                            <template x-if="isEditing(n, i) && !editing.multiline">
+                                <input class="chip-edit" x-model="editText" :size="Math.max(6, editText.length + 2)" x-init="$nextTick(() => { $el.focus(); $el.select() })"
+                                    @keydown.enter.prevent="commitEdit()" @keydown.escape.prevent="cancelEdit()" @blur="commitEdit()" />
+                            </template>
+                            <template x-if="isEditing(n, i) && editing.multiline">
+                                <textarea class="chip-edit" rows="6" x-model="editText" x-init="$nextTick(() => $el.focus())"
+                                    @keydown.enter="($event.metaKey || $event.ctrlKey) && commitEdit()" @keydown.escape.prevent="cancelEdit()" @blur="commitEdit()"></textarea>
+                            </template>
+                        </span>
+                    </template>
+                    <input data-add-input :data-var="n" :placeholder="valuesFor(n).length ? '+ value' : 'type a value, Enter to add'" :aria-label="`Add value for ${n}`"
+                        @keydown.enter.prevent="addValues(n, $el)" @keydown="if ($event.key === ',') { $event.preventDefault(); addValues(n, $el) }"
+                        @keydown.backspace="$el.value || removeLast(n)" @blur="addValues(n, $el)" />
+                </div>
+            </template>
+
+            <div class="override-row__meta">
+                <span class="pill" :class="valuesFor(n).length > 1 ? 'pill--matrix' : 'pill--fixed'" x-text="valuesFor(n).length > 1 ? `matrix ×${valuesFor(n).length}` : 'fixed'"></span>
+                <span class="muted" :title="defaultTitle(n)" x-text="defaultLabel(n)"></span>
+                <button type="button" class="icon" :disabled="isFreed(n)" :title="revertTitle(n)" :aria-label="`Revert ${n}`" @click="revert(n)" x-text="isDeclared(n) ? '↺' : '×'"></button>
+            </div>
+        </div>
+    </template>
+
     <div class="add-var-row">
-        <div class="picker-wrap">
-            <button type="button" class="secondary" id="add-var">+ Change a variable</button>
-            <div class="picker" id="picker" hidden>
-                <input id="picker-q" type="search" placeholder="Search variables by name or description" autocomplete="off" aria-label="Search variables" />
-                <ul id="picker-list"></ul>
+        <div class="picker-wrap" @click.outside="pickerOpen = false">
+            <button type="button" class="secondary" @click="togglePicker()">+ Change a variable</button>
+            <div class="picker" x-show="pickerOpen" x-cloak @keydown.escape="pickerOpen = false">
+                <input x-ref="pickerQuery" type="search" x-model="pickerQuery" placeholder="Search variables by name or description" autocomplete="off" aria-label="Search variables"
+                    @keydown.enter.prevent="pickerItems.length && selectVar(pickerItems[0].name)" />
+                <ul>
+                    <template x-for="(v, i) in pickerItems" :key="v.name">
+                        <li>
+                            <button type="button" :class="i === 0 && pickerQuery && 'active'" @click="selectVar(v.name)">
+                                <span class="picker__row">
+                                    <span><code style="font-weight:600" x-text="v.name"></code> <template x-for="s in v.sections" :key="s"><span class="tag" x-text="s"></span></template></span>
+                                    <code class="muted" x-text="v.default.map(short).join(', ')"></code>
+                                </span>
+                                <span class="muted" style="display:block" x-show="v.description" x-text="v.description"></span>
+                            </button>
+                        </li>
+                    </template>
+                    <li class="muted" style="padding:6px" x-show="!pickerItems.length">No matching variables</li>
+                </ul>
             </div>
         </div>
         <span class="muted">Add several values to run a variable as a matrix dimension.</span>
@@ -46,12 +117,78 @@ expression: "render_fragment!(preview::test_plan_detail_trigger_error().as_trigg
         <h3>Compound dimensions</h3>
         <span class="muted">Variables that vary together &mdash; only the listed combinations run.</span>
     </div>
-    <div id="groups"></div>
-    <div id="new-group-slot"></div>
-    <button type="button" class="secondary" id="new-group-btn">+ New compound dimension</button>
+    <template x-for="g in groupNames" :key="g">
+        <div class="compound-group" :class="groupChanged(g) && 'changed'">
+            <div class="compound-group__head">
+                <code style="font-weight:600" x-text="g"></code>
+                <span class="pill pill--matrix" x-text="`${group(g).entries.length} entries`"></span>
+                <span class="muted" x-text="groupStatus(g)"></span>
+                <span class="spacer"></span>
+                <button type="button" class="small" x-show="isPlanGroup(g) && groupChanged(g)" @click="resetGroup(g)">Reset</button>
+                <button type="button" class="small text-danger" title="Delete this dimension; its variables become fixed values" @click="dissolveGroup(g)">Delete dimension</button>
+            </div>
+            <div class="compound-group__body">
+                <table class="compound-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <template x-for="v in group(g).vars" :key="v">
+                                <th>
+                                    <code x-text="v"></code>
+                                    <button type="button" class="icon" :title="`Remove ${v} from ${g} (it becomes a fixed value)`" :aria-label="`Remove ${v} from ${g}`" @click="removeFromGroup(g, v)">&times;</button>
+                                </th>
+                            </template>
+                            <th>
+                                <select class="small" :aria-label="`Add a variable to ${g}`" @change="addToGroup(g, $event.target.value); $event.target.value = ''">
+                                    <option value="">+ variable</option>
+                                    <template x-for="n in standalone" :key="n">
+                                        <option :value="n" x-text="`${n} = ${valuesFor(n).map(short).join(', ') || '(not set)'}`"></option>
+                                    </template>
+                                </select>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(e, i) in group(g).entries" :key="i">
+                            <tr>
+                                <td class="idx" x-text="i + 1"></td>
+                                <template x-for="v in group(g).vars" :key="v">
+                                    <td><input :value="fmt(e[v] ?? '')" :aria-label="`${g} entry ${i + 1} ${v}`" @input="e[v] = coerce($event.target.value)" /></td>
+                                </template>
+                                <td class="actions">
+                                    <button type="button" class="icon" title="Duplicate entry" :aria-label="`Duplicate entry ${i + 1}`" @click="duplicateEntry(g, i)">&#x29C9;</button>
+                                    <button type="button" class="icon text-danger" title="Delete entry" :aria-label="`Delete entry ${i + 1}`" @click="deleteEntry(g, i)">&times;</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <p style="margin:0.5rem 0 0"><button type="button" class="small" @click="addEntry(g)">+ Add entry</button></p>
+            </div>
+        </div>
+    </template>
+    <p class="muted" x-show="deletedGroups.length" x-cloak>
+        Deleted for this run: <span x-text="deletedGroups.join(', ')"></span> &middot;
+        <template x-for="g in deletedGroups" :key="g"><button type="button" class="link" @click="resetGroup(g)" x-text="`restore ${g}`"></button></template>
+    </p>
+    <div class="empty-state muted" x-show="!groupNames.length" x-cloak>No compound dimensions.</div>
 
-    <details id="defaults" style="margin-top:1.4rem">
-        <summary>Using test plan defaults <span class="muted" id="defaults-count"></span></summary>
+    <div class="new-group" x-show="newGroup.open" x-cloak>
+        <strong>New compound dimension</strong>
+        <p class="muted" style="margin:0.25rem 0">Pick the variables that should vary together. Entries start as every combination of their current values &mdash; delete the rows you don't want.</p>
+        <p><input type="text" x-ref="newGroupName" x-model="newGroup.name" placeholder="dimension_name" aria-label="New compound dimension name" /></p>
+        <div class="new-group__checks">
+            <template x-for="n in standalone" :key="n">
+                <label><input type="checkbox" :value="n" x-model="newGroup.picked" /><code x-text="n"></code><span class="muted" x-text="valuesFor(n).map(short).join(', ')"></span></label>
+            </template>
+        </div>
+        <button type="button" class="primary" @click="createGroup()">Create</button>
+        <button type="button" class="secondary" @click="newGroup.open = false">Cancel</button>
+    </div>
+    <button type="button" class="secondary" x-show="!newGroup.open" @click="openNewGroup()">+ New compound dimension</button>
+
+    <details style="margin-top:1.4rem">
+        <summary>Using test plan defaults <span class="muted" x-text="`(${defaultRows.length})`"></span></summary>
         <table class="defaults-table">
             <thead>
                 <tr>
@@ -61,15 +198,43 @@ expression: "render_fragment!(preview::test_plan_detail_trigger_error().as_trigg
                     <th></th>
                 </tr>
             </thead>
-            <tbody id="defaults-body"></tbody>
+            <tbody>
+                <template x-for="v in defaultRows" :key="v.name">
+                    <tr>
+                        <td><code x-text="v.name"></code> <template x-for="s in v.sections" :key="s"><span class="tag" x-text="s"></span></template></td>
+                        <td>
+                            <span class="muted" x-show="!v.default.length">not set</span>
+                            <template x-if="v.default.length">
+                                <span>
+                                    <code x-text="v.default.map(short).join(', ')"></code>
+                                    <span class="pill pill--matrix" x-show="v.default.length > 1" x-text="`matrix ×${v.default.length}`"></span>
+                                    <button type="button" class="copy-btn" :popovertarget="`value-popover-${v.name}`" title="View and copy full value" :aria-label="`View full value of ${v.name}`">
+                                        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"></path>
+                                            <circle cx="8" cy="8" r="2"></circle>
+                                        </svg>
+                                    </button>
+                                    <span :id="`value-popover-${v.name}`" popover>
+                                        <span class="muted" style="display:block">Current value of <code x-text="v.name"></code></span>
+                                        <pre><code x-text="v.default.map(fmt).join('\n')"></code></pre>
+                                        <button type="button" class="secondary" :popovertarget="`value-popover-${v.name}`" popovertargetaction="hide">Close</button>
+                                    </span>
+                                </span>
+                            </template>
+                        </td>
+                        <td class="muted" x-text="v.description"></td>
+                        <td><button type="button" class="small" @click="selectVar(v.name)">Change</button></td>
+                    </tr>
+                </template>
+            </tbody>
         </table>
     </details>
 
-    <details id="raw-variables" style="margin-top:0.75rem">
+    <details style="margin-top:0.75rem" x-init="loadError && ($el.open = true)">
         <summary>Raw variables JSON</summary>
         <p class="muted" style="margin-bottom:0.3rem;">Generated from the form and submitted as-is. Edit and apply to load JSON into the form (e.g. copied from a previous run).</p>
-        <textarea id="variables" name="variables" form="trigger-form" rows="9">{&#34;region&#34;: &#34;us-east-1&#34;,}</textarea>
-        <p style="margin:0.4rem 0 0"><button type="button" class="secondary" id="apply-json">Apply JSON to form</button> <span id="json-error" class="trigger-problems"></span></p>
+        <textarea id="variables" name="variables" form="trigger-form" rows="9" x-model="rawText" x-effect="rawPending || (rawText = overridesJson)" @input="rawPending = true">{&#34;region&#34;: &#34;us-east-1&#34;,}</textarea>
+        <p style="margin:0.4rem 0 0"><button type="button" class="secondary" @click="applyJson()">Apply JSON to form</button> <span class="trigger-problems" x-text="jsonError"></span></p>
     </details>
 </section>
 
@@ -81,19 +246,37 @@ expression: "render_fragment!(preview::test_plan_detail_trigger_error().as_trigg
 
 <div class="trigger-bar">
     <div class="trigger-bar__inner">
-        <div><span class="trigger-bar__count" id="trigger-total">8</span> executions<br><span class="muted" id="trigger-formula">2 region × 2 colours × 2 subjects</span></div>
-        <div class="trigger-problems" id="trigger-problems"></div>
+        <div><span class="trigger-bar__count" x-text="total.toLocaleString()">8</span> executions<br><span class="muted" x-text="formula">2 region × 2 colours × 2 subjects</span></div>
+        <div class="trigger-problems" x-text="problems.length ? `⚠ ${problems.join('; ')}` : ''"></div>
         <span class="spacer"></span>
-        <button type="button" class="secondary" id="variants-btn">Preview executions</button>
-        <button type="submit" form="trigger-form" class="primary" id="trigger-btn" >Trigger <span id="trigger-count">8</span> executions</button>
+        <button type="button" class="secondary" @click="showVariants()">Preview executions</button>
+        <button type="submit" form="trigger-form" class="primary" id="trigger-btn" :disabled="!canTrigger" >Trigger <span x-text="total.toLocaleString()">8</span> executions</button>
     </div>
 </div>
 
-<dialog id="variants-dialog">
-    <h3 id="variants-title"></h3>
-    <p class="muted" id="variants-sub"></p>
-    <div class="dialog-scroll"><table id="variants-table"></table></div>
-    <div class="dialog-actions"><button type="button" class="secondary" data-close-dialog>Close</button></div>
+<dialog x-ref="variantsDialog">
+    <h3 x-text="`${variants.total.toLocaleString()} executions`"></h3>
+    <p class="muted" x-text="variants.subtitle"></p>
+    <div class="dialog-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <template x-for="c in variants.cols" :key="c"><th x-text="c"></th></template>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="(r, i) in variants.rows" :key="i">
+                    <tr>
+                        <td class="muted" x-text="i + 1"></td>
+                        <template x-for="c in variants.cols" :key="c"><td><code x-text="short(r[c])"></code></td></template>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+    <div class="dialog-actions"><button type="button" class="secondary" @click="$refs.variantsDialog.close()">Close</button></div>
 </dialog>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="toast" :class="toastShow && 'show'" role="status" aria-live="polite" x-text="toastMessage"></div>
+</div>
