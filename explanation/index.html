@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-d83904a2.js";
+            window.path_to_searchindex_js = "../searchindex-dccab994.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4d4c8e60.js"></script>
@@ -179,8 +179,17 @@
                     <main>
                         <!-- diataxis-type: explanation -->
 <h1 id="understanding-rtf"><a class="header" href="#understanding-rtf">Understanding RTF</a></h1>
-<p>This section explains the thinking behind RTF — what it is, how it fits into your testing strategy,
+<p>This section explains the thinking behind RTF: what it is, how it fits into your testing strategy,
 and why it’s designed the way it is.</p>
+<p>The short version is that RTF makes it easy to develop and debug tests that need more resources than
+you have available on your local machine. You write a Test Plan once, iterate on it locally, and
+then run the same Test Plan at scale in production-like environments without needing to rebuild your
+tooling for each new setup.</p>
+<ul>
+<li><a href="./overview.html">Overview</a> covers the problem RTF solves and the design principles behind it.</li>
+<li><a href="./testing-with-rtf.html">Where RTF fits in your test suite</a> helps you decide which of your tests might benefit from
+being run under RTF and which wont.</li>
+</ul>
 
                     </main>
 

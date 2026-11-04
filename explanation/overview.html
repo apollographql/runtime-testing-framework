@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-d83904a2.js";
+            window.path_to_searchindex_js = "../searchindex-dccab994.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4d4c8e60.js"></script>
@@ -179,14 +179,39 @@
                     <main>
                         <!-- diataxis-type: explanation -->
 <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
-<p>Throughout the rest of the <em>User Documentation</em> you’ll see us talking about RTF both as the
-framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
-Readiness team. We feel that it is important to draw a distinction between these two areas in order
-to be able to make the best use of each.</p>
-<p>So, while the rest of our documentation tends to focus on the “how” of using RTF and its related
-tooling, this page instead covers some of the “why” around how things are set up and the different
-options available for making use of it. To kick things off, its probably best to cover what RTF <em>is</em>
-(and importantly, what it <em>isn’t</em>).</p>
+<p>While the rest of our documentation tends to focus on the “how” of using RTF and its related
+tooling, this page covers some of the “why”: the problem RTF is solving, how it approaches that
+problem, and the different options available for making use of it. For a shorter introduction, see
+the <a href="https://www.apollographql.com/blog/apollos-runtime-testing-framework">blog post introducing RTF</a>.</p>
+<h2 id="what-problem-does-rtf-solve"><a class="header" href="#what-problem-does-rtf-solve">What problem does RTF solve?</a></h2>
+<p>Some tests only tell you something useful when they run against realistic deployments: multiple
+services, production-like resources, real configuration, and representative data. Performance tests
+are the obvious example, but the same is true of many end-to-end tests and bug reproductions. Tests
+like these quickly outgrow what you can run on your own machine.</p>
+<p>Without a shared framework, each team that needs tests like this ends up building its own tooling to
+deploy services, wire them together, collect results, and clean up afterwards. That tooling tends to
+be tied to one particular topology, and it’s hard to debug a test when the only place it runs is a
+remote cluster.</p>
+<p>One of the primary motivating reasons for building RTF was to make it easy to develop and debug this
+style of test. Providing a single <a href="../reference/glossary.html#test-plan">Test Plan</a> format that can be run in two different ways:</p>
+<ul>
+<li><strong>Locally</strong>, the <code>rtf</code> CLI runs your Test Plan against Docker Compose so you can iterate quickly
+on your own machine, using smaller resources than the real thing.</li>
+<li><strong>At scale</strong>, the <a href="../reference/glossary.html#rtf-orchestrator-service">RTF Orchestrator</a> runs the same Test Plan in clusters, giving each variant
+its own ephemeral Kubernetes namespace with production-like resources and storing the output.</li>
+</ul>
+<p>Every Test Plan follows the same lifecycle, wherever it runs:</p>
+<ol>
+<li>Deploy the <a href="../reference/glossary.html#environment">Environment</a>: the services under test.</li>
+<li>Run the <a href="../reference/glossary.html#scenario">Scenario</a>: the test itself, as a Docker image and a command.</li>
+<li>Collect the output and metrics produced by the test.</li>
+<li>Tear everything down and return the results.</li>
+</ol>
+<p>Because the Test Plan is the same in both places, you can debug a test locally and have confidence
+that it behaves the same way when you run it at scale. <a href="../reference/glossary.html#variables">Variables</a> and matrices let you expand a
+single Test Plan into many variants, and <a href="../reference/glossary.html#provider">Providers</a> pull in the files and data each variant
+needs, so that a Test Plan stays self-contained.</p>
+<p>The rest of this page covers what RTF <em>is</em> (and, importantly, what it <em>isn’t</em>) in terms of design.</p>
 <h2 id="what-rtf-is"><a class="header" href="#what-rtf-is">What RTF <em>is</em></a></h2>
 <h3 id="compositional-glue"><a class="header" href="#compositional-glue">Compositional Glue</a></h3>
 <p>The most important thing to understand about RTF is that it truly is <em>all</em> glue code and meta-data.

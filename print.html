@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d83904a2.js";
+            window.path_to_searchindex_js = "searchindex-dccab994.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-4d4c8e60.js"></script>
@@ -181,17 +181,19 @@
                         <!-- diataxis-type: explanation -->
 <h1 id="the-apollo-runtime-testing-framework"><a class="header" href="#the-apollo-runtime-testing-framework">The Apollo Runtime Testing Framework</a></h1>
 <p>Welcome to <a href="https://github.com/apollographql/runtime-testing-framework">RTF</a>!</p>
-<p>RTF is a tool for writing, running and debugging tests of the Apollo Runtime under a variety of
-deployment setups. This documentation site covers how to get set up with the tooling and work with
-RTF Test Plans. While it is not necessary to read through every page in order, please be aware that
-the contents of the tutorials and guides may require you to have already worked through previous
-sections in some places. Where this is the case, links will be provided to the relevant sections of
-the documentation.</p>
+<p>RTF makes it easy to develop and debug tests that need more resources than you have available on
+your local machine. You describe your test once as a <a href="#test-plan">Test Plan</a>, iterate on it locally using the
+<code>rtf</code> CLI, and then run the same Test Plan at scale using the <a href="#rtf-orchestrator-service">RTF Orchestrator</a>.</p>
+<p>This documentation site covers how to get set up with the tooling and work with RTF Test Plans.
+While it is not necessary to read through every page in order, please be aware that the contents of
+the tutorials and guides may require you to have already worked through previous sections in some
+places. Where this is the case, links will be provided to the relevant sections of the
+documentation.</p>
 <h3 id="who-are-these-docs-for"><a class="header" href="#who-are-these-docs-for">Who are these docs for?</a></h3>
 <p>The documentation is split into two main sections: “User Documentation” and “Developer
 Documentation”.</p>
 <p><strong>User Documentation</strong> covers both how to make use of the <code>rtf</code> CLI for running existing Test Plans
-(such as those found in the <a href="https://github.com/apollographql/rtf-morgue">rtf-morgue</a> repo) and how to write your own Test Plans.</p>
+and how to write your own Test Plans.</p>
 <p><strong>Developer Documentation</strong> covers details on the internal design of RTF and how to work within the
 <a href="https://github.com/apollographql/runtime-testing-framework">runtime-testing-framework</a> repo.</p>
 <h3 id="where-do-i-ask-for-help-if-i-am-stuck"><a class="header" href="#where-do-i-ask-for-help-if-i-am-stuck">Where do I ask for help if I am stuck?</a></h3>
@@ -201,24 +203,57 @@ can find links to our intake process and other useful information in the channel
 <p>For questions, feedback and support with RTF specifically we also have the
 <code>#proj-runtime-testing-framework</code> channel.</p>
 <h3 id="where-can-i-find-examples-of-rtf-in-use"><a class="header" href="#where-can-i-find-examples-of-rtf-in-use">Where can I find examples of RTF in use?</a></h3>
-<p>The <a href="https://github.com/apollographql/rtf-morgue">rtf-morgue</a> repo contains a number of test plans, helper scripts and GitHub Actions
-workflows for running tests of the Apollo Router. This repo is maintained by the Runtime Readiness
-team in order to support Router Core with release validation, regression testing and running
-investigations into customer issues.</p>
+<p>The Orchestrator’s list of <a href="https://api.rtf.apollographql.com/ui/test-plans">registered test plans</a> is a good place to start to see what your
+fellow Apollonauts are doing with RTF. If you have any questions about how one of those test plans
+works you can reach out to one of the listed owners to chat to them about the specifics!</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="understanding-rtf"><a class="header" href="#understanding-rtf">Understanding RTF</a></h1>
-<p>This section explains the thinking behind RTF — what it is, how it fits into your testing strategy,
+<p>This section explains the thinking behind RTF: what it is, how it fits into your testing strategy,
 and why it’s designed the way it is.</p>
+<p>The short version is that RTF makes it easy to develop and debug tests that need more resources than
+you have available on your local machine. You write a Test Plan once, iterate on it locally, and
+then run the same Test Plan at scale in production-like environments without needing to rebuild your
+tooling for each new setup.</p>
+<ul>
+<li><a href="#overview">Overview</a> covers the problem RTF solves and the design principles behind it.</li>
+<li><a href="#where-rtf-fits-in-your-test-suite">Where RTF fits in your test suite</a> helps you decide which of your tests might benefit from
+being run under RTF and which wont.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
-<p>Throughout the rest of the <em>User Documentation</em> you’ll see us talking about RTF both as the
-framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
-Readiness team. We feel that it is important to draw a distinction between these two areas in order
-to be able to make the best use of each.</p>
-<p>So, while the rest of our documentation tends to focus on the “how” of using RTF and its related
-tooling, this page instead covers some of the “why” around how things are set up and the different
-options available for making use of it. To kick things off, its probably best to cover what RTF <em>is</em>
-(and importantly, what it <em>isn’t</em>).</p>
+<p>While the rest of our documentation tends to focus on the “how” of using RTF and its related
+tooling, this page covers some of the “why”: the problem RTF is solving, how it approaches that
+problem, and the different options available for making use of it. For a shorter introduction, see
+the <a href="https://www.apollographql.com/blog/apollos-runtime-testing-framework">blog post introducing RTF</a>.</p>
+<h2 id="what-problem-does-rtf-solve"><a class="header" href="#what-problem-does-rtf-solve">What problem does RTF solve?</a></h2>
+<p>Some tests only tell you something useful when they run against realistic deployments: multiple
+services, production-like resources, real configuration, and representative data. Performance tests
+are the obvious example, but the same is true of many end-to-end tests and bug reproductions. Tests
+like these quickly outgrow what you can run on your own machine.</p>
+<p>Without a shared framework, each team that needs tests like this ends up building its own tooling to
+deploy services, wire them together, collect results, and clean up afterwards. That tooling tends to
+be tied to one particular topology, and it’s hard to debug a test when the only place it runs is a
+remote cluster.</p>
+<p>One of the primary motivating reasons for building RTF was to make it easy to develop and debug this
+style of test. Providing a single <a href="#test-plan">Test Plan</a> format that can be run in two different ways:</p>
+<ul>
+<li><strong>Locally</strong>, the <code>rtf</code> CLI runs your Test Plan against Docker Compose so you can iterate quickly
+on your own machine, using smaller resources than the real thing.</li>
+<li><strong>At scale</strong>, the <a href="#rtf-orchestrator-service">RTF Orchestrator</a> runs the same Test Plan in clusters, giving each variant
+its own ephemeral Kubernetes namespace with production-like resources and storing the output.</li>
+</ul>
+<p>Every Test Plan follows the same lifecycle, wherever it runs:</p>
+<ol>
+<li>Deploy the <a href="#environment-1">Environment</a>: the services under test.</li>
+<li>Run the <a href="#scenario-1">Scenario</a>: the test itself, as a Docker image and a command.</li>
+<li>Collect the output and metrics produced by the test.</li>
+<li>Tear everything down and return the results.</li>
+</ol>
+<p>Because the Test Plan is the same in both places, you can debug a test locally and have confidence
+that it behaves the same way when you run it at scale. <a href="#variables">Variables</a> and matrices let you expand a
+single Test Plan into many variants, and <a href="#provider">Providers</a> pull in the files and data each variant
+needs, so that a Test Plan stays self-contained.</p>
+<p>The rest of this page covers what RTF <em>is</em> (and, importantly, what it <em>isn’t</em>) in terms of design.</p>
 <h2 id="what-rtf-is"><a class="header" href="#what-rtf-is">What RTF <em>is</em></a></h2>
 <h3 id="compositional-glue"><a class="header" href="#compositional-glue">Compositional Glue</a></h3>
 <p>The most important thing to understand about RTF is that it truly is <em>all</em> glue code and meta-data.
@@ -329,15 +364,17 @@ after.</p>
 <h1 id="where-rtf-fits-in-your-test-suite"><a class="header" href="#where-rtf-fits-in-your-test-suite">Where RTF fits in your test suite</a></h1>
 <p>Before diving in, it’s worth being precise about what RTF actually is — because it’s easy to mistake
 it for something it isn’t.</p>
-<p>RTF is a framework for <strong>building and reproducing complex integrated environments</strong>. It handles
-spinning up services, resolving credentials, pulling in parameterised test data, and tearing
-everything down cleanly afterwards. What it is <em>not</em> is a framework for writing tests. RTF doesn’t
-provide assertions, test runners, or anything that touches the logic of your test scenarios — that
-part is entirely up to you and your existing tooling.</p>
-<p>This distinction matters. The value RTF provides is reliability and repeatability at the
-<em>environment</em> level: the confidence that every time you run a <a href="#test-plan">Test Plan</a>, the services under
-test are in the same known-good state, with the same data, in the same configuration. See
-<a href="#overview">Understanding RTF</a> for more on the design philosophy behind this.</p>
+<p>RTF makes it easy to <strong>develop and debug tests that need more resources than you have available on
+your local machine</strong>. You iterate on a <a href="#test-plan">Test Plan</a> locally, then run the same Test Plan at scale
+in production-like environments. RTF handles spinning up services, resolving credentials, pulling in
+parameterised test data, collecting results, and tearing everything down cleanly afterwards.</p>
+<p>What RTF doesn’t do is replace the tooling you already use to write the tests themselves. RTF
+doesn’t provide assertions, test runners, or anything that touches the logic of your test scenarios.
+That part is entirely up to you, using whichever tools you prefer.</p>
+<p>This distinction matters. The value RTF provides is in reliability and repeatability around your
+tests: the confidence that every time you run a Test Plan, whether on your machine or at scale, the
+services under test are in the same known-good state, with the same data, in the same configuration.
+See the <a href="#overview">Overview</a> for more on the design philosophy behind this.</p>
 <p>A further benefit of this approach is consistency. When <a href="#environment-1">Environments</a> and Test Plans are defined
 in RTF, they can be shared, reviewed, and reproduced by any team — whether that’s another
 engineering team building on the same services, or Apollo’s support team trying to reproduce a

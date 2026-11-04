@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-d83904a2.js";
+            window.path_to_searchindex_js = "../searchindex-dccab994.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4d4c8e60.js"></script>
@@ -181,15 +181,17 @@
 <h1 id="where-rtf-fits-in-your-test-suite"><a class="header" href="#where-rtf-fits-in-your-test-suite">Where RTF fits in your test suite</a></h1>
 <p>Before diving in, it’s worth being precise about what RTF actually is — because it’s easy to mistake
 it for something it isn’t.</p>
-<p>RTF is a framework for <strong>building and reproducing complex integrated environments</strong>. It handles
-spinning up services, resolving credentials, pulling in parameterised test data, and tearing
-everything down cleanly afterwards. What it is <em>not</em> is a framework for writing tests. RTF doesn’t
-provide assertions, test runners, or anything that touches the logic of your test scenarios — that
-part is entirely up to you and your existing tooling.</p>
-<p>This distinction matters. The value RTF provides is reliability and repeatability at the
-<em>environment</em> level: the confidence that every time you run a <a href="../reference/glossary.html#test-plan">Test Plan</a>, the services under
-test are in the same known-good state, with the same data, in the same configuration. See
-<a href="./overview.html">Understanding RTF</a> for more on the design philosophy behind this.</p>
+<p>RTF makes it easy to <strong>develop and debug tests that need more resources than you have available on
+your local machine</strong>. You iterate on a <a href="../reference/glossary.html#test-plan">Test Plan</a> locally, then run the same Test Plan at scale
+in production-like environments. RTF handles spinning up services, resolving credentials, pulling in
+parameterised test data, collecting results, and tearing everything down cleanly afterwards.</p>
+<p>What RTF doesn’t do is replace the tooling you already use to write the tests themselves. RTF
+doesn’t provide assertions, test runners, or anything that touches the logic of your test scenarios.
+That part is entirely up to you, using whichever tools you prefer.</p>
+<p>This distinction matters. The value RTF provides is in reliability and repeatability around your
+tests: the confidence that every time you run a Test Plan, whether on your machine or at scale, the
+services under test are in the same known-good state, with the same data, in the same configuration.
+See the <a href="./overview.html">Overview</a> for more on the design philosophy behind this.</p>
 <p>A further benefit of this approach is consistency. When <a href="../reference/glossary.html#environment">Environments</a> and Test Plans are defined
 in RTF, they can be shared, reviewed, and reproduced by any team — whether that’s another
 engineering team building on the same services, or Apollo’s support team trying to reproduce a
