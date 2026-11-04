@@ -15,8 +15,8 @@ use rtf_cli::{
         },
         porcelain::{
             check_and_run_test_plan, ci_run, ci_run_known, execution_log, execution_status,
-            open_docs, pull_execution_output, pull_run_output, remote_run, remote_run_known,
-            run_status,
+            open_docs, pull_execution_output, pull_run_output, remote_run, remote_run_cancel,
+            remote_run_known, run_status,
         },
     },
 };
@@ -260,6 +260,10 @@ async fn main() {
                     with_executions,
                 },
         } => run_status(id, with_executions).await,
+
+        Command::Remote {
+            subcommand: RemoteSubcommand::CancelRun { id },
+        } => remote_run_cancel(id).await,
 
         Command::Completion { shell } => generate_shell_completions(shell),
 

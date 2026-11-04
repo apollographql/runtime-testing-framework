@@ -32,6 +32,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf remote execution-status`↴](#rtf-remote-execution-status)
 * [`rtf remote run-output`↴](#rtf-remote-run-output)
 * [`rtf remote run-status`↴](#rtf-remote-run-status)
+* [`rtf remote cancel-run`↴](#rtf-remote-cancel-run)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -361,6 +362,7 @@ Environment variables:
 * `execution-status` — View the status summary for a single test execution
 * `run-output` — Pull output for all executions within a given test run
 * `run-status` — View the status summary for a test run
+* `cancel-run` — Cancel a test run
 
 
 
@@ -588,6 +590,18 @@ View the status summary for a test run
 * `--with-executions` — Include details of the underlying test executions in the summary
 
   Default value: `false`
+
+
+
+## `rtf remote cancel-run`
+
+Cancel a test run
+
+**Usage:** `rtf remote cancel-run <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the Orchestrator test run you wish to cancel
 
 
 

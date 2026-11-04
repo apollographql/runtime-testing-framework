@@ -3,6 +3,7 @@ use reqwest::Url;
 use rtf_core::variables::Variables;
 use rtf_integrations::orchestrator::OrchestratorClient;
 use rtf_orchestrator_shared::{
+    PurgeRequest,
     payload::{KnownTestPlanUuidPayload, TriggerPayload},
     summary::TestRunSummary,
 };
@@ -62,6 +63,23 @@ pub async fn remote_run_known(
     let summary: TestRunSummary = client.post_json("test-run/trigger", &payload).await?;
     let id = summary.id;
     println!("Test run id: {id}\n");
+    println!(
+        "View test run status: {}",
+        ui_run_url(client.base_url(), id)?
+    );
+
+    Ok(())
+}
+
+pub async fn remote_run_cancel(test_run_uuid: Uuid) -> anyhow::Result<()> {
+    eprintln!("Cancelling test run {test_run_uuid}...");
+    let client = OrchestratorClient::new_from_env().await?;
+
+    let payload = PurgeRequest { id: test_run_uuid };
+    let summary: TestRunSummary = client.post_json("admin/purge-run", &payload).await?;
+    let id = summary.id;
+
+    println!("Test run {id} cancelled");
     println!(
         "View test run status: {}",
         ui_run_url(client.base_url(), id)?
