@@ -40,14 +40,6 @@ impl TestPlanDetailTemplate {
             None => "Pool default",
         }
     }
-
-    pub fn customize_expanded(&self) -> bool {
-        self.trigger_error.is_some() || !self.trigger_variables.is_empty()
-    }
-
-    pub fn focus_variables(&self) -> bool {
-        self.trigger_error.is_some()
-    }
 }
 
 #[derive(Debug, Template)]
@@ -105,18 +97,6 @@ mod tests {
         t.plan.allow_k8s_write = allow_k8s_write;
 
         assert_eq!(t.write_access_label(), expected);
-    }
-
-    #[test]
-    fn customize_expanded_and_focus_variables_on_error_with_no_variables_submitted() {
-        let t = TestPlanDetailTemplate {
-            trigger_variables: String::new(),
-            trigger_error: Some("unknown ref".to_owned()),
-            ..preview::test_plan_detail()
-        };
-
-        assert!(t.customize_expanded());
-        assert!(t.focus_variables());
     }
 
     #[test]

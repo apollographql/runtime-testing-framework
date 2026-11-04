@@ -12,6 +12,7 @@ expression: render_fragment!(t.as_runs())
 
 
 
+<div class="card">
 <table>
     <thead>
         <tr>
@@ -42,3 +43,5 @@ expression: render_fragment!(t.as_runs())
     
     
 </p>
+
+</div>

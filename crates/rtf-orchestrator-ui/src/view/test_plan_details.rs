@@ -1,10 +1,14 @@
 use chrono::{DateTime, Duration, Utc};
-use rtf_config::formats::{EnvironmentService, ServiceReplicas};
+use rtf_config::{
+    formats::{EnvironmentService, ServiceReplicas},
+    templating::Scalar,
+};
 use rtf_orchestrator_shared::test_plan_details::{
     ConfigSection, EnvironmentSummary, ManifestLocation, TestPlanDetails, TestPlanHistory,
     TestPlanVariable, VariableValue,
 };
 use serde::Serialize;
+use std::collections::BTreeMap;
 use url::form_urlencoded;
 use uuid::Uuid;
 
@@ -12,28 +16,31 @@ fn format_day(dt: DateTime<Utc>) -> String {
     dt.format("%Y-%m-%d").to_string()
 }
 
-fn current_value_list(v: &TestPlanVariable) -> Vec<String> {
+fn plural(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
+fn current_values(v: &TestPlanVariable) -> Vec<Scalar> {
     match &v.current_value {
-        Some(VariableValue::Dimension(values)) => values.iter().map(ToString::to_string).collect(),
-        Some(VariableValue::Scalar(s)) => vec![s.to_string()],
+        Some(VariableValue::Dimension(values)) => values.clone(),
+        Some(VariableValue::Scalar(s)) => vec![s.clone()],
         None => v
             .declarations
             .iter()
-            .find_map(|d| d.default.as_ref())
-            .map(|d| vec![d.to_string()])
-            .unwrap_or_default(),
+            .find_map(|d| d.default.clone())
+            .into_iter()
+            .collect(),
     }
 }
 
+/// Serialized into the page for `test-plan-detail.js`.
 #[derive(Debug, Clone, Serialize)]
 pub struct TriggerVariableView {
     pub name: String,
     pub sections: Vec<&'static str>,
     pub description: String,
-    pub ghost_text: String,
-    pub full_values: Vec<String>,
-    pub full_values_multiline: String,
-    pub allowed_values: Option<Vec<String>>,
+    pub default: Vec<Scalar>,
+    pub allowed: Option<Vec<Scalar>>,
 }
 
 impl TriggerVariableView {
@@ -48,13 +55,6 @@ impl TriggerVariableView {
             .collect();
         sections.dedup();
 
-        let full_values = current_value_list(v);
-        let allowed_values = v
-            .declarations
-            .iter()
-            .find_map(|d| d.allowed_values.as_ref())
-            .map(|values| values.iter().map(ToString::to_string).collect());
-
         Self {
             name: v.name.clone(),
             sections,
@@ -63,15 +63,9 @@ impl TriggerVariableView {
                 .first()
                 .map(|d| d.description.clone())
                 .unwrap_or_default(),
-            ghost_text: full_values.join(", "),
-            full_values_multiline: full_values.join("\n"),
-            full_values,
-            allowed_values,
+            default: current_values(v),
+            allowed: v.declarations.iter().find_map(|d| d.allowed_values.clone()),
         }
-    }
-
-    pub fn is_selected(&self, value: &str) -> bool {
-        self.full_values.iter().any(|v| v == value)
     }
 }
 
@@ -144,16 +138,12 @@ impl EnvironmentDetailView {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct CompoundGroupView {
-    pub name: String,
-    pub entries: Vec<Vec<(String, String)>>,
-}
+pub type CompoundGroups = BTreeMap<String, Vec<BTreeMap<String, Scalar>>>;
 
 #[derive(Debug, Serialize)]
 pub struct TestPlanDetailsJsData<'a> {
     pub variables: &'a [TriggerVariableView],
-    pub compound_groups: Vec<(String, usize)>,
+    pub compound_groups: &'a CompoundGroups,
     pub history: &'a TestPlanHistory,
 }
 
@@ -166,7 +156,8 @@ pub struct TestPlanDetailsView {
     pub variables: Vec<TriggerVariableView>,
     pub n_executions: usize,
     pub matrix_formula: String,
-    pub compound_groups: Vec<CompoundGroupView>,
+    pub variables_summary: String,
+    pub compound_groups: CompoundGroups,
     pub environment: Option<EnvironmentDetailView>,
     pub history_from_label: String,
     pub history_to_label: String,
@@ -200,6 +191,30 @@ impl TestPlanDetailsView {
                 .map(|(name, entries)| format!("{} {name}", entries.len())),
         );
 
+        let n_compound_members: usize = matrix
+            .compound_groups
+            .values()
+            .map(|entries| entries.first().map_or(0, BTreeMap::len))
+            .sum();
+        let variables_summary = [
+            plural(
+                details.variables.len() + n_compound_members,
+                "variable",
+                "variables",
+            ),
+            plural(
+                matrix.dimensions.len(),
+                "matrix dimension",
+                "matrix dimensions",
+            ),
+            plural(
+                matrix.compound_groups.len(),
+                "compound dimension",
+                "compound dimensions",
+            ),
+        ]
+        .join(" · ");
+
         Self {
             uuid: details.uuid,
             github_url,
@@ -207,22 +222,8 @@ impl TestPlanDetailsView {
             pool: details.pool,
             n_executions: matrix.n_executions,
             matrix_formula: matrix_formula_parts.join(" × "),
-            compound_groups: matrix
-                .compound_groups
-                .iter()
-                .map(|(name, entries)| CompoundGroupView {
-                    name: name.clone(),
-                    entries: entries
-                        .iter()
-                        .map(|group| {
-                            group
-                                .iter()
-                                .map(|(k, v)| (k.clone(), v.to_string()))
-                                .collect()
-                        })
-                        .collect(),
-                })
-                .collect(),
+            variables_summary,
+            compound_groups: matrix.compound_groups,
             environment: environment.map(EnvironmentDetailView::new),
             history_from_label: format_day(history.window.from),
             history_to_label: format_day(history.window.to - Duration::days(1)),
@@ -241,11 +242,7 @@ impl TestPlanDetailsView {
     pub fn js_data(&self) -> TestPlanDetailsJsData<'_> {
         TestPlanDetailsJsData {
             variables: &self.variables,
-            compound_groups: self
-                .compound_groups
-                .iter()
-                .map(|g| (g.name.clone(), g.entries.len()))
-                .collect(),
+            compound_groups: &self.compound_groups,
             history: &self.history,
         }
     }
@@ -308,7 +305,7 @@ mod tests {
     }
 
     #[test]
-    fn trigger_variable_view_ghost_text_for_a_scalar() {
+    fn trigger_variable_view_default_for_a_scalar() {
         let v = sample_variable(
             "message",
             Some(VariableValue::Scalar(Scalar::from("hello"))),
@@ -316,14 +313,12 @@ mod tests {
         );
         let view = TriggerVariableView::new(&v);
 
-        assert_eq!(view.ghost_text, "hello");
-        assert_eq!(view.full_values, vec!["hello".to_owned()]);
-        assert_eq!(view.full_values_multiline, "hello");
-        assert_eq!(view.allowed_values, None);
+        assert_eq!(view.default, vec![Scalar::from("hello")]);
+        assert_eq!(view.allowed, None);
     }
 
     #[test]
-    fn trigger_variable_view_ghost_text_for_a_dimension() {
+    fn trigger_variable_view_default_for_a_dimension() {
         let v = sample_variable(
             "region",
             Some(VariableValue::Dimension(vec![
@@ -334,8 +329,10 @@ mod tests {
         );
         let view = TriggerVariableView::new(&v);
 
-        assert_eq!(view.ghost_text, "us-east-1, eu-west-1");
-        assert_eq!(view.full_values_multiline, "us-east-1\neu-west-1");
+        assert_eq!(
+            view.default,
+            vec![Scalar::from("us-east-1"), Scalar::from("eu-west-1")]
+        );
     }
 
     #[test]
@@ -345,20 +342,19 @@ mod tests {
 
         let view = TriggerVariableView::new(&v);
 
-        assert_eq!(view.ghost_text, "5m");
+        assert_eq!(view.default, vec![Scalar::from("5m")]);
     }
 
     #[test]
-    fn trigger_variable_view_has_no_ghost_text_when_nothing_is_set_at_all() {
+    fn trigger_variable_view_has_no_default_when_nothing_is_set_at_all() {
         let v = sample_variable("needs_a_value", None, None);
         let view = TriggerVariableView::new(&v);
 
-        assert_eq!(view.ghost_text, "");
-        assert!(view.full_values.is_empty());
+        assert!(view.default.is_empty());
     }
 
     #[test]
-    fn trigger_variable_view_surfaces_allowed_values_as_strings() {
+    fn trigger_variable_view_surfaces_allowed_values() {
         let v = sample_variable(
             "tier",
             None,
@@ -367,8 +363,8 @@ mod tests {
         let view = TriggerVariableView::new(&v);
 
         assert_eq!(
-            view.allowed_values,
-            Some(vec!["free".to_owned(), "paid".to_owned()])
+            view.allowed,
+            Some(vec![Scalar::from("free"), Scalar::from("paid")])
         );
     }
 
@@ -397,23 +393,6 @@ mod tests {
 
         assert_eq!(view.sections, vec!["scenario", "environment"]);
         assert_eq!(view.description, "a");
-    }
-
-    #[test]
-    fn trigger_variable_view_is_selected_matches_current_values_only() {
-        let v = sample_variable(
-            "tier",
-            Some(VariableValue::Scalar(Scalar::from("paid"))),
-            Some(vec![
-                Scalar::from("free"),
-                Scalar::from("paid"),
-                Scalar::from("enterprise"),
-            ]),
-        );
-        let view = TriggerVariableView::new(&v);
-
-        assert!(view.is_selected("paid"));
-        assert!(!view.is_selected("free"));
     }
 
     #[test]
@@ -528,6 +507,31 @@ mod tests {
         let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
 
         assert_eq!(view.matrix_formula, "2 region × 2 colours × 3 subjects");
+    }
+
+    #[test]
+    fn test_plan_details_view_variables_summary_counts_compound_members_as_variables() {
+        let uuid = Uuid::from_u128(1);
+        let mut details = sample_details(uuid);
+        details.variables = vec![sample_variable("region", None, None)];
+        details.matrix.dimensions.insert(
+            "region".to_owned(),
+            vec![Scalar::from("a"), Scalar::from("b")],
+        );
+        details.matrix.compound_groups = BTreeMap::from([(
+            "subjects".to_owned(),
+            vec![BTreeMap::from([
+                ("setup".to_owned(), Scalar::from("x")),
+                ("scenario".to_owned(), Scalar::from("y")),
+            ])],
+        )]);
+
+        let view = TestPlanDetailsView::new(details, DEFAULT_DAYS_BACK, DEFAULT_DAYS);
+
+        assert_eq!(
+            view.variables_summary,
+            "3 variables · 1 matrix dimension · 1 compound dimension"
+        );
     }
 
     #[test]

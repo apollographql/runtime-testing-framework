@@ -215,6 +215,18 @@ pub fn test_plan_detail_trigger_error() -> TestPlanDetailTemplate {
     }
 }
 
+pub fn test_plan_detail_rerun() -> TestPlanDetailTemplate {
+    TestPlanDetailTemplate {
+        trigger_variables: json!({
+            "duration": "90s",
+            "tier": ["free", "paid"],
+            "colours": [{"background": "blue", "foreground": "red"}],
+        })
+        .to_string(),
+        ..test_plan_detail()
+    }
+}
+
 pub fn test_plan_detail_edit_error() -> TestPlanDetailTemplate {
     let plan = mocks::sample_known_test_plan(id(10));
     TestPlanDetailTemplate {
