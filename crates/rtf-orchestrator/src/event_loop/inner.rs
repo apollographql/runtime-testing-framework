@@ -9,7 +9,11 @@ use crate::{
 use rtf_orchestrator_shared::event_queue::{
     ClusterQueueState, EventSummary, PendingProvisionSummary, PoolQueueState, SnapshotSummary,
 };
-use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    sync::Arc,
+};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -32,10 +36,15 @@ pub(super) struct EventQueueInner {
     claims: HashMap<ClusterId, ClusterClaim>,
     /// Per-user execution limits per pool
     per_user_limits: HashMap<PoolId, PerUserExecutionConfig>,
+    /// State shared with the rest of the event loop, used to look up which run and user an
+    /// execution belongs to.
+    ///
+    /// Lock order: always take the lock on [EventQueueInner] before this one.
+    shared: Arc<Mutex<Shared>>,
 }
 
 impl EventQueueInner {
-    pub(super) fn new(cfg: &WorkloadClusters) -> Self {
+    pub(super) fn new(cfg: &WorkloadClusters, shared: Arc<Mutex<Shared>>) -> Self {
         Self {
             pending_non_provisions: VecDeque::new(),
             pending_provisions: HashMap::new(),
@@ -57,6 +66,7 @@ impl EventQueueInner {
                     Some((pool, limits))
                 })
                 .collect(),
+            shared,
         }
     }
 
@@ -67,6 +77,19 @@ impl EventQueueInner {
     pub(super) fn is_empty(&self) -> bool {
         self.pending_provisions.values().all(|q| q.is_empty())
             && self.pending_non_provisions.is_empty()
+    }
+
+    /// Build an [EventQueueInner] with its own [Shared] state.
+    ///
+    /// Note: The [Shared] state this creates isn't connected to any
+    /// [EventQueue](super::EventQueue). Tests that need the two to be wired
+    /// together should use [EventQueue::new](super::EventQueue::new) instead.
+    #[cfg(test)]
+    pub(super) fn for_test(cfg: &WorkloadClusters) -> Self {
+        Self::new(
+            cfg,
+            Arc::new(Mutex::new(Shared::new(cfg.max_queued_executions))),
+        )
     }
 
     pub(super) fn push_event(&mut self, evt: QueueEvent) {
@@ -80,10 +103,10 @@ impl EventQueueInner {
         }
     }
 
-    pub(super) fn next_event(&mut self, shared: &Shared) -> Option<Event> {
+    pub(super) async fn next_event(&mut self) -> Option<Event> {
         if let Some(evt) = self.pending_non_provisions.pop_front() {
             return Some(evt);
-        } else if let Some(evt) = self.runnable_provisioning_event(shared) {
+        } else if let Some(evt) = self.runnable_provisioning_event().await {
             self.insert_running_execution(evt.test_execution.uuid(), evt.cluster.clone());
             return Some(evt);
         }
@@ -96,7 +119,7 @@ impl EventQueueInner {
     ///
     /// Events within a pool are considered in order, but one that is waiting on a dedicated
     /// cluster does not block the events behind it.
-    pub(super) fn runnable_provisioning_event(&mut self, shared: &Shared) -> Option<Event> {
+    pub(super) async fn runnable_provisioning_event(&mut self) -> Option<Event> {
         for _ in 0..self.pool_provision_order.len() {
             let pool = self.pool_provision_order.front()?.clone();
             self.pool_provision_order.rotate_left(1);
@@ -106,12 +129,10 @@ impl EventQueueInner {
                 let pending = &self.pending_provisions[&pool][i];
                 let (run_uuid, requires_dedicated) = (pending.run_uuid, pending.requires_dedicated);
 
-                if self.user_at_max_concurrent_runs(
-                    shared,
-                    &pool,
-                    &pending.initiated_by_user,
-                    run_uuid,
-                ) {
+                if self
+                    .user_at_max_concurrent_runs(&pool, &pending.initiated_by_user, run_uuid)
+                    .await
+                {
                     continue;
                 }
 
@@ -131,9 +152,8 @@ impl EventQueueInner {
 
     /// Returns whether starting an execution of `run_uuid` would put `user` over
     /// their concurrent runs limit for `pool`.
-    fn user_at_max_concurrent_runs(
+    async fn user_at_max_concurrent_runs(
         &self,
-        shared: &Shared,
         pool: &PoolId,
         user: &UserType,
         run_uuid: Uuid,
@@ -148,7 +168,12 @@ impl EventQueueInner {
             .into_iter()
             .flatten()
             .flat_map(|cluster| self.execution_ids_for_cluster(cluster));
-        let ongoing_runs = shared.runs_initiated_by(running, user.user_identity().as_deref());
+        // Only hold the shared lock for as long as it takes to count the user's ongoing runs
+        let ongoing_runs = self
+            .shared
+            .lock()
+            .await
+            .runs_initiated_by(running, user.user_identity().as_deref());
 
         rate_limit::user_at_max_concurrent_runs(per_user, user, &ongoing_runs, run_uuid)
     }
@@ -527,7 +552,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_assign_balances_executions_across_the_clusters_in_a_pool() {
-        let mut inner = EventQueueInner::new(&two_cluster_pool(10, false));
+        let mut inner = EventQueueInner::for_test(&two_cluster_pool(10, false));
 
         assert_eq!(inner.try_assign_insert(), Some(resolve("a")));
         assert_eq!(inner.try_assign_insert(), Some(resolve("b")));
@@ -537,7 +562,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_assign_only_uses_clusters_with_capacity() {
-        let mut inner = EventQueueInner::new(&two_cluster_pool(1, false));
+        let mut inner = EventQueueInner::for_test(&two_cluster_pool(1, false));
         inner.insert_running_execution(Uuid::new_v4(), cluster_a());
 
         assert_eq!(inner.try_assign_insert(), Some(resolve("b")));
@@ -546,7 +571,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_assign_assigns_a_dedicated_run_to_a_single_cluster() {
-        let mut inner = EventQueueInner::new(&two_cluster_pool(2, true));
+        let mut inner = EventQueueInner::for_test(&two_cluster_pool(2, true));
         let run = Uuid::new_v4();
 
         assert_eq!(inner.try_assign_insert_dedicated(run), Some(acquire("a")));
@@ -567,7 +592,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_assign_respects_dedicated_clusters() {
-        let mut inner = EventQueueInner::new(&two_cluster_pool(10, true));
+        let mut inner = EventQueueInner::for_test(&two_cluster_pool(10, true));
         let run = Uuid::new_v4();
 
         assert_eq!(inner.try_assign_insert_dedicated(run), Some(acquire("a")));
@@ -580,7 +605,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_assign_respects_reservations() {
-        let mut inner = EventQueueInner::new(&two_cluster_pool(10, true));
+        let mut inner = EventQueueInner::for_test(&two_cluster_pool(10, true));
         let ex = Uuid::new_v4();
         let run = Uuid::new_v4();
 
@@ -602,7 +627,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_assign_reserves_multiple_clusters() {
-        let mut inner = EventQueueInner::new(&two_cluster_pool(10, true));
+        let mut inner = EventQueueInner::for_test(&two_cluster_pool(10, true));
 
         inner.insert_running_execution(Uuid::new_v4(), cluster_a());
         inner.insert_running_execution(Uuid::new_v4(), cluster_b());

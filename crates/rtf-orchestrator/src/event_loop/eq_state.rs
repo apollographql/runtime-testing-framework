@@ -211,8 +211,10 @@ impl EventQueueState {
     /// Returns `true` if the claim was successful, otherwise `false`.
     pub async fn try_reserve_pending_executions(&self, tp: &OrchestratorTestPlan) -> Option<Claim> {
         let n = tp.matrix.n_variants();
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
+        let inner = self.eq_inner.lock().await;
         let mut shared = self.shared.lock().await;
-        let queued = shared.n_queued + self.eq_inner.lock().await.n_pending_provisions();
+        let queued = shared.n_queued + inner.n_pending_provisions();
 
         if queued.saturating_add(n) <= shared.max_queued_executions {
             shared.n_queued += n;
@@ -279,8 +281,9 @@ impl EventQueueState {
         conn: &mut PgConnection,
     ) -> crate::Result<()> {
         // Lock everything to prevent further work being done while we purge state
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.eq_inner.lock().await;
+        let mut shared = self.shared.lock().await;
         let run_id = tr.uuid();
 
         let run = shared
@@ -313,8 +316,9 @@ impl EventQueueState {
         conn: &mut PgConnection,
     ) -> crate::Result<()> {
         // Lock everything to prevent further work being done while we purge state
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.eq_inner.lock().await;
+        let mut shared = self.shared.lock().await;
 
         if !shared.executions.contains_key(&ex.uuid()) {
             return Err(Error::ExecutionNotInFlight { id: ex.uuid() });

@@ -28,6 +28,15 @@ pub(super) struct Shared {
 }
 
 impl Shared {
+    pub(super) fn new(max_queued_executions: usize) -> Self {
+        Self {
+            runs: HashMap::new(),
+            executions: HashMap::new(),
+            max_queued_executions,
+            n_queued: 0,
+        }
+    }
+
     pub(super) fn run_and_workload_config(
         &self,
         ex_id: Uuid,

@@ -59,12 +59,8 @@ impl EventQueue {
         EventQueueState,
         UnboundedReceiver<ResolverInput>,
     ) {
-        let shared = Arc::new(Mutex::new(Shared {
-            runs: HashMap::new(),
-            executions: HashMap::new(),
-            max_queued_executions: cfg.max_queued_executions,
-            n_queued: 0,
-        }));
+        let shared = Arc::new(Mutex::new(Shared::new(cfg.max_queued_executions)));
+        let inner = Arc::new(Mutex::new(EventQueueInner::new(cfg, shared.clone())));
         let (tx_resolve, rx_resolve) = unbounded_channel();
         let (tx, rx) = unbounded_channel();
 
@@ -72,7 +68,7 @@ impl EventQueue {
             tx,
             rx,
             shared,
-            inner: Arc::new(Mutex::new(EventQueueInner::new(cfg))),
+            inner,
             tx_resolve: tx_resolve.clone(),
         };
 
@@ -102,11 +98,6 @@ impl EventQueue {
         F: FnOnce(&mut EventQueueInner) -> T,
     {
         f(&mut *self.inner.lock().await)
-    }
-
-    async fn next_inner_event(&self) -> Option<Event> {
-        let shared = self.shared.lock().await;
-        self.inner.lock().await.next_event(&shared)
     }
 
     pub async fn is_empty(&self) -> bool {
@@ -142,7 +133,7 @@ impl EventQueue {
                 }
             }
 
-            if let Some(evt) = self.next_inner_event().await {
+            if let Some(evt) = self.inner.lock().await.next_event().await {
                 return Some(evt);
             }
 
@@ -189,8 +180,9 @@ impl EventQueue {
         msg: String,
         conn: &mut impl UpdateHandle,
     ) {
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.inner.lock().await;
+        let mut shared = self.shared.lock().await;
 
         let mut aborted = inner.abort_pending_provisions_for(run_uuid);
         aborted.push(ex.clone());
@@ -365,8 +357,9 @@ impl EventQueue {
         recovered_runs: HashMap<Uuid, (TestRun, Vec<TestExecution>)>,
         conn: &mut impl UpdateHandle,
     ) {
-        let mut shared = self.shared.lock().await;
+        // Lock order: `inner` before `shared`, as `EventQueueInner` locks `shared` itself
         let mut inner = self.inner.lock().await;
+        let mut shared = self.shared.lock().await;
 
         let mut conflicting_runs = HashSet::new();
         for (cluster, claim) in inner.iter_claims() {
