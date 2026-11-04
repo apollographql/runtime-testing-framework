@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["RateLimitError"],"fn":["apply_rate_limits","check_queued_executions"]};
+window.SIDEBAR_ITEMS = {"enum":["RateLimitError"],"fn":["apply_rate_limits","check_queued_executions","user_at_max_concurrent_runs"]};
