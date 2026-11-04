@@ -23,7 +23,8 @@ test plan in an isolated Kubernetes namespace. This provides several advantages:
 - **Minimal local requirements**: the machine triggering the test run only needs to be able to
   submit the Test Plan to the Orchestrator, not run the services under test.
 - **Output storage**: logs and output artifacts are uploaded to GCS and can be retrieved by anyone
-  with access to the Orchestrator after the run completes.
+  with access to the Orchestrator after the run completes. Output is only
+  [retained for a limited time][9].
 - **Consistent environments**: every execution runs in an isolated namespace, giving far more
   consistent performance.
 - **Parallel matrix execution**: matrix dimensions run as independent executions managed by the
@@ -57,3 +58,4 @@ access, authenticate with GCP, and check that you are able to reach the Orchestr
 [6]: https://api.rtf.apollographql.com
 [7]: https://api.rtf.apollographql.com/ui
 [8]: ../../howto/orchestrator/getting-set-up.md
+[9]: ../../reference/orchestrator/limits-permissions-and-concepts.md#output-storage

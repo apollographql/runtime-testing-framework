@@ -50,6 +50,9 @@ On first use, the CLI opens a browser window to complete sign-in and caches the 
 
 ## Pulling output
 
+Output is only [retained for a limited time][13]; once it has expired, the commands that download or
+print it fail for the affected executions.
+
 | Subcommand         | Arguments                                       | Description                                                                 |
 | ------------------ | ----------------------------------------------- | --------------------------------------------------------------------------- |
 | `run-output`       | `<run-id>` `[--outdir <dir>]` `[--force]`       | Downloads the run summary, and each execution's `log.txt` and `output.zip`. |
@@ -100,3 +103,4 @@ See [Limits, permissions, and concepts][5] for who is able to cancel a run.
 [10]: ../glossary.md#trigger-payload
 [11]: ../glossary.md#workload-pool
 [12]: ../glossary.md#test-run-summary
+[13]: limits-permissions-and-concepts.md#output-storage

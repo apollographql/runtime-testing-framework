@@ -118,8 +118,13 @@ See [Working with the Orchestrator UI][5] for everything else the UI can do.
 ## Fetching output for a single execution
 
 Once our run is complete, we can use `rtf remote execution-output` to fetch the log and output zip
-for a specific execution. We can find the execution ID on the run's page in the Orchestrator UI, or
-by running `rtf remote run-status <run-id> --with-executions`.
+for a specific execution.
+
+> **Note**
+>
+> Output is only [retained for a limited time][13]. Fetch anything you want to keep promptly. We can
+> find the execution ID on the run's page in the Orchestrator UI, or by running
+> `rtf remote run-status <run-id> --with-executions`.
 
 ```bash
 rtf remote execution-output <execution-id>
@@ -202,3 +207,4 @@ to the Orchestrator, follow it through to completion, and fetch its results. To 
 [10]: ../../reference/glossary.md#trigger-payload
 [11]: ../../reference/glossary.md#test-run-summary
 [12]: ../../reference/glossary.md#test-run
+[13]: ../../reference/orchestrator/limits-permissions-and-concepts.md#output-storage

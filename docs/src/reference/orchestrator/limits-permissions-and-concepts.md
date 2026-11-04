@@ -82,6 +82,10 @@ Each Test Execution's `log.txt` and `output.zip` are stored in Google Cloud Stor
 available once the execution has finished. Downloads from the Orchestrator UI and the `rtf` CLI are
 served using time-limited signed URLs.
 
+Stored output is retained for 14 days. A [lifecycle policy][9] on the bucket deletes each object 14
+days after it was uploaded, after which the output can no longer be downloaded. Download any output
+you need to keep before then.
+
 ## Limitations
 
 - Known Test Plans must template without any Trigger Variable overrides.
@@ -104,3 +108,4 @@ served using time-limited signed URLs.
 [6]: internal-processes.md
 [7]: ../glossary.md#known-test-plan
 [8]: ../glossary.md#workload-pool
+[9]: https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/runtime-testing-framework/gcs.tf
