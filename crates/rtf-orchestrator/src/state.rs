@@ -40,7 +40,7 @@ impl ServerState {
 
 #[derive(Debug, Default, Clone)]
 pub struct UserClassifier {
-    /// Overrides [ServerState::admins] with a fixed list for tests, bypassing the admins file
+    /// Overrides [UserClassifier::admins] with a fixed list for tests, bypassing the admins file
     /// entirely so admin-gated endpoints can be exercised without touching the filesystem.
     /// `None` (the default) falls through to the file-based lookup.
     #[cfg(test)]
@@ -80,7 +80,7 @@ impl UserClassifier {
     }
 
     /// Rebuild a [UserType] from the identity string stored in the DB.
-    /// Inverse of  [UserType::user_identity].
+    /// Inverse of [UserType::user_identity].
     pub async fn user_type_from_identity(&self, identity: Option<&str>) -> Result<UserType> {
         let Some(id) = identity else {
             return Ok(UserType::Unknown);
@@ -100,7 +100,9 @@ impl UserClassifier {
             }
         }
 
-        // Use`admins` to tell a [UserType::Admin] from a [UserType::User] because both are stored as an email.
+        // Use `admins` to tell a [UserType::Admin] from a [UserType::User] because both are stored as an email.
+        // Someone removed from the admins file since the run was triggered is recovered as a
+        // [UserType::User] and becomes subject to per-user limits.
         if admins.iter().any(|a| a == id) {
             Ok(UserType::Admin(id.to_string()))
         } else {

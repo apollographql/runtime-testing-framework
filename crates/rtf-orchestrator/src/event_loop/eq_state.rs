@@ -474,7 +474,7 @@ mod tests {
                     let ex = TestExecution::create_stub(i as i32 + 1, 1, i, "test");
                     inner.push_event(QueueEvent::Provision(
                         PoolId::new(pool),
-                        PendingProvision::new(ex, Uuid::new_v4(), false),
+                        PendingProvision::new(ex, Uuid::new_v4(), false, UserType::Unknown),
                     ));
                 }
             })

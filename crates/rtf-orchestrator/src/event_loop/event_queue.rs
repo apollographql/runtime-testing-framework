@@ -252,7 +252,6 @@ impl EventQueue {
         cfg: &Config,
         conn: &mut PgConnection,
         user_classifier: UserClassifier,
-        // TODO Ellie: pass in server state
     ) -> crate::Result<()> {
         let cache = try_load_payload_cache(conn).await?;
 
