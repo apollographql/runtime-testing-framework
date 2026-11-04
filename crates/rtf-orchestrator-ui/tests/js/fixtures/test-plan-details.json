@@ -1,0 +1,75 @@
+{
+  "variables": [
+    {
+      "name": "duration",
+      "sections": [
+        "scenario"
+      ],
+      "description": "Main test duration",
+      "default": [
+        "60s"
+      ],
+      "allowed": null
+    },
+    {
+      "name": "region",
+      "sections": [
+        "environment"
+      ],
+      "description": "Where to run",
+      "default": [
+        "us-east-1",
+        "eu-west-1"
+      ],
+      "allowed": null
+    },
+    {
+      "name": "tier",
+      "sections": [
+        "environment"
+      ],
+      "description": "Service tier",
+      "default": [
+        "free"
+      ],
+      "allowed": [
+        "free",
+        "paid",
+        "enterprise"
+      ]
+    }
+  ],
+  "compound_groups": {
+    "colours": [
+      {
+        "background": "blue",
+        "foreground": "red"
+      },
+      {
+        "background": "white",
+        "foreground": "black"
+      }
+    ],
+    "subjects": [
+      {
+        "scenario_subject": "sailor",
+        "setup_subject": "world!"
+      },
+      {
+        "scenario_subject": "father",
+        "setup_subject": "mother"
+      }
+    ]
+  },
+  "history": {
+    "from": "1970-01-01T00:00:00Z",
+    "to": "1970-01-01T00:00:00Z",
+    "runs_by_day": {},
+    "execution_durations": {
+      "bins": [],
+      "min_secs": 0,
+      "max_secs": 0,
+      "total": 0
+    }
+  }
+}

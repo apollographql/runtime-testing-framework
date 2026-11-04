@@ -29,7 +29,8 @@ run = [
     "mise run pr-markdown",
     "mise run pr-doc-types",
     "mise run pr-helm-docs",
-    "mise run pr-test"
+    "mise run pr-test",
+    "mise run pr-js-test"
 ]
 
 [tasks.pr-clippy]
@@ -61,6 +62,11 @@ dir = "../../"
 [tasks.pr-test]
 run = "cargo test"
 
+[tasks.pr-js-test]
+run = "node --test 'crates/rtf-orchestrator-ui/tests/js/*.test.js'"
+dir = "../../"
+description = "Run the orchestrator UI's JS unit tests"
+
 [tasks.check-cargo-deny]
 run = "cd $(git rev-parse --show-toplevel) && cargo deny --exclude-dev check licenses advisories"
 
@@ -73,6 +79,7 @@ run = "cd $(git rev-parse --show-toplevel) && cargo deny --exclude-dev check lic
 dprint = "0.64.3"
 "helm-docs" = "1.14.2"
 mdbook = "0.5.4"
+node = "26.0.0"
 rust = "1.99.1"
 
 [env]

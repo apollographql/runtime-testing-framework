@@ -534,7 +534,7 @@
 {% if let Some(d) = details %}
 <script type="application/json" id="test-plan-details-data">{{ d.js_data()|json|safe }}</script>
 <script src="/ui/static/chart.min.js"></script>
-<script src="/ui/static/test-plan-detail.js"></script>
+<script type="module" src="/ui/static/test-plan-detail.js"></script>
 <script defer src="/ui/static/alpine.min.js"></script>
 {% endif %}
 

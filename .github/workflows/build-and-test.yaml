@@ -148,6 +148,19 @@ jobs:
         version: "v2026.9.2"
     - run: dprint check
 
+  test-ui-js:
+    name: Run the orchestrator UI's JS unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+      with:
+        # Installing every tool in mise.toml is slow, so install only what this job needs.
+        install_args: "node"
+        # renovate: datasource=github-releases depName=jdx/mise
+        version: "v2026.9.2"
+    - run: node --test 'crates/rtf-orchestrator-ui/tests/js/*.test.js'
+
   check-doc-types:
     name: Check documentation diataxis types
     runs-on: ubuntu-latest
