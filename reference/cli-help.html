@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-855d6f2c.js";
+            window.path_to_searchindex_js = "../searchindex-4a8b7199.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4d4c8e60.js"></script>
@@ -210,6 +210,7 @@
 <li><a href="#rtf-remote-execution-status"><code>rtf remote execution-status</code>↴</a></li>
 <li><a href="#rtf-remote-run-output"><code>rtf remote run-output</code>↴</a></li>
 <li><a href="#rtf-remote-run-status"><code>rtf remote run-status</code>↴</a></li>
+<li><a href="#rtf-remote-cancel-run"><code>rtf remote cancel-run</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -487,6 +488,7 @@
 <li><code>execution-status</code> — View the status summary for a single test execution</li>
 <li><code>run-output</code> — Pull output for all executions within a given test run</li>
 <li><code>run-status</code> — View the status summary for a test run</li>
+<li><code>cancel-run</code> — Cancel a test run</li>
 </ul>
 <h2 id="rtf-remote-prepare"><a class="header" href="#rtf-remote-prepare"><code>rtf remote prepare</code></a></h2>
 <p>Prepare a test plan for remote execution by the Orchestrator. Outputs an Orchestrator-compatible JSON payload with inlined relative files and custom providers</p>
@@ -672,6 +674,13 @@
 <p><code>--with-executions</code> — Include details of the underlying test executions in the summary</p>
 <p>Default value: <code>false</code></p>
 </li>
+</ul>
+<h2 id="rtf-remote-cancel-run"><a class="header" href="#rtf-remote-cancel-run"><code>rtf remote cancel-run</code></a></h2>
+<p>Cancel a test run</p>
+<p><strong>Usage:</strong> <code>rtf remote cancel-run &lt;ID&gt;</code></p>
+<h6 id="arguments-22"><a class="header" href="#arguments-22"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;ID&gt;</code> — ID of the Orchestrator test run you wish to cancel</li>
 </ul>
 <h2 id="rtf-version"><a class="header" href="#rtf-version"><code>rtf version</code></a></h2>
 <p>Display CLI version and exit</p>
