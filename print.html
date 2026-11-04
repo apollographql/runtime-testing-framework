@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-4a8b7199.js";
+            window.path_to_searchindex_js = "searchindex-d83904a2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-4d4c8e60.js"></script>
@@ -2343,7 +2343,8 @@ test plan in an isolated Kubernetes namespace. This provides several advantages:
 <li><strong>Minimal local requirements</strong>: the machine triggering the test run only needs to be able to
 submit the Test Plan to the Orchestrator, not run the services under test.</li>
 <li><strong>Output storage</strong>: logs and output artifacts are uploaded to GCS and can be retrieved by anyone
-with access to the Orchestrator after the run completes.</li>
+with access to the Orchestrator after the run completes. Output is only
+<a href="#output-storage">retained for a limited time</a>.</li>
 <li><strong>Consistent environments</strong>: every execution runs in an isolated namespace, giving far more
 consistent performance.</li>
 <li><strong>Parallel matrix execution</strong>: matrix dimensions run as independent executions managed by the
@@ -2587,8 +2588,13 @@ our Test Executions. Each execution links to its logs in GCP, its metrics in Gra
 <p>See <a href="#working-with-the-orchestrator-ui">Working with the Orchestrator UI</a> for everything else the UI can do.</p>
 <h2 id="fetching-output-for-a-single-execution"><a class="header" href="#fetching-output-for-a-single-execution">Fetching output for a single execution</a></h2>
 <p>Once our run is complete, we can use <code>rtf remote execution-output</code> to fetch the log and output zip
-for a specific execution. We can find the execution ID on the run’s page in the Orchestrator UI, or
-by running <code>rtf remote run-status &lt;run-id&gt; --with-executions</code>.</p>
+for a specific execution.</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Output is only <a href="#output-storage">retained for a limited time</a>. Fetch anything you want to keep promptly. We can
+find the execution ID on the run’s page in the Orchestrator UI, or by running
+<code>rtf remote run-status &lt;run-id&gt; --with-executions</code>.</p>
+</blockquote>
 <pre><code class="language-bash">rtf remote execution-output &lt;execution-id&gt;
 </code></pre>
 <p>This writes the following to a newly created <code>output/</code> directory by default:</p>
@@ -4371,6 +4377,8 @@ The list of executions can be filtered by status, and each execution provides li
 </ul>
 <p>To download the output for every execution in the run at once, select <strong>Download full run output</strong>
 and run the <code>rtf</code> command that it shows.</p>
+<p>Execution output is only <a href="#output-storage">retained for a limited time</a>, so these downloads stop working for older
+runs.</p>
 <h2 id="cancelling-and-re-running"><a class="header" href="#cancelling-and-re-running">Cancelling and re-running</a></h2>
 <p>To cancel a run, select <strong>Cancel run</strong> on the run’s page and confirm. This button is only shown on
 runs that you started or that belong to a Known Test Plan that you own. Admins are able to cancel
@@ -6157,6 +6165,8 @@ on the local machine before submitting it.</li>
 </table>
 </div>
 <h2 id="pulling-output"><a class="header" href="#pulling-output">Pulling output</a></h2>
+<p>Output is only <a href="#output-storage">retained for a limited time</a>; once it has expired, the commands that download or
+print it fail for the affected executions.</p>
 <div class="table-wrapper">
 <table>
 <thead>
@@ -6341,6 +6351,9 @@ until capacity frees up.</p>
 <p>Each Test Execution’s <code>log.txt</code> and <code>output.zip</code> are stored in Google Cloud Storage and are
 available once the execution has finished. Downloads from the Orchestrator UI and the <code>rtf</code> CLI are
 served using time-limited signed URLs.</p>
+<p>Stored output is retained for 14 days. A <a href="https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/runtime-testing-framework/gcs.tf">lifecycle policy</a> on the bucket deletes each object 14
+days after it was uploaded, after which the output can no longer be downloaded. Download any output
+you need to keep before then.</p>
 <h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
 <ul>
 <li>Known Test Plans must template without any Trigger Variable overrides.</li>

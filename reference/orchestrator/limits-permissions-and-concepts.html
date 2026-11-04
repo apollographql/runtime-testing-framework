@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-4a8b7199.js";
+            window.path_to_searchindex_js = "../../searchindex-d83904a2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -271,6 +271,9 @@ until capacity frees up.</p>
 <p>Each Test Execution’s <code>log.txt</code> and <code>output.zip</code> are stored in Google Cloud Storage and are
 available once the execution has finished. Downloads from the Orchestrator UI and the <code>rtf</code> CLI are
 served using time-limited signed URLs.</p>
+<p>Stored output is retained for 14 days. A <a href="https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/runtime-testing-framework/gcs.tf">lifecycle policy</a> on the bucket deletes each object 14
+days after it was uploaded, after which the output can no longer be downloaded. Download any output
+you need to keep before then.</p>
 <h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
 <ul>
 <li>Known Test Plans must template without any Trigger Variable overrides.</li>

@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-4a8b7199.js";
+            window.path_to_searchindex_js = "../../searchindex-d83904a2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -275,8 +275,13 @@ our Test Executions. Each execution links to its logs in GCP, its metrics in Gra
 <p>See <a href="../../howto/orchestrator/orchestrator-ui.html">Working with the Orchestrator UI</a> for everything else the UI can do.</p>
 <h2 id="fetching-output-for-a-single-execution"><a class="header" href="#fetching-output-for-a-single-execution">Fetching output for a single execution</a></h2>
 <p>Once our run is complete, we can use <code>rtf remote execution-output</code> to fetch the log and output zip
-for a specific execution. We can find the execution ID on the run’s page in the Orchestrator UI, or
-by running <code>rtf remote run-status &lt;run-id&gt; --with-executions</code>.</p>
+for a specific execution.</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>Output is only <a href="../../reference/orchestrator/limits-permissions-and-concepts.html#output-storage">retained for a limited time</a>. Fetch anything you want to keep promptly. We can
+find the execution ID on the run’s page in the Orchestrator UI, or by running
+<code>rtf remote run-status &lt;run-id&gt; --with-executions</code>.</p>
+</blockquote>
 <pre><code class="language-bash">rtf remote execution-output &lt;execution-id&gt;
 </code></pre>
 <p>This writes the following to a newly created <code>output/</code> directory by default:</p>

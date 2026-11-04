@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-4a8b7199.js";
+            window.path_to_searchindex_js = "../../searchindex-d83904a2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -197,7 +197,8 @@ test plan in an isolated Kubernetes namespace. This provides several advantages:
 <li><strong>Minimal local requirements</strong>: the machine triggering the test run only needs to be able to
 submit the Test Plan to the Orchestrator, not run the services under test.</li>
 <li><strong>Output storage</strong>: logs and output artifacts are uploaded to GCS and can be retrieved by anyone
-with access to the Orchestrator after the run completes.</li>
+with access to the Orchestrator after the run completes. Output is only
+<a href="../../reference/orchestrator/limits-permissions-and-concepts.html#output-storage">retained for a limited time</a>.</li>
 <li><strong>Consistent environments</strong>: every execution runs in an isolated namespace, giving far more
 consistent performance.</li>
 <li><strong>Parallel matrix execution</strong>: matrix dimensions run as independent executions managed by the
