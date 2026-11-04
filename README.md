@@ -1,16 +1,31 @@
 # The Apollo Runtime Testing Framework
 
-This repository contains the `rtf` command line tool and `orchestrator` service along with
-supporting crates and example Test Plans.
-
-The user facing documentation can be viewed in GitHub Pages [here][0].
-
 ### Project status
 
 While this tool may be of interest to users outside of Apollo, it should be noted that RTF is an
 Apollo internal tool and not a supported Apollo product.
 
 Please refer to the `LICENSE` file in the root of the repo for further information.
+
+### Overview
+
+RTF makes it easy to develop and debug tests that need more resources than you have available on
+your local machine. Tests are written as declarative Test Plans that describe the services under
+test (the Environment), the test itself (the Scenario), and the files and data both of them need.
+
+RTF supports two execution modes:
+
+- **Locally**, using the `rtf` CLI and Docker Compose, allowing for quick iteration when writing
+  tests on a laptop.
+- **At scale**, using the RTF Orchestrator, which runs each Test Plan variant in its own ephemeral
+  Kubernetes namespace with production-like resources.
+
+For more background, see the blog posts introducing [Apollo's Runtime Testing Framework][4] and
+describing how we use it to [know a Router performance result is real][5].
+
+This repository contains the `rtf` command line tool and `orchestrator` service along with
+supporting crates and example Test Plans. The user facing documentation can be viewed in GitHub
+Pages [here][0].
 
 ### Contributing to RTF as an Apollo Engineer
 
@@ -43,11 +58,6 @@ Once that completes you should be able to run `rtf` in your terminal and see the
 more details on getting started with `rtf` please refer to the [docs][0], the source of which are
 written using [mdbook][3] in the [docs](./docs) directory.
 
-[0]: https://apollographql.github.io/runtime-testing-framework
-[1]: https://apollographql.github.io/runtime-testing-framework/developer/explanation/index.html
-[2]: https://mise.jdx.dev/getting-started.html
-[3]: https://rust-lang.github.io/mdBook/index.html
-
 ### Adding the rtf-bot (Apollo Marvin) to your repository
 
 [This link](https://github.com/apps/apollo-marvin/installations/126130299) takes you to the page
@@ -55,3 +65,10 @@ that allows you to configure Apollo Marvin's repository access. You can also nav
 by going to
 [the settings of the runtime-testing-framework repo](https://github.com/apollographql/runtime-testing-framework/settings)
 -> Integrations (GitHub Apps) and then clicking "Configure" next to the Apollo Marvin app.
+
+[0]: https://apollographql.github.io/runtime-testing-framework
+[1]: https://apollographql.github.io/runtime-testing-framework/developer/explanation/index.html
+[2]: https://mise.jdx.dev/getting-started.html
+[3]: https://rust-lang.github.io/mdBook/index.html
+[4]: https://www.apollographql.com/blog/apollos-runtime-testing-framework
+[5]: https://www.apollographql.com/blog/how-we-know-a-router-performance-result-is-real

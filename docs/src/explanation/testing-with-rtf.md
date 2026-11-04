@@ -5,16 +5,19 @@
 Before diving in, it's worth being precise about what RTF actually is — because it's easy to mistake
 it for something it isn't.
 
-RTF is a framework for **building and reproducing complex integrated environments**. It handles
-spinning up services, resolving credentials, pulling in parameterised test data, and tearing
-everything down cleanly afterwards. What it is _not_ is a framework for writing tests. RTF doesn't
-provide assertions, test runners, or anything that touches the logic of your test scenarios — that
-part is entirely up to you and your existing tooling.
+RTF makes it easy to **develop and debug tests that need more resources than you have available on
+your local machine**. You iterate on a [Test Plan][3] locally, then run the same Test Plan at scale
+in production-like environments. RTF handles spinning up services, resolving credentials, pulling in
+parameterised test data, collecting results, and tearing everything down cleanly afterwards.
 
-This distinction matters. The value RTF provides is reliability and repeatability at the
-_environment_ level: the confidence that every time you run a [Test Plan][3], the services under
-test are in the same known-good state, with the same data, in the same configuration. See
-[Understanding RTF][0] for more on the design philosophy behind this.
+What RTF doesn't do is replace the tooling you already use to write the tests themselves. RTF
+doesn't provide assertions, test runners, or anything that touches the logic of your test scenarios.
+That part is entirely up to you, using whichever tools you prefer.
+
+This distinction matters. The value RTF provides is in reliability and repeatability around your
+tests: the confidence that every time you run a Test Plan, whether on your machine or at scale, the
+services under test are in the same known-good state, with the same data, in the same configuration.
+See the [Overview][0] for more on the design philosophy behind this.
 
 A further benefit of this approach is consistency. When [Environments][4] and Test Plans are defined
 in RTF, they can be shared, reviewed, and reproduced by any team — whether that's another
