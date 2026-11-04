@@ -36,6 +36,7 @@
 {% endmacro %}
 
 {% macro run_list_table(list) %}
+<div class="card">
 <table>
     <thead>
         <tr>
@@ -64,4 +65,5 @@
     </tbody>
 </table>
 {% call pagination_footer(list) %}{% endcall %}
+</div>
 {% endmacro %}

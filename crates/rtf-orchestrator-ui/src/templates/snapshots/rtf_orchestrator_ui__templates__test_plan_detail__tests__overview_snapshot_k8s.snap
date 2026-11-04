@@ -10,29 +10,16 @@ expression: "render_fragment!(preview::test_plan_detail_k8s().as_overview())"
         <section class="banner">
             <h2>Overview</h2>
             <dl>
-                <dt>Number of executions per run</dt>
+                <dt>Executions per run at test plan defaults</dt>
                 <dd id="stat-executions">8</dd>
                 <dd class="muted" id="stat-formula">2 region × 2 colours × 2 subjects</dd>
 
-                
-                
-                
-                
+                <dt>Variables</dt>
+                <dd>7 variables · 1 matrix dimension · 2 compound dimensions</dd>
 
                 
-                <dt>colours (fixed &mdash; not alterable per trigger)
-                    <span class="hint" title="This dimension can't be edited via the fields below. To change its entries, or move one of its variables into or out of it, edit the raw variables JSON directly.">?</span>
-                </dt>
-                <dd>
-                    background: blue &middot; foreground: red; background: white &middot; foreground: black
-                </dd>
                 
-                <dt>subjects (fixed &mdash; not alterable per trigger)
-                    <span class="hint" title="This dimension can't be edited via the fields below. To change its entries, or move one of its variables into or out of it, edit the raw variables JSON directly.">?</span>
-                </dt>
-                <dd>
-                    scenario_subject: sailor &middot; setup_subject: world!; scenario_subject: father &middot; setup_subject: mother
-                </dd>
+                
                 
             </dl>
         </section>

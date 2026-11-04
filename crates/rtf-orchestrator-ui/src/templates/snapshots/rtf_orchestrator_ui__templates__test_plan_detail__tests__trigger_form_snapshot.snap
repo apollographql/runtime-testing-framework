@@ -13,139 +13,86 @@ expression: "render_fragment!(preview::test_plan_detail().as_trigger_form())"
 
 
 
+<section class="card" id="trigger-section">
+    <form method="get" action="/ui/test-plan/00000000-0000-0000-0000-00000000000a" class="ref-row">
+        <input type="hidden" name="days_back" value="30" />
+        <input type="hidden" name="days" value="30" />
+        <label for="ref-preview"><strong>Ref</strong></label>
+        <input id="ref-preview" name="trigger_ref" type="text" placeholder="main" value="" size="32" />
+        <button type="submit" class="secondary">Load ref</button>
+        <span class="muted">Branch, tag or SHA (defaults to the default branch). Variables and defaults below come from this ref.</span>
+    </form>
+
+    <div id="load-banner"></div>
+
+    <div class="sub-head">
+        <h3>Changed variables</h3>
+        <span class="muted" id="changed-count"></span>
+    </div>
+    <div id="overrides"></div>
+    <div class="add-var-row">
+        <div class="picker-wrap">
+            <button type="button" class="secondary" id="add-var">+ Change a variable</button>
+            <div class="picker" id="picker" hidden>
+                <input id="picker-q" type="search" placeholder="Search variables by name or description" autocomplete="off" aria-label="Search variables" />
+                <ul id="picker-list"></ul>
+            </div>
+        </div>
+        <span class="muted">Add several values to run a variable as a matrix dimension.</span>
+    </div>
+
+    <div class="sub-head">
+        <h3>Compound dimensions</h3>
+        <span class="muted">Variables that vary together &mdash; only the listed combinations run.</span>
+    </div>
+    <div id="groups"></div>
+    <div id="new-group-slot"></div>
+    <button type="button" class="secondary" id="new-group-btn">+ New compound dimension</button>
+
+    <details id="defaults" style="margin-top:1.4rem">
+        <summary>Using test plan defaults <span class="muted" id="defaults-count"></span></summary>
+        <table class="defaults-table">
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="defaults-body"></tbody>
+        </table>
+    </details>
+
+    <details id="raw-variables" style="margin-top:0.75rem">
+        <summary>Raw variables JSON</summary>
+        <p class="muted" style="margin-bottom:0.3rem;">Generated from the form and submitted as-is. Edit and apply to load JSON into the form (e.g. copied from a previous run).</p>
+        <textarea id="variables" name="variables" form="trigger-form" rows="9"></textarea>
+        <p style="margin:0.4rem 0 0"><button type="button" class="secondary" id="apply-json">Apply JSON to form</button> <span id="json-error" class="trigger-problems"></span></p>
+    </details>
+</section>
+
 <form method="post" action="/ui/test-plan/00000000-0000-0000-0000-00000000000a/trigger" id="trigger-form">
-    <p class="trigger-actions">
-        <button type="submit" class="primary" id="trigger-btn" >Trigger <span id="trigger-count">8</span> executions</button>
-        <span class="muted">Runs every variable at its current value below unless you customize it.</span>
-    </p>
     <input type="hidden" name="ref" value="" />
     <input type="hidden" name="days_back" value="30" />
     <input type="hidden" name="days" value="30" />
 </form>
 
-<details id="customize-trigger" class="card" >
-    <summary>Customize ref &amp; variables</summary>
-
-    <form method="get" action="/ui/test-plan/00000000-0000-0000-0000-00000000000a">
-        <input type="hidden" name="days_back" value="30" />
-        <input type="hidden" name="days" value="30" />
-        <p>
-            <label for="ref-preview">Ref <span class="muted">(optional &mdash; branch, tag, or SHA; defaults
-                    to the default branch)</span></label><br>
-            <input id="ref-preview" name="trigger_ref" type="text" placeholder="main" value="" size="40" />
-            <button type="submit">Preview</button>
-        </p>
-    </form>
-
-    <p class="muted">Leave a field blank to run it at the current value shown as ghost text
-        &mdash; if that's cut off, use the button beside a field to see and copy the full value.
-        Enter a single value to fix it, or a comma-separated list to run it as a matrix dimension
-        &mdash; any variable can be either.</p>
-
-    <div id="all-vars" class="var-field-grid">
-        
-        <div class="var-field">
-            <label for="var-duration">
-                <code>duration</code>
-                
-                <span class="muted">(scenario)</span>
-                
-                <button type="button" class="copy-btn" popovertarget="value-popover-duration"
-                    data-copy="60s" aria-label="View and copy current value of duration"
-                    title="View and copy full current value">
-                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
-                        stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"></path>
-                        <circle cx="8" cy="8" r="2"></circle>
-                    </svg>
-                </button>
-            </label><br>
-            
-            <span class="muted">Main test duration</span><br>
-            
-            
-            <input type="text" id="var-duration" data-var-name="duration" placeholder="60s" />
-            
-            <div id="value-popover-duration" popover>
-                <p class="muted" style="margin-top:0;">Current value of <code>duration</code></p>
-                <pre><code>60s</code></pre>
-                <p><button type="button" popovertarget="value-popover-duration" popovertargetaction="hide">Close</button></p>
-            </div>
-        </div>
-        
-        <div class="var-field">
-            <label for="var-region">
-                <code>region</code>
-                
-                <span class="muted">(environment)</span>
-                
-                <button type="button" class="copy-btn" popovertarget="value-popover-region"
-                    data-copy="us-east-1, eu-west-1" aria-label="View and copy current value of region"
-                    title="View and copy full current value">
-                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
-                        stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"></path>
-                        <circle cx="8" cy="8" r="2"></circle>
-                    </svg>
-                </button>
-            </label><br>
-            
-            <span class="muted">Where to run</span><br>
-            
-            
-            <input type="text" id="var-region" data-var-name="region" placeholder="us-east-1, eu-west-1" />
-            
-            <div id="value-popover-region" popover>
-                <p class="muted" style="margin-top:0;">Current value of <code>region</code></p>
-                <pre><code>us-east-1
-eu-west-1</code></pre>
-                <p><button type="button" popovertarget="value-popover-region" popovertargetaction="hide">Close</button></p>
-            </div>
-        </div>
-        
-        <div class="var-field">
-            <label for="var-tier">
-                <code>tier</code>
-                
-                <span class="muted">(environment)</span>
-                
-                <button type="button" class="copy-btn" popovertarget="value-popover-tier"
-                    data-copy="free" aria-label="View and copy current value of tier"
-                    title="View and copy full current value">
-                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
-                        stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"></path>
-                        <circle cx="8" cy="8" r="2"></circle>
-                    </svg>
-                </button>
-            </label><br>
-            
-            <span class="muted">Service tier</span><br>
-            
-            
-            <select multiple id="var-tier" data-var-name="tier">
-                
-                <option value="free" selected>free</option>
-                
-                <option value="paid" >paid</option>
-                
-                <option value="enterprise" >enterprise</option>
-                
-            </select>
-            
-            <div id="value-popover-tier" popover>
-                <p class="muted" style="margin-top:0;">Current value of <code>tier</code></p>
-                <pre><code>free</code></pre>
-                <p><button type="button" popovertarget="value-popover-tier" popovertargetaction="hide">Close</button></p>
-            </div>
-        </div>
-        
+<div class="trigger-bar">
+    <div class="trigger-bar__inner">
+        <div><span class="trigger-bar__count" id="trigger-total">8</span> executions<br><span class="muted" id="trigger-formula">2 region × 2 colours × 2 subjects</span></div>
+        <div class="trigger-problems" id="trigger-problems"></div>
+        <span class="spacer"></span>
+        <button type="button" class="secondary" id="variants-btn">Preview executions</button>
+        <button type="submit" form="trigger-form" class="primary" id="trigger-btn" >Trigger <span id="trigger-count">8</span> executions</button>
     </div>
+</div>
 
-    <details >
-        <summary>Advanced: raw variables JSON</summary>
-        <p class="muted" style="margin-bottom:0.3rem;">Auto-generated from the fields above &mdash;
-            edit directly for anything not covered by them.</p>
-        <textarea id="variables" name="variables" form="trigger-form" rows="6" cols="60" ></textarea>
-    </details>
-</details>
+<dialog id="variants-dialog">
+    <h3 id="variants-title"></h3>
+    <p class="muted" id="variants-sub"></p>
+    <div class="dialog-scroll"><table id="variants-table"></table></div>
+    <div class="dialog-actions"><button type="button" class="secondary" data-close-dialog>Close</button></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>

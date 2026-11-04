@@ -96,6 +96,7 @@
     </section>
 
     <h3>Status breakdown</h3>
+    <div class="card">
     <table>
         <thead>
             <tr>
@@ -112,6 +113,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 
     <h3>Executions ({{ run.total_executions }})</h3>
     <form method="get" action="/ui/run/{{ run.id }}">

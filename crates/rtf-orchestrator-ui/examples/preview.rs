@@ -59,6 +59,10 @@ const PAGES: &[(&str, &str)] = &[
         "Known test plan — detail, resubmitted trigger with invalid JSON",
     ),
     (
+        "/ui/test-plan/detail/rerun",
+        "Known test plan — detail, trigger form pre-filled from a Re-run link",
+    ),
+    (
         "/ui/test-plan/detail/edit-error",
         "Known test plan — detail, rejected edit and failed workload pool listing, viewed as an admin",
     ),
@@ -123,6 +127,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/ui/test-plan/detail/trigger-error",
             get(|| async { render(preview::test_plan_detail_trigger_error()) }),
+        )
+        .route(
+            "/ui/test-plan/detail/rerun",
+            get(|| async { render(preview::test_plan_detail_rerun()) }),
         )
         .route(
             "/ui/test-plan/detail/edit-error",
