@@ -43,12 +43,7 @@ pub async fn prepare_scenario(
 ) -> crate::Result<()> {
     let paths = SharedPaths::new(shared_dir);
 
-    info_status!(
-        ctx,
-        Status::EnvironmentReady,
-        "resolving scenario configuration"
-    )?;
-
+    info_status!(ctx, Status::Running, "resolving scenario configuration")?;
     let cfg_bytes = ctx.orchestrator_client().fetch_scenario_config().await?;
     let cfg_path = &temp_dir().join("scenario.yaml");
     ctx.write_file(cfg_path, &cfg_bytes)?;

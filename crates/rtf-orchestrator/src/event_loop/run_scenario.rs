@@ -91,7 +91,7 @@ where
     let namespace = execution_id.to_string();
 
     info!(%execution_id, "waiting for scenario job to complete");
-    conn.mark_execution_as_environment_ready(&test_execution, MSG_JOB_WAIT.to_string())
+    conn.mark_execution_as_running(&test_execution, MSG_JOB_WAIT.to_string())
         .await;
 
     tokio::spawn(async move {
@@ -231,7 +231,7 @@ mod tests {
             &[
                 TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_CREATE_JOB)),
                 TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_JOB_CREATED)),
-                TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_JOB_WAIT)),
+                TaggedStatusUpdate::execution(1, Running, Some(MSG_JOB_WAIT)),
             ]
         );
     }

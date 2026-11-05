@@ -349,6 +349,21 @@ pub trait UpdateHandle: Send + Sync {
         }
     }
 
+    fn mark_execution_as_running(
+        &mut self,
+        ex: &TestExecution,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_execution_status(ex, Status::Running, Some(message))
+                .await
+            {
+                error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as running");
+            }
+        }
+    }
+
     fn mark_execution_as_unrunnable(
         &mut self,
         ex: &TestExecution,
