@@ -91,7 +91,7 @@
 <a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">let </span>namespace = execution_id.to_string();
 <a href=#92 id=92 data-nosnippet>92</a>
 <a href=#93 id=93 data-nosnippet>93</a>    <span class="macro">info!</span>(%execution_id, <span class="string">"waiting for scenario job to complete"</span>);
-<a href=#94 id=94 data-nosnippet>94</a>    conn.mark_execution_as_environment_ready(<span class="kw-2">&amp;</span>test_execution, MSG_JOB_WAIT.to_string())
+<a href=#94 id=94 data-nosnippet>94</a>    conn.mark_execution_as_running(<span class="kw-2">&amp;</span>test_execution, MSG_JOB_WAIT.to_string())
 <a href=#95 id=95 data-nosnippet>95</a>        .<span class="kw">await</span>;
 <a href=#96 id=96 data-nosnippet>96</a>
 <a href=#97 id=97 data-nosnippet>97</a>    tokio::spawn(<span class="kw">async move </span>{
@@ -231,7 +231,7 @@
 <a href=#231 id=231 data-nosnippet>231</a>            <span class="kw-2">&amp;</span>[
 <a href=#232 id=232 data-nosnippet>232</a>                TaggedStatusUpdate::execution(<span class="number">1</span>, EnvironmentReady, <span class="prelude-val">Some</span>(MSG_CREATE_JOB)),
 <a href=#233 id=233 data-nosnippet>233</a>                TaggedStatusUpdate::execution(<span class="number">1</span>, EnvironmentReady, <span class="prelude-val">Some</span>(MSG_JOB_CREATED)),
-<a href=#234 id=234 data-nosnippet>234</a>                TaggedStatusUpdate::execution(<span class="number">1</span>, EnvironmentReady, <span class="prelude-val">Some</span>(MSG_JOB_WAIT)),
+<a href=#234 id=234 data-nosnippet>234</a>                TaggedStatusUpdate::execution(<span class="number">1</span>, Running, <span class="prelude-val">Some</span>(MSG_JOB_WAIT)),
 <a href=#235 id=235 data-nosnippet>235</a>            ]
 <a href=#236 id=236 data-nosnippet>236</a>        );
 <a href=#237 id=237 data-nosnippet>237</a>    }
