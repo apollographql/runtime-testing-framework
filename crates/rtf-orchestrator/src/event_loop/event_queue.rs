@@ -486,8 +486,22 @@ impl EventQueue {
                 }
             },
 
-            // Scenario in progress, so re-attach the k8s watcher and wait for it to complete.
-            Status::Running => vec![EventData::WaitForScenarioJob],
+            // The scenario is already progress, so we re-resolve config to account for test plans
+            // that expect / tolerate pod restarts in the environment and re-attach the k8s watcher
+            // to wait for it to complete.
+            // Re-resolving config here is also required to ensure that we uphold the expected
+            // internal cache state within the event queue, as we only the execution config from
+            // cache when an execution enters a terminal state.
+            Status::Running => match h.resolve_and_cache_config(ex).await {
+                Ok(_) => vec![EventData::WaitForScenarioJob],
+                Err(e) => {
+                    warn!(%ex_uuid, %e, "failed to resolve config for in-flight Running execution");
+                    vec![
+                        EventData::MarkUnrunnable(e.to_string()),
+                        EventData::CleanupNamespace,
+                    ]
+                }
+            },
         };
 
         Ok(Some(
@@ -1219,7 +1233,7 @@ mod tests {
     #[test_case(Status::Resolving, true, false, false, Some(EventData::ResolveConfig); "resolving")]
     #[test_case(Status::Provisioning, true, true, true, Some(EventData::CreateEnvArgoWorkflow); "provisioning")]
     #[test_case(Status::EnvironmentReady, true, true, true, Some(EventData::CreateScenarioJob); "environment ready")]
-    #[test_case(Status::Running, true, true, false, Some(EventData::WaitForScenarioJob); "running")]
+    #[test_case(Status::Running, true, true, true, Some(EventData::WaitForScenarioJob); "running")]
     #[test_case(Status::Successful, false, false, false, None; "successful")]
     #[test_case(Status::Failed, false, false, false, None; "failed")]
     #[test_case(Status::Unrunnable, false, false, false, None; "unrunnable")]

@@ -105,10 +105,6 @@ pub trait CliContext {
     fn execution_namespace(&self) -> &str;
 
     /// Run an orchestration shell [Command] to completion.
-    ///
-    /// Logs the command arguments before running. On failure, logs captured stderr and returns a
-    /// [Status::Unrunnable] error — every caller is an orchestration subroutine, so there is no
-    /// distinction between "setup failed" and "user scenario failed" here.
     fn run_shell(&self, cmd: &mut Command) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Read the file at `path` as UTF-8.
@@ -281,6 +277,11 @@ impl CliContext for EnvironmentContext {
 
 async fn run_shell(cmd: &mut Command) -> crate::Result<()> {
     info!("running {cmd:?}");
+
+    // Redirect stderr to stdout so we don't accidentally produce output on stderr which GCP will
+    // pick up as error logging. We're not making use of the output ourselves so we're fine with
+    // interleaving the streams like this.
+    cmd.stderr(io::stdout());
 
     let exit_status = cmd.status().map_err(|source| ShellError::Spawn {
         cmd: format!("{cmd:?}"),

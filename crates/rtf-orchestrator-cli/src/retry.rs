@@ -3,7 +3,7 @@ use rand::RngExt;
 use reqwest::StatusCode;
 use std::{fmt::Display, future::Future, time::Duration};
 use tokio::time::sleep;
-use tracing::warn;
+use tracing::{error, warn};
 
 const INITIAL_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_RETRIES: u32 = 5;
@@ -95,7 +95,10 @@ impl RetryConfig {
                     sleep(delay).await;
                 }
 
-                Err(Failure { error, .. }) => return Err(error),
+                Err(Failure { error, .. }) => {
+                    error!("request failed: {error}");
+                    return Err(error);
+                }
             }
         }
     }
