@@ -140,14 +140,6 @@ impl<M: ValidateEnvironment + NamedManifestFiles> ManifestEnvironment<M> {
         Ok(paths)
     }
 
-    pub fn manifest_urls(&self, ctx: &impl ResolutionContext) -> HashMap<String, Option<String>> {
-        self.resources
-            .manifest_files()
-            .iter()
-            .map(|ncfp| (ncfp.name.clone(), ncfp.provider.github_permalink(ctx)))
-            .collect()
-    }
-
     /// Summarise each manifest provider without reading its content, in provider order.
     ///
     /// Safe to call on a partially templated environment: providers that still depend on

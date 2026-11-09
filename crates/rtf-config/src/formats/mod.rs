@@ -15,7 +15,7 @@ pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::{
     ComposeResources, DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution,
     EnvironmentPrepare, EnvironmentService, FileProviderServices, K8sEnvironment, K8sResources,
-    ManifestEnvironment, NamedManifestFiles, NullEnvironment, PullPolicyServices,
+    ManifestEnvironment, ManifestSummary, NamedManifestFiles, NullEnvironment, PullPolicyServices,
     ScriptEnvironment, ServiceReplicas,
 };
 pub use execution::{Generic, Prepare, PrepareOnly, Run};

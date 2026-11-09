@@ -32,7 +32,7 @@ pub use docker_compose::{
     PullPolicyServices, ServiceReplicas,
 };
 pub use k8s::{K8sEnvironment, K8sResources};
-pub use manifest::{ManifestEnvironment, NamedManifestFiles};
+pub use manifest::{ManifestEnvironment, ManifestSummary, NamedManifestFiles};
 pub use null::NullEnvironment;
 pub use script::ScriptEnvironment;
 

@@ -4,8 +4,7 @@ use chrono::{DateTime, Days, NaiveDate, NaiveTime, Utc};
 use rtf_config::{
     StableSource, VariableDefinition,
     context::ResolutionContext,
-    formats::{self, EnvironmentService, Matrix, ServiceReplicas},
-    inlining,
+    formats::{self, ManifestSummary, Matrix},
     templating::{self, Scalar, Template, TemplateContext},
 };
 use serde::{Deserialize, Serialize};
@@ -271,48 +270,73 @@ impl MatrixSummary {
 #[derive(Debug)]
 pub enum EnvironmentSummaryError {
     Formats(formats::Error),
-    Inlining(inlining::Errors),
     Templating(templating::Errors),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EnvironmentSummary {
-    DockerCompose(ComposeEnvironmentSummary),
-    K8s(K8sEnvironmentSummary),
+    DockerCompose(ManifestEnvironmentSummary),
+    K8s(ManifestEnvironmentSummary),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ComposeEnvironmentSummary {
-    pub services: Vec<EnvironmentService>,
-    pub has_variable_replicas: bool,
-    pub services_vary_by_matrix: bool,
+pub struct ManifestEnvironmentSummary {
+    /// In provider order, which is the order docker compose merges files in.
+    pub manifests: Vec<ManifestEntry>,
+    pub manifests_vary_by_matrix: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_for_variant: Option<String>,
 }
 
-impl ComposeEnvironmentSummary {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ManifestEntry {
+    Resolved(ManifestLocation),
+    Unresolved(UnresolvedManifest),
+}
+
+impl ManifestEnvironmentSummary {
     fn new(
-        services: Vec<EnvironmentService>,
-        services_vary_by_matrix: bool,
+        summaries: Vec<ManifestSummary>,
+        config_file_url: &str,
+        manifests_vary_by_matrix: bool,
         resolved_for_variant: Option<String>,
     ) -> Self {
+        let manifests = summaries
+            .into_iter()
+            .map(|summary| match summary {
+                ManifestSummary::Resolved {
+                    name,
+                    url: Some(url),
+                } => ManifestEntry::Resolved(ManifestLocation::gh(name, url)),
+
+                ManifestSummary::Resolved { name, url: None } => {
+                    ManifestEntry::Resolved(ManifestLocation::inline(name, config_file_url))
+                }
+
+                ManifestSummary::Unresolved {
+                    name,
+                    required_variables,
+                } => ManifestEntry::Unresolved(UnresolvedManifest {
+                    name,
+                    required_variables,
+                }),
+            })
+            .collect();
+
         Self {
-            has_variable_replicas: services
-                .iter()
-                .any(|s| !matches!(s.replicas, ServiceReplicas::Fixed(_))),
-            services,
-            services_vary_by_matrix,
+            manifests,
+            manifests_vary_by_matrix,
             resolved_for_variant,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct K8sEnvironmentSummary {
-    pub manifests: Vec<ManifestLocation>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolved_for_variant: Option<String>,
+pub struct UnresolvedManifest {
+    pub name: String,
+    pub required_variables: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -356,55 +380,48 @@ impl EnvironmentSummary {
         let variables = take(&mut variant.variables);
         let template_ctx =
             TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
-        variant
-            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+        let missing = variant
+            .try_template_known(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
             .map_err(EnvironmentSummaryError::Templating)?;
 
-        let resolved_for_variant = (!test_plan.matrix.is_empty()).then_some(variant_name);
+        // Required variables are only provided at trigger time so we permit them to be missing
+        // here, but any other missing variable is an error in the test plan itself.
+        let required: HashSet<String> = TestPlanVariable::from_test_plan(test_plan)
+            .into_iter()
+            .filter_map(|v| v.required.then_some(v.name))
+            .collect();
+
+        let mut errs = templating::ErrorBuilder::new();
+        for name in missing.into_iter().filter(|name| !required.contains(name)) {
+            errs.push(templating::ErrorKind::UnknownVariable, name, &[]);
+        }
+        errs.into_result(())
+            .map_err(EnvironmentSummaryError::Templating)?;
+
+        let summary = |summaries| {
+            ManifestEnvironmentSummary::new(
+                summaries,
+                config_file_url,
+                manifests_vary_by_matrix(test_plan),
+                (!test_plan.matrix.is_empty()).then_some(variant_name),
+            )
+        };
 
         match variant.environment.execution {
-            OrchestratorEnvironment::K8s(k8s_env) => {
-                let mut manifests: Vec<_> = k8s_env
-                    .manifest_urls(ctx)
-                    .into_iter()
-                    .map(|(name, url)| match url {
-                        Some(url) => ManifestLocation::gh(name, url),
-                        None => ManifestLocation::inline(name, config_file_url),
-                    })
-                    .collect();
-
-                manifests.sort_unstable();
-
-                Ok(Some(Self::K8s(K8sEnvironmentSummary {
-                    manifests,
-                    resolved_for_variant,
-                })))
+            OrchestratorEnvironment::K8s(env) => {
+                Ok(Some(Self::K8s(summary(env.manifest_summaries(ctx)))))
             }
-
+            OrchestratorEnvironment::DockerCompose(env) => Ok(Some(Self::DockerCompose(summary(
+                env.manifest_summaries(ctx),
+            )))),
             OrchestratorEnvironment::Null(_) => Ok(None),
-
-            OrchestratorEnvironment::DockerCompose(mut dce) => {
-                dce.inline_manifests(ctx, &mut HashMap::new())
-                    .await
-                    .map_err(EnvironmentSummaryError::Inlining)?;
-
-                let services = dce
-                    .services()
-                    .map_err(|e| EnvironmentSummaryError::Formats(e.into()))?;
-
-                Ok(Some(Self::DockerCompose(ComposeEnvironmentSummary::new(
-                    services,
-                    services_vary_by_matrix(test_plan),
-                    resolved_for_variant,
-                ))))
-            }
         }
     }
 }
 
-/// Whether any compose file provider is templated on a matrix variable, which is what would make
-/// different executions deploy a different set of services.
-fn services_vary_by_matrix(test_plan: &OrchestratorTestPlan) -> bool {
+/// Whether any manifest provider is templated on a matrix variable, which is what would make
+/// different executions deploy a different set of manifests.
+fn manifests_vary_by_matrix(test_plan: &OrchestratorTestPlan) -> bool {
     let matrix_keys: HashSet<&String> = test_plan.matrix.keys().collect();
 
     test_plan
@@ -611,25 +628,6 @@ mod tests {
         assert_eq!(window.to > today, included, "window: {window:?}");
     }
 
-    #[test_case(ServiceReplicas::Fixed(3), false; "fixed replicas")]
-    #[test_case(ServiceReplicas::Variable("${N}".to_string()), true; "variable replicas")]
-    #[test]
-    fn environment_summary_derives_has_variable_replicas(
-        replicas: ServiceReplicas,
-        expected: bool,
-    ) {
-        let services = vec![EnvironmentService {
-            name: "web".to_string(),
-            image: Some("nginx".to_string()),
-            replicas,
-        }];
-
-        assert_eq!(
-            ComposeEnvironmentSummary::new(services, false, None).has_variable_replicas,
-            expected
-        );
-    }
-
     #[test]
     fn test_plan_variables_are_ordered_by_name_and_omit_include_block_variables() {
         let names: Vec<_> = variables(TEST_PLAN).into_iter().map(|v| v.name).collect();
@@ -748,30 +746,39 @@ mod tests {
         assert_eq!(summary.compound_groups["colours"].len(), 2);
     }
 
-    #[tokio::test]
-    async fn environment_summary_reports_the_deployed_services() {
+    const CONFIG_FILE_URL: &str = "https://github.com/org/repo/blob/main/plan.yaml";
+
+    async fn manifest_summary(yaml: &str) -> ManifestEnvironmentSummary {
         let res = EnvironmentSummary::try_from_test_plan(
-            &test_plan(TEST_PLAN),
-            "https://github.com/org/repo/blob/main/plan.yaml",
+            &test_plan(yaml),
+            CONFIG_FILE_URL,
             &Context::new(),
         )
         .await;
 
-        let summary = match res {
-            Ok(Some(EnvironmentSummary::DockerCompose(inner))) => inner,
-            _ => panic!("expected a docker-compose summary, got {res:?}"),
-        };
+        match res {
+            Ok(Some(EnvironmentSummary::DockerCompose(s) | EnvironmentSummary::K8s(s))) => s,
+            _ => panic!("expected a manifest summary, got {res:?}"),
+        }
+    }
 
-        assert_eq!(
-            summary.services,
-            vec![EnvironmentService {
-                name: "web".to_string(),
-                image: Some("nginx:1.25".to_string()),
-                replicas: ServiceReplicas::Fixed(2),
-            }]
-        );
-        assert!(!summary.has_variable_replicas);
-        assert!(!summary.services_vary_by_matrix);
+    fn inline(name: &str) -> ManifestEntry {
+        ManifestEntry::Resolved(ManifestLocation::inline(name, CONFIG_FILE_URL))
+    }
+
+    fn unresolved(name: &str, variables: &[&str]) -> ManifestEntry {
+        ManifestEntry::Unresolved(UnresolvedManifest {
+            name: name.to_string(),
+            required_variables: variables.iter().map(|v| v.to_string()).collect(),
+        })
+    }
+
+    #[tokio::test]
+    async fn environment_summary_reports_compose_manifest_locations() {
+        let summary = manifest_summary(TEST_PLAN).await;
+
+        assert_eq!(summary.manifests, vec![inline("compose.yaml")]);
+        assert!(!summary.manifests_vary_by_matrix);
         assert_eq!(
             summary.resolved_for_variant,
             Some("matrix_variant_1".to_string())
@@ -779,11 +786,154 @@ mod tests {
     }
 
     #[test]
-    fn services_vary_by_matrix_when_a_compose_path_templates_on_a_dimension() {
-        assert!(services_vary_by_matrix(&test_plan(
+    fn manifests_vary_by_matrix_when_a_compose_path_templates_on_a_dimension() {
+        assert!(manifests_vary_by_matrix(&test_plan(
             MATRIX_TEMPLATED_COMPOSE
         )));
-        assert!(!services_vary_by_matrix(&test_plan(TEST_PLAN)));
+        assert!(!manifests_vary_by_matrix(&test_plan(TEST_PLAN)));
+    }
+
+    /// A required variable used outside of the environment manifests.
+    const REQUIRED_SCENARIO_VARIABLE: &str = indoc!(
+        r#"
+        name: my-plan
+        description: a test plan
+        scenario:
+          name: my-scenario
+          description: a scenario
+          variable_definitions:
+            - name: image
+              description: no default anywhere
+          docker:
+            image: "{{ image }}"
+            command: run
+        environment:
+          name: my-environment
+          description: an environment
+          compose_files:
+            - name: compose.yaml
+              kind: inline
+              content: "services: {}"
+        "#
+    );
+
+    #[tokio::test]
+    async fn environment_summary_tolerates_a_required_variable_outside_the_manifests() {
+        let summary = manifest_summary(REQUIRED_SCENARIO_VARIABLE).await;
+
+        assert_eq!(summary.manifests, vec![inline("compose.yaml")]);
+    }
+
+    const REQUIRED_COMPOSE_PATH: &str = indoc!(
+        r#"
+        name: my-plan
+        description: a test plan
+        scenario:
+          name: my-scenario
+          description: a scenario
+          docker:
+            image: my-image
+            command: run
+        environment:
+          name: my-environment
+          description: an environment
+          variable_definitions:
+            - name: overlay
+              description: no default anywhere
+          compose_files:
+            - name: base.yaml
+              kind: inline
+              content: "services: {}"
+            - name: overlay.yaml
+              kind: relative_path
+              path: "{{ overlay }}"
+            - name: final.yaml
+              kind: inline
+              content: "services: {}"
+        "#
+    );
+
+    #[tokio::test]
+    async fn environment_summary_reports_compose_files_set_by_a_required_variable_in_merge_order() {
+        let summary = manifest_summary(REQUIRED_COMPOSE_PATH).await;
+
+        assert_eq!(
+            summary.manifests,
+            vec![
+                inline("base.yaml"),
+                unresolved("overlay.yaml", &["overlay"]),
+                inline("final.yaml"),
+            ]
+        );
+    }
+
+    const REQUIRED_K8S_PATH: &str = indoc!(
+        r#"
+        name: my-k8s-plan
+        description: a k8s test plan
+        scenario:
+          name: my-scenario
+          description: a scenario
+          docker:
+            image: my-image
+            command: run
+        environment:
+          name: my-environment
+          description: an environment
+          variable_definitions:
+            - name: manifest_path
+              description: no default anywhere
+          resources:
+            - name: deployment.yaml
+              kind: github_file
+              org: some-org
+              repo: some-repo
+              path: "{{ manifest_path }}"
+            - name: service.yaml
+              kind: github_file
+              org: some-org
+              repo: some-repo
+              path: k8s/service.yaml
+        "#
+    );
+
+    #[tokio::test]
+    async fn environment_summary_reports_k8s_manifests_set_by_a_required_variable() {
+        let summary = manifest_summary(REQUIRED_K8S_PATH).await;
+
+        assert_eq!(
+            summary.manifests,
+            vec![
+                unresolved("deployment.yaml", &["manifest_path"]),
+                ManifestEntry::Resolved(ManifestLocation::gh(
+                    "service.yaml",
+                    "https://github.com/some-org/some-repo/blob/HEAD/k8s/service.yaml"
+                )),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn environment_summary_errors_on_an_undeclared_variable() {
+        let yaml = REQUIRED_SCENARIO_VARIABLE.replace("\"{{ image }}\"", "\"{{ typo }}\"");
+
+        let res = EnvironmentSummary::try_from_test_plan(
+            &test_plan(&yaml),
+            CONFIG_FILE_URL,
+            &Context::new(),
+        )
+        .await;
+
+        match res {
+            Err(EnvironmentSummaryError::Templating(errs)) => {
+                let kinds: Vec<_> = errs.iter().map(|e| (e.kind, e.message.as_str())).collect();
+                assert_eq!(
+                    kinds,
+                    vec![(templating::ErrorKind::UnknownVariable, "typo")]
+                );
+            }
+            _ => panic!("expected a templating error, got {res:?}"),
+        }
     }
 
     const K8S_TEST_PLAN: &str = indoc!(
@@ -837,18 +987,18 @@ mod tests {
         assert_eq!(
             summary.manifests,
             vec![
-                ManifestLocation::gh(
+                ManifestEntry::Resolved(ManifestLocation::gh(
                     "deployment.yaml",
                     "https://github.com/some-org/some-other-repo/blob/a-branch/k8s/deployment.yaml"
-                ),
-                ManifestLocation::inline(
-                    "kustomization.yaml",
-                    "https://github.com/some-org/some-repo/blob/main/test-plans/my-k8s-plan.yaml"
-                ),
-                ManifestLocation::gh(
+                )),
+                ManifestEntry::Resolved(ManifestLocation::gh(
                     "service.yaml",
                     "https://github.com/some-org/some-other-repo/blob/HEAD/k8s/service.yaml"
-                )
+                )),
+                ManifestEntry::Resolved(ManifestLocation::inline(
+                    "kustomization.yaml",
+                    "https://github.com/some-org/some-repo/blob/main/test-plans/my-k8s-plan.yaml"
+                )),
             ]
         );
         assert_eq!(summary.resolved_for_variant, None);
