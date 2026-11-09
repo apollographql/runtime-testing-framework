@@ -148,6 +148,31 @@ impl<M: ValidateEnvironment + NamedManifestFiles> ManifestEnvironment<M> {
             .collect()
     }
 
+    /// Summarise each manifest provider without reading its content, in provider order.
+    ///
+    /// Safe to call on a partially templated environment: providers that still depend on
+    /// variables without a value are reported as [ManifestSummary::Unresolved].
+    pub fn manifest_summaries(&self, ctx: &impl ResolutionContext) -> Vec<ManifestSummary> {
+        self.resources
+            .manifest_files()
+            .iter()
+            .map(|ncfp| {
+                let required_variables = ncfp.required_variables();
+                if required_variables.is_empty() {
+                    return ManifestSummary::Resolved {
+                        name: ncfp.name.clone(),
+                        url: ncfp.provider.github_permalink(ctx),
+                    };
+                }
+
+                ManifestSummary::Unresolved {
+                    name: ncfp.name.clone(),
+                    required_variables,
+                }
+            })
+            .collect()
+    }
+
     pub async fn inline_manifests<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
@@ -312,6 +337,18 @@ impl<M: ValidateEnvironment> Template for ManifestEnvironment<M> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ManifestSummary {
+    Resolved {
+        name: String,
+        url: Option<String>,
+    },
+    Unresolved {
+        name: String,
+        required_variables: Vec<String>,
+    },
+}
+
 /// Collect all YAML manifest files from a directory.
 fn collect_manifest_files(dir: &Path) -> providers::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
@@ -330,4 +367,91 @@ fn collect_manifest_files(dir: &Path) -> providers::Result<Vec<PathBuf>> {
     files.sort();
 
     Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        context::Context,
+        formats::environment::{docker_compose::DockerComposeEnvironment, k8s::K8sEnvironment},
+    };
+    use indoc::indoc;
+
+    const GITHUB_URL: &str = "https://github.com/my-org/my-repo/blob/main/base.yaml";
+
+    fn resolved(name: &str, url: Option<&str>) -> ManifestSummary {
+        ManifestSummary::Resolved {
+            name: name.to_string(),
+            url: url.map(String::from),
+        }
+    }
+
+    fn unresolved(name: &str, variables: &[&str]) -> ManifestSummary {
+        ManifestSummary::Unresolved {
+            name: name.to_string(),
+            required_variables: variables.iter().map(|v| v.to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn manifest_summaries_k8s_reports_pending_providers_as_unresolved() {
+        let env: K8sEnvironment = yaml_serde::from_str(indoc!(
+            r#"
+            resources:
+              - name: base.yaml
+                kind: github_file
+                org: my-org
+                repo: my-repo
+                path: base.yaml
+                git_ref: main
+              - name: overlay.yaml
+                kind: github_file
+                org: my-org
+                repo: my-repo
+                path: "{{ overlay_path }}"
+                git_ref: "{{ overlay_ref }}"
+              - name: inline.yaml
+                kind: inline
+                content: "kind: ConfigMap"
+            "#
+        ))
+        .unwrap();
+
+        assert_eq!(
+            env.manifest_summaries(&Context::new()),
+            vec![
+                resolved("base.yaml", Some(GITHUB_URL)),
+                unresolved("overlay.yaml", &["overlay_path", "overlay_ref"]),
+                resolved("inline.yaml", None),
+            ]
+        );
+    }
+
+    #[test]
+    fn manifest_summaries_docker_compose_reports_pending_providers_as_unresolved() {
+        let env: DockerComposeEnvironment = yaml_serde::from_str(indoc!(
+            r#"
+            compose_files:
+              - name: base.yaml
+                kind: github_file
+                org: my-org
+                repo: my-repo
+                path: base.yaml
+                git_ref: main
+              - name: overlay.yaml
+                kind: relative_path
+                path: "{{ overlay_path }}"
+            "#
+        ))
+        .unwrap();
+
+        assert_eq!(
+            env.manifest_summaries(&Context::new()),
+            vec![
+                resolved("base.yaml", Some(GITHUB_URL)),
+                unresolved("overlay.yaml", &["overlay_path"]),
+            ]
+        );
+    }
 }
