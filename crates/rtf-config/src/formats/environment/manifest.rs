@@ -5,10 +5,7 @@ use crate::{
     inlining::{self, Inline, InlineMode, InlinedProvider},
     providers::{
         self,
-        file::{
-            InlineDir, InlineFile, NamedFileProvider, StableSource,
-            manifest::{ManifestFileProvider, NamedManifestFileProvider},
-        },
+        file::{NamedFileProvider, StableSource, manifest::NamedManifestFileProvider},
     },
     run::{OUTDIR, OUTPUT_PATH, Provider, RunProviders, ValidateEnvironment},
     templating::{self, Field, Scalar, Template, TemplateContext},
@@ -180,32 +177,6 @@ impl<M: ValidateEnvironment + NamedManifestFiles> ManifestEnvironment<M> {
         );
 
         errs.into_result(())
-    }
-
-    /// The content of every manifest file, in the order the providers would be read: provider
-    /// order, and within a directory provider the order its files were resolved in.
-    pub fn manifest_contents(&self) -> providers::Result<Vec<&str>> {
-        let mut contents = Vec::new();
-
-        for ncfp in self.resources.manifest_files().iter() {
-            match &ncfp.provider {
-                ManifestFileProvider::Inline(InlineFile { content }) => {
-                    contents.push(content.as_str())
-                }
-
-                ManifestFileProvider::InlineDir(InlineDir { files }) => {
-                    contents.extend(files.iter().map(|f| f.content.as_str()));
-                }
-
-                _ => {
-                    return Err(providers::Error::ManifestFileNotInlined {
-                        name: ncfp.name.clone(),
-                    });
-                }
-            }
-        }
-
-        Ok(contents)
     }
 }
 

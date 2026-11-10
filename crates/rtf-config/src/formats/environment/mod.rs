@@ -28,8 +28,7 @@ mod null;
 mod script;
 
 pub use docker_compose::{
-    ComposeResources, DockerComposeEnvironment, EnvironmentService, FileProviderServices,
-    PullPolicyServices, ServiceReplicas,
+    ComposeResources, DockerComposeEnvironment, FileProviderServices, PullPolicyServices,
 };
 pub use k8s::{K8sEnvironment, K8sResources};
 pub use manifest::{ManifestEnvironment, ManifestSummary, NamedManifestFiles};

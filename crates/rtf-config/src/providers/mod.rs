@@ -38,9 +38,6 @@ pub enum Error {
         explicit_mount: Vec<String>,
     },
 
-    #[error("Manifest file provider {name} was not inlined before reading its content")]
-    ManifestFileNotInlined { name: String },
-
     #[error("Missing provider output for {name}")]
     MissingProviderOutput { name: String },
 

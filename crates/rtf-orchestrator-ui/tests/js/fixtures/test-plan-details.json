@@ -9,7 +9,8 @@
       "default": [
         "60s"
       ],
-      "allowed": null
+      "allowed": null,
+      "required": false
     },
     {
       "name": "region",
@@ -21,7 +22,8 @@
         "us-east-1",
         "eu-west-1"
       ],
-      "allowed": null
+      "allowed": null,
+      "required": false
     },
     {
       "name": "tier",
@@ -36,7 +38,18 @@
         "free",
         "paid",
         "enterprise"
-      ]
+      ],
+      "required": false
+    },
+    {
+      "name": "worker_overlay",
+      "sections": [
+        "environment"
+      ],
+      "description": "Compose file layering the worker on top",
+      "default": [],
+      "allowed": null,
+      "required": true
     }
   ],
   "compound_groups": {

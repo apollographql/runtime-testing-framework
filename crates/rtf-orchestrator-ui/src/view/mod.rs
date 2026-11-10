@@ -21,7 +21,7 @@ pub use execution_detail::ExecutionDetailView;
 pub use known_test_plan_list::{KnownTestPlanListRow, KnownTestPlanListView, KnownTestPlanRowView};
 pub use run::RunView;
 pub use run_list::RunListView;
-pub use test_plan_details::{EnvironmentDetailView, TestPlanDetailsView};
+pub use test_plan_details::TestPlanDetailsView;
 pub use test_plan_edit::{PoolOptionView, TestPlanEditView};
 pub use viewer_badge::ViewerBadge;
 
