@@ -1,8 +1,11 @@
 use crate::view::{
-    EnvironmentDetailView, KnownTestPlanRowView, RunListView, TestPlanDetailsView,
-    TestPlanEditView, ViewerBadge,
+    KnownTestPlanRowView, RunListView, TestPlanDetailsView, TestPlanEditView, ViewerBadge,
 };
 use askama::Template;
+// This isn't used explicitly anywhere in this file but we need to have it in scope in order to be
+// able to derive Template on TestPlanDetailTemplate as we match on the different variants of
+// ManifestEntry inside of the HTML template.
+use rtf_orchestrator_shared::test_plan_details::ManifestEntry;
 
 #[derive(Debug, Template)]
 #[template(

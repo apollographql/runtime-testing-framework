@@ -15,7 +15,7 @@ if (dataEl) init(JSON.parse(dataEl.textContent));
 
 function init(data) {
     const {
-        VARS, PLAN_GROUPS, PLAN_GROUP_MEMBERS, freshState, defaults, groupOf, standaloneVars, valuesOf,
+        VARS, PLAN_GROUPS, PLAN_GROUP_MEMBERS, freshState, defaults, isRequired, groupOf, standaloneVars, valuesOf,
         isChanged, countOf, formulaOf, variantsOf, problemsOf, groupChanged, toOverrides, fromOverrides,
         addToGroup, removeFromGroup, dissolveGroup, createGroup, resetGroup,
     } = createModel(data);
@@ -96,6 +96,7 @@ function init(data) {
                 valuesFor(n) { return valuesOf(this, n); },
                 isDeclared(n) { return n in VARS; },
                 isFreed(n) { return !VARS[n] && PLAN_GROUP_MEMBERS.has(n); },
+                isRequired(n) { return isRequired(n); },
                 sectionsOf(n) { return VARS[n] ? VARS[n].sections : []; },
                 descriptionOf(n) { return VARS[n] ? VARS[n].description : ""; },
                 allowedOf(n) { return VARS[n] ? VARS[n].allowed : null; },
@@ -104,11 +105,13 @@ function init(data) {
                 defaultTitle(n) { return (defaults(n) || []).map(fmt).join(", "); },
                 defaultLabel(n) {
                     if (!VARS[n]) return this.isFreed(n) ? "from a compound dimension" : "not declared at this ref";
+                    if (isRequired(n)) return "required: no default";
                     const def = defaults(n);
                     return def.length ? `default: ${def.map(short).join(", ")}` : "not set by default";
                 },
                 revertTitle(n) {
                     if (this.isFreed(n)) return "Needs a value: it has no default outside its compound dimension";
+                    if (isRequired(n)) return "Required: this test plan has no default for it";
                     return VARS[n] ? "Revert to default" : "Remove";
                 },
 
@@ -126,6 +129,7 @@ function init(data) {
                     });
                 },
                 revert(n) {
+                    if (isRequired(n)) return;
                     this.selected = this.selected.filter((x) => x !== n);
                     delete this.values[n];
                 },

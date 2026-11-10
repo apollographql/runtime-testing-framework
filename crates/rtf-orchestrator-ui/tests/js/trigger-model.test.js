@@ -19,6 +19,7 @@ test("the page data has the shape the model and charts read", () => {
         assert.equal(typeof v.description, "string");
         assert.ok(v.default.every(isScalar));
         assert.ok(v.allowed === null || v.allowed.every(isScalar));
+        assert.equal(typeof v.required, "boolean");
     }
     for (const entries of Object.values(data.compound_groups)) {
         const keys = Object.keys(entries[0]).sort();
@@ -99,6 +100,34 @@ test("problems block triggering an empty variable or a mixed-type column", () =>
     s.selected.push("duration");
     s.values.duration = [];
     s.groups.colours.entries[0].background = 1;
+    s.values.worker_overlay = ["worker.yaml"];
     assert.deepEqual(model.problemsOf(s), ["duration has no values", "colours.background mixes value types"]);
     assert.equal(model.countOf(s), 0);
+});
+
+test("a required variable starts selected with no values and blocks triggering", () => {
+    const s = model.freshState();
+    assert.ok(s.selected.includes("worker_overlay"));
+    assert.deepEqual(s.values.worker_overlay, []);
+    assert.deepEqual(model.problemsOf(s), ["worker_overlay is required"]);
+    assert.equal(model.countOf(s), 8);
+});
+
+test("a required variable with a value is submitted and no longer blocks triggering", () => {
+    const s = model.freshState();
+    s.values.worker_overlay = ["worker.yaml"];
+    assert.deepEqual(model.problemsOf(s), []);
+    assert.deepEqual(model.toOverrides(s), { worker_overlay: "worker.yaml" });
+});
+
+test("loading overrides that omit a required variable keeps it selected", () => {
+    const s = model.fromOverrides({ duration: "90s" });
+    assert.ok(s.selected.includes("worker_overlay"));
+    assert.deepEqual(model.problemsOf(s), ["worker_overlay is required"]);
+});
+
+test("a required variable moved into a group without a value blocks triggering", () => {
+    const s = model.freshState();
+    model.addToGroup(s, "colours", "worker_overlay");
+    assert.deepEqual(model.problemsOf(s), ["colours.worker_overlay is required"]);
 });

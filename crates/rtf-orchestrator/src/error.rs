@@ -186,7 +186,6 @@ impl From<EnvironmentSummaryError> for Error {
     fn from(err: EnvironmentSummaryError) -> Self {
         match err {
             EnvironmentSummaryError::Formats(e) => e.into(),
-            EnvironmentSummaryError::Inlining(e) => ResolverError::Inlining(e).into(),
             EnvironmentSummaryError::Templating(e) => ResolverError::TemplatingCheck(e).into(),
         }
     }

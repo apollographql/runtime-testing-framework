@@ -611,10 +611,7 @@ pub(crate) mod mocks {
     use super::*;
     use crate::preview::{OWNER_EMAIL, TRIGGER_USER_EMAIL};
     use chrono::{TimeDelta, Utc};
-    use rtf_config::{
-        formats::{EnvironmentService, ServiceReplicas},
-        templating::Scalar,
-    };
+    use rtf_config::templating::Scalar;
     use rtf_orchestrator_shared::{
         cluster_summary::{
             ClusterExecutionSummary, HourlyCount, NodeMeta, NodesSummary, PerUserExecutionSummary,
@@ -628,9 +625,9 @@ pub(crate) mod mocks {
         status::{Status, StatusUpdate},
         summary::TestExecutionSummary,
         test_plan_details::{
-            ComposeEnvironmentSummary, ConfigSection, EnvironmentSummary, K8sEnvironmentSummary,
+            ConfigSection, EnvironmentSummary, ManifestEntry, ManifestEnvironmentSummary,
             ManifestLocation, MatrixSummary, TestPlanHistory, TestPlanSource, TestPlanVariable,
-            VariableDeclaration, VariableValue,
+            UnresolvedManifest, VariableDeclaration, VariableValue,
         },
         workload_config::WorkloadConfigPatch,
     };
@@ -767,6 +764,17 @@ pub(crate) mod mocks {
                     current_value: None,
                     required: false,
                 },
+                TestPlanVariable {
+                    name: "worker_overlay".to_owned(),
+                    declarations: vec![VariableDeclaration {
+                        section: ConfigSection::Environment,
+                        description: "Compose file layering the worker on top".to_owned(),
+                        default: None,
+                        allowed_values: None,
+                    }],
+                    current_value: None,
+                    required: true,
+                },
             ],
             matrix: MatrixSummary {
                 n_executions: 8,
@@ -804,21 +812,22 @@ pub(crate) mod mocks {
                 ]),
             },
             environment: Some(EnvironmentSummary::DockerCompose(
-                ComposeEnvironmentSummary {
-                    services: vec![
-                        EnvironmentService {
-                            name: "web".to_owned(),
-                            image: Some("nginx:1.25".to_owned()),
-                            replicas: ServiceReplicas::Fixed(1),
-                        },
-                        EnvironmentService {
-                            name: "worker".to_owned(),
-                            image: Some("my-worker:latest".to_owned()),
-                            replicas: ServiceReplicas::Variable("${WORKER_REPLICAS}".to_owned()),
-                        },
+                ManifestEnvironmentSummary {
+                    manifests: vec![
+                        ManifestEntry::Resolved(ManifestLocation::gh(
+                            "docker-compose.yaml",
+                            "https://github.com/apollographql/runtime-testing-framework/blob/main/compose/docker-compose.yaml",
+                        )),
+                        ManifestEntry::Unresolved(UnresolvedManifest {
+                            name: "worker.yaml".to_owned(),
+                            required_variables: vec!["worker_overlay".to_owned()],
+                        }),
+                        ManifestEntry::Resolved(ManifestLocation::inline(
+                            "overrides.yaml",
+                            "https://github.com/apollographql/runtime-testing-framework/blob/main/test-plans/example.yaml",
+                        )),
                     ],
-                    has_variable_replicas: true,
-                    services_vary_by_matrix: false,
+                    manifests_vary_by_matrix: false,
                     resolved_for_variant: Some("region_us-east-1".to_owned()),
                 },
             )),
@@ -828,21 +837,26 @@ pub(crate) mod mocks {
 
     pub(crate) fn sample_k8s_test_plan_details(uuid: Uuid) -> TestPlanDetails {
         TestPlanDetails {
-            environment: Some(EnvironmentSummary::K8s(K8sEnvironmentSummary {
+            environment: Some(EnvironmentSummary::K8s(ManifestEnvironmentSummary {
                 manifests: vec![
-                    ManifestLocation::gh(
+                    ManifestEntry::Resolved(ManifestLocation::gh(
                         "deployment.yaml",
                         "https://github.com/apollographql/runtime-testing-framework/blob/main/k8s/deployment.yaml",
-                    ),
-                    ManifestLocation::gh(
+                    )),
+                    ManifestEntry::Unresolved(UnresolvedManifest {
+                        name: "worker.yaml".to_owned(),
+                        required_variables: vec!["worker_overlay".to_owned()],
+                    }),
+                    ManifestEntry::Resolved(ManifestLocation::gh(
                         "service.yaml",
                         "https://github.com/apollographql/runtime-testing-framework/blob/main/k8s/service.yaml",
-                    ),
-                    ManifestLocation::inline(
+                    )),
+                    ManifestEntry::Resolved(ManifestLocation::inline(
                         "kustomization.yaml",
                         "https://github.com/apollographql/runtime-testing-framework/blob/main/test-plans/example.yaml",
-                    ),
+                    )),
                 ],
+                manifests_vary_by_matrix: true,
                 resolved_for_variant: Some("region_us-east-1".to_owned()),
             })),
             ..sample_test_plan_details(uuid)

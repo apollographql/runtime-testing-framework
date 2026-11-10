@@ -59,7 +59,15 @@ export function createModel(data) {
     ]));
     const PLAN_GROUP_MEMBERS = new Set(Object.values(PLAN_GROUPS).flatMap((g) => g.vars));
 
-    const freshState = () => ({ selected: [], values: {}, groups: clone(PLAN_GROUPS) });
+    // Required variables have no default, so they start selected and can't be reverted.
+    const REQUIRED = data.variables.filter((v) => v.required).map((v) => v.name);
+    const isRequired = (n) => REQUIRED.includes(n);
+
+    const freshState = () => ({
+        selected: [...REQUIRED],
+        values: Object.fromEntries(REQUIRED.map((n) => [n, []])),
+        groups: clone(PLAN_GROUPS),
+    });
     const defaults = (n) => (VARS[n] ? VARS[n].default : null);
     const hasDefault = (n) => (defaults(n) || []).length > 0;
 
@@ -115,12 +123,14 @@ export function createModel(data) {
         const p = [];
         for (const n of standaloneVars(s)) {
             const vals = valuesOf(s, n);
-            if (!vals.length && s.selected.includes(n) && hasDefault(n)) p.push(`${n} has no values`);
+            if (!vals.length && isRequired(n)) p.push(`${n} is required`);
+            else if (!vals.length && s.selected.includes(n) && hasDefault(n)) p.push(`${n} has no values`);
             else if (new Set(vals.map((v) => typeof v)).size > 1) p.push(`${n} mixes value types`);
         }
         for (const [g, d] of Object.entries(s.groups)) {
             if (!d.entries.length) p.push(`${g} has no entries`);
             for (const v of d.vars) {
+                if (isRequired(v) && d.entries.some((e) => e[v] === "")) p.push(`${g}.${v} is required`);
                 if (new Set(d.entries.map((e) => typeof e[v])).size > 1) p.push(`${g}.${v} mixes value types`);
             }
         }
@@ -230,6 +240,7 @@ export function createModel(data) {
         PLAN_GROUP_MEMBERS,
         freshState,
         defaults,
+        isRequired,
         groupOf,
         standaloneVars,
         valuesOf,

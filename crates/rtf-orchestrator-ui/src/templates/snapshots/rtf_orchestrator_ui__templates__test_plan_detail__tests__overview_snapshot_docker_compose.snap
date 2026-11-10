@@ -15,52 +15,53 @@ expression: "render_fragment!(preview::test_plan_detail().as_overview())"
                 <dd class="muted" id="stat-formula">2 region × 2 colours × 2 subjects</dd>
 
                 <dt>Variables</dt>
-                <dd>7 variables · 1 matrix dimension · 2 compound dimensions</dd>
-
-                
-                
-                <dt>Services / execution</dt>
-                <dd>2</dd>
-                
-                
+                <dd>8 variables · 1 matrix dimension · 2 compound dimensions</dd>
             </dl>
         </section>
 
         
         
-        <h2>Services deployed per execution</h2>
-        
-        <p class="muted">Every matrix combination stands up this same environment.</p>
-        
-        <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>Service</th>
-                    <th>Image</th>
-                    <th>Replicas</th>
-                </tr>
-            </thead>
-            <tbody>
-                
-                <tr>
-                    <td><code>web</code></td>
-                    <td><code>nginx:1.25</code></td>
-                    <td class="nowrap">1</td>
-                </tr>
-                
-                <tr>
-                    <td><code>worker</code></td>
-                    <td><code>my-worker:latest</code></td>
-                    <td class="nowrap">${WORKER_REPLICAS}</td>
-                </tr>
-                
-            </tbody>
-        </table>
+        <h2>Docker compose files</h2>
+        <p class="muted">This environment merges these compose files in order, with each file layered on top of the ones before it &mdash; open them on GitHub to see exactly what will be deployed.</p>
         
         
+        <p class="muted">Every matrix combination uses these same compose files.</p>
+        
+        
+        <div class="info-box">
+            <b>Some compose files will be set by required variables.</b>
+            
+            <br>
+            See <a href="https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/" target="_blank" rel="noopener noreferrer">here &#8599;</a> for how docker compose merges files.
+            
         </div>
         
+        <ol>
+            
+            <li>
+                
+                <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/compose/docker-compose.yaml" target="_blank" rel="noopener noreferrer"><code>docker-compose.yaml</code> &#8599;</a>
+                
+                
+            </li>
+            
+            <li>
+                
+                <code>worker.yaml</code>
+                <span class="muted">(set by required variable: <code>worker_overlay</code>)</span>
+                
+            </li>
+            
+            <li>
+                
+                <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/test-plans/example.yaml" target="_blank" rel="noopener noreferrer"><code>overrides.yaml</code> &#8599;</a>
+                
+                <span class="muted">(inline in the environment config)</span>
+                
+                
+            </li>
+            
+        </ol>
         
 
     </div>
