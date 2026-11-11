@@ -341,8 +341,6 @@ mod tests {
 
     #[test]
     fn github_dir_check_success() {
-        // This test works because all that's needed for success in the GitHub case is
-        // a GitHub token to be defined in the context
         let github_dir = github_dir();
 
         let mut ctx = Context::new();
@@ -354,13 +352,28 @@ mod tests {
 
     #[test]
     fn github_dir_check_missing_github_api_key() {
-        // This test works because all that's needed for success in the GitHub case is
-        // a GitHub token to be defined in the context
         let github_dir = github_dir();
 
         let ctx = Context::new();
 
         assert_check_errors(github_dir, &ctx, &[checks::ErrorKind::MissingGithubApiKey]);
+    }
+
+    #[test]
+    fn github_dir_check_invalid_file_path() {
+        let github_dir = GithubDir {
+            files: vec!["../escape.txt".to_string()],
+            ..github_dir()
+        };
+
+        let mut ctx = Context::new();
+        ctx.with_github_config("dummy_token");
+
+        assert_check_errors(
+            github_dir,
+            &ctx,
+            &[checks::ErrorKind::InvalidPathSpecifiers],
+        );
     }
 
     #[tokio::test]
