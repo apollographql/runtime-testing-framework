@@ -350,6 +350,7 @@ pub enum FileProvider {
     Conditional(utility::Conditional),
     CustomProvider(custom::CustomProvider),
     FromCommand(utility::FromCommand),
+    GithubDir(github::GithubDir),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosCannedOpsById(apollo::GraphosCannedOpsById),
@@ -441,6 +442,7 @@ impl Inline for FileProvider {
                 // providers that only inline when mode == All
                 Self::BuildRouterFromSource(fp) => inline_if_all!(fp),
                 Self::Conditional(fp) => inline_if_all!(fp),
+                Self::GithubDir(fp) => inline_if_all!(fp),
                 Self::GithubFile(fp) => inline_if_all!(fp),
                 Self::GraphosCannedOps(fp) => inline_if_all!(fp),
                 Self::GraphosSubgraphRouterUrlOverrides(fp) => inline_if_all!(fp),
@@ -484,6 +486,7 @@ enum_impl_file_provider!(
     Conditional,
     CustomProvider,
     FromCommand,
+    GithubDir,
     GithubFile,
     GraphosCannedOps,
     GraphosCannedOpsById,
@@ -954,6 +957,32 @@ impl Check for RelativeDir {
             .as_ref()
             .expect("attempt to check a RelativeDir without a source");
 
+        // Early return on errors here because without the top level path we can't check anything
+        // else.
+        match ctx.check_path_kind(stable_src, dir_path, path)? {
+            None => return Ok(()), // github source
+
+            // Allow missing files to be handled below
+            Some(PathKind::EmptyDir | PathKind::OccupiedDir) => (),
+
+            Some(PathKind::File) => {
+                return Err(checks::Errors::new(
+                    checks::ErrorKind::NotADirectory,
+                    format_error_message(ctx.source_dir_for(stable_src), dir_path),
+                    path,
+                ));
+            }
+
+            Some(PathKind::Missing) => {
+                return Err(checks::Errors::new(
+                    checks::ErrorKind::FileNotFound,
+                    format_error_message(ctx.source_dir_for(stable_src), dir_path),
+                    path,
+                ));
+            }
+        }
+
+        // Gather all errors from missing file paths within the directory if we got this far
         let mut errs = checks::ErrorBuilder::new();
 
         for fname in check_dir_files(&self.files, path, &mut errs) {
