@@ -1370,7 +1370,7 @@ mod tests {
     #[test_case(CONDITIONAL, &["case_1", "case_2", "test_type"]; "conditional")]
     #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
-    #[test_case(GITHUB_DIR, &["org", "repo", "path", "git_ref"]; "github_dir")]
+    #[test_case(GITHUB_DIR, &["org", "repo", "git_ref", "path"]; "github_dir")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations", "time_range"]; "graphos_canned_ops")]
     #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "ops"]; "graphos_canned_ops_by_id")]
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
