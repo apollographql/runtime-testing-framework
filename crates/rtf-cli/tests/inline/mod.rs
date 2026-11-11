@@ -9,6 +9,7 @@ use std::fs::copy;
 
 // Markers for provider kinds that should be inlined
 pub const RELATIVE_PATH: &str = "kind: relative_path";
+pub const GITHUB_DIR: &str = "kind: github_dir";
 pub const GITHUB_FILE: &str = "kind: github_file";
 pub const FROM_COMMAND: &str = "kind: from_command";
 pub const CUSTOM_PROVIDER: &str = "kind: custom_provider";

@@ -5,6 +5,7 @@ use predicates::str::contains;
 use simple_test_case::test_case;
 
 #[test_case("resources/test-plans/valid/github-file"; "github file")]
+#[test_case("resources/test-plans/valid/github-dir"; "github dir")]
 #[test_case("resources/test-plans/valid/github-config-files"; "github config files")]
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
