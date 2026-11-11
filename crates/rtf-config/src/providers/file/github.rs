@@ -175,7 +175,7 @@ impl ResolveFileContent for GithubDir {
         let dir_path = self.path.as_resolved();
         let git_ref = self.git_ref.as_ref().map(|field| field.as_resolved());
 
-        let mut contents = Vec::with_capacity(self.files.len());
+        let mut contents = Vec::with_capacity(files.len());
 
         for fname in files {
             let content = client
