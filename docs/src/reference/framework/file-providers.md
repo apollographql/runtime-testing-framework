@@ -8,6 +8,7 @@ Available file providers:
 - [Conditional](#conditional)
 - [Custom provider](#custom-provider)
 - [From command](#from-command)
+- [GitHub Directory](#github-directory)
 - [GitHub file](#github-file)
 - [GraphOS canned operations](#graphos-canned-operations)
 - [GraphOS canned operations by ID](#graphos-canned-operations-by-id)
@@ -221,6 +222,58 @@ Environment variables to set
 ### `file_providers`
 
 File providers to run and make available prior to execution
+
+</details>
+
+## GitHub Directory
+
+The user specifies a path to a directory within a GitHub repository
+
+The absolute path from the root of the repository to a target directory within GitHub, a list of
+files that should be made available as part of the test run, and, optionally, a specific ref of the
+repository to pull the directory from. If no ref is provided, then the provider will use the
+directory found on the default branch.
+
+Only the specified files will be included and there is no way to wildcard multiple files.
+
+```yaml
+- name: "my-data"
+  env_var: MY_DATA
+  kind: github_dir
+  org: "my-org"
+  repo: "my-repo"
+  git_ref: "some-ref"
+  path: "resources/test-data/my-file.txt"
+  files:
+    - "my-file.txt"
+    - "nested/my-nested-file.json"
+```
+
+<details>
+<summary>Fields</summary>
+
+### `org`
+
+The GitHub org for the repository containing the target directory
+
+### `repo`
+
+The GitHub repository containing the target directory
+
+### `git_ref`
+
+An optional git reference to pull the file from. This may be a full or partial commit hash, branch
+name, or tag.
+
+Defaults to the mainline branch as specified in GitHub if unset.
+
+### `path`
+
+The absolute path from the root of the repository to the target directory.
+
+### `files`
+
+The file paths under this directory that should be included.
 
 </details>
 
