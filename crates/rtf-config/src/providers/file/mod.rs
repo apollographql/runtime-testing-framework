@@ -12,7 +12,7 @@ use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     fmt,
     future::Future,
     ops::{Deref, DerefMut},
@@ -704,6 +704,11 @@ impl AsUtf8FileContent for RelativeFile {
     }
 }
 
+/// Returns the unique file names in `files`, in sorted order.
+pub(crate) fn unique_sorted_files(files: &[String]) -> BTreeSet<&str> {
+    files.iter().map(String::as_str).collect()
+}
+
 impl Check for RelativeFile {
     fn try_check(
         &self,
@@ -842,9 +847,7 @@ impl RelativeDir {
         let dir_path = self.path.as_resolved();
 
         // Dedup to ensure that we don't pull in files multiple times
-        let mut files = self.files.clone();
-        files.sort_unstable();
-        files.dedup();
+        let files = unique_sorted_files(&self.files);
 
         files
             .into_iter()
@@ -905,6 +908,40 @@ impl ResolveFileContent for RelativeDir {
     }
 }
 
+/// Checks the `files` list of a directory-style file provider.
+///
+/// Problems with the list itself are pushed to `errs`:
+/// - An empty list is a hard error, as the provider would do nothing at all.
+/// - Each entry must be a plain relative path, with no `.`, `..` or leading `/`, so it cannot
+///   escape the provider's directory.
+///
+/// Duplicate entries are deliberately not an error, because resolving only pulls each file in
+/// once.
+///
+/// Returns the entries that passed so callers can run provider specific checks.
+pub(crate) fn check_dir_files<'a>(
+    files: &'a [String],
+    path: &mut [String],
+    errs: &mut checks::ErrorBuilder,
+) -> Vec<&'a str> {
+    if files.is_empty() {
+        errs.push(checks::ErrorKind::EmptyArray, "files", path);
+    }
+
+    let mut valid = Vec::with_capacity(files.len());
+    for (i, fname) in files.iter().enumerate() {
+        let mut fpath = path.to_vec();
+        fpath.push(i.to_string());
+
+        match check_relative_path_specifiers(Path::new(fname), path) {
+            Ok(()) => valid.push(fname.as_str()),
+            Err(e) => errs.append(Err(e)),
+        }
+    }
+
+    valid
+}
+
 impl Check for RelativeDir {
     fn try_check(
         &self,
@@ -917,64 +954,23 @@ impl Check for RelativeDir {
             .as_ref()
             .expect("attempt to check a RelativeDir without a source");
 
-        // Early return on errors here because without the top level path we can't check anything
-        // else.
-        match ctx.check_path_kind(stable_src, dir_path, path)? {
-            None => return Ok(()), // github source
-
-            // Allow missing files to be handled below
-            Some(PathKind::EmptyDir | PathKind::OccupiedDir) => (),
-
-            Some(PathKind::File) => {
-                return Err(checks::Errors::new(
-                    checks::ErrorKind::NotADirectory,
-                    format_error_message(ctx.source_dir_for(stable_src), dir_path),
-                    path,
-                ));
-            }
-
-            Some(PathKind::Missing) => {
-                return Err(checks::Errors::new(
-                    checks::ErrorKind::FileNotFound,
-                    format_error_message(ctx.source_dir_for(stable_src), dir_path),
-                    path,
-                ));
-            }
-        }
-
-        // Gather all errors from missing file paths within the directory if we got this far
         let mut errs = checks::ErrorBuilder::new();
 
-        // We check for an empty files array as a hard error as in this instance the file provider
-        // does nothing at all, but we don't check for duplicate file paths. When resolving, we
-        // ensure that files are only pulled in once so duplicates here don't cause us any problems.
-        if self.files.is_empty() {
-            errs.push(checks::ErrorKind::EmptyArray, "files", path);
-        }
+        for fname in check_dir_files(&self.files, path, &mut errs) {
+            let full_path = format!("{dir_path}/{fname}");
 
-        for (i, fname) in self.files.iter().enumerate() {
-            let mut fpath = path.clone();
-            fpath.push(i.to_string());
-
-            match check_relative_path_specifiers(Path::new(fname), path) {
-                Err(e) => errs.append(Err(e)),
-                Ok(()) => {
-                    let full_path = format!("{dir_path}/{fname}");
-
-                    match ctx.check_path_kind(stable_src, &full_path, path)? {
-                        None | Some(PathKind::File) => (),
-                        Some(PathKind::EmptyDir | PathKind::OccupiedDir) => errs.push(
-                            checks::ErrorKind::IsADirectory,
-                            format_error_message(ctx.source_dir_for(stable_src), full_path),
-                            path,
-                        ),
-                        Some(PathKind::Missing) => errs.push(
-                            checks::ErrorKind::FileNotFound,
-                            format_error_message(ctx.source_dir_for(stable_src), full_path),
-                            path,
-                        ),
-                    }
-                }
+            match ctx.check_path_kind(stable_src, &full_path, path)? {
+                None | Some(PathKind::File) => (),
+                Some(PathKind::EmptyDir | PathKind::OccupiedDir) => errs.push(
+                    checks::ErrorKind::IsADirectory,
+                    format_error_message(ctx.source_dir_for(stable_src), full_path),
+                    path,
+                ),
+                Some(PathKind::Missing) => errs.push(
+                    checks::ErrorKind::FileNotFound,
+                    format_error_message(ctx.source_dir_for(stable_src), full_path),
+                    path,
+                ),
             }
         }
 
