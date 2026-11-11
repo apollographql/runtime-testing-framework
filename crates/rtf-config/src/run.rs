@@ -6,7 +6,7 @@ use crate::{
     StableSource,
     checks::{Check, CheckArrayDuplicates},
     context::ResolutionContext,
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, provider_cache_key},
     providers::{
         self,
         command::CommandProvider,
@@ -63,6 +63,16 @@ impl<'a> Provider<'a> {
                 fp: FileProvider::CustomProvider(_),
             }
         )
+    }
+
+    /// Construct the file provider cache key used by this provider when deduplicating file
+    /// provider content.
+    pub fn cache_key(&self) -> u64 {
+        match self {
+            Self::File { fp } => provider_cache_key(fp),
+            Self::Command { cmd, .. } => provider_cache_key(cmd),
+            Self::ComposeFile { fp } => provider_cache_key(fp),
+        }
     }
 }
 
@@ -176,6 +186,15 @@ pub trait RunScenario: ValidateScenario + Execute {}
 
 pub trait RunProviders: Inline + Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
+
+    /// The full set of cache keys for file provider required by this type.
+    ///
+    /// This will only produce the correct keys if this test plan has been successfully templated.
+    fn file_provider_cache_keys(&self) -> impl Iterator<Item = u64> {
+        self.named_providers()
+            .into_iter()
+            .map(|(_, p)| p.cache_key())
+    }
 
     fn contains_custom_providers(&self) -> bool {
         self.named_providers()
