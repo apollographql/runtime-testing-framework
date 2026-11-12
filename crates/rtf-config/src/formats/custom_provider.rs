@@ -1,7 +1,7 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{
         self,
         command::CommandSection,
@@ -122,7 +122,7 @@ impl Inline for CustomProviderDefinition {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.command.try_inline(mode, ctx, cache)
     }

@@ -5,8 +5,9 @@ use crate::{
         CustomProviderDeclaration, EnvironmentConfig, Generic, Matrix, Prepare, PrepareOnly,
         Result, Run, ScenarioConfig,
     },
+    inlining::ProviderCacheKey,
     providers::file::{SourceDir, StableSource},
-    run::{Execute, RunEnvironment, RunScenario},
+    run::{Execute, RunEnvironment, RunProviders, RunScenario},
     templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_integrations::github::{self, Client};
@@ -171,6 +172,17 @@ impl<P: Prepare> TestPlan<P> {
             scenario: ScenarioConfig::empty(),
             environment: EnvironmentConfig::empty(),
         }
+    }
+
+    /// The full set of cache keys for file provider required by this [TestPlan].
+    ///
+    /// This will only produce the correct keys if this test plan has been successfully templated.
+    pub fn file_provider_cache_keys(&self) -> HashSet<ProviderCacheKey> {
+        self.environment
+            .execution
+            .file_provider_cache_keys()
+            .chain(self.scenario.execution.file_provider_cache_keys())
+            .collect()
     }
 }
 

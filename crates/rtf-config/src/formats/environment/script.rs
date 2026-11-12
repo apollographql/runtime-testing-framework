@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{self, command::CommandSection},
     run::{Execute, Provider, RunEnvironment, RunProviders, ValidateEnvironment},
 };
@@ -71,7 +71,7 @@ impl Inline for ScriptEnvironment {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();

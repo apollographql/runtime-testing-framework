@@ -2,7 +2,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::environment::manifest::{ManifestEnvironment, NamedManifestFiles},
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::file::manifest::NamedManifestFileProvider,
     run::{Provider, RunProviders, ValidateEnvironment},
 };
@@ -44,7 +44,7 @@ impl Inline for K8sResources {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.resources.try_inline(mode, ctx, cache)
     }

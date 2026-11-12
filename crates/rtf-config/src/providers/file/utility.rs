@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_as_utf8_file_content, enum_impl_check,
-    inlining::{self, Inline, InlineMode, InlinedProvider, provider_cache_key},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     merge_yaml,
     providers::{
         self, Result,
@@ -146,7 +146,7 @@ impl Inline for TextFileProvider {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         macro_rules! inline {
             ($fp:expr) => {
@@ -155,7 +155,7 @@ impl Inline for TextFileProvider {
         }
 
         Box::pin(async move {
-            let key = provider_cache_key(&*self);
+            let key = ProviderCacheKey::new(&*self);
             if let Some(cached) = cache.get(&key) {
                 match cached.clone() {
                     InlinedProvider::File(f) => *self = Self::Inline(f),
@@ -212,7 +212,7 @@ impl Inline for MergeFileProvider {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         macro_rules! inline {
             ($fp:expr) => {
@@ -221,7 +221,7 @@ impl Inline for MergeFileProvider {
         }
 
         Box::pin(async move {
-            let key = provider_cache_key(&*self);
+            let key = ProviderCacheKey::new(&*self);
             if let Some(cached) = cache.get(&key) {
                 match cached.clone() {
                     InlinedProvider::File(f) => *self = Self::Inline(f),
@@ -403,7 +403,7 @@ impl Inline for MergeYaml {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
@@ -437,7 +437,7 @@ impl Inline for Overrides {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
@@ -568,7 +568,7 @@ impl Inline for FromCommand {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.inner.try_inline(mode, ctx, cache)
     }

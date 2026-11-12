@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, enum_impl_extract_relative_files,
-    inlining::{self, Inline, InlineMode, InlinedProvider, provider_cache_key},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers,
     run::{ExtractRelativeFiles, try_read_relative_dir, try_read_relative_file},
     templating::{self, Field, Template, TemplateContext},
@@ -385,14 +385,14 @@ impl Inline for FileProvider {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             if matches!(self, Self::Inline(_) | Self::InlineDir(_)) {
                 return Ok(());
             }
 
-            let key = provider_cache_key(&*self);
+            let key = ProviderCacheKey::new(&*self);
 
             if let Some(cached) = cache.get(&key) {
                 match cached.clone() {
@@ -519,7 +519,7 @@ enum_impl_file_provider!(
 pub struct InlineFile {
     /// The text to write out as the contents of the generated file.
     #[template(skip)]
-    pub(crate) content: String,
+    pub content: String,
 }
 
 impl AsUtf8FileContent for InlineFile {
@@ -1008,7 +1008,7 @@ impl ExtractRelativeFiles for RelativeDir {
 pub struct RequiredFile {
     /// The error message to display to the user if this provider is not overwritten.
     #[template(skip)]
-    pub(crate) message: String,
+    pub message: String,
 }
 
 impl AsUtf8FileContent for RequiredFile {

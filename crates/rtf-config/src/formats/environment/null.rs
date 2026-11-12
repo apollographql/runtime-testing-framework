@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers,
     run::{Provider, RunEnvironment, RunProviders, ValidateEnvironment},
 };
@@ -72,7 +72,7 @@ impl Inline for NullEnvironment {
         &'a mut self,
         _mode: InlineMode,
         _ctx: &'a impl ResolutionContext,
-        _cache: &'a mut HashMap<u64, InlinedProvider>,
+        _cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async { Ok(()) })
     }

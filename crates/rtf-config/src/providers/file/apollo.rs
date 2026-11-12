@@ -4,7 +4,7 @@ use crate::{
     StableSource,
     checks::{self, Check},
     context::ResolutionContext,
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{
         self,
         file::{AsUtf8FileContent, DirFile, ResolveFileContent, utility::TextFileProvider},
@@ -745,7 +745,7 @@ impl Inline for GraphosCannedOpsById {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.operations.try_inline(mode, ctx, cache)
     }

@@ -6,7 +6,7 @@ use crate::{
     StableSource,
     checks::{Check, CheckArrayDuplicates},
     context::ResolutionContext,
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{
         self,
         command::CommandProvider,
@@ -63,6 +63,16 @@ impl<'a> Provider<'a> {
                 fp: FileProvider::CustomProvider(_),
             }
         )
+    }
+
+    /// Construct the file provider cache key used by this provider when deduplicating file
+    /// provider content.
+    pub fn cache_key(&self) -> ProviderCacheKey {
+        match self {
+            Self::File { fp } => ProviderCacheKey::new(fp),
+            Self::Command { cmd, .. } => ProviderCacheKey::new(cmd),
+            Self::ComposeFile { fp } => ProviderCacheKey::new(fp),
+        }
     }
 }
 
@@ -177,6 +187,15 @@ pub trait RunScenario: ValidateScenario + Execute {}
 pub trait RunProviders: Inline + Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
 
+    /// The full set of cache keys for file provider required by this type.
+    ///
+    /// This will only produce the correct keys if this test plan has been successfully templated.
+    fn file_provider_cache_keys(&self) -> impl Iterator<Item = ProviderCacheKey> {
+        self.named_providers()
+            .into_iter()
+            .map(|(_, p)| p.cache_key())
+    }
+
     fn contains_custom_providers(&self) -> bool {
         self.named_providers()
             .iter()
@@ -282,7 +301,7 @@ macro_rules! enum_impl_run_providers {
                 &'a mut self,
                 mode: InlineMode,
                 ctx: &'a impl ResolutionContext,
-                cache: &'a mut HashMap<u64, InlinedProvider>,
+                cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
             ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
                 match self {
                     $(Self::$variant(inner) => inner.try_inline(mode, ctx, cache),)+
@@ -305,7 +324,7 @@ impl Inline for Vec<NamedFileProvider> {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
@@ -337,7 +356,7 @@ impl Inline for Vec<NamedManifestFileProvider> {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();

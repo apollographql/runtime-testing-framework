@@ -6,7 +6,7 @@ use rtf_config::{
     StableSource,
     context::ResolutionContext,
     formats::{PrepareOnlyTestPlanConfig, Sources},
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     templating::{Template, TemplateContext},
 };
 use rtf_core::variables::Variables;
@@ -93,7 +93,7 @@ async fn inline_file_providers(
     mode: InlineMode,
     ctx: &mut impl ResolutionContext,
     template_variables: &HashMap<String, StableSource>,
-    cache: &mut HashMap<u64, InlinedProvider>,
+    cache: &mut HashMap<ProviderCacheKey, InlinedProvider>,
 ) -> inlining::Result<()> {
     let mut errs = inlining::ErrorBuilder::new();
 
@@ -125,7 +125,7 @@ async fn inline_one(
     outdir: &Path,
     test_plan_name: Option<String>,
     ctx: &mut impl ResolutionContext,
-    inline_cache: &mut HashMap<u64, InlinedProvider>,
+    inline_cache: &mut HashMap<ProviderCacheKey, InlinedProvider>,
 ) -> anyhow::Result<()> {
     inline_file_providers(test_plan, mode, ctx, template_variables, inline_cache).await?;
 

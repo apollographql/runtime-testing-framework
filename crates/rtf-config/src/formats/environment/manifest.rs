@@ -2,7 +2,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::{PathKind, ResolutionContext},
     formats::OutputCollection,
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{
         self,
         file::{NamedFileProvider, StableSource, manifest::NamedManifestFileProvider},
@@ -165,7 +165,7 @@ impl<M: ValidateEnvironment + NamedManifestFiles> ManifestEnvironment<M> {
     pub async fn inline_manifests<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> inlining::Result<()> {
         let mut errs = inlining::ErrorBuilder::new();
 
@@ -194,7 +194,7 @@ impl<M: ValidateEnvironment> Inline for ManifestEnvironment<M> {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();

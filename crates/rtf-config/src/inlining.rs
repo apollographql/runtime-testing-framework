@@ -88,24 +88,33 @@ pub trait Inline: Send + Sync {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
 }
 
-/// Compute a stable `u64` cache key for a serializable provider.
+/// A stable cache key for a serializable provider.
 ///
 /// We rely on YAML serialization to produce a canonical byte representation which we then hash to
 /// generate the key in order to avoid arbitrary length strings as keys for the cache.
 /// This means that two providers with identical YAML representations will produce the same cache
 /// key, which is fine as we would deserialize them as the same type from YAML anyway.
-pub(crate) fn provider_cache_key<T>(value: &T) -> u64
-where
-    T: Serialize,
-{
-    let mut hasher = DefaultHasher::new();
-    yaml_serde::to_string(value)
-        .expect("to serialize")
-        .hash(&mut hasher);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProviderCacheKey(u64);
 
-    hasher.finish()
+impl ProviderCacheKey {
+    pub(crate) fn new<T>(value: &T) -> Self
+    where
+        T: Serialize,
+    {
+        let mut hasher = DefaultHasher::new();
+        yaml_serde::to_string(value)
+            .expect("to serialize")
+            .hash(&mut hasher);
+
+        Self(hasher.finish())
+    }
+
+    pub const fn new_from_u64(value: u64) -> Self {
+        Self(value)
+    }
 }

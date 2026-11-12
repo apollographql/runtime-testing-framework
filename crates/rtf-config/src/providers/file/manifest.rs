@@ -2,7 +2,7 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_resolve_and_write,
-    inlining::{self, Inline, InlineMode, InlinedProvider, provider_cache_key},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{
         self,
         file::{
@@ -159,14 +159,14 @@ impl Inline for ManifestFileProvider {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             if matches!(self, Self::Inline(_) | Self::InlineDir(_)) {
                 return Ok(());
             }
 
-            let key = provider_cache_key(&*self);
+            let key = ProviderCacheKey::new(&*self);
             if let Some(cached) = cache.get(&key) {
                 match cached.clone() {
                     InlinedProvider::File(f) => *self = Self::Inline(f),

@@ -8,7 +8,7 @@ use rtf_config::{
         DockerComposeEnvironment, DockerScenario, FileProviderServices, K8sEnvironment,
         NullEnvironment, PrometheusQuery, TestPlan,
     },
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     run::{Provider, RunProviders, ValidateEnvironment},
     templating::Template as _,
 };
@@ -55,7 +55,7 @@ impl OrchestratorEnvironment {
     pub async fn inline_manifest_files(
         &mut self,
         ctx: &impl ResolutionContext,
-        cache: &mut HashMap<u64, InlinedProvider>,
+        cache: &mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> inlining::Result<()> {
         match self {
             Self::Null(_) => Ok(()),
@@ -110,7 +110,7 @@ impl Inline for OrchestratorEnvironment {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
             Self::Null(inner) => inner.try_inline(mode, ctx, cache),

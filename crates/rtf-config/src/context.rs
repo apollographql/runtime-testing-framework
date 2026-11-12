@@ -1,7 +1,7 @@
 use crate::{
     checks,
     formats::Sources,
-    inlining::provider_cache_key,
+    inlining::ProviderCacheKey,
     providers::{
         self,
         file::{SourceDir, StableSource},
@@ -244,7 +244,7 @@ pub trait ResolutionContext: Send + Sync {
 pub struct Context {
     client: ReqwestClient,
     supergraph_details: Arc<Mutex<HashMap<String, Arc<SupergraphDetails>>>>,
-    fp_output_paths: HashMap<u64, PathBuf>,
+    fp_output_paths: HashMap<ProviderCacheKey, PathBuf>,
     output_path: PathBuf,
     capture_output: bool,
     captured_stdout: Arc<RwLock<Vec<u8>>>,
@@ -364,13 +364,13 @@ impl ResolutionContext for Context {
     }
 
     fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {
-        let key = provider_cache_key(&provider);
+        let key = ProviderCacheKey::new(&provider);
 
         self.fp_output_paths.insert(key, path);
     }
 
     fn known_provider_output_path(&self, provider: Provider<'_>) -> Option<PathBuf> {
-        let key = provider_cache_key(&provider);
+        let key = ProviderCacheKey::new(&provider);
 
         self.fp_output_paths.get(&key).cloned()
     }

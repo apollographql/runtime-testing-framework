@@ -3,14 +3,27 @@ use crate::{
     config::Config,
     conn,
     context::OrchestratorContext,
-    db::{ClusterId, TestExecution, UpdateHandle},
+    db::{ClusterId, TestExecution, TestRun, UpdateHandle},
     event_loop::{EventData, ProvisioningHandle},
     state::TestRunWithPayload,
 };
-use rtf_config::{StableSource, checks::Check, templating::Template};
+use rtf_config::{
+    StableSource,
+    checks::Check,
+    inlining::ProviderCacheKey,
+    templating::{Scalar, Template},
+};
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorTestPlan};
-use std::{collections::VecDeque, mem::take, ops::ControlFlow};
-use tokio::{sync::mpsc::UnboundedReceiver, task::yield_now};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    mem::take,
+    ops::ControlFlow,
+    sync::Arc,
+};
+use tokio::{
+    sync::{Mutex, mpsc::UnboundedReceiver},
+    task::yield_now,
+};
 use tracing::{error, warn};
 use uuid::Uuid;
 
@@ -192,24 +205,7 @@ where
         .mark_run_as_resolving(test_run, MSG_RUN_CHECKS.into())
         .await;
 
-    let (ctx, test_plan) = prepare_resolution(cfg, payload.clone())?;
-
-    // Run full static checks up front before creating executions and pushing to the queue
-    for (_, mut variant) in test_plan.try_iter_matrix_variants()? {
-        let variables = take(&mut variant.variables);
-        let template_ctx = ctx.new_template_context(variables);
-
-        variant
-            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
-            .map_err(ResolverError::VariantTemplating)?;
-
-        variant.try_check(&mut Vec::new(), &ctx)?;
-
-        // If running on a single CPU then this loop becomes blocking
-        // yield_now gives other tasks the chance to schedule if required
-        yield_now().await;
-    }
-
+    let (ctx, test_plan, cache_keys_by_name) = prepare_resolution(cfg, payload.clone()).await?;
     let expanded_matrix = test_plan.matrix.try_expand(&test_plan.variables)?;
 
     let pool = test_run.workload_pool();
@@ -218,6 +214,8 @@ where
     }
 
     update_handle.cache_payload_for_run(test_run, payload).await;
+    let executions_per_file_provider = ctx.executions_per_file_provider();
+
     prov_handle
         .cache_for_test_run(
             test_run.uuid(),
@@ -229,47 +227,15 @@ where
         )
         .await;
 
-    let mut n_submitted = 0;
-    let mut cancelled = false;
-
-    for (i, (name, _)) in expanded_matrix.iter().enumerate() {
-        let res = prov_handle
-            .request_provisioning(test_run, name, i, pool.clone(), update_handle)
-            .await;
-
-        match res {
-            Ok(true) => n_submitted += 1,
-            Ok(false) => {
-                warn!(run_uuid=%test_run.uuid(), "test run cancelled mid-submission, stopping further execution creation");
-                cancelled = true;
-                break;
-            }
-            Err(Error::Resolve(ResolverError::EventChannelClosed)) => {
-                return Err(ResolverError::EventChannelClosed);
-            }
-            Err(e) => {
-                error!(%e, %name, "unable to initialise execution in DB");
-                continue;
-            }
-        }
-    }
-
-    // If we failed to init any executions then there's nothing to clear the cache later, so we
-    // clear it now and mark as unrunnable if the run wasn't cancelled.
-    if n_submitted == 0 {
-        prov_handle.evict_cached_run_state(test_run.uuid()).await;
-        update_handle
-            .clear_cached_payload_for_run(test_run.uuid())
-            .await;
-
-        if !cancelled {
-            update_handle
-                .mark_run_as_unrunnable(test_run, "unable to initialise executions".into())
-                .await;
-        }
-    }
-
-    Ok(())
+    try_provision_executions(
+        test_run,
+        expanded_matrix,
+        cache_keys_by_name,
+        executions_per_file_provider,
+        update_handle,
+        prov_handle,
+    )
+    .await
 }
 
 async fn resolve_config(
@@ -296,10 +262,14 @@ async fn resolve_config(
     }
 }
 
-fn prepare_resolution(
+async fn prepare_resolution(
     cfg: &Config,
     payload: PreparedPayload,
-) -> Result<(OrchestratorContext, OrchestratorTestPlan)> {
+) -> Result<(
+    OrchestratorContext,
+    OrchestratorTestPlan,
+    HashMap<String, HashSet<ProviderCacheKey>>,
+)> {
     let PreparedPayload {
         mut test_plan,
         relative_files,
@@ -319,7 +289,89 @@ fn prepare_resolution(
         .check_templating_will_work(&ctx.variable_sources(), &ctx)
         .map_err(ResolverError::TemplatingCheck)?;
 
-    Ok((ctx, test_plan))
+    let mut cache_keys_by_name = HashMap::new();
+
+    // Run full static checks up front before creating executions and pushing to the queue
+    for (name, mut variant) in test_plan.try_iter_matrix_variants()? {
+        let variables = take(&mut variant.variables);
+        let template_ctx = ctx.new_template_context(variables);
+
+        variant
+            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+            .map_err(ResolverError::VariantTemplating)?;
+        variant.try_check(&mut Vec::new(), &ctx)?;
+        cache_keys_by_name.insert(name, variant.file_provider_cache_keys());
+
+        // If running on a single CPU then this loop becomes blocking
+        // yield_now gives other tasks the chance to schedule if required
+        yield_now().await;
+    }
+
+    Ok((ctx, test_plan, cache_keys_by_name))
+}
+
+async fn try_provision_executions<H>(
+    test_run: &TestRun,
+    expanded_matrix: Vec<(String, HashMap<String, Scalar>)>,
+    mut cache_keys_by_name: HashMap<String, HashSet<ProviderCacheKey>>,
+    executions_per_file_provider: Arc<Mutex<HashMap<ProviderCacheKey, HashSet<Uuid>>>>,
+    update_handle: &mut H,
+    prov_handle: &ProvisioningHandle,
+) -> Result<()>
+where
+    H: UpdateHandle,
+{
+    let mut n_submitted = 0;
+    let mut cancelled = false;
+    let run_id = test_run.uuid();
+    let pool = test_run.workload_pool();
+
+    for (i, (name, _)) in expanded_matrix.iter().enumerate() {
+        let res = prov_handle
+            .request_provisioning(test_run, name, i, pool.clone(), update_handle)
+            .await;
+
+        match res {
+            Ok(Some(ex_id)) => {
+                n_submitted += 1;
+                let fp_keys = cache_keys_by_name.remove(name).unwrap_or_default();
+                for key in fp_keys.into_iter() {
+                    executions_per_file_provider
+                        .lock()
+                        .await
+                        .entry(key)
+                        .or_default()
+                        .insert(ex_id);
+                }
+            }
+            Ok(None) => {
+                warn!(run_uuid=%run_id, "test run cancelled mid-submission, stopping further execution creation");
+                cancelled = true;
+                break;
+            }
+            Err(Error::Resolve(ResolverError::EventChannelClosed)) => {
+                return Err(ResolverError::EventChannelClosed);
+            }
+            Err(e) => error!(%e, %name, "unable to initialise execution in DB"),
+        }
+    }
+
+    if n_submitted > 0 {
+        prov_handle.mark_run_finished_resolving(run_id).await;
+    } else {
+        // If we failed to init any executions then there's nothing to clear the cache later, so we
+        // clear it now and mark as unrunnable if the run wasn't cancelled.
+        prov_handle.evict_cached_run_state(run_id).await;
+        update_handle.clear_cached_payload_for_run(run_id).await;
+
+        if !cancelled {
+            update_handle
+                .mark_run_as_unrunnable(test_run, "unable to initialise executions".into())
+                .await;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -328,16 +380,21 @@ mod tests {
     use crate::{
         config::{Config, DEFAULT_POOL},
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
-        event_loop::{EventData, EventQueue},
+        event_loop::{EventData, EventQueue, tests::stub_test_plan},
         state::{TestRunWithPayload, UserType},
     };
-    use indoc::indoc;
     use rtf_config::{
+        VariableDefinition,
         formats::{
             ComposeResources, DockerCommand, DockerComposeEnvironment, DockerScenario,
             EnvironmentConfig, Matrix, OutputCollection, ScenarioConfig,
         },
-        providers::file::manifest::NamedManifestFileProvider,
+        providers::file::{
+            FileProvider, NamedFileProvider, RequiredFile,
+            apollo::GraphosSubgraphs,
+            manifest::{ManifestFileProvider, NamedManifestFileProvider},
+        },
+        run::Provider,
         templating::{Field, Scalar},
     };
     use rtf_orchestrator_shared::{
@@ -410,18 +467,151 @@ mod tests {
         }
     }
 
-    #[test]
-    fn prepare_resolution_carries_the_payloads_variable_sources_into_the_context() {
+    #[tokio::test]
+    async fn prepare_resolution_carries_the_payloads_variable_sources_into_the_context() {
         let cfg = Config::for_test();
         let mut payload = empty_payload();
         payload.variable_sources =
             HashMap::from([("setup_subject".to_string(), StableSource::VariablesFile)]);
 
-        let (ctx, _) = prepare_resolution(&cfg, payload).unwrap();
+        let (ctx, _, _) = prepare_resolution(&cfg, payload).await.unwrap();
 
         assert_eq!(
             ctx.variable_sources().get("setup_subject"),
             Some(&StableSource::VariablesFile)
+        );
+    }
+
+    fn graphos_subgraphs(graph_ref: Field<String>) -> FileProvider {
+        FileProvider::GraphosSubgraphs(GraphosSubgraphs { graph_ref })
+    }
+
+    fn cache_key(fp: &FileProvider) -> ProviderCacheKey {
+        Provider::File { fp }.cache_key()
+    }
+
+    fn payload_with_shared_and_unique_file_providers() -> PreparedPayload {
+        let mut test_plan = stub_test_plan();
+        test_plan.matrix.dimensions = HashMap::from([(
+            "graph_ref".to_string(),
+            vec![Scalar::from("a@current"), Scalar::from("b@current")],
+        )]);
+        test_plan.scenario.variable_definitions = vec![VariableDefinition {
+            name: "graph_ref".into(),
+            description: String::new(),
+            default: None,
+            allowed_values: None,
+        }];
+        test_plan.scenario.execution.file_providers = vec![
+            NamedFileProvider {
+                name: "shared".to_string(),
+                env_var: "SHARED".to_string(),
+                provider: graphos_subgraphs(Field::Resolved("shared@current".to_string())),
+            },
+            NamedFileProvider {
+                name: "unique".to_string(),
+                env_var: "UNIQUE".to_string(),
+                provider: graphos_subgraphs(Field::Pending("graph_ref".to_string())),
+            },
+        ];
+
+        PreparedPayload {
+            test_plan,
+            ..empty_payload()
+        }
+    }
+
+    #[tokio::test]
+    async fn prepare_resolution_builds_file_provider_cache_keys_by_variant_name() {
+        let cfg = Config::for_test();
+
+        let (_, _, cache_keys_by_name) =
+            prepare_resolution(&cfg, payload_with_shared_and_unique_file_providers())
+                .await
+                .unwrap();
+
+        let fp_key = |s: &str| cache_key(&graphos_subgraphs(Field::Resolved(s.to_string())));
+        let expected = HashMap::from([
+            (
+                "matrix_variant_1".to_string(),
+                HashSet::from([fp_key("shared@current"), fp_key("a@current")]),
+            ),
+            (
+                "matrix_variant_2".to_string(),
+                HashSet::from([fp_key("shared@current"), fp_key("b@current")]),
+            ),
+        ]);
+
+        assert_eq!(cache_keys_by_name, expected);
+    }
+
+    #[tokio::test]
+    async fn try_provision_executions_stores_executions_per_file_provider() {
+        let cfg = Config::for_test();
+        let (_eq, ph, eqs, _) = EventQueue::new(&cfg.workload_clusters);
+        let tr = TestRun::create_stub(1, "test");
+        let mut handle = mock_handle_with_run(&tr);
+
+        let tp = payload_with_shared_and_unique_file_providers().test_plan;
+        let expanded_matrix = tp.matrix.try_expand(&tp.variables).unwrap();
+        let ctx = OrchestratorContext::new(&cfg);
+        let executions_per_file_provider = ctx.executions_per_file_provider();
+
+        eqs.try_reserve_pending_executions(&tp).await.unwrap();
+        ph.cache_for_test_run(
+            tr.uuid(),
+            UserType::Unknown,
+            Default::default(),
+            false,
+            ctx,
+            tp,
+        )
+        .await;
+
+        let shared = ProviderCacheKey::new_from_u64(1);
+        let unique_a = ProviderCacheKey::new_from_u64(2);
+        let unique_b = ProviderCacheKey::new_from_u64(3);
+        let cache_keys_by_name = HashMap::from([
+            (
+                "matrix_variant_1".to_string(),
+                HashSet::from([shared, unique_a]),
+            ),
+            (
+                "matrix_variant_2".to_string(),
+                HashSet::from([shared, unique_b]),
+            ),
+        ]);
+
+        let res = try_provision_executions(
+            &tr,
+            expanded_matrix,
+            cache_keys_by_name,
+            executions_per_file_provider.clone(),
+            &mut handle,
+            &ph,
+        )
+        .await;
+
+        assert!(res.is_ok(), "should have provisioned executions: {res:?}");
+        assert_eq!(handle.test_executions.len(), 2, "two executions created");
+
+        let ex_uuid = |index: usize| {
+            handle
+                .test_executions
+                .iter()
+                .find(|ex| ex.test_plan_index() == index)
+                .expect("execution should exist for index")
+                .uuid()
+        };
+        let (ex_a, ex_b) = (ex_uuid(0), ex_uuid(1));
+
+        assert_eq!(
+            *executions_per_file_provider.lock().await,
+            HashMap::from([
+                (shared, HashSet::from([ex_a, ex_b])),
+                (unique_a, HashSet::from([ex_a])),
+                (unique_b, HashSet::from([ex_b])),
+            ])
         );
     }
 
@@ -493,13 +683,13 @@ mod tests {
         let tr = TestRun::create_stub(1, "test");
         let mut mock = mock_handle_with_run(&tr);
 
-        let ctx = crate::context::OrchestratorContext::new_from_inlined_files(
+        let ctx = OrchestratorContext::new_from_inlined_files(
             &cfg,
-            rtf_orchestrator_shared::payload::SourceKeyedArrayMap {
+            SourceKeyedArrayMap {
                 keys: vec![],
                 data: vec![],
             },
-            rtf_orchestrator_shared::payload::SourceKeyedArrayMap {
+            SourceKeyedArrayMap {
                 keys: vec![],
                 data: vec![],
             },
@@ -529,8 +719,9 @@ mod tests {
             .next_event()
             .await
             .expect("CreateEnvArgoWorkflow should be sent");
-        assert!(
-            matches!(evt.data, EventData::CreateEnvArgoWorkflow),
+        assert_matches!(
+            evt.data,
+            EventData::CreateEnvArgoWorkflow,
             "expected CreateEnvArgoWorkflow, got: {:?}",
             evt.data
         );
@@ -549,8 +740,9 @@ mod tests {
             .next_event()
             .await
             .expect("MarkUnrunnable should be sent");
-        assert!(
-            matches!(evt1.data, EventData::MarkUnrunnable(_)),
+        assert_matches!(
+            evt1.data,
+            EventData::MarkUnrunnable(_),
             "expected MarkUnrunnable, got: {:?}",
             evt1.data
         );
@@ -558,8 +750,9 @@ mod tests {
             .next_event()
             .await
             .expect("CleanupNamespace should be sent");
-        assert!(
-            matches!(evt2.data, EventData::CleanupNamespace),
+        assert_matches!(
+            evt2.data,
+            EventData::CleanupNamespace,
             "expected CleanupNamespace, got: {:?}",
             evt2.data
         );
@@ -637,15 +830,13 @@ mod tests {
         let cfg = Config::for_test();
         let (_eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
-        // compose_files with a required provider — try_check always fails for RequiredFile
-        let required_compose: NamedManifestFileProvider = yaml_serde::from_str(indoc!(
-            r#"
-                name: required-compose
-                kind: required
-                message: must provide a compose file
-            "#
-        ))
-        .expect("required compose file provider must deserialize");
+        // try_check always fails for RequiredFile
+        let required_compose = NamedManifestFileProvider {
+            name: "required-compose".into(),
+            provider: ManifestFileProvider::Required(RequiredFile {
+                message: "must provide a compose file".into(),
+            }),
+        };
         let test_plan = minimal_orchestrator_test_plan(vec![required_compose]);
         let payload = PreparedPayload {
             variables: None,

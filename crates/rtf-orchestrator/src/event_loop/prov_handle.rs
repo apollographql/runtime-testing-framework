@@ -69,8 +69,19 @@ impl ProvisioningHandle {
                     initiated_by_user,
                     workload_config,
                     requires_dedicated,
+                    finished_resolving: false,
                 },
             )
+        })
+        .await;
+    }
+
+    /// Mark the given run as having submitted all of its executions to the event queue.
+    pub(crate) async fn mark_run_finished_resolving(&self, run_uuid: Uuid) {
+        self.with_shared(|shared| {
+            if let Some(run) = shared.runs.get_mut(&run_uuid) {
+                run.finished_resolving = true;
+            }
         })
         .await;
     }
@@ -88,9 +99,6 @@ impl ProvisioningHandle {
 
     /// Create the DB row for a new execution and submit a provisioning event to the event loop,
     /// decrementing `n_queued` in the process.
-    ///
-    /// The event waits in `EventQueue::pending_provisions` until namespace capacity is
-    /// available — the gating happens inside `EventQueue::next_event`, not here.
     pub(crate) async fn request_provisioning<H>(
         &self,
         tr: &TestRun,
@@ -98,7 +106,7 @@ impl ProvisioningHandle {
         index: usize,
         pool: PoolId,
         update_handle: &mut H,
-    ) -> crate::Result<bool>
+    ) -> crate::Result<Option<Uuid>>
     where
         H: UpdateHandle,
     {
@@ -108,11 +116,12 @@ impl ProvisioningHandle {
             Some(r) => (r.requires_dedicated, r.initiated_by_user.clone()),
             None => {
                 // run was cancelled while we were resolving executions
-                return Ok(false);
+                return Ok(None);
             }
         };
 
         let ex = update_handle.init_execution(tr, name, index).await?;
+        let ex_id = ex.uuid();
 
         assert!(
             shared.n_queued > 0,
@@ -130,7 +139,7 @@ impl ProvisioningHandle {
             return Err(ResolverError::EventChannelClosed.into());
         }
 
-        Ok(true)
+        Ok(Some(ex_id))
     }
 
     /// Register an already-created execution against its parent run's in-memory state, without
@@ -340,9 +349,10 @@ mod tests {
             .request_provisioning(&tr, "test", 0, DEFAULT_POOL, &mut mock)
             .await;
 
+        let ex_uuid = mock.test_executions[0].uuid();
         assert_matches!(
             res,
-            Ok(true),
+            Ok(Some(id)) if id == ex_uuid,
             "should have submitted the execution: {res:?}"
         );
 
@@ -352,7 +362,6 @@ mod tests {
         .await;
 
         let event = rx.try_recv().expect("event should have been sent");
-        let ex_uuid = mock.test_executions[0].uuid();
 
         assert_matches!(
             event,
@@ -364,7 +373,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn request_provisioning_returns_false_when_channel_is_closed() {
+    async fn request_provisioning_returns_error_when_channel_is_closed() {
         let (h, rx) = test_prov_handle();
         let tr = TestRun::create_stub(1, "test");
         let mut mock = MockUpdateHandle::with_run(tr.clone());
@@ -376,7 +385,11 @@ mod tests {
             .request_provisioning(&tr, "test", 0, DEFAULT_POOL, &mut mock)
             .await;
 
-        assert!(res.is_err(), "should have failed to send event");
+        assert_matches!(
+            res,
+            Err(crate::Error::Resolve(ResolverError::EventChannelClosed)),
+            "should have failed to send event"
+        );
     }
 
     #[tokio::test]
