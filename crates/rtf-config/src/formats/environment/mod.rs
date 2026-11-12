@@ -6,7 +6,7 @@ use crate::{
     enum_impl_check, enum_impl_check_array_duplicates, enum_impl_run_environment,
     enum_impl_run_providers,
     formats::{CustomProviderDeclaration, OutputCollection, Result},
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{self, file::StableSource},
     run::{Provider, RunEnvironment, ValidateEnvironment},
     templating::{self, FileType, Template, TemplateContext},
@@ -119,7 +119,7 @@ impl<T: ValidateEnvironment> Inline for EnvironmentConfig<T> {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.execution.try_inline(mode, ctx, cache)
     }

@@ -7,7 +7,7 @@ use rtf_config::{
     checks::{self, Check},
     context::{Context, PathKind, ResolutionContext},
     formats::{CustomProviderDefinition, FileProviderServices, Sources},
-    inlining::InlinedProvider,
+    inlining::{InlinedProvider, ProviderCacheKey},
     providers,
     run::Provider,
     templating::{CustomProviderDefinitions, Scalar, Template, TemplateContext},
@@ -34,8 +34,8 @@ pub struct OrchestratorContext {
     relative_files: SourceKeyedArrayMap<String>,
     custom_providers: Arc<CustomProviderDefinitions>,
     variable_sources: HashMap<String, StableSource>,
-    inline_cache: Arc<Mutex<HashMap<u64, InlinedProvider>>>,
-    executions_per_file_provider: Arc<Mutex<HashMap<u64, HashSet<Uuid>>>>,
+    inline_cache: Arc<Mutex<HashMap<ProviderCacheKey, InlinedProvider>>>,
+    executions_per_file_provider: Arc<Mutex<HashMap<ProviderCacheKey, HashSet<Uuid>>>>,
 }
 
 impl OrchestratorContext {
@@ -64,11 +64,13 @@ impl OrchestratorContext {
         }
     }
 
-    pub(crate) fn executions_per_file_provider(&self) -> Arc<Mutex<HashMap<u64, HashSet<Uuid>>>> {
+    pub(crate) fn executions_per_file_provider(
+        &self,
+    ) -> Arc<Mutex<HashMap<ProviderCacheKey, HashSet<Uuid>>>> {
         self.executions_per_file_provider.clone()
     }
 
-    pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {
+    pub fn inline_cache(&self) -> Arc<Mutex<HashMap<ProviderCacheKey, InlinedProvider>>> {
         self.inline_cache.clone()
     }
 
@@ -125,7 +127,7 @@ impl OrchestratorContext {
     async fn inline_and_check_variant(
         &self,
         mut variant: OrchestratorTestPlan,
-        inline_cache: &mut HashMap<u64, InlinedProvider>,
+        inline_cache: &mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> resolver::Result<FileProviderServices> {
         let variables = take(&mut variant.variables);
         let template_ctx = self.new_template_context(variables);

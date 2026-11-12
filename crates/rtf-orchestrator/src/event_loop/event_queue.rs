@@ -605,7 +605,9 @@ mod tests {
         },
     };
     use rtf_config::{
-        formats::NullEnvironment, inlining::InlinedProvider, providers::file::InlineFile,
+        formats::NullEnvironment,
+        inlining::{InlinedProvider, ProviderCacheKey},
+        providers::file::InlineFile,
     };
     use rtf_orchestrator_shared::{
         OutputCollectionResponse, PrometheusQueries,
@@ -732,14 +734,14 @@ mod tests {
         .await;
     }
 
-    type ExecutionsPerFileProvider = Arc<Mutex<HashMap<u64, HashSet<Uuid>>>>;
-    type InlineCache = Arc<Mutex<HashMap<u64, InlinedProvider>>>;
+    type ExecutionsPerFileProvider = Arc<Mutex<HashMap<ProviderCacheKey, HashSet<Uuid>>>>;
+    type InlineCache = Arc<Mutex<HashMap<ProviderCacheKey, InlinedProvider>>>;
 
     // Cache a run with an inline cache entry for every file provider in
     // `executions_per_file_provider` and register all of the executions that use them.
     async fn cache_run_with_file_providers(
         run_uuid: Uuid,
-        executions_per_file_provider: HashMap<u64, HashSet<Uuid>>,
+        executions_per_file_provider: HashMap<ProviderCacheKey, HashSet<Uuid>>,
         eq: &mut EventQueue,
         h: &ProvisioningHandle,
     ) -> (ExecutionsPerFileProvider, InlineCache) {
@@ -755,7 +757,7 @@ mod tests {
         *inline_cache.lock().await = executions_per_file_provider
             .keys()
             .map(|&key| {
-                let content = format!("content for {key}");
+                let content = format!("content for {key:?}");
                 (key, InlinedProvider::File(InlineFile { content }))
             })
             .collect();
@@ -780,10 +782,10 @@ mod tests {
         (ctx_executions_per_file_provider, inline_cache)
     }
 
-    const SHARED: u64 = 0;
-    const UNIQUE_1: u64 = 1;
-    const UNIQUE_2: u64 = 2;
-    const UNIQUE_3: u64 = 3;
+    const SHARED: ProviderCacheKey = ProviderCacheKey::new_from_u64(0);
+    const UNIQUE_1: ProviderCacheKey = ProviderCacheKey::new_from_u64(1);
+    const UNIQUE_2: ProviderCacheKey = ProviderCacheKey::new_from_u64(2);
+    const UNIQUE_3: ProviderCacheKey = ProviderCacheKey::new_from_u64(3);
 
     const EX_1: Uuid = Uuid::from_u128(1);
     const EX_2: Uuid = Uuid::from_u128(2);
@@ -812,8 +814,8 @@ mod tests {
     #[tokio::test]
     async fn mark_execution_complete_evicts_inline_cache_correctly(
         finished_resolving: bool,
-        expected_ex_map: HashMap<u64, HashSet<Uuid>>,
-        expected_inline_keys: &[u64],
+        expected_ex_map: HashMap<ProviderCacheKey, HashSet<Uuid>>,
+        expected_inline_keys: &[ProviderCacheKey],
     ) {
         let cfg = Config::for_test();
         let (mut eq, h, _, _) = EventQueue::new(&cfg.workload_clusters);
@@ -841,7 +843,7 @@ mod tests {
 
         let completed_run = eq.mark_execution_complete(EX_2).await;
         let guard = inline_cache.lock().await;
-        let inline_cache_keys: HashSet<&u64> = guard.keys().collect();
+        let inline_cache_keys: HashSet<&ProviderCacheKey> = guard.keys().collect();
 
         assert_eq!(completed_run, None, "run should be ongoing");
         assert_eq!(*executions_per_file_provider.lock().await, expected_ex_map);

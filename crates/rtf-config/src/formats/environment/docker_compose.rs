@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::environment::manifest::{ManifestEnvironment, NamedManifestFiles},
-    inlining::{self, Inline, InlineMode, InlinedProvider},
+    inlining::{self, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
     providers::{
         self,
         file::{
@@ -76,7 +76,7 @@ impl Inline for ComposeResources {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        cache: &'a mut HashMap<u64, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.compose_files.try_inline(mode, ctx, cache)
     }

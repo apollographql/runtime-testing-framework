@@ -10,6 +10,7 @@ use crate::{
 use rtf_config::{
     StableSource,
     checks::Check,
+    inlining::ProviderCacheKey,
     templating::{Scalar, Template},
 };
 use rtf_orchestrator_shared::{payload::PreparedPayload, test_plan::OrchestratorTestPlan};
@@ -267,7 +268,7 @@ async fn prepare_resolution(
 ) -> Result<(
     OrchestratorContext,
     OrchestratorTestPlan,
-    HashMap<String, HashSet<u64>>,
+    HashMap<String, HashSet<ProviderCacheKey>>,
 )> {
     let PreparedPayload {
         mut test_plan,
@@ -312,8 +313,8 @@ async fn prepare_resolution(
 async fn try_provision_executions<H>(
     test_run: &TestRun,
     expanded_matrix: Vec<(String, HashMap<String, Scalar>)>,
-    mut cache_keys_by_name: HashMap<String, HashSet<u64>>,
-    executions_per_file_provider: Arc<Mutex<HashMap<u64, HashSet<Uuid>>>>,
+    mut cache_keys_by_name: HashMap<String, HashSet<ProviderCacheKey>>,
+    executions_per_file_provider: Arc<Mutex<HashMap<ProviderCacheKey, HashSet<Uuid>>>>,
     update_handle: &mut H,
     prov_handle: &ProvisioningHandle,
 ) -> Result<()>
@@ -485,7 +486,7 @@ mod tests {
         FileProvider::GraphosSubgraphs(GraphosSubgraphs { graph_ref })
     }
 
-    fn cache_key(fp: &FileProvider) -> u64 {
+    fn cache_key(fp: &FileProvider) -> ProviderCacheKey {
         Provider::File { fp }.cache_key()
     }
 
@@ -567,7 +568,9 @@ mod tests {
         )
         .await;
 
-        let (shared, unique_a, unique_b) = (1, 2, 3);
+        let shared = ProviderCacheKey::new_from_u64(1);
+        let unique_a = ProviderCacheKey::new_from_u64(2);
+        let unique_b = ProviderCacheKey::new_from_u64(3);
         let cache_keys_by_name = HashMap::from([
             (
                 "matrix_variant_1".to_string(),
