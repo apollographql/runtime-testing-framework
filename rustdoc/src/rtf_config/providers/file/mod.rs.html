@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a>    checks::{<span class="self">self</span>, Check},
 <a href=#4 id=4 data-nosnippet>4</a>    context::{PathKind, ResolutionContext},
 <a href=#5 id=5 data-nosnippet>5</a>    enum_impl_check, enum_impl_extract_relative_files,
-<a href=#6 id=6 data-nosnippet>6</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider, provider_cache_key},
+<a href=#6 id=6 data-nosnippet>6</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
 <a href=#7 id=7 data-nosnippet>7</a>    providers,
 <a href=#8 id=8 data-nosnippet>8</a>    run::{ExtractRelativeFiles, try_read_relative_dir, try_read_relative_file},
 <a href=#9 id=9 data-nosnippet>9</a>    templating::{<span class="self">self</span>, Field, Template, TemplateContext},
@@ -385,14 +385,14 @@
 <a href=#385 id=385 data-nosnippet>385</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#386 id=386 data-nosnippet>386</a>        mode: InlineMode,
 <a href=#387 id=387 data-nosnippet>387</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#388 id=388 data-nosnippet>388</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#388 id=388 data-nosnippet>388</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#389 id=389 data-nosnippet>389</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#390 id=390 data-nosnippet>390</a>        Box::pin(<span class="kw">async move </span>{
 <a href=#391 id=391 data-nosnippet>391</a>            <span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>, <span class="self">Self</span>::Inline(<span class="kw">_</span>) | <span class="self">Self</span>::InlineDir(<span class="kw">_</span>)) {
 <a href=#392 id=392 data-nosnippet>392</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
 <a href=#393 id=393 data-nosnippet>393</a>            }
 <a href=#394 id=394 data-nosnippet>394</a>
-<a href=#395 id=395 data-nosnippet>395</a>            <span class="kw">let </span>key = provider_cache_key(<span class="kw-2">&amp;*</span><span class="self">self</span>);
+<a href=#395 id=395 data-nosnippet>395</a>            <span class="kw">let </span>key = ProviderCacheKey::new(<span class="kw-2">&amp;*</span><span class="self">self</span>);
 <a href=#396 id=396 data-nosnippet>396</a>
 <a href=#397 id=397 data-nosnippet>397</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(cached) = cache.get(<span class="kw-2">&amp;</span>key) {
 <a href=#398 id=398 data-nosnippet>398</a>                <span class="kw">match </span>cached.clone() {
@@ -519,7 +519,7 @@
 <a href=#519 id=519 data-nosnippet>519</a></span><span class="kw">pub struct </span>InlineFile {
 <a href=#520 id=520 data-nosnippet>520</a>    <span class="doccomment">/// The text to write out as the contents of the generated file.
 <a href=#521 id=521 data-nosnippet>521</a>    </span><span class="attr">#[template(skip)]
-<a href=#522 id=522 data-nosnippet>522</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) content: String,
+<a href=#522 id=522 data-nosnippet>522</a>    </span><span class="kw">pub </span>content: String,
 <a href=#523 id=523 data-nosnippet>523</a>}
 <a href=#524 id=524 data-nosnippet>524</a>
 <a href=#525 id=525 data-nosnippet>525</a><span class="kw">impl </span>AsUtf8FileContent <span class="kw">for </span>InlineFile {
@@ -1008,7 +1008,7 @@
 <a href=#1008 id=1008 data-nosnippet>1008</a></span><span class="kw">pub struct </span>RequiredFile {
 <a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="doccomment">/// The error message to display to the user if this provider is not overwritten.
 <a href=#1010 id=1010 data-nosnippet>1010</a>    </span><span class="attr">#[template(skip)]
-<a href=#1011 id=1011 data-nosnippet>1011</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) message: String,
+<a href=#1011 id=1011 data-nosnippet>1011</a>    </span><span class="kw">pub </span>message: String,
 <a href=#1012 id=1012 data-nosnippet>1012</a>}
 <a href=#1013 id=1013 data-nosnippet>1013</a>
 <a href=#1014 id=1014 data-nosnippet>1014</a><span class="kw">impl </span>AsUtf8FileContent <span class="kw">for </span>RequiredFile {

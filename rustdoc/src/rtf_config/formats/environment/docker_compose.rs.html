@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a>    checks::{<span class="self">self</span>, Check, CheckArrayDuplicates, DedupArray},
 <a href=#4 id=4 data-nosnippet>4</a>    context::ResolutionContext,
 <a href=#5 id=5 data-nosnippet>5</a>    formats::environment::manifest::{ManifestEnvironment, NamedManifestFiles},
-<a href=#6 id=6 data-nosnippet>6</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider},
+<a href=#6 id=6 data-nosnippet>6</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
 <a href=#7 id=7 data-nosnippet>7</a>    providers::{
 <a href=#8 id=8 data-nosnippet>8</a>        <span class="self">self</span>,
 <a href=#9 id=9 data-nosnippet>9</a>        file::{
@@ -76,7 +76,7 @@
 <a href=#76 id=76 data-nosnippet>76</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#77 id=77 data-nosnippet>77</a>        mode: InlineMode,
 <a href=#78 id=78 data-nosnippet>78</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#79 id=79 data-nosnippet>79</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#79 id=79 data-nosnippet>79</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#80 id=80 data-nosnippet>80</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#81 id=81 data-nosnippet>81</a>        <span class="self">self</span>.compose_files.try_inline(mode, ctx, cache)
 <a href=#82 id=82 data-nosnippet>82</a>    }

@@ -2,7 +2,7 @@
 <a href=#2 id=2 data-nosnippet>2</a>    checks::{<span class="self">self</span>, Check, CheckArrayDuplicates, DedupArray},
 <a href=#3 id=3 data-nosnippet>3</a>    context::{PathKind, ResolutionContext},
 <a href=#4 id=4 data-nosnippet>4</a>    formats::OutputCollection,
-<a href=#5 id=5 data-nosnippet>5</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider},
+<a href=#5 id=5 data-nosnippet>5</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
 <a href=#6 id=6 data-nosnippet>6</a>    providers::{
 <a href=#7 id=7 data-nosnippet>7</a>        <span class="self">self</span>,
 <a href=#8 id=8 data-nosnippet>8</a>        file::{NamedFileProvider, StableSource, manifest::NamedManifestFileProvider},
@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">pub async fn </span>inline_manifests&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#166 id=166 data-nosnippet>166</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#167 id=167 data-nosnippet>167</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#168 id=168 data-nosnippet>168</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#168 id=168 data-nosnippet>168</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#169 id=169 data-nosnippet>169</a>    ) -&gt; inlining::Result&lt;()&gt; {
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="kw">let </span><span class="kw-2">mut </span>errs = inlining::ErrorBuilder::new();
 <a href=#171 id=171 data-nosnippet>171</a>
@@ -194,7 +194,7 @@
 <a href=#194 id=194 data-nosnippet>194</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#195 id=195 data-nosnippet>195</a>        mode: InlineMode,
 <a href=#196 id=196 data-nosnippet>196</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#197 id=197 data-nosnippet>197</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#197 id=197 data-nosnippet>197</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#198 id=198 data-nosnippet>198</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#199 id=199 data-nosnippet>199</a>        Box::pin(<span class="kw">async move </span>{
 <a href=#200 id=200 data-nosnippet>200</a>            <span class="kw">let </span><span class="kw-2">mut </span>errs = inlining::ErrorBuilder::new();

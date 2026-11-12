@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a>    checks::{<span class="self">self</span>, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
 <a href=#4 id=4 data-nosnippet>4</a>    context::ResolutionContext,
 <a href=#5 id=5 data-nosnippet>5</a>    formats::{CustomProviderDeclaration, <span class="prelude-ty">Result</span>, output_collection::OutputCollection},
-<a href=#6 id=6 data-nosnippet>6</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider},
+<a href=#6 id=6 data-nosnippet>6</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
 <a href=#7 id=7 data-nosnippet>7</a>    providers::{
 <a href=#8 id=8 data-nosnippet>8</a>        <span class="self">self</span>,
 <a href=#9 id=9 data-nosnippet>9</a>        command::CommandSection,
@@ -84,7 +84,7 @@
 <a href=#84 id=84 data-nosnippet>84</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#85 id=85 data-nosnippet>85</a>        mode: InlineMode,
 <a href=#86 id=86 data-nosnippet>86</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#87 id=87 data-nosnippet>87</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#87 id=87 data-nosnippet>87</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#88 id=88 data-nosnippet>88</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#89 id=89 data-nosnippet>89</a>        <span class="self">self</span>.execution.try_inline(mode, ctx, cache)
 <a href=#90 id=90 data-nosnippet>90</a>    }
@@ -214,7 +214,7 @@
 <a href=#214 id=214 data-nosnippet>214</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#215 id=215 data-nosnippet>215</a>        mode: InlineMode,
 <a href=#216 id=216 data-nosnippet>216</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#217 id=217 data-nosnippet>217</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#217 id=217 data-nosnippet>217</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#218 id=218 data-nosnippet>218</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#220 id=220 data-nosnippet>220</a>            <span class="self">Self</span>::Docker(inner) =&gt; inner.file_providers.try_inline(mode, ctx, cache),
@@ -432,7 +432,7 @@
 <a href=#432 id=432 data-nosnippet>432</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#433 id=433 data-nosnippet>433</a>        mode: InlineMode,
 <a href=#434 id=434 data-nosnippet>434</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#435 id=435 data-nosnippet>435</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#435 id=435 data-nosnippet>435</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#436 id=436 data-nosnippet>436</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#437 id=437 data-nosnippet>437</a>        <span class="self">self</span>.file_providers.try_inline(mode, ctx, cache)
 <a href=#438 id=438 data-nosnippet>438</a>    }

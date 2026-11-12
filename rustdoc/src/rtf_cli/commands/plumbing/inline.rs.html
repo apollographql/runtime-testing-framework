@@ -6,7 +6,7 @@
 <a href=#6 id=6 data-nosnippet>6</a>    StableSource,
 <a href=#7 id=7 data-nosnippet>7</a>    context::ResolutionContext,
 <a href=#8 id=8 data-nosnippet>8</a>    formats::{PrepareOnlyTestPlanConfig, Sources},
-<a href=#9 id=9 data-nosnippet>9</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider},
+<a href=#9 id=9 data-nosnippet>9</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
 <a href=#10 id=10 data-nosnippet>10</a>    templating::{Template, TemplateContext},
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>rtf_core::variables::Variables;
@@ -93,7 +93,7 @@
 <a href=#93 id=93 data-nosnippet>93</a>    mode: InlineMode,
 <a href=#94 id=94 data-nosnippet>94</a>    ctx: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>ResolutionContext,
 <a href=#95 id=95 data-nosnippet>95</a>    template_variables: <span class="kw-2">&amp;</span>HashMap&lt;String, StableSource&gt;,
-<a href=#96 id=96 data-nosnippet>96</a>    cache: <span class="kw-2">&amp;mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#96 id=96 data-nosnippet>96</a>    cache: <span class="kw-2">&amp;mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#97 id=97 data-nosnippet>97</a>) -&gt; inlining::Result&lt;()&gt; {
 <a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">let </span><span class="kw-2">mut </span>errs = inlining::ErrorBuilder::new();
 <a href=#99 id=99 data-nosnippet>99</a>
@@ -125,7 +125,7 @@
 <a href=#125 id=125 data-nosnippet>125</a>    outdir: <span class="kw-2">&amp;</span>Path,
 <a href=#126 id=126 data-nosnippet>126</a>    test_plan_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#127 id=127 data-nosnippet>127</a>    ctx: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>ResolutionContext,
-<a href=#128 id=128 data-nosnippet>128</a>    inline_cache: <span class="kw-2">&amp;mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#128 id=128 data-nosnippet>128</a>    inline_cache: <span class="kw-2">&amp;mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#129 id=129 data-nosnippet>129</a>) -&gt; anyhow::Result&lt;()&gt; {
 <a href=#130 id=130 data-nosnippet>130</a>    inline_file_providers(test_plan, mode, ctx, template_variables, inline_cache).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#131 id=131 data-nosnippet>131</a>

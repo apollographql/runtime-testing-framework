@@ -8,7 +8,7 @@
 <a href=#8 id=8 data-nosnippet>8</a>        DockerComposeEnvironment, DockerScenario, FileProviderServices, K8sEnvironment,
 <a href=#9 id=9 data-nosnippet>9</a>        NullEnvironment, PrometheusQuery, TestPlan,
 <a href=#10 id=10 data-nosnippet>10</a>    },
-<a href=#11 id=11 data-nosnippet>11</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider},
+<a href=#11 id=11 data-nosnippet>11</a>    inlining::{<span class="self">self</span>, Inline, InlineMode, InlinedProvider, ProviderCacheKey},
 <a href=#12 id=12 data-nosnippet>12</a>    run::{Provider, RunProviders, ValidateEnvironment},
 <a href=#13 id=13 data-nosnippet>13</a>    templating::Template <span class="kw">as _</span>,
 <a href=#14 id=14 data-nosnippet>14</a>};
@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a>    <span class="kw">pub async fn </span>inline_manifest_files(
 <a href=#56 id=56 data-nosnippet>56</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#57 id=57 data-nosnippet>57</a>        ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
-<a href=#58 id=58 data-nosnippet>58</a>        cache: <span class="kw-2">&amp;mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#58 id=58 data-nosnippet>58</a>        cache: <span class="kw-2">&amp;mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#59 id=59 data-nosnippet>59</a>    ) -&gt; inlining::Result&lt;()&gt; {
 <a href=#60 id=60 data-nosnippet>60</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#61 id=61 data-nosnippet>61</a>            <span class="self">Self</span>::Null(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(()),
@@ -110,7 +110,7 @@
 <a href=#110 id=110 data-nosnippet>110</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#111 id=111 data-nosnippet>111</a>        mode: InlineMode,
 <a href=#112 id=112 data-nosnippet>112</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#113 id=113 data-nosnippet>113</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;u64, InlinedProvider&gt;,
+<a href=#113 id=113 data-nosnippet>113</a>        cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashMap&lt;ProviderCacheKey, InlinedProvider&gt;,
 <a href=#114 id=114 data-nosnippet>114</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#116 id=116 data-nosnippet>116</a>            <span class="self">Self</span>::Null(inner) =&gt; inner.try_inline(mode, ctx, cache),
