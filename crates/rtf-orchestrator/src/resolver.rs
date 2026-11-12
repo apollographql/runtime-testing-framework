@@ -355,9 +355,11 @@ where
         }
     }
 
-    // If we failed to init any executions then there's nothing to clear the cache later, so we
-    // clear it now and mark as unrunnable if the run wasn't cancelled.
-    if n_submitted == 0 {
+    if n_submitted > 0 {
+        prov_handle.mark_run_finished_resolving(run_id).await;
+    } else {
+        // If we failed to init any executions then there's nothing to clear the cache later, so we
+        // clear it now and mark as unrunnable if the run wasn't cancelled.
         prov_handle.evict_cached_run_state(run_id).await;
         update_handle.clear_cached_payload_for_run(run_id).await;
 

@@ -158,19 +158,60 @@ impl EventQueue {
             warn!(%ex_id, "mark_execution_complete called for unknown execution id");
         }
 
-        self.with_shared(|shared| {
-            let run_uuid = shared.executions.remove(&ex_id)?.run_uuid;
-            let run = shared.runs.get_mut(&run_uuid)?;
-            run.executions.remove(&ex_id);
+        enum Action {
+            RunComplete(Uuid),
+            UpdateFpCache(Arc<OrchestratorContext>, bool),
+        }
 
-            if run.executions.is_empty() {
-                shared.runs.remove(&run_uuid);
-                Some(run_uuid)
-            } else {
-                None
+        let action = self
+            .with_shared(|shared| {
+                let run_uuid = shared.executions.remove(&ex_id)?.run_uuid;
+                let run = shared.runs.get_mut(&run_uuid)?;
+                run.executions.remove(&ex_id);
+
+                if run.executions.is_empty() {
+                    shared.runs.remove(&run_uuid);
+                    Some(Action::RunComplete(run_uuid))
+                } else {
+                    Some(Action::UpdateFpCache(
+                        Arc::clone(&run.ctx),
+                        run.finished_resolving,
+                    ))
+                }
+            })
+            .await?;
+
+        let (ctx, finished_resolving) = match action {
+            Action::RunComplete(run_id) => return Some(run_id),
+            Action::UpdateFpCache(ctx, finished_resolving) => (ctx, finished_resolving),
+        };
+
+        // We always remove the execution ID from the executions_per_file_provider mapping, even if
+        // we can't currently evict from the cache.
+        let fp_to_ex = ctx.executions_per_file_provider();
+        let mut fp_to_ex_guard = fp_to_ex.lock().await;
+        for executions in fp_to_ex_guard.values_mut() {
+            executions.remove(&ex_id);
+        }
+
+        // If the run is still resolving then we don't know for sure if later executions require
+        // the same file provider content, so we defer evicting from the cache.
+        if !finished_resolving {
+            return None;
+        }
+
+        // Evict all cached provider output that no longer maps to an outstanding execution. This
+        // accounts for evictions that were deferred while we were still resolving the run.
+        let inline_cache = ctx.inline_cache();
+        let mut inline_cache_guard = inline_cache.lock().await;
+        fp_to_ex_guard.retain(|key, executions| {
+            if executions.is_empty() {
+                inline_cache_guard.remove(key);
             }
-        })
-        .await
+            !executions.is_empty()
+        });
+
+        None
     }
 
     pub(super) async fn abort_run_acquiring_cluster(
@@ -563,7 +604,9 @@ mod tests {
             tests::stub_test_plan,
         },
     };
-    use rtf_config::formats::NullEnvironment;
+    use rtf_config::{
+        formats::NullEnvironment, inlining::InlinedProvider, providers::file::InlineFile,
+    };
     use rtf_orchestrator_shared::{
         OutputCollectionResponse, PrometheusQueries,
         event_queue::{ClusterClaimSummary, PendingProvisionSummary},
@@ -687,6 +730,125 @@ mod tests {
             );
         })
         .await;
+    }
+
+    type ExecutionsPerFileProvider = Arc<Mutex<HashMap<u64, HashSet<Uuid>>>>;
+    type InlineCache = Arc<Mutex<HashMap<u64, InlinedProvider>>>;
+
+    // Cache a run with an inline cache entry for every file provider in
+    // `executions_per_file_provider` and register all of the executions that use them.
+    async fn cache_run_with_file_providers(
+        run_uuid: Uuid,
+        executions_per_file_provider: HashMap<u64, HashSet<Uuid>>,
+        eq: &mut EventQueue,
+        h: &ProvisioningHandle,
+    ) -> (ExecutionsPerFileProvider, InlineCache) {
+        let ctx = OrchestratorContext::new(&Config::for_test());
+        let inline_cache = ctx.inline_cache();
+        let ctx_executions_per_file_provider = ctx.executions_per_file_provider();
+        let executions: HashSet<Uuid> = executions_per_file_provider
+            .values()
+            .flatten()
+            .copied()
+            .collect();
+
+        *inline_cache.lock().await = executions_per_file_provider
+            .keys()
+            .map(|&key| {
+                let content = format!("content for {key}");
+                (key, InlinedProvider::File(InlineFile { content }))
+            })
+            .collect();
+        *ctx_executions_per_file_provider.lock().await = executions_per_file_provider;
+
+        h.cache_for_test_run(
+            run_uuid,
+            UserType::User("a-pollo@apollographql.com".into()),
+            Default::default(),
+            false,
+            ctx,
+            stub_test_plan(),
+        )
+        .await;
+        eq.with_shared(|shared| {
+            for ex in executions {
+                shared.register_execution(ex, run_uuid);
+            }
+        })
+        .await;
+
+        (ctx_executions_per_file_provider, inline_cache)
+    }
+
+    const SHARED: u64 = 0;
+    const UNIQUE_1: u64 = 1;
+    const UNIQUE_2: u64 = 2;
+    const UNIQUE_3: u64 = 3;
+
+    const EX_1: Uuid = Uuid::from_u128(1);
+    const EX_2: Uuid = Uuid::from_u128(2);
+    const EX_3: Uuid = Uuid::from_u128(3);
+
+    #[test_case(
+        true,
+        HashMap::from([
+            (SHARED, HashSet::from([EX_3])),
+            (UNIQUE_3, HashSet::from([EX_3])),
+        ]),
+        &[SHARED, UNIQUE_3];
+        "finished provisioning evicts all candidates"
+    )]
+    #[test_case(
+        false,
+        HashMap::from([
+            (SHARED, HashSet::from([EX_3])),
+            (UNIQUE_1, HashSet::from([])),
+            (UNIQUE_2, HashSet::from([])),
+            (UNIQUE_3, HashSet::from([EX_3])),
+        ]),
+        &[SHARED, UNIQUE_1, UNIQUE_2, UNIQUE_3];
+        "still provisioning clears mapping but does not evict"
+    )]
+    #[tokio::test]
+    async fn mark_execution_complete_evicts_inline_cache_correctly(
+        finished_resolving: bool,
+        expected_ex_map: HashMap<u64, HashSet<Uuid>>,
+        expected_inline_keys: &[u64],
+    ) {
+        let cfg = Config::for_test();
+        let (mut eq, h, _, _) = EventQueue::new(&cfg.workload_clusters);
+        let run_uuid = Uuid::new_v4();
+
+        let (executions_per_file_provider, inline_cache) = cache_run_with_file_providers(
+            run_uuid,
+            HashMap::from([
+                (SHARED, HashSet::from([EX_1, EX_2, EX_3])),
+                (UNIQUE_1, HashSet::from([EX_1])),
+                (UNIQUE_2, HashSet::from([EX_2])),
+                (UNIQUE_3, HashSet::from([EX_3])),
+            ]),
+            &mut eq,
+            &h,
+        )
+        .await;
+
+        // EX_1 is always evicted before the run finishes resolving
+        eq.mark_execution_complete(EX_1).await;
+
+        if finished_resolving {
+            h.mark_run_finished_resolving(run_uuid).await;
+        }
+
+        let completed_run = eq.mark_execution_complete(EX_2).await;
+        let guard = inline_cache.lock().await;
+        let inline_cache_keys: HashSet<&u64> = guard.keys().collect();
+
+        assert_eq!(completed_run, None, "run should be ongoing");
+        assert_eq!(*executions_per_file_provider.lock().await, expected_ex_map);
+        assert_eq!(
+            inline_cache_keys,
+            HashSet::from_iter(expected_inline_keys.iter()),
+        );
     }
 
     async fn cache_stub_run(h: &ProvisioningHandle, run_uuid: Uuid) {

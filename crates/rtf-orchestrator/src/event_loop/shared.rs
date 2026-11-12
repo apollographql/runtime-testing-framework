@@ -132,6 +132,7 @@ pub(super) struct RunState {
     pub(super) initiated_by_user: UserType,
     pub(super) workload_config: WorkloadConfig,
     pub(super) requires_dedicated: bool,
+    pub(super) finished_resolving: bool,
 }
 
 #[derive(Debug, PartialEq)]

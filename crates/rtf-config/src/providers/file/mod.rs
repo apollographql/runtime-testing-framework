@@ -519,7 +519,7 @@ enum_impl_file_provider!(
 pub struct InlineFile {
     /// The text to write out as the contents of the generated file.
     #[template(skip)]
-    pub(crate) content: String,
+    pub content: String,
 }
 
 impl AsUtf8FileContent for InlineFile {

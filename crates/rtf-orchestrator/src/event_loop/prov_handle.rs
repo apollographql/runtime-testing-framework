@@ -69,8 +69,19 @@ impl ProvisioningHandle {
                     initiated_by_user,
                     workload_config,
                     requires_dedicated,
+                    finished_resolving: false,
                 },
             )
+        })
+        .await;
+    }
+
+    /// Mark the given run as having submitted all of its executions to the event queue.
+    pub(crate) async fn mark_run_finished_resolving(&self, run_uuid: Uuid) {
+        self.with_shared(|shared| {
+            if let Some(run) = shared.runs.get_mut(&run_uuid) {
+                run.finished_resolving = true;
+            }
         })
         .await;
     }
