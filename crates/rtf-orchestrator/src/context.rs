@@ -25,6 +25,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 /// A [ResolutionContext] that reads relative files from a map rather than the filesystem.
 #[derive(Debug, Clone)]
@@ -34,6 +35,7 @@ pub struct OrchestratorContext {
     custom_providers: Arc<CustomProviderDefinitions>,
     variable_sources: HashMap<String, StableSource>,
     inline_cache: Arc<Mutex<HashMap<u64, InlinedProvider>>>,
+    executions_per_file_provider: Arc<Mutex<HashMap<u64, HashSet<Uuid>>>>,
 }
 
 impl OrchestratorContext {
@@ -58,7 +60,12 @@ impl OrchestratorContext {
             custom_providers: Arc::new(CustomProviderDefinitions::default()),
             variable_sources: HashMap::new(),
             inline_cache: Default::default(),
+            executions_per_file_provider: Default::default(),
         }
+    }
+
+    pub(crate) fn executions_per_file_provider(&self) -> Arc<Mutex<HashMap<u64, HashSet<Uuid>>>> {
+        self.executions_per_file_provider.clone()
     }
 
     pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {

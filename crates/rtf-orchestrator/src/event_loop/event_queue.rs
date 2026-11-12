@@ -1540,7 +1540,7 @@ mod tests {
             .request_provisioning(&tr, "test", 0, DEFAULT_POOL, &mut mock)
             .await;
 
-        assert_matches!(res, Ok(false), "should have reported cancellation");
+        assert_matches!(res, Ok(None), "should have reported cancellation");
         assert!(
             mock.test_executions.is_empty(),
             "should have nothing queued"

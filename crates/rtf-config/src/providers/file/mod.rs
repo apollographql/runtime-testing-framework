@@ -1008,7 +1008,7 @@ impl ExtractRelativeFiles for RelativeDir {
 pub struct RequiredFile {
     /// The error message to display to the user if this provider is not overwritten.
     #[template(skip)]
-    pub(crate) message: String,
+    pub message: String,
 }
 
 impl AsUtf8FileContent for RequiredFile {
