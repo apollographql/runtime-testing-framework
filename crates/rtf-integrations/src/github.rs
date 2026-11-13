@@ -413,7 +413,7 @@ mod tests {
     use chrono::Duration;
     use jsonwebtoken::{dangerous::insecure_decode, decode_header};
     use rand::{SeedableRng, rngs::ChaCha8Rng};
-    use rsa::{RsaPrivateKey, pkcs1::EncodeRsaPrivateKey};
+    use rsa::{PrivateKey, pkcs1::EncodeRsaPrivateKey};
     use simple_test_case::test_case;
     use std::sync::LazyLock;
 
@@ -423,7 +423,7 @@ mod tests {
 
     // Generated fresh per test process — never committed to the repo.
     static TEST_PRIVATE_KEY_PEM: LazyLock<String> = LazyLock::new(|| {
-        RsaPrivateKey::new(&mut ChaCha8Rng::from_seed([42u8; 32]), 2048)
+        PrivateKey::new(&mut ChaCha8Rng::from_seed([42u8; 32]), 2048)
             .expect("failed to generate RSA test key")
             .to_pkcs1_pem(Default::default())
             .expect("failed to encode RSA test key as PKCS#1 PEM")
