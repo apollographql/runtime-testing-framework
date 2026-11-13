@@ -12,7 +12,7 @@ anyhow = "1.0.104"
 apollo-compiler = "1.33.1"
 axum = { version = "0.8.9", features = ["macros"] }
 bytes = "1.12.1"
-cached = { version = "4.0.3", features = ["async"] }
+cached = { version = "4.1.1", features = ["async"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 clap = { version = "4.6.7", features = ["derive"] }
 envy = "0.4.2"
@@ -48,7 +48,7 @@ tokio = { version = "1.54.1", features = ["fs", "macros", "parking_lot", "rt-mul
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 url = "2.5.8"
-uuid = { version = "1.29.0", features = ["v4", "serde"] }
+uuid = { version = "1.29.2", features = ["v4", "serde"] }
 xdg = "3.0.0"
 yaml_serde = "0.10.7"
 
@@ -59,4 +59,4 @@ insta = "1"
 predicates = { version = "3.1.4", features = ["regex"] }
 pretty_assertions = "1.4.1"
 simple_test_case = "1.3.0"
-zip = "9.1.3"
+zip = "9.5.1"
