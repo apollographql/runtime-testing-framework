@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["GithubFile"]};
+window.SIDEBAR_ITEMS = {"struct":["GithubDir","GithubFile"]};

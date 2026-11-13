@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-dccab994.js";
+            window.path_to_searchindex_js = "searchindex-1be9ee6e.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-4d4c8e60.js"></script>
@@ -5463,6 +5463,7 @@ providers running multiple times.</p>
 <li><a href="#conditional">Conditional</a></li>
 <li><a href="#custom-provider">Custom provider</a></li>
 <li><a href="#from-command">From command</a></li>
+<li><a href="#github-directory">GitHub directory</a></li>
 <li><a href="#github-file">GitHub file</a></li>
 <li><a href="#graphos-canned-operations">GraphOS canned operations</a></li>
 <li><a href="#graphos-canned-operations-by-id">GraphOS canned operations by ID</a></li>
@@ -5618,6 +5619,38 @@ done &lt;"$CANNED_OPS_FILE"
 <h3 id="file_providers"><a class="header" href="#file_providers"><code>file_providers</code></a></h3>
 <p>File providers to run and make available prior to execution</p>
 </details>
+<h2 id="github-directory"><a class="header" href="#github-directory">GitHub directory</a></h2>
+<p>A directory of files pulled from a GitHub repository. The specified environment variable for this
+provider will point to the location of the directory itself.</p>
+<p>Only the files listed under <code>files</code> are included, each relative to the directory given by <code>path</code>.
+There is no way to wildcard multiple files. If no <code>git_ref</code> is provided, the directory is pulled
+from the default branch.</p>
+<pre><code class="language-yaml">- name: "my-data"
+  env_var: MY_DATA
+  kind: github_dir
+  org: "my-org"
+  repo: "my-repo"
+  git_ref: "some-ref"
+  path: "resources/test-data"
+  files:
+    - "my-file.txt"
+    - "nested/my-nested-file.json"
+</code></pre>
+<details>
+<summary>Fields</summary>
+<h3 id="org"><a class="header" href="#org"><code>org</code></a></h3>
+<p>The GitHub org for the repository containing the target directory</p>
+<h3 id="repo"><a class="header" href="#repo"><code>repo</code></a></h3>
+<p>The GitHub repository containing the target directory</p>
+<h3 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h3>
+<p>An optional git reference to pull the directory from. This may be a full or partial commit hash,
+branch name, or tag.</p>
+<p>Defaults to the mainline branch as specified in GitHub if unset.</p>
+<h3 id="path"><a class="header" href="#path"><code>path</code></a></h3>
+<p>The absolute path from the root of the repository to the target directory.</p>
+<h3 id="files"><a class="header" href="#files"><code>files</code></a></h3>
+<p>The file paths under this directory that should be included.</p>
+</details>
 <h2 id="github-file"><a class="header" href="#github-file">GitHub file</a></h2>
 <p>The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
 of the repository to pull the file from. If no ref is providing then the provider will pull the
@@ -5632,13 +5665,13 @@ version of the file found on the default branch.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="org"><a class="header" href="#org"><code>org</code></a></h3>
+<h3 id="org-1"><a class="header" href="#org-1"><code>org</code></a></h3>
 <p>The GitHub org for the repository containing the target file</p>
-<h3 id="repo"><a class="header" href="#repo"><code>repo</code></a></h3>
+<h3 id="repo-1"><a class="header" href="#repo-1"><code>repo</code></a></h3>
 <p>The GitHub repository containing the target file</p>
-<h3 id="path"><a class="header" href="#path"><code>path</code></a></h3>
+<h3 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h3>
 <p>The absolute path from the root of the repository to the target file</p>
-<h3 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h3>
+<h3 id="git_ref-2"><a class="header" href="#git_ref-2"><code>git_ref</code></a></h3>
 <p>An optional git reference to pull the file from. This may be a full or partial commit hash, branch
 name, or tag.</p>
 <p>Defaults to the mainline branch as specified in GitHub if unset.</p>
@@ -5836,7 +5869,7 @@ can be converted into their inline representations.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="files"><a class="header" href="#files"><code>files</code></a></h3>
+<h3 id="files-1"><a class="header" href="#files-1"><code>files</code></a></h3>
 <p>A list of inline files stored in the directory</p>
 </details>
 <h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
@@ -5918,9 +5951,9 @@ deterministic locations for each included file.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h3>
+<h3 id="path-2"><a class="header" href="#path-2"><code>path</code></a></h3>
 <p>The relative path from the containing config file to the target directory.</p>
-<h3 id="files-1"><a class="header" href="#files-1"><code>files</code></a></h3>
+<h3 id="files-2"><a class="header" href="#files-2"><code>files</code></a></h3>
 <p>The file paths under this directory that should be included.</p>
 </details>
 <h2 id="relative-path"><a class="header" href="#relative-path">Relative path</a></h2>
@@ -5934,7 +5967,7 @@ containing config file was pulled from a repository.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="path-2"><a class="header" href="#path-2"><code>path</code></a></h3>
+<h3 id="path-3"><a class="header" href="#path-3"><code>path</code></a></h3>
 <p>The relative path from the containing config file to the target file.</p>
 </details>
 <h2 id="required-file"><a class="header" href="#required-file">Required file</a></h2>
