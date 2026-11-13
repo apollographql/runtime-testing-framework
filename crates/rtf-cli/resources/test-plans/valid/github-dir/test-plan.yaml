@@ -26,20 +26,6 @@ scenario:
 
 environment:
   inline:
-    name: environment-github-dir
-    description: "Minimal env config since this is not used for the test"
-    setup:
-      command:
-        name: echo-output.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-          echo "{}" > "$RTF_OUTPUT"
-
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-          echo "Goodbye, World!"
+    name: skipped
+    description: No environment needed
+    skip: true

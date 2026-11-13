@@ -2,9 +2,8 @@ use crate::{
     DirFile, StableSource,
     checks::{self, Check},
     context::ResolutionContext,
-    providers,
     providers::{
-        Result,
+        self, Result,
         file::{AsUtf8FileContent, ResolveFileContent, check_dir_files, unique_sorted_files},
     },
     run::ExtractRelativeFiles,
@@ -118,16 +117,14 @@ pub(crate) fn github_permalink(
     )
 }
 
-/// # GitHub Directory
+/// # GitHub directory
 ///
-/// The user specifies a path to a directory within a GitHub repository
+/// A directory of files pulled from a GitHub repository. The specified environment variable
+/// for this provider will point to the location of the directory itself.
 ///
-/// The absolute path from the root of the repository to a target directory within GitHub,
-/// a list of files that should be made available as part of the test run, and, optionally,
-/// a specific ref of the repository to pull the directory from. If no ref is provided,
-/// then the provider will use the directory found on the default branch.
-///
-/// Only the specified files will be included and there is no way to wildcard multiple files.
+/// Only the files listed under `files` are included, each relative to the directory given by `path`.
+/// There is no way to wildcard multiple files. If no `git_ref` is provided, the directory is pulled
+/// from the default branch.
 ///
 /// ```yaml
 /// - name: "my-data"
@@ -136,7 +133,7 @@ pub(crate) fn github_permalink(
 ///   org: "my-org"
 ///   repo: "my-repo"
 ///   git_ref: "some-ref"
-///   path: "resources/test-data/my-file.txt"
+///   path: "resources/test-data"
 ///   files:
 ///     - "my-file.txt"
 ///     - "nested/my-nested-file.json"
@@ -147,7 +144,7 @@ pub struct GithubDir {
     pub(crate) org: Field<String>,
     /// The GitHub repository containing the target directory
     pub(crate) repo: Field<String>,
-    /// An optional git reference to pull the file from. This may be a full or partial commit hash,
+    /// An optional git reference to pull the directory from. This may be a full or partial commit hash,
     /// branch name, or tag.
     ///
     /// Defaults to the mainline branch as specified in GitHub if unset.
