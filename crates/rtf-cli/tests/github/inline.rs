@@ -1,5 +1,6 @@
 use crate::inline::{
-    GITHUB_FILE, RELATIVE_PATH, prepare_rtf_inline_all, prepare_rtf_inline_relative_files,
+    GITHUB_DIR, GITHUB_FILE, RELATIVE_PATH, prepare_rtf_inline_all,
+    prepare_rtf_inline_relative_files,
 };
 use predicates::str::contains;
 
@@ -30,6 +31,18 @@ fn all_with_github_file_provider_succeeds() {
     cmd.assert_path_exists(INLINED_OUTPUT_PATH);
     cmd.assert_file_does_not_contain(INLINED_OUTPUT_PATH, RELATIVE_PATH);
     cmd.assert_file_does_not_contain(INLINED_OUTPUT_PATH, GITHUB_FILE);
+}
+
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn all_with_github_dir_provider_succeeds() {
+    let mut cmd = prepare_rtf_inline_all("resources/test-plans/valid/github-dir");
+    cmd.assert().success();
+
+    cmd.assert_path_exists(INLINED_OUTPUT_PATH);
+    // github_dir is replaced by its fetched files
+    cmd.assert_file_does_not_contain(INLINED_OUTPUT_PATH, GITHUB_DIR);
+    cmd.assert_file_contains(INLINED_OUTPUT_PATH, "kind: inline_dir");
 }
 
 #[test]
@@ -78,4 +91,15 @@ fn relative_files_with_github_flag_succeeds() {
         .assert()
         .success()
         .stderr(contains("done"));
+}
+
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn relative_files_with_github_dir_provider_succeeds() {
+    let mut cmd = prepare_rtf_inline_relative_files("resources/test-plans/valid/github-dir");
+    cmd.assert().success();
+
+    cmd.assert_path_exists(INLINED_OUTPUT_PATH);
+    // github_dir should still be present since we only inline relative providers
+    cmd.assert_file_contains(INLINED_OUTPUT_PATH, GITHUB_DIR);
 }

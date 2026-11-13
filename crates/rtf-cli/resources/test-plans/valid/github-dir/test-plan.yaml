@@ -1,0 +1,31 @@
+name: github-dir
+description: |
+  Check that directories can be pulled from GitHub
+
+scenario:
+  inline:
+    name: scenario-github-dir
+    description: "Check that files from a directory in GitHub can be pulled"
+    command:
+      name: command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        set -eu
+        test -f "$RTF_HELLO_WORLD/test-plan.yaml"
+        test -f "$RTF_HELLO_WORLD/scripts/echo-message.sh"
+        echo "github_dir files present"
+    file_providers:
+      - name: hello-world
+        env_var: RTF_HELLO_WORLD
+        kind: github_dir
+        org: "apollographql"
+        repo: "runtime-testing-framework"
+        path: "example-test-plans/hello-world"
+        files: ["test-plan.yaml", "scripts/echo-message.sh"]
+
+environment:
+  inline:
+    name: skipped
+    description: No environment needed
+    skip: true

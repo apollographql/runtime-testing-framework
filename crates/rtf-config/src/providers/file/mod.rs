@@ -12,7 +12,7 @@ use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     fmt,
     future::Future,
     ops::{Deref, DerefMut},
@@ -350,6 +350,7 @@ pub enum FileProvider {
     Conditional(utility::Conditional),
     CustomProvider(custom::CustomProvider),
     FromCommand(utility::FromCommand),
+    GithubDir(github::GithubDir),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosCannedOpsById(apollo::GraphosCannedOpsById),
@@ -441,6 +442,7 @@ impl Inline for FileProvider {
                 // providers that only inline when mode == All
                 Self::BuildRouterFromSource(fp) => inline_if_all!(fp),
                 Self::Conditional(fp) => inline_if_all!(fp),
+                Self::GithubDir(fp) => inline_if_all!(fp),
                 Self::GithubFile(fp) => inline_if_all!(fp),
                 Self::GraphosCannedOps(fp) => inline_if_all!(fp),
                 Self::GraphosSubgraphRouterUrlOverrides(fp) => inline_if_all!(fp),
@@ -484,6 +486,7 @@ enum_impl_file_provider!(
     Conditional,
     CustomProvider,
     FromCommand,
+    GithubDir,
     GithubFile,
     GraphosCannedOps,
     GraphosCannedOpsById,
@@ -704,6 +707,11 @@ impl AsUtf8FileContent for RelativeFile {
     }
 }
 
+/// Returns the unique file names in `files`, in sorted order.
+pub(crate) fn unique_sorted_files(files: &[String]) -> BTreeSet<&str> {
+    files.iter().map(String::as_str).collect()
+}
+
 impl Check for RelativeFile {
     fn try_check(
         &self,
@@ -842,9 +850,7 @@ impl RelativeDir {
         let dir_path = self.path.as_resolved();
 
         // Dedup to ensure that we don't pull in files multiple times
-        let mut files = self.files.clone();
-        files.sort_unstable();
-        files.dedup();
+        let files = unique_sorted_files(&self.files);
 
         files
             .into_iter()
@@ -905,6 +911,40 @@ impl ResolveFileContent for RelativeDir {
     }
 }
 
+/// Checks the `files` list of a directory-style file provider.
+///
+/// Problems with the list itself are pushed to `errs`:
+/// - An empty list is a hard error, as the provider would do nothing at all.
+/// - Each entry must be a plain relative path, with no `.`, `..` or leading `/`, so it cannot
+///   escape the provider's directory.
+///
+/// Duplicate entries are deliberately not an error, because resolving only pulls each file in
+/// once.
+///
+/// Returns the entries that passed so callers can run provider specific checks.
+pub(crate) fn check_dir_files<'a>(
+    files: &'a [String],
+    path: &mut [String],
+    errs: &mut checks::ErrorBuilder,
+) -> Vec<&'a str> {
+    if files.is_empty() {
+        errs.push(checks::ErrorKind::EmptyArray, "files", path);
+    }
+
+    let mut valid = Vec::with_capacity(files.len());
+    for (i, fname) in files.iter().enumerate() {
+        let mut fpath = path.to_vec();
+        fpath.push(i.to_string());
+
+        match check_relative_path_specifiers(Path::new(fname), path) {
+            Ok(()) => valid.push(fname.as_str()),
+            Err(e) => errs.append(Err(e)),
+        }
+    }
+
+    valid
+}
+
 impl Check for RelativeDir {
     fn try_check(
         &self,
@@ -945,36 +985,21 @@ impl Check for RelativeDir {
         // Gather all errors from missing file paths within the directory if we got this far
         let mut errs = checks::ErrorBuilder::new();
 
-        // We check for an empty files array as a hard error as in this instance the file provider
-        // does nothing at all, but we don't check for duplicate file paths. When resolving, we
-        // ensure that files are only pulled in once so duplicates here don't cause us any problems.
-        if self.files.is_empty() {
-            errs.push(checks::ErrorKind::EmptyArray, "files", path);
-        }
+        for fname in check_dir_files(&self.files, path, &mut errs) {
+            let full_path = format!("{dir_path}/{fname}");
 
-        for (i, fname) in self.files.iter().enumerate() {
-            let mut fpath = path.clone();
-            fpath.push(i.to_string());
-
-            match check_relative_path_specifiers(Path::new(fname), path) {
-                Err(e) => errs.append(Err(e)),
-                Ok(()) => {
-                    let full_path = format!("{dir_path}/{fname}");
-
-                    match ctx.check_path_kind(stable_src, &full_path, path)? {
-                        None | Some(PathKind::File) => (),
-                        Some(PathKind::EmptyDir | PathKind::OccupiedDir) => errs.push(
-                            checks::ErrorKind::IsADirectory,
-                            format_error_message(ctx.source_dir_for(stable_src), full_path),
-                            path,
-                        ),
-                        Some(PathKind::Missing) => errs.push(
-                            checks::ErrorKind::FileNotFound,
-                            format_error_message(ctx.source_dir_for(stable_src), full_path),
-                            path,
-                        ),
-                    }
-                }
+            match ctx.check_path_kind(stable_src, &full_path, path)? {
+                None | Some(PathKind::File) => (),
+                Some(PathKind::EmptyDir | PathKind::OccupiedDir) => errs.push(
+                    checks::ErrorKind::IsADirectory,
+                    format_error_message(ctx.source_dir_for(stable_src), full_path),
+                    path,
+                ),
+                Some(PathKind::Missing) => errs.push(
+                    checks::ErrorKind::FileNotFound,
+                    format_error_message(ctx.source_dir_for(stable_src), full_path),
+                    path,
+                ),
             }
         }
 
@@ -1171,6 +1196,18 @@ mod tests {
         key3: "value3"
         "#
     );
+    const GITHUB_DIR: &str = indoc!(
+        r#"
+        kind: github_dir
+        org: "{{ org }}"
+        repo: "{{ repo }}"
+        path: "{{ path }}"
+        git_ref: "{{ git_ref }}"
+        files:
+          - "foo"
+          - "bar"
+    "#
+    );
     const GITHUB_FILE: &str = indoc!(
         r#"
         kind: github_file
@@ -1333,6 +1370,7 @@ mod tests {
     #[test_case(CONDITIONAL, &["case_1", "case_2", "test_type"]; "conditional")]
     #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
+    #[test_case(GITHUB_DIR, &["org", "repo", "git_ref", "path"]; "github_dir")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations", "time_range"]; "graphos_canned_ops")]
     #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "ops"]; "graphos_canned_ops_by_id")]
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
