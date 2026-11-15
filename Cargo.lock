@@ -1748,9 +1748,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-auth"
-version = "1.18.0"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d563c7b987f40249c274a4e6a671661df6be2d084f08476dda2f0f931576cfcf"
+checksum = "76c32ec5fc751fadaad12f9d135ac1e2672d28fa84190319d654c99075699b22"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
@@ -1797,9 +1797,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-gax-internal"
-version = "0.7.21"
+version = "0.7.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ad2379de0de5562c27eb79acd9c36143719a9271191df5d0ac6eb162a1b9d7e"
+checksum = "1a289ddad42a31682034b6359b1837cd2b529487491ae64dc4e9930a9d0152f2"
 dependencies = [
  "bytes",
  "futures",
@@ -1890,9 +1890,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-lro"
-version = "1.11.0"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfb938b40ede9ef70c24f49c2687d84f289c9e9104ddfece739985e4b4844b8f"
+checksum = "88dedc739a889619d0be6ba9f90bd99e450a921f035e16b81a2e282cb8347e86"
 dependencies = [
  "google-cloud-gax",
  "google-cloud-gax-internal",
@@ -1939,9 +1939,9 @@ dependencies = [
 
 [[package]]
 name = "google-cloud-storage"
-version = "1.21.0"
+version = "1.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8343454507711c984d4b367ccd79fe66284b63f7e90299c800e2d407e9bbe626"
+checksum = "c214db1087a270e413b9aee0adfd4fc31da9916bb72bb4421cb7916c936f1b13"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
