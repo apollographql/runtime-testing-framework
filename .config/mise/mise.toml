@@ -80,7 +80,7 @@ dprint = "0.64.3"
 "helm-docs" = "1.14.2"
 mdbook = "0.5.4"
 node = "26.13.1"
-rust = "1.99.1"
+rust = "1.100.0"
 
 [env]
 _.file = '../../.env'
