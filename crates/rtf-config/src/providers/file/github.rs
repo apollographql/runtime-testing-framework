@@ -17,9 +17,11 @@ use std::{collections::HashMap, fmt, path::Path};
 
 /// # GitHub file
 ///
-/// The user specifies a path to a file within a GitHub repository, optionally providing a specific
-/// ref of the repository to pull the file from. If no ref is providing then the provider will pull
-/// the version of the file found on the default branch.
+/// A file pulled from a GitHub repository.
+///
+/// If no `git_ref` is provided, the file is pulled from the default branch.
+///
+/// Using this file provider requires the `GITHUB_TOKEN` environment variable to be set.
 ///
 /// ```yaml
 /// - name: "my-file.txt"
@@ -32,17 +34,17 @@ use std::{collections::HashMap, fmt, path::Path};
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GithubFile {
-    /// The GitHub org for the repository containing the target file
-    pub(crate) org: Field<String>,
-    /// The GitHub repository containing the target file
-    pub(crate) repo: Field<String>,
-    /// The absolute path from the root of the repository to the target file
-    pub(crate) path: Field<String>,
-    /// An optional git reference to pull the file from. This may be a full or partial commit hash,
-    /// branch name, or tag.
+    /// The GitHub organization that owns the repository.
+    pub org: Field<String>,
+    /// The name of the repository containing the file.
+    pub repo: Field<String>,
+    /// The path to the file from the root of the repository.
+    pub path: Field<String>,
+    /// The git reference to pull the file from: a full or partial commit hash, a branch name or
+    /// a tag.
     ///
-    /// Defaults to the mainline branch as specified in GitHub if unset.
-    pub(crate) git_ref: Option<Field<String>>,
+    /// Defaults to the repository's default branch if unset.
+    pub git_ref: Option<Field<String>>,
 }
 
 impl AsUtf8FileContent for GithubFile {
@@ -119,12 +121,14 @@ pub(crate) fn github_permalink(
 
 /// # GitHub directory
 ///
-/// A directory of files pulled from a GitHub repository. The specified environment variable
-/// for this provider will point to the location of the directory itself.
+/// A directory of files pulled from a GitHub repository. The environment variable will be set to
+/// the path of the directory itself. All files within that directory will need to be referenced
+/// using a combination of this environment variable and their path relative to `path`.
 ///
-/// Only the files listed under `files` are included, each relative to the directory given by `path`.
-/// There is no way to wildcard multiple files. If no `git_ref` is provided, the directory is pulled
-/// from the default branch.
+/// Only the files listed under `files` are included and there is no way to wildcard multiple
+/// files. If no `git_ref` is provided, the files are pulled from the default branch.
+///
+/// Using this file provider requires the `GITHUB_TOKEN` environment variable to be set.
 ///
 /// ```yaml
 /// - name: "my-data"
@@ -140,20 +144,20 @@ pub(crate) fn github_permalink(
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GithubDir {
-    /// The GitHub org for the repository containing the target directory
-    pub(crate) org: Field<String>,
-    /// The GitHub repository containing the target directory
-    pub(crate) repo: Field<String>,
-    /// An optional git reference to pull the directory from. This may be a full or partial commit hash,
-    /// branch name, or tag.
+    /// The GitHub organization that owns the repository.
+    pub org: Field<String>,
+    /// The name of the repository containing the directory.
+    pub repo: Field<String>,
+    /// The git reference to pull the files from: a full or partial commit hash, a branch name or
+    /// a tag.
     ///
-    /// Defaults to the mainline branch as specified in GitHub if unset.
-    pub(crate) git_ref: Option<Field<String>>,
-    /// The absolute path from the root of the repository to the target directory.
-    pub(crate) path: Field<String>,
-    /// The file paths under this directory that should be included.
+    /// Defaults to the repository's default branch if unset.
+    pub git_ref: Option<Field<String>>,
+    /// The path to the directory from the root of the repository.
+    pub path: Field<String>,
+    /// The paths of the files to include, relative to `path`.
     #[template(skip)]
-    pub(crate) files: Vec<String>,
+    pub files: Vec<String>,
 }
 
 impl ResolveFileContent for GithubDir {

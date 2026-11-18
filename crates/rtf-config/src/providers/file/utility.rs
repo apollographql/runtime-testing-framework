@@ -31,8 +31,8 @@ use tracing::error;
 
 /// # Templated file
 ///
-/// Write a file whose content is an inline string with `${variable}` patterns interpolated
-/// from the RTF template variables defined for the current run.
+/// A file whose contents are specified inline within your config file, with any `${variable}`
+/// patterns replaced by the value of the matching templating variable for the current run.
 ///
 /// ```yaml
 /// - name: config.json
@@ -43,8 +43,9 @@ use tracing::error;
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct TemplatedFile {
-    /// The file content with optional `${variable}` interpolation patterns.
-    pub(crate) content: String,
+    /// The text to write out as the contents of the generated file, which may contain
+    /// `${variable}` patterns.
+    pub content: String,
 }
 
 impl Template for TemplatedFile {
@@ -263,13 +264,14 @@ enum_impl_file_provider!(
 
 /// # Merge YAML
 ///
-/// Merge the YAML output of text based file providers into a single YAML file.
+/// A single YAML file produced by merging the output of one or more file providers on top of a
+/// base YAML file.
 ///
-/// Matching keys in the overrides file will replace scalar values, concatenate arrays
-/// and merge keys for maps.
+/// Where a key is present in both files, scalar values from the overrides replace those in the
+/// base, arrays are concatenated and maps are merged.
 ///
-/// When merging a single overrides file the overrides provider can be specified directly
-/// under the `overrides` key:
+/// When merging a single overrides file, you can specify its file provider directly under the
+/// `overrides` key:
 /// ```yaml
 /// - name: router-config.yaml
 ///   env_var: ROUTER_CONFIG
@@ -282,8 +284,8 @@ enum_impl_file_provider!(
 ///     path: "../my-overrides.yaml"
 /// ```
 ///
-/// When merging multiple overrides files, specify the providers in the order you want
-/// to merge them as an array:
+/// When merging multiple overrides files, specify their file providers as an array in the order
+/// you want them to be merged:
 /// ```yaml
 /// - name: router-config.yaml
 ///   env_var: ROUTER_CONFIG
@@ -299,10 +301,10 @@ enum_impl_file_provider!(
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct MergeYaml {
-    /// A base YAML file to start with.
-    pub(crate) base: MergeFileProvider,
-    /// One or more YAML files to merge on top of the base file in sequence.
-    pub(crate) overrides: Overrides,
+    /// The file provider for the base YAML file.
+    pub base: MergeFileProvider,
+    /// One or more file providers for the YAML files to merge on top of the base file, in order.
+    pub overrides: Overrides,
 }
 
 impl AsUtf8FileContent for MergeYaml {
@@ -460,12 +462,12 @@ impl Inline for Overrides {
 
 /// # From command
 ///
-/// Run a command provider and use its output as a file provider resource.
+/// A file or directory of files produced by running a command provider. The environment variable
+/// will be set to the path of the command's output.
 ///
-/// As with all other command providers, you can provide both environment variables
-/// and other file providers as inputs to the command being executed. RTF will use
-/// the contents of the `$RTF_OUTPUT` path as the output of this provider, supporting
-/// both writing a single file to that path and creating a directory at that path
+/// As with all other command providers, you can provide both environment variables and other file
+/// providers as inputs to the command being run. Your command should write its output to the path
+/// given by the `$RTF_OUTPUT` environment variable, either as a single file or as a directory
 /// containing multiple files.
 ///
 /// ```yaml
@@ -511,7 +513,7 @@ impl Inline for Overrides {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct FromCommand {
     #[serde(flatten)]
-    pub(crate) inner: CommandSection,
+    pub inner: CommandSection,
 }
 
 impl FromCommand {
@@ -586,19 +588,18 @@ impl ExtractRelativeFiles for FromCommand {
 
 /// # Conditional
 ///
-/// Conditionally run a file provider from an ordered list based on simple "where" clauses that
-/// make use of the provided templating variables. The first case with a "where" clause that holds
-/// will be run as the output of this provider.
+/// One of an ordered list of file providers, chosen based on the value of your templating
+/// variables. Each case has a "where" clause, and the first case whose "where" clause holds is
+/// used as this file provider.
 ///
 /// ### Writing where clauses
 ///
 /// The "where" clause on each case is a simple comparison against a single templating variable.
-/// You must include the `var` key which accepts a string variable name that is required to be
-/// defined within the test plan containing this provider. You may then assert that the variable
-/// is equal (`eq`) or not equal (`ne`) to a given scalar value.
+/// You must include the `var` key, giving the name of a templating variable that is defined in the
+/// test plan containing this provider. You can then check that the variable is equal (`eq`) or not
+/// equal (`ne`) to a given scalar value.
 ///
-/// If none of the provider where clauses match, this provider will error during static analysis
-/// checks.
+/// If none of the "where" clauses hold, RTF will report an error when templating your config.
 ///
 /// ```yaml
 /// - name: conditional_config.json
@@ -615,9 +616,8 @@ impl ExtractRelativeFiles for FromCommand {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct Conditional {
-    /// The ordered list of cases to be checked against the variables used for templating the test
-    /// plan.
-    cases: Vec<ConditionalCase>,
+    /// The cases to check, in order. Each case is a file provider with an additional `where` key.
+    pub cases: Vec<ConditionalCase>,
 }
 
 impl Template for Conditional {
@@ -725,25 +725,25 @@ impl Conditional {
     }
 }
 
-/// A conditional "where" clause guarding the execution of an associated file provider
+/// A file provider that is only used if its "where" clause holds.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct ConditionalCase {
-    /// A conditional clause that must hold for this case to be run
+    /// The clause that must hold for this case to be used.
     #[serde(rename = "where")]
     #[template(skip)]
-    where_clause: WhereClause,
+    pub where_clause: WhereClause,
 
     #[serde(flatten)]
-    inner: FileProvider,
+    pub inner: FileProvider,
 }
 
-/// A conditional clause based on the value of a templating variable
+/// A comparison against the value of a templating variable.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct WhereClause {
-    /// The variable being checked
-    var: String,
+    /// The name of the templating variable to check.
+    pub var: String,
     #[serde(flatten)]
-    comp: VarComp,
+    pub comp: VarComp,
 }
 
 impl WhereClause {
@@ -760,13 +760,13 @@ impl WhereClause {
     }
 }
 
-/// The comparison being run against the value of the given templating variable
+/// The comparison to make against the value of the templating variable.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum VarComp {
-    /// Require the variable to be equal to the given scalar value
+    /// The variable must be equal to the given scalar value.
     Eq(Scalar),
-    /// Require the variable to be not equal to the given scalar value
+    /// The variable must not be equal to the given scalar value.
     Ne(Scalar),
 }
 
