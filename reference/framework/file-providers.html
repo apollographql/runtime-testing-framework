@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-1be9ee6e.js";
+            window.path_to_searchindex_js = "../../searchindex-a7748199.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -204,8 +204,11 @@
 <li><a href="#templated-file">Templated file</a></li>
 </ul>
 <h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router from source</a></h2>
-<p>A file provider used for building the Router from source at a specific git commit or reference. A
-profile and list of features can optionally be provided.</p>
+<p>A shell script that builds the Apollo Router from source at a specific git reference when run.</p>
+<p>The script clones the Router repository, builds it using the requested Rust version, profile and
+features, and then copies the resulting <code>router</code> binary into <code>~/.cargo/bin</code>. Running the script
+requires <code>git</code> and <code>rustup</code> to be installed and the <code>CARGO_TARGET_DIR</code> environment variable to be
+set.</p>
 <pre><code class="language-yaml">- name: "router-build.sh"
   env_var: ROUTER_BUILD_SCRIPT
   kind: build_router_from_source
@@ -217,29 +220,28 @@ profile and list of features can optionally be provided.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="git_ref"><a class="header" href="#git_ref"><code>git_ref</code></a></h3>
-<p>A git reference that can be passed to <code>git checkout</code>. This may be a full or partial commit hash,
-branch name, or tag.</p>
+<p>The git reference of the Router repository to build: a full or partial commit hash, a branch name or
+a tag.</p>
 <h3 id="rust_version"><a class="header" href="#rust_version"><code>rust_version</code></a></h3>
-<p>A Rust version string that can be passed to <code>rustup run {rust_version}</code>, such as <code>"1.78.0"</code>,
-<code>"beta"</code>, or <code>"nightly"</code>.</p>
+<p>The Rust toolchain to build the Router with, such as <code>"1.78.0"</code>, <code>"beta"</code> or <code>"nightly"</code>.</p>
 <p>Defaults to <code>"stable"</code> if unset.</p>
 <h3 id="profile"><a class="header" href="#profile"><code>profile</code></a></h3>
-<p>The profile to build the Router with.</p>
+<p>The cargo profile to build the Router with.</p>
 <p>Defaults to <code>"release"</code> if unset.</p>
 <h3 id="features"><a class="header" href="#features"><code>features</code></a></h3>
-<p>Comma separated list of features to build the Router with.</p>
+<p>A comma separated list of cargo features to build the Router with.</p>
 <p>Defaults to <code>"default"</code> if unset.</p>
 </details>
 <h2 id="conditional"><a class="header" href="#conditional">Conditional</a></h2>
-<p>Conditionally run a file provider from an ordered list based on simple “where” clauses that make use
-of the provided templating variables. The first case with a “where” clause that holds will be run as
-the output of this provider.</p>
+<p>One of an ordered list of file providers, chosen based on the value of your templating variables.
+Each case has a “where” clause, and the first case whose “where” clause holds is used as this file
+provider.</p>
 <h3 id="writing-where-clauses"><a class="header" href="#writing-where-clauses">Writing where clauses</a></h3>
 <p>The “where” clause on each case is a simple comparison against a single templating variable. You
-must include the <code>var</code> key which accepts a string variable name that is required to be defined
-within the test plan containing this provider. You may then assert that the variable is equal (<code>eq</code>)
-or not equal (<code>ne</code>) to a given scalar value.</p>
-<p>If none of the provider where clauses match, this provider will error during static analysis checks.</p>
+must include the <code>var</code> key, giving the name of a templating variable that is defined in the test
+plan containing this provider. You can then check that the variable is equal (<code>eq</code>) or not equal
+(<code>ne</code>) to a given scalar value.</p>
+<p>If none of the “where” clauses hold, RTF will report an error when templating your config.</p>
 <pre><code class="language-yaml">- name: conditional_config.json
   env_var: CONDITIONAL_CONFIG
   kind: conditional
@@ -255,10 +257,14 @@ or not equal (<code>ne</code>) to a given scalar value.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="cases"><a class="header" href="#cases"><code>cases</code></a></h3>
-<p>The ordered list of cases to be checked against the variables used for templating the test plan.</p>
+<p>The cases to check, in order. Each case is a file provider with an additional <code>where</code> key.</p>
 </details>
 <h2 id="custom-provider"><a class="header" href="#custom-provider">Custom provider</a></h2>
-<p>Use a custom provider to execute a command and produce a set of files.</p>
+<p>Run a custom provider to produce a file or directory of files. The environment variable will be set
+to the path of the custom provider’s output.</p>
+<p>The custom provider to run is selected by its <code>type</code>, which must match the name of a custom provider
+definition available to the containing config file. All other keys are passed to the custom provider
+as arguments, and are used to set the templating variables declared in its definition.</p>
 <pre><code class="language-yaml">- name: "router-docker-compose"
   env_var: ROUTER_DOCKER_COMPOSE
   kind: custom_provider
@@ -270,16 +276,17 @@ or not equal (<code>ne</code>) to a given scalar value.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="ty"><a class="header" href="#ty"><code>ty</code></a></h3>
-<p>The type of custom provider to use. This is the name of the custom provider to use.</p>
+<p>The name of the custom provider definition to run.</p>
 <h3 id="arguments"><a class="header" href="#arguments"><code>arguments</code></a></h3>
-<p>The arguments to pass to the custom provider.</p>
+<p>The arguments to pass to the custom provider, keyed by templating variable name.</p>
 </details>
 <h2 id="from-command"><a class="header" href="#from-command">From command</a></h2>
-<p>Run a command provider and use its output as a file provider resource.</p>
+<p>A file or directory of files produced by running a command provider. The environment variable will
+be set to the path of the command’s output.</p>
 <p>As with all other command providers, you can provide both environment variables and other file
-providers as inputs to the command being executed. RTF will use the contents of the <code>$RTF_OUTPUT</code>
-path as the output of this provider, supporting both writing a single file to that path and creating
-a directory at that path containing multiple files.</p>
+providers as inputs to the command being run. Your command should write its output to the path given
+by the <code>$RTF_OUTPUT</code> environment variable, either as a single file or as a directory containing
+multiple files.</p>
 <pre><code class="language-yaml">- name: vegeta-ops.json
   env_var: VEGETA_OPS
   kind: from_command
@@ -342,11 +349,12 @@ done &lt;"$CANNED_OPS_FILE"
 <p>File providers to run and make available prior to execution</p>
 </details>
 <h2 id="github-directory"><a class="header" href="#github-directory">GitHub directory</a></h2>
-<p>A directory of files pulled from a GitHub repository. The specified environment variable for this
-provider will point to the location of the directory itself.</p>
-<p>Only the files listed under <code>files</code> are included, each relative to the directory given by <code>path</code>.
-There is no way to wildcard multiple files. If no <code>git_ref</code> is provided, the directory is pulled
-from the default branch.</p>
+<p>A directory of files pulled from a GitHub repository. The environment variable will be set to the
+path of the directory itself. All files within that directory will need to be referenced using a
+combination of this environment variable and their path relative to <code>path</code>.</p>
+<p>Only the files listed under <code>files</code> are included and there is no way to wildcard multiple files. If
+no <code>git_ref</code> is provided, the files are pulled from the default branch.</p>
+<p>Using this file provider requires the <code>GITHUB_TOKEN</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: "my-data"
   env_var: MY_DATA
   kind: github_dir
@@ -361,22 +369,21 @@ from the default branch.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="org"><a class="header" href="#org"><code>org</code></a></h3>
-<p>The GitHub org for the repository containing the target directory</p>
+<p>The GitHub organization that owns the repository.</p>
 <h3 id="repo"><a class="header" href="#repo"><code>repo</code></a></h3>
-<p>The GitHub repository containing the target directory</p>
+<p>The name of the repository containing the directory.</p>
 <h3 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h3>
-<p>An optional git reference to pull the directory from. This may be a full or partial commit hash,
-branch name, or tag.</p>
-<p>Defaults to the mainline branch as specified in GitHub if unset.</p>
+<p>The git reference to pull the files from: a full or partial commit hash, a branch name or a tag.</p>
+<p>Defaults to the repository’s default branch if unset.</p>
 <h3 id="path"><a class="header" href="#path"><code>path</code></a></h3>
-<p>The absolute path from the root of the repository to the target directory.</p>
+<p>The path to the directory from the root of the repository.</p>
 <h3 id="files"><a class="header" href="#files"><code>files</code></a></h3>
-<p>The file paths under this directory that should be included.</p>
+<p>The paths of the files to include, relative to <code>path</code>.</p>
 </details>
 <h2 id="github-file"><a class="header" href="#github-file">GitHub file</a></h2>
-<p>The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
-of the repository to pull the file from. If no ref is providing then the provider will pull the
-version of the file found on the default branch.</p>
+<p>A file pulled from a GitHub repository.</p>
+<p>If no <code>git_ref</code> is provided, the file is pulled from the default branch.</p>
+<p>Using this file provider requires the <code>GITHUB_TOKEN</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: "my-file.txt"
   env_var: MY_FILE
   kind: github_file
@@ -388,19 +395,20 @@ version of the file found on the default branch.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="org-1"><a class="header" href="#org-1"><code>org</code></a></h3>
-<p>The GitHub org for the repository containing the target file</p>
+<p>The GitHub organization that owns the repository.</p>
 <h3 id="repo-1"><a class="header" href="#repo-1"><code>repo</code></a></h3>
-<p>The GitHub repository containing the target file</p>
+<p>The name of the repository containing the file.</p>
 <h3 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h3>
-<p>The absolute path from the root of the repository to the target file</p>
+<p>The path to the file from the root of the repository.</p>
 <h3 id="git_ref-2"><a class="header" href="#git_ref-2"><code>git_ref</code></a></h3>
-<p>An optional git reference to pull the file from. This may be a full or partial commit hash, branch
-name, or tag.</p>
-<p>Defaults to the mainline branch as specified in GitHub if unset.</p>
+<p>The git reference to pull the file from: a full or partial commit hash, a branch name or a tag.</p>
+<p>Defaults to the repository’s default branch if unset.</p>
 </details>
 <h2 id="graphos-canned-operations"><a class="header" href="#graphos-canned-operations">GraphOS canned operations</a></h2>
-<p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
-requests based on operations data obtained from the GraphOS API.</p>
+<p>A set of canned GraphQL requests built from the most frequently used operations for a graph ref, as
+reported by the GraphOS API. The environment variable will be set to the path of a file containing
+one JSON request body (with <code>query</code> and <code>variables</code> keys) per line.</p>
+<p>Using this file provider requires the <code>APOLLO_KEY</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: canned_ops.json
   env_var: CANNED_OPS_FILE
   kind: graphos_canned_ops
@@ -412,25 +420,28 @@ requests based on operations data obtained from the GraphOS API.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_ref"><a class="header" href="#graph_ref"><code>graph_ref</code></a></h3>
-<p>The Apollo graph ref to pull operations for.</p>
+<p>The graph ref (<code>graph_id@variant</code>) to fetch operations for.</p>
 <h3 id="top_n"><a class="header" href="#top_n"><code>top_n</code></a></h3>
-<p>The number of operations to attempt to fetch.</p>
+<p>The maximum number of operations to fetch.</p>
 <p>Defaults to 20 if unset.</p>
 <h3 id="skip_mutations"><a class="header" href="#skip_mutations"><code>skip_mutations</code></a></h3>
-<p>Whether or not to include mutations in the returned operations.</p>
+<p>Whether to exclude mutations from the fetched operations.</p>
 <p>Defaults to false if unset.</p>
 <h3 id="time_range"><a class="header" href="#time_range"><code>time_range</code></a></h3>
-<p>How far back to query for operations.</p>
-<p>Accepts duration strings like “30d”, “7d”, “12h”. Defaults to “30d” if unset.</p>
+<p>How far back to look for operations.</p>
+<p>Accepts duration strings such as <code>"30d"</code>, <code>"7d"</code> or <code>"12h"</code>.</p>
+<p>Defaults to <code>"30d"</code> if unset.</p>
 </details>
 <h2 id="graphos-canned-operations-by-id"><a class="header" href="#graphos-canned-operations-by-id">GraphOS canned operations by ID</a></h2>
-<p>The user specifies the graph ref and a set of operation IDs to be fetched from the GraphOS API for
-generating canned GraphQL requests.</p>
+<p>A set of canned GraphQL requests built from specific operations for a graph ref, fetched from the
+GraphOS API by operation ID. The environment variable will be set to the path of a file containing
+one JSON request body (with <code>query</code> and <code>variables</code> keys) per line.</p>
+<p>Using this file provider requires the <code>APOLLO_KEY</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: canned_ops.json
   env_var: CANNED_OPS_FILE
   kind: graphos_canned_ops_by_id
   graph_ref: graph@variant
-  operation:
+  operations:
     kind: inline
     content: |
       5b1f8a2a1bd4be697559013a23fcbcb9186afe77
@@ -440,11 +451,10 @@ generating canned GraphQL requests.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_ref-1"><a class="header" href="#graph_ref-1"><code>graph_ref</code></a></h3>
-<p>The Apollo graph ref to pull operations for.</p>
+<p>The graph ref (<code>graph_id@variant</code>) to fetch operations for.</p>
 <h3 id="operations"><a class="header" href="#operations"><code>operations</code></a></h3>
-<p>A text file provider containing the operation IDs from the Apollo studio API for the operations you
-want to work with as queried from an <code>OperationInsightsListItem</code> in the Studio graphQL API.
-Operations must be specified one per-line</p>
+<p>A text file provider for a file containing the GraphOS operation IDs of the operations you want to
+fetch, one per line.</p>
 <details>
 <summary>Variants</summary>
 <ul>
@@ -457,12 +467,14 @@ Operations must be specified one per-line</p>
 </details>
 </details>
 <h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS supergraph Router URL overrides</a></h2>
-<p>The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
-API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
-file.</p>
-<p>This should be used whenever subgraph requests need to be mapped to a mock server instead of hitting
-the real subgraph as defined in the supergraph, which is typically desirable behavior when working
-with real graphs.</p>
+<p>A Router config snippet that overrides the URL of each subgraph in a graph ref, using the subgraphs
+fetched from the GraphOS API. The environment variable will be set to the path of a YAML file
+containing an <code>override_subgraph_url</code> section that you can merge into your Router config file (for
+example, using a <code>merge_yaml</code> file provider).</p>
+<p>Use this file provider when you want subgraph requests to be sent to mock servers rather than the
+real subgraphs defined in the supergraph, which is typically what you want when testing against real
+graphs.</p>
+<p>Using this file provider requires the <code>APOLLO_KEY</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: subgraph-url-overrides.yaml
   env_var: SUBGRAPH_URL_OVERRIDES
   kind: graphos_subgraph_router_url_overrides
@@ -472,42 +484,46 @@ with real graphs.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h3>
-<p>The Apollo graph ref to pull the subgraphs for.</p>
+<p>The graph ref (<code>graph_id@variant</code>) to fetch the subgraphs for.</p>
 <h3 id="url_format"><a class="header" href="#url_format"><code>url_format</code></a></h3>
-<p>The format of the overrides url.</p>
+<p>The format to use for the overridden subgraph URLs.</p>
+<p>Defaults to <code>localhost</code> if unset.</p>
 <details>
 <summary>Variants</summary>
 <ul>
-<li><code>localhost</code>: Overrides to <code>http://localhost:&lt;port&gt;</code> for each subgraph. Port is defined as
-<code>4001 + n</code> where <code>n</code> is the nth subgraph, starting at 0.</li>
-<li><code>docker</code>: Overrides to <code>http://loadbalancer:8080</code>.</li>
+<li><code>localhost</code>: Subgraph URLs are set to <code>http://localhost:{port}</code>, where the port is <code>4001</code> for the
+first subgraph and increases by one for each subsequent subgraph. Connector URLs are set to
+<code>http://localhost:3000</code>.</li>
+<li><code>docker</code>: Subgraph URLs are set to <code>http://loadbalancer:8080</code>. Connector URLs are set to
+<code>http://connector:3000</code>.</li>
 </ul>
 <h4 id="custom"><a class="header" href="#custom"><code>custom</code></a></h4>
-<p>Accepts a custom formatting configuration that will define the URLs.</p>
+<p>Subgraph and connector URLs are built from a custom URL format.</p>
 <details>
 <summary>Fields</summary>
 <h5 id="base_url"><a class="header" href="#base_url"><code>base_url</code></a></h5>
-<p>The base URL to route subgraph requests to.</p>
-<p>Defaults to the [UrlFormat::Docker] format if not set.</p>
+<p>The base URL (without a port) to send subgraph requests to.</p>
+<p>Defaults to <code>http://loadbalancer</code> if unset.</p>
 <h5 id="base_port"><a class="header" href="#base_port"><code>base_port</code></a></h5>
-<p>The base port that the subgraph requests should use</p>
-<p>Defaults to the [UrlFormat::Docker] port if not set.</p>
+<p>The port to send subgraph requests to.</p>
+<p>Defaults to <code>8080</code> if unset.</p>
 <h5 id="increment_port"><a class="header" href="#increment_port"><code>increment_port</code></a></h5>
-<p>Whether or not to increment the port number from the base for each subgraph.</p>
+<p>Whether to give each subgraph its own port, starting from <code>base_port</code>.</p>
 <p>Defaults to false if unset.</p>
 <h5 id="add_subgraph_route"><a class="header" href="#add_subgraph_route"><code>add_subgraph_route</code></a></h5>
-<p>Whether or not to include a <code>/{subgraph_name}</code> route for each subgraph.</p>
+<p>Whether to append a <code>/{subgraph_name}</code> route to the URL for each subgraph.</p>
 <p>Defaults to false if unset.</p>
 <h5 id="custom_subgraph_urls"><a class="header" href="#custom_subgraph_urls"><code>custom_subgraph_urls</code></a></h5>
-<p>Custom subgraph URL overrides for routes that do not fit the structure built by the above
-parameters.</p>
+<p>A map of subgraph names to the URL to use for that subgraph, for any subgraphs that do not fit the
+format described by the other fields.</p>
 </details>
 </details>
 </details>
 <h2 id="graphos-subgraph-sdl"><a class="header" href="#graphos-subgraph-sdl">GraphOS subgraph SDL</a></h2>
-<p>The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
-API.</p>
-<p>Note that this file provider will output a directory of SDL schema files, one for each subgraph.</p>
+<p>A directory containing the SDL of each subgraph in a graph ref, fetched from the GraphOS API. The
+environment variable will be set to the path of the directory itself, which will contain one
+<code>{subgraph_name}.graphql</code> file for each subgraph.</p>
+<p>Using this file provider requires the <code>APOLLO_KEY</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: "subgraphs"
   env_var: SUBGRAPHS
   kind: graphos_subgraphs
@@ -516,12 +532,12 @@ API.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h3>
-<p>The Apollo graph ref to pull subgraph SDL files for.</p>
+<p>The graph ref (<code>graph_id@variant</code>) to fetch the subgraph SDL files for.</p>
 </details>
 <h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS subgraph names</a></h2>
-<p>The user specifies the graph ref that should be used to fetch the names of subgraphs in the
-supergraph from the GraphOS API.</p>
-<p>This file provider will output a newline-delimited file of the subgraph names.</p>
+<p>The names of each subgraph in a graph ref, fetched from the GraphOS API. The environment variable
+will be set to the path of a file containing one subgraph name per line.</p>
+<p>Using this file provider requires the <code>APOLLO_KEY</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: "subgraph_names"
   env_var: SUBGRAPH_NAMES
   kind: graphos_subgraph_names
@@ -530,10 +546,13 @@ supergraph from the GraphOS API.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h3>
-<p>The Apollo graph ref to pull subgraph names for.</p>
+<p>The graph ref (<code>graph_id@variant</code>) to fetch the subgraph names for.</p>
 </details>
 <h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS supergraph SDL</a></h2>
-<p>The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.</p>
+<p>The supergraph SDL for a graph ref, fetched from the GraphOS API.</p>
+<p>The subgraph and connector URLs within the supergraph can optionally be rewritten so that requests
+are routed to mock servers running as part of your test.</p>
+<p>Using this file provider requires the <code>APOLLO_KEY</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: "supergraph.graphql"
   env_var: SUPERGRAPH
   kind: graphos_supergraph
@@ -543,13 +562,13 @@ supergraph from the GraphOS API.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h3>
-<p>The Apollo graph ref to pull supergraph SDL for.</p>
+<p>The graph ref (<code>graph_id@variant</code>) to fetch the supergraph SDL for.</p>
 <h3 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h3>
-<p>Replace the supergraph’s subgraph urls with overridden values for testing.</p>
-<p>Defaults to null if unset.</p>
+<p>Replace the subgraph URLs within the supergraph using the given URL format.</p>
+<p>If unset, the subgraph URLs are left unchanged.</p>
 <h3 id="with_connector_overrides"><a class="header" href="#with_connector_overrides"><code>with_connector_overrides</code></a></h3>
-<p>Replace the supergraph’s connector urls with overridden values for testing.</p>
-<p>Defaults to null if unset.</p>
+<p>Replace the connector URLs within the supergraph using the given URL format.</p>
+<p>If unset, the connector URLs are left unchanged.</p>
 <h3 id="with_fed3_compat"><a class="header" href="#with_fed3_compat"><code>with_fed3_compat</code></a></h3>
 <p>Rewrite the supergraph so a Router 3 build accepts it. A graph composed before the September 2025
 GraphQL spec is otherwise rejected at startup.</p>
@@ -595,10 +614,11 @@ can be converted into their inline representations.</p>
 <p>A list of inline files stored in the directory</p>
 </details>
 <h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
-<p>Merge the YAML output of text based file providers into a single YAML file.</p>
-<p>Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
-for maps.</p>
-<p>When merging a single overrides file the overrides provider can be specified directly under the
+<p>A single YAML file produced by merging the output of one or more file providers on top of a base
+YAML file.</p>
+<p>Where a key is present in both files, scalar values from the overrides replace those in the base,
+arrays are concatenated and maps are merged.</p>
+<p>When merging a single overrides file, you can specify its file provider directly under the
 <code>overrides</code> key:</p>
 <pre><code class="language-yaml">- name: router-config.yaml
   env_var: ROUTER_CONFIG
@@ -610,8 +630,8 @@ for maps.</p>
     kind: relative_path
     path: "../my-overrides.yaml"
 </code></pre>
-<p>When merging multiple overrides files, specify the providers in the order you want to merge them as
-an array:</p>
+<p>When merging multiple overrides files, specify their file providers as an array in the order you
+want them to be merged:</p>
 <pre><code class="language-yaml">- name: router-config.yaml
   env_var: ROUTER_CONFIG
   kind: merge_yaml
@@ -627,7 +647,7 @@ an array:</p>
 <details>
 <summary>Fields</summary>
 <h3 id="base"><a class="header" href="#base"><code>base</code></a></h3>
-<p>A base YAML file to start with.</p>
+<p>The file provider for the base YAML file.</p>
 <details>
 <summary>Variants</summary>
 <ul>
@@ -640,11 +660,11 @@ an array:</p>
 </ul>
 </details>
 <h3 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h3>
-<p>One or more YAML files to merge on top of the base file in sequence.</p>
+<p>One or more file providers for the YAML files to merge on top of the base file, in order.</p>
 </details>
 <h2 id="graphos-offline-license"><a class="header" href="#graphos-offline-license">GraphOS offline license</a></h2>
-<p>The user specifies the graph id that should be used to fetch an offline license from the GraphOS
-API.</p>
+<p>An offline license for a graph, fetched from the GraphOS API.</p>
+<p>Using this file provider requires the <code>APOLLO_KEY</code> environment variable to be set.</p>
 <pre><code class="language-yaml">- name: license.jwt
   env_var: LICENSE
   kind: offline_graphos_license
@@ -653,16 +673,15 @@ API.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h3>
-<p>The Apollo graph id to pull an offline license for.</p>
+<p>The ID of the graph to fetch an offline license for.</p>
 </details>
 <h2 id="relative-dir"><a class="header" href="#relative-dir">Relative dir</a></h2>
-<p>A relative path from the containing config file to a target directory and a list of files that
-should be made available as part of the test run. This provider works both with local directories
-and directories within GitHub if the containing config file was pulled from a repository.</p>
-<p>The specified environment variable for this provider will point to the location of the directory
-itself. Relative paths under the specified directory will be maintained and in order to provided
-deterministic locations for each included file.</p>
-<p>Only the specified files will be included and there is no way to wildcard multiple files.</p>
+<p>A directory of files referenced by its path relative to the containing config file. The environment
+variable will be set to the path of the directory itself. All files within that directory will need
+to be referenced using a combination of this environment variable and their path relative to <code>path</code>.</p>
+<p>Only the files listed under <code>files</code> are included and there is no way to wildcard multiple files.</p>
+<p>This works both for local config files and for config files pulled from a GitHub repository, in
+which case the files are pulled from the same repository.</p>
 <pre><code class="language-yaml">- name: "my-data"
   env_var: MY_DATA
   kind: relative_dir
@@ -674,14 +693,14 @@ deterministic locations for each included file.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="path-2"><a class="header" href="#path-2"><code>path</code></a></h3>
-<p>The relative path from the containing config file to the target directory.</p>
+<p>The path to the directory, relative to the containing config file.</p>
 <h3 id="files-2"><a class="header" href="#files-2"><code>files</code></a></h3>
-<p>The file paths under this directory that should be included.</p>
+<p>The paths of the files to include, relative to <code>path</code>.</p>
 </details>
 <h2 id="relative-path"><a class="header" href="#relative-path">Relative path</a></h2>
-<p>A relative path from the containing config file to a target file that should be made available as
-part of the test run. This provider works both with local files and files within GitHub if the
-containing config file was pulled from a repository.</p>
+<p>A file referenced by its path relative to the containing config file.</p>
+<p>This works both for local config files and for config files pulled from a GitHub repository, in
+which case the file is pulled from the same repository.</p>
 <pre><code class="language-yaml">- name: "my-file.txt"
   env_var: MY_FILE
   kind: relative_path
@@ -690,12 +709,13 @@ containing config file was pulled from a repository.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="path-3"><a class="header" href="#path-3"><code>path</code></a></h3>
-<p>The relative path from the containing config file to the target file.</p>
+<p>The path to the file, relative to the containing config file.</p>
 </details>
 <h2 id="required-file"><a class="header" href="#required-file">Required file</a></h2>
-<p>The only purpose of this file provider is to throw an error if it still exists when the file
-providers are being checked. All definitions of a required file are expected to be replaced by user
-defined file providers.</p>
+<p>A placeholder for a file that must be provided by whoever uses your config file, such as a test plan
+using your scenario or environment. If the placeholder has not been overridden with another file
+provider by the time RTF checks your config, RTF will report an error containing the <code>message</code> you
+provide.</p>
 <pre><code class="language-yaml">- name: "router-config.yaml"
   env_var: ROUTER_CONFIG
   kind: required
@@ -704,11 +724,10 @@ defined file providers.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="message"><a class="header" href="#message"><code>message</code></a></h3>
-<p>The error message to display to the user if this provider is not overwritten.</p>
+<p>The error message to report if this file has not been provided.</p>
 </details>
 <h2 id="router-download-script"><a class="header" href="#router-download-script">Router download script</a></h2>
-<p>Produces a POSIX shell script that can be run in order to download a target version of the Apollo
-Router.</p>
+<p>A POSIX shell script that downloads a specific version of the Apollo Router when run.</p>
 <pre><code class="language-yaml">- name: "router-download.sh"
   env_var: ROUTER_DOWNLOAD
   kind: router_download_script
@@ -717,11 +736,11 @@ Router.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="version"><a class="header" href="#version"><code>version</code></a></h3>
-<p>The version of the Apollo Router to download.</p>
+<p>The version of the Apollo Router to download, such as <code>"v2.6.0"</code>.</p>
 </details>
 <h2 id="templated-file"><a class="header" href="#templated-file">Templated file</a></h2>
-<p>Write a file whose content is an inline string with <code>${variable}</code> patterns interpolated from the RTF
-template variables defined for the current run.</p>
+<p>A file whose contents are specified inline within your config file, with any <code>${variable}</code> patterns
+replaced by the value of the matching templating variable for the current run.</p>
 <pre><code class="language-yaml">- name: config.json
   env_var: CONFIG_FILE
   kind: templated
@@ -731,7 +750,8 @@ template variables defined for the current run.</p>
 <details>
 <summary>Fields</summary>
 <h3 id="content-1"><a class="header" href="#content-1"><code>content</code></a></h3>
-<p>The file content with optional <code>${variable}</code> interpolation patterns.</p>
+<p>The text to write out as the contents of the generated file, which may contain <code>${variable}</code>
+patterns.</p>
 </details>
 
                     </main>
