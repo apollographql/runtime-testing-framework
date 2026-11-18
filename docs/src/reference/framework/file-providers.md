@@ -28,8 +28,12 @@ Available file providers:
 
 ## Build Router from source
 
-A file provider used for building the Router from source at a specific git commit or reference. A
-profile and list of features can optionally be provided.
+A shell script that builds the Apollo Router from source at a specific git reference when run.
+
+The script clones the Router repository, builds it using the requested Rust version, profile and
+features, and then copies the resulting `router` binary into `~/.cargo/bin`. Running the script
+requires `git` and `rustup` to be installed and the `CARGO_TARGET_DIR` environment variable to be
+set.
 
 ```yaml
 - name: "router-build.sh"
@@ -46,25 +50,24 @@ profile and list of features can optionally be provided.
 
 ### `git_ref`
 
-A git reference that can be passed to `git checkout`. This may be a full or partial commit hash,
-branch name, or tag.
+The git reference of the Router repository to build: a full or partial commit hash, a branch name or
+a tag.
 
 ### `rust_version`
 
-A Rust version string that can be passed to `rustup run {rust_version}`, such as `"1.78.0"`,
-`"beta"`, or `"nightly"`.
+The Rust toolchain to build the Router with, such as `"1.78.0"`, `"beta"` or `"nightly"`.
 
 Defaults to `"stable"` if unset.
 
 ### `profile`
 
-The profile to build the Router with.
+The cargo profile to build the Router with.
 
 Defaults to `"release"` if unset.
 
 ### `features`
 
-Comma separated list of features to build the Router with.
+A comma separated list of cargo features to build the Router with.
 
 Defaults to `"default"` if unset.
 
@@ -72,18 +75,18 @@ Defaults to `"default"` if unset.
 
 ## Conditional
 
-Conditionally run a file provider from an ordered list based on simple "where" clauses that make use
-of the provided templating variables. The first case with a "where" clause that holds will be run as
-the output of this provider.
+One of an ordered list of file providers, chosen based on the value of your templating variables.
+Each case has a "where" clause, and the first case whose "where" clause holds is used as this file
+provider.
 
 ### Writing where clauses
 
 The "where" clause on each case is a simple comparison against a single templating variable. You
-must include the `var` key which accepts a string variable name that is required to be defined
-within the test plan containing this provider. You may then assert that the variable is equal (`eq`)
-or not equal (`ne`) to a given scalar value.
+must include the `var` key, giving the name of a templating variable that is defined in the test
+plan containing this provider. You can then check that the variable is equal (`eq`) or not equal
+(`ne`) to a given scalar value.
 
-If none of the provider where clauses match, this provider will error during static analysis checks.
+If none of the "where" clauses hold, RTF will report an error when templating your config.
 
 ```yaml
 - name: conditional_config.json
@@ -104,13 +107,18 @@ If none of the provider where clauses match, this provider will error during sta
 
 ### `cases`
 
-The ordered list of cases to be checked against the variables used for templating the test plan.
+The cases to check, in order. Each case is a file provider with an additional `where` key.
 
 </details>
 
 ## Custom provider
 
-Use a custom provider to execute a command and produce a set of files.
+Run a custom provider to produce a file or directory of files. The environment variable will be set
+to the path of the custom provider's output.
+
+The custom provider to run is selected by its `type`, which must match the name of a custom provider
+definition available to the containing config file. All other keys are passed to the custom provider
+as arguments, and are used to set the templating variables declared in its definition.
 
 ```yaml
 - name: "router-docker-compose"
@@ -127,22 +135,23 @@ Use a custom provider to execute a command and produce a set of files.
 
 ### `ty`
 
-The type of custom provider to use. This is the name of the custom provider to use.
+The name of the custom provider definition to run.
 
 ### `arguments`
 
-The arguments to pass to the custom provider.
+The arguments to pass to the custom provider, keyed by templating variable name.
 
 </details>
 
 ## From command
 
-Run a command provider and use its output as a file provider resource.
+A file or directory of files produced by running a command provider. The environment variable will
+be set to the path of the command's output.
 
 As with all other command providers, you can provide both environment variables and other file
-providers as inputs to the command being executed. RTF will use the contents of the `$RTF_OUTPUT`
-path as the output of this provider, supporting both writing a single file to that path and creating
-a directory at that path containing multiple files.
+providers as inputs to the command being run. Your command should write its output to the path given
+by the `$RTF_OUTPUT` environment variable, either as a single file or as a directory containing
+multiple files.
 
 ```yaml
 - name: vegeta-ops.json
@@ -227,12 +236,14 @@ File providers to run and make available prior to execution
 
 ## GitHub directory
 
-A directory of files pulled from a GitHub repository. The specified environment variable for this
-provider will point to the location of the directory itself.
+A directory of files pulled from a GitHub repository. The environment variable will be set to the
+path of the directory itself. All files within that directory will need to be referenced using a
+combination of this environment variable and their path relative to `path`.
 
-Only the files listed under `files` are included, each relative to the directory given by `path`.
-There is no way to wildcard multiple files. If no `git_ref` is provided, the directory is pulled
-from the default branch.
+Only the files listed under `files` are included and there is no way to wildcard multiple files. If
+no `git_ref` is provided, the files are pulled from the default branch.
+
+Using this file provider requires the `GITHUB_TOKEN` environment variable to be set.
 
 ```yaml
 - name: "my-data"
@@ -252,34 +263,35 @@ from the default branch.
 
 ### `org`
 
-The GitHub org for the repository containing the target directory
+The GitHub organization that owns the repository.
 
 ### `repo`
 
-The GitHub repository containing the target directory
+The name of the repository containing the directory.
 
 ### `git_ref`
 
-An optional git reference to pull the directory from. This may be a full or partial commit hash,
-branch name, or tag.
+The git reference to pull the files from: a full or partial commit hash, a branch name or a tag.
 
-Defaults to the mainline branch as specified in GitHub if unset.
+Defaults to the repository's default branch if unset.
 
 ### `path`
 
-The absolute path from the root of the repository to the target directory.
+The path to the directory from the root of the repository.
 
 ### `files`
 
-The file paths under this directory that should be included.
+The paths of the files to include, relative to `path`.
 
 </details>
 
 ## GitHub file
 
-The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
-of the repository to pull the file from. If no ref is providing then the provider will pull the
-version of the file found on the default branch.
+A file pulled from a GitHub repository.
+
+If no `git_ref` is provided, the file is pulled from the default branch.
+
+Using this file provider requires the `GITHUB_TOKEN` environment variable to be set.
 
 ```yaml
 - name: "my-file.txt"
@@ -296,29 +308,31 @@ version of the file found on the default branch.
 
 ### `org`
 
-The GitHub org for the repository containing the target file
+The GitHub organization that owns the repository.
 
 ### `repo`
 
-The GitHub repository containing the target file
+The name of the repository containing the file.
 
 ### `path`
 
-The absolute path from the root of the repository to the target file
+The path to the file from the root of the repository.
 
 ### `git_ref`
 
-An optional git reference to pull the file from. This may be a full or partial commit hash, branch
-name, or tag.
+The git reference to pull the file from: a full or partial commit hash, a branch name or a tag.
 
-Defaults to the mainline branch as specified in GitHub if unset.
+Defaults to the repository's default branch if unset.
 
 </details>
 
 ## GraphOS canned operations
 
-The user specifies the graph ref and parameters that should be used to generate canned GraphQL
-requests based on operations data obtained from the GraphOS API.
+A set of canned GraphQL requests built from the most frequently used operations for a graph ref, as
+reported by the GraphOS API. The environment variable will be set to the path of a file containing
+one JSON request body (with `query` and `variables` keys) per line.
+
+Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 
 ```yaml
 - name: canned_ops.json
@@ -335,39 +349,44 @@ requests based on operations data obtained from the GraphOS API.
 
 ### `graph_ref`
 
-The Apollo graph ref to pull operations for.
+The graph ref (`graph_id@variant`) to fetch operations for.
 
 ### `top_n`
 
-The number of operations to attempt to fetch.
+The maximum number of operations to fetch.
 
 Defaults to 20 if unset.
 
 ### `skip_mutations`
 
-Whether or not to include mutations in the returned operations.
+Whether to exclude mutations from the fetched operations.
 
 Defaults to false if unset.
 
 ### `time_range`
 
-How far back to query for operations.
+How far back to look for operations.
 
-Accepts duration strings like "30d", "7d", "12h". Defaults to "30d" if unset.
+Accepts duration strings such as `"30d"`, `"7d"` or `"12h"`.
+
+Defaults to `"30d"` if unset.
 
 </details>
 
 ## GraphOS canned operations by ID
 
-The user specifies the graph ref and a set of operation IDs to be fetched from the GraphOS API for
-generating canned GraphQL requests.
+A set of canned GraphQL requests built from specific operations for a graph ref, fetched from the
+GraphOS API by operation ID. The environment variable will be set to the path of a file containing
+one JSON request body (with `query` and `variables` keys) per line.
+
+Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 
 ```yaml
 - name: canned_ops.json
   env_var: CANNED_OPS_FILE
   kind: graphos_canned_ops_by_id
   graph_ref: graph@variant
-  operation:
+  operations:
     kind: inline
     content: |
       5b1f8a2a1bd4be697559013a23fcbcb9186afe77
@@ -380,13 +399,12 @@ generating canned GraphQL requests.
 
 ### `graph_ref`
 
-The Apollo graph ref to pull operations for.
+The graph ref (`graph_id@variant`) to fetch operations for.
 
 ### `operations`
 
-A text file provider containing the operation IDs from the Apollo studio API for the operations you
-want to work with as queried from an `OperationInsightsListItem` in the Studio graphQL API.
-Operations must be specified one per-line
+A text file provider for a file containing the GraphOS operation IDs of the operations you want to
+fetch, one per line.
 
 <details>
 <summary>Variants</summary>
@@ -403,13 +421,16 @@ Operations must be specified one per-line
 
 ## GraphOS supergraph Router URL overrides
 
-The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
-API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
-file.
+A Router config snippet that overrides the URL of each subgraph in a graph ref, using the subgraphs
+fetched from the GraphOS API. The environment variable will be set to the path of a YAML file
+containing an `override_subgraph_url` section that you can merge into your Router config file (for
+example, using a `merge_yaml` file provider).
 
-This should be used whenever subgraph requests need to be mapped to a mock server instead of hitting
-the real subgraph as defined in the supergraph, which is typically desirable behavior when working
-with real graphs.
+Use this file provider when you want subgraph requests to be sent to mock servers rather than the
+real subgraphs defined in the supergraph, which is typically what you want when testing against real
+graphs.
+
+Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 
 ```yaml
 - name: subgraph-url-overrides.yaml
@@ -424,54 +445,58 @@ with real graphs.
 
 ### `graph_ref`
 
-The Apollo graph ref to pull the subgraphs for.
+The graph ref (`graph_id@variant`) to fetch the subgraphs for.
 
 ### `url_format`
 
-The format of the overrides url.
+The format to use for the overridden subgraph URLs.
+
+Defaults to `localhost` if unset.
 
 <details>
 <summary>Variants</summary>
 
-- `localhost`: Overrides to `http://localhost:<port>` for each subgraph. Port is defined as
-  `4001 + n` where `n` is the nth subgraph, starting at 0.
-- `docker`: Overrides to `http://loadbalancer:8080`.
+- `localhost`: Subgraph URLs are set to `http://localhost:{port}`, where the port is `4001` for the
+  first subgraph and increases by one for each subsequent subgraph. Connector URLs are set to
+  `http://localhost:3000`.
+- `docker`: Subgraph URLs are set to `http://loadbalancer:8080`. Connector URLs are set to
+  `http://connector:3000`.
 
 #### `custom`
 
-Accepts a custom formatting configuration that will define the URLs.
+Subgraph and connector URLs are built from a custom URL format.
 
 <details>
 <summary>Fields</summary>
 
 ##### `base_url`
 
-The base URL to route subgraph requests to.
+The base URL (without a port) to send subgraph requests to.
 
-Defaults to the [UrlFormat::Docker] format if not set.
+Defaults to `http://loadbalancer` if unset.
 
 ##### `base_port`
 
-The base port that the subgraph requests should use
+The port to send subgraph requests to.
 
-Defaults to the [UrlFormat::Docker] port if not set.
+Defaults to `8080` if unset.
 
 ##### `increment_port`
 
-Whether or not to increment the port number from the base for each subgraph.
+Whether to give each subgraph its own port, starting from `base_port`.
 
 Defaults to false if unset.
 
 ##### `add_subgraph_route`
 
-Whether or not to include a `/{subgraph_name}` route for each subgraph.
+Whether to append a `/{subgraph_name}` route to the URL for each subgraph.
 
 Defaults to false if unset.
 
 ##### `custom_subgraph_urls`
 
-Custom subgraph URL overrides for routes that do not fit the structure built by the above
-parameters.
+A map of subgraph names to the URL to use for that subgraph, for any subgraphs that do not fit the
+format described by the other fields.
 
 </details>
 
@@ -481,10 +506,11 @@ parameters.
 
 ## GraphOS subgraph SDL
 
-The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
-API.
+A directory containing the SDL of each subgraph in a graph ref, fetched from the GraphOS API. The
+environment variable will be set to the path of the directory itself, which will contain one
+`{subgraph_name}.graphql` file for each subgraph.
 
-Note that this file provider will output a directory of SDL schema files, one for each subgraph.
+Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 
 ```yaml
 - name: "subgraphs"
@@ -498,16 +524,16 @@ Note that this file provider will output a directory of SDL schema files, one fo
 
 ### `graph_ref`
 
-The Apollo graph ref to pull subgraph SDL files for.
+The graph ref (`graph_id@variant`) to fetch the subgraph SDL files for.
 
 </details>
 
 ## GraphOS subgraph names
 
-The user specifies the graph ref that should be used to fetch the names of subgraphs in the
-supergraph from the GraphOS API.
+The names of each subgraph in a graph ref, fetched from the GraphOS API. The environment variable
+will be set to the path of a file containing one subgraph name per line.
 
-This file provider will output a newline-delimited file of the subgraph names.
+Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 
 ```yaml
 - name: "subgraph_names"
@@ -521,13 +547,18 @@ This file provider will output a newline-delimited file of the subgraph names.
 
 ### `graph_ref`
 
-The Apollo graph ref to pull subgraph names for.
+The graph ref (`graph_id@variant`) to fetch the subgraph names for.
 
 </details>
 
 ## GraphOS supergraph SDL
 
-The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.
+The supergraph SDL for a graph ref, fetched from the GraphOS API.
+
+The subgraph and connector URLs within the supergraph can optionally be rewritten so that requests
+are routed to mock servers running as part of your test.
+
+Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 
 ```yaml
 - name: "supergraph.graphql"
@@ -542,19 +573,19 @@ The user specifies the ref that should be used to fetch a supergraph SDL file fr
 
 ### `graph_ref`
 
-The Apollo graph ref to pull supergraph SDL for.
+The graph ref (`graph_id@variant`) to fetch the supergraph SDL for.
 
 ### `with_subgraph_overrides`
 
-Replace the supergraph's subgraph urls with overridden values for testing.
+Replace the subgraph URLs within the supergraph using the given URL format.
 
-Defaults to null if unset.
+If unset, the subgraph URLs are left unchanged.
 
 ### `with_connector_overrides`
 
-Replace the supergraph's connector urls with overridden values for testing.
+Replace the connector URLs within the supergraph using the given URL format.
 
-Defaults to null if unset.
+If unset, the connector URLs are left unchanged.
 
 ### `with_fed3_compat`
 
@@ -624,12 +655,13 @@ A list of inline files stored in the directory
 
 ## Merge YAML
 
-Merge the YAML output of text based file providers into a single YAML file.
+A single YAML file produced by merging the output of one or more file providers on top of a base
+YAML file.
 
-Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
-for maps.
+Where a key is present in both files, scalar values from the overrides replace those in the base,
+arrays are concatenated and maps are merged.
 
-When merging a single overrides file the overrides provider can be specified directly under the
+When merging a single overrides file, you can specify its file provider directly under the
 `overrides` key:
 
 ```yaml
@@ -644,8 +676,8 @@ When merging a single overrides file the overrides provider can be specified dir
     path: "../my-overrides.yaml"
 ```
 
-When merging multiple overrides files, specify the providers in the order you want to merge them as
-an array:
+When merging multiple overrides files, specify their file providers as an array in the order you
+want them to be merged:
 
 ```yaml
 - name: router-config.yaml
@@ -666,7 +698,7 @@ an array:
 
 ### `base`
 
-A base YAML file to start with.
+The file provider for the base YAML file.
 
 <details>
 <summary>Variants</summary>
@@ -682,14 +714,15 @@ A base YAML file to start with.
 
 ### `overrides`
 
-One or more YAML files to merge on top of the base file in sequence.
+One or more file providers for the YAML files to merge on top of the base file, in order.
 
 </details>
 
 ## GraphOS offline license
 
-The user specifies the graph id that should be used to fetch an offline license from the GraphOS
-API.
+An offline license for a graph, fetched from the GraphOS API.
+
+Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 
 ```yaml
 - name: license.jwt
@@ -703,21 +736,20 @@ API.
 
 ### `graph_id`
 
-The Apollo graph id to pull an offline license for.
+The ID of the graph to fetch an offline license for.
 
 </details>
 
 ## Relative dir
 
-A relative path from the containing config file to a target directory and a list of files that
-should be made available as part of the test run. This provider works both with local directories
-and directories within GitHub if the containing config file was pulled from a repository.
+A directory of files referenced by its path relative to the containing config file. The environment
+variable will be set to the path of the directory itself. All files within that directory will need
+to be referenced using a combination of this environment variable and their path relative to `path`.
 
-The specified environment variable for this provider will point to the location of the directory
-itself. Relative paths under the specified directory will be maintained and in order to provided
-deterministic locations for each included file.
+Only the files listed under `files` are included and there is no way to wildcard multiple files.
 
-Only the specified files will be included and there is no way to wildcard multiple files.
+This works both for local config files and for config files pulled from a GitHub repository, in
+which case the files are pulled from the same repository.
 
 ```yaml
 - name: "my-data"
@@ -734,19 +766,20 @@ Only the specified files will be included and there is no way to wildcard multip
 
 ### `path`
 
-The relative path from the containing config file to the target directory.
+The path to the directory, relative to the containing config file.
 
 ### `files`
 
-The file paths under this directory that should be included.
+The paths of the files to include, relative to `path`.
 
 </details>
 
 ## Relative path
 
-A relative path from the containing config file to a target file that should be made available as
-part of the test run. This provider works both with local files and files within GitHub if the
-containing config file was pulled from a repository.
+A file referenced by its path relative to the containing config file.
+
+This works both for local config files and for config files pulled from a GitHub repository, in
+which case the file is pulled from the same repository.
 
 ```yaml
 - name: "my-file.txt"
@@ -760,15 +793,16 @@ containing config file was pulled from a repository.
 
 ### `path`
 
-The relative path from the containing config file to the target file.
+The path to the file, relative to the containing config file.
 
 </details>
 
 ## Required file
 
-The only purpose of this file provider is to throw an error if it still exists when the file
-providers are being checked. All definitions of a required file are expected to be replaced by user
-defined file providers.
+A placeholder for a file that must be provided by whoever uses your config file, such as a test plan
+using your scenario or environment. If the placeholder has not been overridden with another file
+provider by the time RTF checks your config, RTF will report an error containing the `message` you
+provide.
 
 ```yaml
 - name: "router-config.yaml"
@@ -782,14 +816,13 @@ defined file providers.
 
 ### `message`
 
-The error message to display to the user if this provider is not overwritten.
+The error message to report if this file has not been provided.
 
 </details>
 
 ## Router download script
 
-Produces a POSIX shell script that can be run in order to download a target version of the Apollo
-Router.
+A POSIX shell script that downloads a specific version of the Apollo Router when run.
 
 ```yaml
 - name: "router-download.sh"
@@ -803,14 +836,14 @@ Router.
 
 ### `version`
 
-The version of the Apollo Router to download.
+The version of the Apollo Router to download, such as `"v2.6.0"`.
 
 </details>
 
 ## Templated file
 
-Write a file whose content is an inline string with `${variable}` patterns interpolated from the RTF
-template variables defined for the current run.
+A file whose contents are specified inline within your config file, with any `${variable}` patterns
+replaced by the value of the matching templating variable for the current run.
 
 ```yaml
 - name: config.json
@@ -825,6 +858,7 @@ template variables defined for the current run.
 
 ### `content`
 
-The file content with optional `${variable}` interpolation patterns.
+The text to write out as the contents of the generated file, which may contain `${variable}`
+patterns.
 
 </details>

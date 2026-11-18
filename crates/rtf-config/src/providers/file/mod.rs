@@ -582,7 +582,7 @@ impl ExtractRelativeFiles for InlineFile {
 pub struct InlineDir {
     /// A list of inline files stored in the directory
     #[template(skip)]
-    pub(crate) files: Vec<DirFile>,
+    pub files: Vec<DirFile>,
 }
 
 impl ResolveAndWrite for InlineDir {
@@ -646,9 +646,10 @@ pub struct DirFile {
 
 /// # Relative path
 ///
-/// A relative path from the containing config file to a target file that should be made available
-/// as part of the test run. This provider works both with local files and files within GitHub
-/// if the containing config file was pulled from a repository.
+/// A file referenced by its path relative to the containing config file.
+///
+/// This works both for local config files and for config files pulled from a GitHub repository,
+/// in which case the file is pulled from the same repository.
 ///
 /// ```yaml
 /// - name: "my-file.txt"
@@ -658,14 +659,14 @@ pub struct DirFile {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RelativeFile {
-    /// The relative path from the containing config file to the target file.
-    pub(crate) path: Field<String>,
+    /// The path to the file, relative to the containing config file.
+    pub path: Field<String>,
 
     /// Set during TestPlan parsing as part of overrides and templating.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(skip)]
     #[doc(hidden)]
-    pub(crate) src: Option<StableSource>,
+    pub src: Option<StableSource>,
 }
 
 impl Template for RelativeFile {
@@ -806,16 +807,16 @@ fn try_template_path_and_source(
 
 /// # Relative dir
 ///
-/// A relative path from the containing config file to a target directory and a list of files
-/// that should be made available as part of the test run. This provider works both with local
-/// directories and directories within GitHub if the containing config file was pulled from a
-/// repository.
+/// A directory of files referenced by its path relative to the containing config file. The
+/// environment variable will be set to the path of the directory itself. All files within that
+/// directory will need to be referenced using a combination of this environment variable and
+/// their path relative to `path`.
 ///
-/// The specified environment variable for this provider will point to the location of the
-/// directory itself. Relative paths under the specified directory will be maintained and in
-/// order to provided deterministic locations for each included file.
+/// Only the files listed under `files` are included and there is no way to wildcard multiple
+/// files.
 ///
-/// Only the specified files will be included and there is no way to wildcard multiple files.
+/// This works both for local config files and for config files pulled from a GitHub repository,
+/// in which case the files are pulled from the same repository.
 ///
 /// ```yaml
 /// - name: "my-data"
@@ -828,17 +829,17 @@ fn try_template_path_and_source(
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RelativeDir {
-    /// The relative path from the containing config file to the target directory.
-    pub(crate) path: Field<String>,
+    /// The path to the directory, relative to the containing config file.
+    pub path: Field<String>,
 
-    /// The file paths under this directory that should be included.
-    pub(crate) files: Vec<String>,
+    /// The paths of the files to include, relative to `path`.
+    pub files: Vec<String>,
 
     /// Set during TestPlan parsing as part of overrides and templating.
     #[serde(default)]
     #[schemars(skip)]
     #[doc(hidden)]
-    pub(crate) src: Option<StableSource>,
+    pub src: Option<StableSource>,
 }
 
 impl RelativeDir {
@@ -1019,9 +1020,10 @@ impl ExtractRelativeFiles for RelativeDir {
 
 /// # Required file
 ///
-/// The only purpose of this file provider is to throw an error if it still exists
-/// when the file providers are being checked. All definitions of a required file
-/// are expected to be replaced by user defined file providers.
+/// A placeholder for a file that must be provided by whoever uses your config file, such as a
+/// test plan using your scenario or environment. If the placeholder has not been overridden with
+/// another file provider by the time RTF checks your config, RTF will report an error containing
+/// the `message` you provide.
 ///
 /// ```yaml
 /// - name: "router-config.yaml"
@@ -1031,7 +1033,7 @@ impl ExtractRelativeFiles for RelativeDir {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct RequiredFile {
-    /// The error message to display to the user if this provider is not overwritten.
+    /// The error message to report if this file has not been provided.
     #[template(skip)]
     pub message: String,
 }

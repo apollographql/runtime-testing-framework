@@ -15,7 +15,13 @@ use std::collections::{HashMap, HashSet};
 
 /// # Custom provider
 ///
-/// Use a custom provider to execute a command and produce a set of files.
+/// Run a custom provider to produce a file or directory of files. The environment variable will be
+/// set to the path of the custom provider's output.
+///
+/// The custom provider to run is selected by its `type`, which must match the name of a custom
+/// provider definition available to the containing config file. All other keys are passed to the
+/// custom provider as arguments, and are used to set the templating variables declared in its
+/// definition.
 ///
 /// ```yaml
 /// - name: "router-docker-compose"
@@ -28,19 +34,19 @@ use std::collections::{HashMap, HashSet};
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct CustomProvider {
-    /// The type of custom provider to use. This is the name of the custom provider to use.
+    /// The name of the custom provider definition to run.
     #[serde(rename = "type")]
-    pub(crate) ty: String,
+    pub ty: String,
 
-    /// The arguments to pass to the custom provider.
+    /// The arguments to pass to the custom provider, keyed by templating variable name.
     #[serde(flatten)]
-    pub(crate) arguments: HashMap<String, Field<Scalar>>,
+    pub arguments: HashMap<String, Field<Scalar>>,
 
     /// Set during TestPlan parsing as part of overrides and templating.
     #[serde(default)]
     #[schemars(skip)]
     #[doc(hidden)]
-    pub(crate) src: Option<StableSource>,
+    pub src: Option<StableSource>,
 }
 
 impl CustomProvider {

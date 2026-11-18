@@ -33,8 +33,12 @@ use tracing::warn;
 
 /// # GraphOS supergraph SDL
 ///
-/// The user specifies the ref that should be used to fetch a supergraph SDL
-/// file from the GraphOS API.
+/// The supergraph SDL for a graph ref, fetched from the GraphOS API.
+///
+/// The subgraph and connector URLs within the supergraph can optionally be rewritten so that
+/// requests are routed to mock servers running as part of your test.
+///
+/// Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 ///
 /// ```yaml
 /// - name: "supergraph.graphql"
@@ -45,17 +49,17 @@ use tracing::warn;
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSupergraph {
-    /// The Apollo graph ref to pull supergraph SDL for.
+    /// The graph ref (`graph_id@variant`) to fetch the supergraph SDL for.
     pub graph_ref: Field<String>,
-    /// Replace the supergraph's subgraph urls with overridden values for testing.
+    /// Replace the subgraph URLs within the supergraph using the given URL format.
     ///
-    /// Defaults to null if unset.
+    /// If unset, the subgraph URLs are left unchanged.
     #[serde(default)]
     #[template(skip)]
     pub with_subgraph_overrides: Option<UrlFormat>,
-    /// Replace the supergraph's connector urls with overridden values for testing.
+    /// Replace the connector URLs within the supergraph using the given URL format.
     ///
-    /// Defaults to null if unset.
+    /// If unset, the connector URLs are left unchanged.
     #[serde(default)]
     #[template(skip)]
     pub with_connector_overrides: Option<UrlFormat>,
@@ -143,11 +147,11 @@ impl ExtractRelativeFiles for GraphosSupergraph {
 
 /// # GraphOS subgraph SDL
 ///
-/// The user specifies the graph ref that should be used to fetch a subgraph
-/// SDL files from the GraphOS API.
+/// A directory containing the SDL of each subgraph in a graph ref, fetched from the GraphOS API.
+/// The environment variable will be set to the path of the directory itself, which will contain
+/// one `{subgraph_name}.graphql` file for each subgraph.
 ///
-/// Note that this file provider will output a directory of SDL schema files, one for each
-/// subgraph.
+/// Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 ///
 /// ```yaml
 /// - name: "subgraphs"
@@ -157,7 +161,7 @@ impl ExtractRelativeFiles for GraphosSupergraph {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSubgraphs {
-    /// The Apollo graph ref to pull subgraph SDL files for.
+    /// The graph ref (`graph_id@variant`) to fetch the subgraph SDL files for.
     pub graph_ref: Field<String>,
 }
 
@@ -222,10 +226,10 @@ impl ExtractRelativeFiles for GraphosSubgraphs {
 
 /// # GraphOS subgraph names
 ///
-/// The user specifies the graph ref that should be used to fetch the names of
-/// subgraphs in the supergraph from the GraphOS API.
+/// The names of each subgraph in a graph ref, fetched from the GraphOS API. The environment
+/// variable will be set to the path of a file containing one subgraph name per line.
 ///
-/// This file provider will output a newline-delimited file of the subgraph names.
+/// Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 ///
 /// ```yaml
 /// - name: "subgraph_names"
@@ -235,7 +239,7 @@ impl ExtractRelativeFiles for GraphosSubgraphs {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSubgraphNames {
-    /// The Apollo graph ref to pull subgraph names for.
+    /// The graph ref (`graph_id@variant`) to fetch the subgraph names for.
     pub graph_ref: Field<String>,
 }
 
@@ -282,13 +286,16 @@ impl ExtractRelativeFiles for GraphosSubgraphNames {
 
 /// # GraphOS supergraph Router URL overrides
 ///
-/// The user specifies the graph ref that should be used to fetch subgraph
-/// SDL files from the GraphOS API and generates a the override_subgraph_urls
-/// YAML snippet that can be merged into a router config file.
+/// A Router config snippet that overrides the URL of each subgraph in a graph ref, using the
+/// subgraphs fetched from the GraphOS API. The environment variable will be set to the path of
+/// a YAML file containing an `override_subgraph_url` section that you can merge into your Router
+/// config file (for example, using a `merge_yaml` file provider).
 ///
-/// This should be used whenever subgraph requests need to be mapped to a mock
-/// server instead of hitting the real subgraph as defined in the supergraph,
-/// which is typically desirable behavior when working with real graphs.
+/// Use this file provider when you want subgraph requests to be sent to mock servers rather than
+/// the real subgraphs defined in the supergraph, which is typically what you want when testing
+/// against real graphs.
+///
+/// Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 ///
 /// ```yaml
 /// - name: subgraph-url-overrides.yaml
@@ -299,9 +306,11 @@ impl ExtractRelativeFiles for GraphosSubgraphNames {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSubgraphRouterUrlOverrides {
-    /// The Apollo graph ref to pull the subgraphs for.
+    /// The graph ref (`graph_id@variant`) to fetch the subgraphs for.
     pub graph_ref: Field<String>,
-    /// The format of the overrides url.
+    /// The format to use for the overridden subgraph URLs.
+    ///
+    /// Defaults to `localhost` if unset.
     #[serde(default = "default_url_format")]
     pub url_format: UrlFormat,
 }
@@ -310,17 +319,20 @@ fn default_url_format() -> UrlFormat {
     UrlFormat::Localhost
 }
 
-/// The allowed url formats for the [GraphosSubgraphRouterUrlOverrides]
+/// The supported formats for overridden subgraph and connector URLs.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case")]
 pub enum UrlFormat {
-    /// Overrides to `http://localhost:<port>` for each subgraph.
+    /// Subgraph URLs are set to `http://localhost:{port}`, where the port is `4001` for the first
+    /// subgraph and increases by one for each subsequent subgraph.
     ///
-    /// Port is defined as `4001 + n` where `n` is the nth subgraph, starting at 0.
+    /// Connector URLs are set to `http://localhost:3000`.
     Localhost,
-    /// Overrides to `http://loadbalancer:8080`.
+    /// Subgraph URLs are set to `http://loadbalancer:8080`.
+    ///
+    /// Connector URLs are set to `http://connector:3000`.
     Docker,
-    /// Accepts a custom formatting configuration that will define the URLs.
+    /// Subgraph and connector URLs are built from a custom URL format.
     Custom(CustomUrlFormat),
 }
 
@@ -445,18 +457,20 @@ impl UrlFormat {
     }
 }
 
-/// Defines a custom URL format to route subgraph requests to.
+/// A custom format for the URLs that subgraph requests are sent to.
 ///
-/// The `base_url` and `base_port` components define the base subgraph URL.
-/// These produce a subgraph URL of `{base_url}:{base_port}` for all subgraph names as the default.
+/// By default, every subgraph is given the URL `{base_url}:{base_port}`.
 ///
-/// If `increment_port` is set to true, each subgraph will get a distinct port number
-/// generated via auto-incrementing the `base_port` for each known subgraph. This is useful
-/// for running `n` subgraph servers for `n` named subgraphs in the supergraph.
+/// If you are running a separate mock server for each subgraph, set `increment_port` to true so
+/// that each subgraph is given its own port, starting from `base_port` and increasing by one for
+/// each subsequent subgraph.
 ///
-/// To use a single subgraph server with defined per-subgraph behavior, set `add_subgraph_route`
-/// to true. This will append a route with the subgraph's name to the base URL, producing the form
-/// `{base_url}:{base_port}/{subgraph_name}` for each subgraph.
+/// If you are running a single mock server that handles every subgraph, set `add_subgraph_route`
+/// to true so that each subgraph is given the URL `{base_url}:{base_port}/{subgraph_name}`.
+///
+/// Any subgraphs listed under `custom_subgraph_urls` use the URL you provide instead.
+///
+/// When used for connector URLs, only `base_url` and `base_port` are used.
 ///
 /// ```yaml
 /// - name: subgraph-url-overrides.yaml
@@ -473,29 +487,30 @@ impl UrlFormat {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct CustomUrlFormat {
-    /// The base URL to route subgraph requests to.
+    /// The base URL (without a port) to send subgraph requests to.
     ///
-    /// Defaults to the [UrlFormat::Docker] format if not set.
+    /// Defaults to `http://loadbalancer` if unset.
     #[serde(default = "docker_base_url")]
-    base_url: Field<String>,
-    /// The base port that the subgraph requests should use
+    pub base_url: Field<String>,
+    /// The port to send subgraph requests to.
     ///
-    /// Defaults to the [UrlFormat::Docker] port if not set.
+    /// Defaults to `8080` if unset.
     #[serde(default = "docker_port")]
-    base_port: Field<usize>,
-    /// Whether or not to increment the port number from the base for each subgraph.
+    pub base_port: Field<usize>,
+    /// Whether to give each subgraph its own port, starting from `base_port`.
     ///
     /// Defaults to false if unset.
     #[serde(default)]
-    increment_port: Field<bool>,
-    /// Whether or not to include a `/{subgraph_name}` route for each subgraph.
+    pub increment_port: Field<bool>,
+    /// Whether to append a `/{subgraph_name}` route to the URL for each subgraph.
     ///
     /// Defaults to false if unset.
     #[serde(default)]
-    add_subgraph_route: Field<bool>,
-    /// Custom subgraph URL overrides for routes that do not fit the structure built by the above parameters.
+    pub add_subgraph_route: Field<bool>,
+    /// A map of subgraph names to the URL to use for that subgraph, for any subgraphs that do
+    /// not fit the format described by the other fields.
     #[serde(default)]
-    custom_subgraph_urls: HashMap<String, Field<String>>,
+    pub custom_subgraph_urls: HashMap<String, Field<String>>,
 }
 
 fn docker_base_url() -> Field<String> {
@@ -557,9 +572,11 @@ impl ExtractRelativeFiles for GraphosSubgraphRouterUrlOverrides {
 
 /// # GraphOS canned operations
 ///
-/// The user specifies the graph ref and parameters that should be used to
-/// generate canned GraphQL requests based on operations data obtained from
-/// the GraphOS API.
+/// A set of canned GraphQL requests built from the most frequently used operations for a graph
+/// ref, as reported by the GraphOS API. The environment variable will be set to the path of a
+/// file containing one JSON request body (with `query` and `variables` keys) per line.
+///
+/// Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 ///
 /// ```yaml
 /// - name: canned_ops.json
@@ -572,22 +589,23 @@ impl ExtractRelativeFiles for GraphosSubgraphRouterUrlOverrides {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosCannedOps {
-    /// The Apollo graph ref to pull operations for.
+    /// The graph ref (`graph_id@variant`) to fetch operations for.
     pub graph_ref: Field<String>,
-    /// The number of operations to attempt to fetch.
+    /// The maximum number of operations to fetch.
     ///
     /// Defaults to 20 if unset.
     #[serde(default = "default_top_n")]
     pub top_n: Field<usize>,
-    /// Whether or not to include mutations in the returned operations.
+    /// Whether to exclude mutations from the fetched operations.
     ///
     /// Defaults to false if unset.
     #[serde(default)]
     pub skip_mutations: Field<bool>,
-    /// How far back to query for operations.
+    /// How far back to look for operations.
     ///
-    /// Accepts duration strings like "30d", "7d", "12h".
-    /// Defaults to "30d" if unset.
+    /// Accepts duration strings such as `"30d"`, `"7d"` or `"12h"`.
+    ///
+    /// Defaults to `"30d"` if unset.
     #[serde(default = "default_time_range")]
     pub time_range: Field<String>,
 }
@@ -665,15 +683,18 @@ impl ExtractRelativeFiles for GraphosCannedOps {
 
 /// # GraphOS canned operations by ID
 ///
-/// The user specifies the graph ref and a set of operation IDs to be fetched
-/// from the GraphOS API for generating canned GraphQL requests.
+/// A set of canned GraphQL requests built from specific operations for a graph ref, fetched from
+/// the GraphOS API by operation ID. The environment variable will be set to the path of a file
+/// containing one JSON request body (with `query` and `variables` keys) per line.
+///
+/// Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 ///
 /// ```yaml
 /// - name: canned_ops.json
 ///   env_var: CANNED_OPS_FILE
 ///   kind: graphos_canned_ops_by_id
 ///   graph_ref: graph@variant
-///   operation:
+///   operations:
 ///     kind: inline
 ///     content: |
 ///       5b1f8a2a1bd4be697559013a23fcbcb9186afe77
@@ -682,12 +703,10 @@ impl ExtractRelativeFiles for GraphosCannedOps {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosCannedOpsById {
-    /// The Apollo graph ref to pull operations for.
+    /// The graph ref (`graph_id@variant`) to fetch operations for.
     pub graph_ref: Field<String>,
-    /// A text file provider containing the operation IDs from the Apollo studio API for the
-    /// operations you want to work with as queried from an `OperationInsightsListItem` in the
-    /// Studio graphQL API.
-    /// Operations must be specified one per-line
+    /// A text file provider for a file containing the GraphOS operation IDs of the operations
+    /// you want to fetch, one per line.
     pub operations: TextFileProvider,
 }
 
@@ -782,8 +801,9 @@ fn canned_ops_json_lines(canned_ops: Vec<CannedOperation>) -> providers::Result<
 
 /// # GraphOS offline license
 ///
-/// The user specifies the graph id that should be used to fetch an offline license from the
-/// GraphOS API.
+/// An offline license for a graph, fetched from the GraphOS API.
+///
+/// Using this file provider requires the `APOLLO_KEY` environment variable to be set.
 ///
 /// ```yaml
 /// - name: license.jwt
@@ -793,7 +813,7 @@ fn canned_ops_json_lines(canned_ops: Vec<CannedOperation>) -> providers::Result<
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct OfflineGraphosLicense {
-    /// The Apollo graph id to pull an offline license for.
+    /// The ID of the graph to fetch an offline license for.
     pub graph_id: Field<String>,
 }
 
@@ -861,8 +881,7 @@ fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> checks::Res
 
 /// # Router download script
 ///
-/// Produces a POSIX shell script that can be run in order to download a target version of the
-/// Apollo Router.
+/// A POSIX shell script that downloads a specific version of the Apollo Router when run.
 ///
 /// ```yaml
 /// - name: "router-download.sh"
@@ -872,8 +891,8 @@ fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> checks::Res
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct RouterDownloadScript {
-    /// The version of the Apollo Router to download.
-    pub(crate) version: Field<String>,
+    /// The version of the Apollo Router to download, such as `"v2.6.0"`.
+    pub version: Field<String>,
 }
 
 impl AsUtf8FileContent for RouterDownloadScript {
@@ -917,8 +936,12 @@ impl ExtractRelativeFiles for RouterDownloadScript {
 
 /// # Build Router from source
 ///
-/// A file provider used for building the Router from source at a specific git commit
-/// or reference. A profile and list of features can optionally be provided.
+/// A shell script that builds the Apollo Router from source at a specific git reference when run.
+///
+/// The script clones the Router repository, builds it using the requested Rust version, profile
+/// and features, and then copies the resulting `router` binary into `~/.cargo/bin`. Running the
+/// script requires `git` and `rustup` to be installed and the `CARGO_TARGET_DIR` environment
+/// variable to be set.
 ///
 /// ```yaml
 /// - name: "router-build.sh"
@@ -931,28 +954,27 @@ impl ExtractRelativeFiles for RouterDownloadScript {
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct BuildRouterFromSource {
-    /// A git reference that can be passed to `git checkout`. This may be
-    /// a full or partial commit hash, branch name, or tag.
-    pub(crate) git_ref: Field<String>,
+    /// The git reference of the Router repository to build: a full or partial commit hash, a
+    /// branch name or a tag.
+    pub git_ref: Field<String>,
 
-    /// A Rust version string that can be passed to `rustup run {rust_version}`,
-    /// such as `"1.78.0"`, `"beta"`, or `"nightly"`.
+    /// The Rust toolchain to build the Router with, such as `"1.78.0"`, `"beta"` or `"nightly"`.
     ///
     /// Defaults to `"stable"` if unset.
     #[serde(default = "default_rust_version")]
-    pub(crate) rust_version: Field<String>,
+    pub rust_version: Field<String>,
 
-    /// The profile to build the Router with.
+    /// The cargo profile to build the Router with.
     ///
     /// Defaults to `"release"` if unset.
     #[serde(default = "default_profile")]
-    pub(crate) profile: Field<String>,
+    pub profile: Field<String>,
 
-    /// Comma separated list of features to build the Router with.
+    /// A comma separated list of cargo features to build the Router with.
     ///
     /// Defaults to `"default"` if unset.
     #[serde(default = "default_features")]
-    pub(crate) features: Field<String>,
+    pub features: Field<String>,
 }
 
 fn default_rust_version() -> Field<String> {
