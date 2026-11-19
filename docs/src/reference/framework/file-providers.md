@@ -28,6 +28,8 @@ Available file providers:
 
 ## Build Router from source
 
+`kind: build_router_from_source`
+
 A shell script that builds the Apollo Router from source at a specific git reference when run.
 
 The script clones the Router repository, builds it using the requested Rust version, profile and
@@ -48,16 +50,16 @@ set.
 <details>
 <summary>Fields</summary>
 
-### `git_ref`
+### `features`
+
+A comma separated list of cargo features to build the Router with.
+
+Defaults to `"default"` if unset.
+
+### `git_ref` (required)
 
 The git reference of the Router repository to build: a full or partial commit hash, a branch name or
 a tag.
-
-### `rust_version`
-
-The Rust toolchain to build the Router with, such as `"1.78.0"`, `"beta"` or `"nightly"`.
-
-Defaults to `"stable"` if unset.
 
 ### `profile`
 
@@ -65,15 +67,17 @@ The cargo profile to build the Router with.
 
 Defaults to `"release"` if unset.
 
-### `features`
+### `rust_version`
 
-A comma separated list of cargo features to build the Router with.
+The Rust toolchain to build the Router with, such as `"1.78.0"`, `"beta"` or `"nightly"`.
 
-Defaults to `"default"` if unset.
+Defaults to `"stable"` if unset.
 
 </details>
 
 ## Conditional
+
+`kind: conditional`
 
 One of an ordered list of file providers, chosen based on the value of your templating variables.
 Each case has a "where" clause, and the first case whose "where" clause holds is used as this file
@@ -105,13 +109,53 @@ If none of the "where" clauses hold, RTF will report an error when templating yo
 <details>
 <summary>Fields</summary>
 
-### `cases`
+### `cases` (required)
 
 The cases to check, in order. Each case is a file provider with an additional `where` key.
+
+<details>
+<summary>Fields</summary>
+
+#### `where` (required)
+
+The clause that must hold for this case to be used.
+
+<details>
+<summary>Fields</summary>
+
+##### `var` (required)
+
+The name of the templating variable to check.
+
+</details>
+
+<details>
+<summary>Variants</summary>
+
+##### `eq`
+
+The variable must be equal to the given scalar value.
+
+##### `ne`
+
+The variable must not be equal to the given scalar value.
+
+</details>
+
+</details>
+
+<details>
+<summary>Variants</summary>
+
+- Any [file provider](#file-providers)
+
+</details>
 
 </details>
 
 ## Custom provider
+
+`kind: custom_provider`
 
 Run a custom provider to produce a file or directory of files. The environment variable will be set
 to the path of the custom provider's output.
@@ -133,17 +177,15 @@ as arguments, and are used to set the templating variables declared in its defin
 <details>
 <summary>Fields</summary>
 
-### `ty`
+### `type` (required)
 
 The name of the custom provider definition to run.
-
-### `arguments`
-
-The arguments to pass to the custom provider, keyed by templating variable name.
 
 </details>
 
 ## From command
+
+`kind: from_command`
 
 A file or directory of files produced by running a command provider. The environment variable will
 be set to the path of the command's output.
@@ -182,7 +224,7 @@ while read -r req; do
   else
     encoded=$(echo "$req" | base64 -w 0)
   fi
-   
+  
   jq -nc \
     --arg body "$encoded" \
     --arg url "$ROUTER_URL" \
@@ -198,16 +240,22 @@ done <"$CANNED_OPS_FILE"
 <details>
 <summary>Fields</summary>
 
-### `command`
+### `command` (required)
 
 The command to be run
 
 <details>
 <summary>Fields</summary>
 
-#### `name`
+#### `args`
+
+Arguments to the command
+
+#### `name` (required)
 
 The name of the command to run
+
+</details>
 
 <details>
 <summary>Variants</summary>
@@ -215,12 +263,6 @@ The name of the command to run
 - [Inline file](#inline-file)
 - [Relative path](#relative-path)
 - [Required file](#required-file)
-
-</details>
-
-#### `args`
-
-Arguments to the command
 
 </details>
 
@@ -232,9 +274,33 @@ Environment variables to set
 
 File providers to run and make available prior to execution
 
+<details>
+<summary>Fields</summary>
+
+#### `env_var` (required)
+
+The environment variable to place the absolute path to this providers output
+
+#### `name` (required)
+
+The name to use for the output produced by this provider
+
+This can be either a file or a directory depending on the file provider.
+
+</details>
+
+<details>
+<summary>Variants</summary>
+
+- Any [file provider](#file-providers)
+
+</details>
+
 </details>
 
 ## GitHub directory
+
+`kind: github_dir`
 
 A directory of files pulled from a GitHub repository. The environment variable will be set to the
 path of the directory itself. All files within that directory will need to be referenced using a
@@ -261,13 +327,9 @@ Using this file provider requires the `GITHUB_TOKEN` environment variable to be 
 <details>
 <summary>Fields</summary>
 
-### `org`
+### `files` (required)
 
-The GitHub organization that owns the repository.
-
-### `repo`
-
-The name of the repository containing the directory.
+The paths of the files to include, relative to `path`.
 
 ### `git_ref`
 
@@ -275,17 +337,23 @@ The git reference to pull the files from: a full or partial commit hash, a branc
 
 Defaults to the repository's default branch if unset.
 
-### `path`
+### `org` (required)
+
+The GitHub organization that owns the repository.
+
+### `path` (required)
 
 The path to the directory from the root of the repository.
 
-### `files`
+### `repo` (required)
 
-The paths of the files to include, relative to `path`.
+The name of the repository containing the directory.
 
 </details>
 
 ## GitHub file
+
+`kind: github_file`
 
 A file pulled from a GitHub repository.
 
@@ -306,27 +374,29 @@ Using this file provider requires the `GITHUB_TOKEN` environment variable to be 
 <details>
 <summary>Fields</summary>
 
-### `org`
-
-The GitHub organization that owns the repository.
-
-### `repo`
-
-The name of the repository containing the file.
-
-### `path`
-
-The path to the file from the root of the repository.
-
 ### `git_ref`
 
 The git reference to pull the file from: a full or partial commit hash, a branch name or a tag.
 
 Defaults to the repository's default branch if unset.
 
+### `org` (required)
+
+The GitHub organization that owns the repository.
+
+### `path` (required)
+
+The path to the file from the root of the repository.
+
+### `repo` (required)
+
+The name of the repository containing the file.
+
 </details>
 
 ## GraphOS canned operations
+
+`kind: graphos_canned_ops`
 
 A set of canned GraphQL requests built from the most frequently used operations for a graph ref, as
 reported by the GraphOS API. The environment variable will be set to the path of a file containing
@@ -347,15 +417,9 @@ Using this file provider requires the `APOLLO_KEY` environment variable to be se
 <details>
 <summary>Fields</summary>
 
-### `graph_ref`
+### `graph_ref` (required)
 
 The graph ref (`graph_id@variant`) to fetch operations for.
-
-### `top_n`
-
-The maximum number of operations to fetch.
-
-Defaults to 20 if unset.
 
 ### `skip_mutations`
 
@@ -371,9 +435,17 @@ Accepts duration strings such as `"30d"`, `"7d"` or `"12h"`.
 
 Defaults to `"30d"` if unset.
 
+### `top_n`
+
+The maximum number of operations to fetch.
+
+Defaults to 20 if unset.
+
 </details>
 
 ## GraphOS canned operations by ID
+
+`kind: graphos_canned_ops_by_id`
 
 A set of canned GraphQL requests built from specific operations for a graph ref, fetched from the
 GraphOS API by operation ID. The environment variable will be set to the path of a file containing
@@ -397,11 +469,11 @@ Using this file provider requires the `APOLLO_KEY` environment variable to be se
 <details>
 <summary>Fields</summary>
 
-### `graph_ref`
+### `graph_ref` (required)
 
 The graph ref (`graph_id@variant`) to fetch operations for.
 
-### `operations`
+### `operations` (required)
 
 A text file provider for a file containing the GraphOS operation IDs of the operations you want to
 fetch, one per line.
@@ -420,6 +492,8 @@ fetch, one per line.
 </details>
 
 ## GraphOS supergraph Router URL overrides
+
+`kind: graphos_subgraph_router_url_overrides`
 
 A Router config snippet that overrides the URL of each subgraph in a graph ref, using the subgraphs
 fetched from the GraphOS API. The environment variable will be set to the path of a YAML file
@@ -443,7 +517,7 @@ Using this file provider requires the `APOLLO_KEY` environment variable to be se
 <details>
 <summary>Fields</summary>
 
-### `graph_ref`
+### `graph_ref` (required)
 
 The graph ref (`graph_id@variant`) to fetch the subgraphs for.
 
@@ -469,11 +543,11 @@ Subgraph and connector URLs are built from a custom URL format.
 <details>
 <summary>Fields</summary>
 
-##### `base_url`
+##### `add_subgraph_route`
 
-The base URL (without a port) to send subgraph requests to.
+Whether to append a `/{subgraph_name}` route to the URL for each subgraph.
 
-Defaults to `http://loadbalancer` if unset.
+Defaults to false if unset.
 
 ##### `base_port`
 
@@ -481,22 +555,22 @@ The port to send subgraph requests to.
 
 Defaults to `8080` if unset.
 
-##### `increment_port`
+##### `base_url`
 
-Whether to give each subgraph its own port, starting from `base_port`.
+The base URL (without a port) to send subgraph requests to.
 
-Defaults to false if unset.
-
-##### `add_subgraph_route`
-
-Whether to append a `/{subgraph_name}` route to the URL for each subgraph.
-
-Defaults to false if unset.
+Defaults to `http://loadbalancer` if unset.
 
 ##### `custom_subgraph_urls`
 
 A map of subgraph names to the URL to use for that subgraph, for any subgraphs that do not fit the
 format described by the other fields.
+
+##### `increment_port`
+
+Whether to give each subgraph its own port, starting from `base_port`.
+
+Defaults to false if unset.
 
 </details>
 
@@ -505,6 +579,8 @@ format described by the other fields.
 </details>
 
 ## GraphOS subgraph SDL
+
+`kind: graphos_subgraphs`
 
 A directory containing the SDL of each subgraph in a graph ref, fetched from the GraphOS API. The
 environment variable will be set to the path of the directory itself, which will contain one
@@ -522,13 +598,15 @@ Using this file provider requires the `APOLLO_KEY` environment variable to be se
 <details>
 <summary>Fields</summary>
 
-### `graph_ref`
+### `graph_ref` (required)
 
 The graph ref (`graph_id@variant`) to fetch the subgraph SDL files for.
 
 </details>
 
 ## GraphOS subgraph names
+
+`kind: graphos_subgraph_names`
 
 The names of each subgraph in a graph ref, fetched from the GraphOS API. The environment variable
 will be set to the path of a file containing one subgraph name per line.
@@ -545,13 +623,15 @@ Using this file provider requires the `APOLLO_KEY` environment variable to be se
 <details>
 <summary>Fields</summary>
 
-### `graph_ref`
+### `graph_ref` (required)
 
 The graph ref (`graph_id@variant`) to fetch the subgraph names for.
 
 </details>
 
 ## GraphOS supergraph SDL
+
+`kind: graphos_supergraph`
 
 The supergraph SDL for a graph ref, fetched from the GraphOS API.
 
@@ -571,21 +651,64 @@ Using this file provider requires the `APOLLO_KEY` environment variable to be se
 <details>
 <summary>Fields</summary>
 
-### `graph_ref`
+### `graph_ref` (required)
 
 The graph ref (`graph_id@variant`) to fetch the supergraph SDL for.
-
-### `with_subgraph_overrides`
-
-Replace the subgraph URLs within the supergraph using the given URL format.
-
-If unset, the subgraph URLs are left unchanged.
 
 ### `with_connector_overrides`
 
 Replace the connector URLs within the supergraph using the given URL format.
 
 If unset, the connector URLs are left unchanged.
+
+<details>
+<summary>Variants</summary>
+
+- `localhost`: Subgraph URLs are set to `http://localhost:{port}`, where the port is `4001` for the
+  first subgraph and increases by one for each subsequent subgraph. Connector URLs are set to
+  `http://localhost:3000`.
+- `docker`: Subgraph URLs are set to `http://loadbalancer:8080`. Connector URLs are set to
+  `http://connector:3000`.
+
+#### `custom`
+
+Subgraph and connector URLs are built from a custom URL format.
+
+<details>
+<summary>Fields</summary>
+
+##### `add_subgraph_route`
+
+Whether to append a `/{subgraph_name}` route to the URL for each subgraph.
+
+Defaults to false if unset.
+
+##### `base_port`
+
+The port to send subgraph requests to.
+
+Defaults to `8080` if unset.
+
+##### `base_url`
+
+The base URL (without a port) to send subgraph requests to.
+
+Defaults to `http://loadbalancer` if unset.
+
+##### `custom_subgraph_urls`
+
+A map of subgraph names to the URL to use for that subgraph, for any subgraphs that do not fit the
+format described by the other fields.
+
+##### `increment_port`
+
+Whether to give each subgraph its own port, starting from `base_port`.
+
+Defaults to false if unset.
+
+</details>
+
+</details>
 
 ### `with_fed3_compat`
 
@@ -594,9 +717,66 @@ GraphQL spec is otherwise rejected at startup.
 
 Defaults to false if unset.
 
+### `with_subgraph_overrides`
+
+Replace the subgraph URLs within the supergraph using the given URL format.
+
+If unset, the subgraph URLs are left unchanged.
+
+<details>
+<summary>Variants</summary>
+
+- `localhost`: Subgraph URLs are set to `http://localhost:{port}`, where the port is `4001` for the
+  first subgraph and increases by one for each subsequent subgraph. Connector URLs are set to
+  `http://localhost:3000`.
+- `docker`: Subgraph URLs are set to `http://loadbalancer:8080`. Connector URLs are set to
+  `http://connector:3000`.
+
+#### `custom`
+
+Subgraph and connector URLs are built from a custom URL format.
+
+<details>
+<summary>Fields</summary>
+
+##### `add_subgraph_route`
+
+Whether to append a `/{subgraph_name}` route to the URL for each subgraph.
+
+Defaults to false if unset.
+
+##### `base_port`
+
+The port to send subgraph requests to.
+
+Defaults to `8080` if unset.
+
+##### `base_url`
+
+The base URL (without a port) to send subgraph requests to.
+
+Defaults to `http://loadbalancer` if unset.
+
+##### `custom_subgraph_urls`
+
+A map of subgraph names to the URL to use for that subgraph, for any subgraphs that do not fit the
+format described by the other fields.
+
+##### `increment_port`
+
+Whether to give each subgraph its own port, starting from `base_port`.
+
+Defaults to false if unset.
+
+</details>
+
+</details>
+
 </details>
 
 ## Inline file
+
+`kind: inline`
 
 The simplest form of file provider: the user specifies the contents of the file inline within their
 config file.
@@ -613,13 +793,15 @@ config file.
 <details>
 <summary>Fields</summary>
 
-### `content`
+### `content` (required)
 
 The text to write out as the contents of the generated file.
 
 </details>
 
 ## Inline directory
+
+`kind: inline_dir`
 
 An inline representation of a directory of files. The environment variable will be set to the path
 of the directory itself. All files within that directory will need to be referenced using a
@@ -647,13 +829,28 @@ If, as a user of RTF, you need to specify multiple inline files, we _strongly_ a
 <details>
 <summary>Fields</summary>
 
-### `files`
+### `files` (required)
 
 A list of inline files stored in the directory
+
+<details>
+<summary>Fields</summary>
+
+#### `content` (required)
+
+The text to write out as the contents of the generated file.
+
+#### `path` (required)
+
+The relative path to the generated file within the directory
+
+</details>
 
 </details>
 
 ## Merge YAML
+
+`kind: merge_yaml`
 
 A single YAML file produced by merging the output of one or more file providers on top of a base
 YAML file.
@@ -696,7 +893,7 @@ want them to be merged:
 <details>
 <summary>Fields</summary>
 
-### `base`
+### `base` (required)
 
 The file provider for the base YAML file.
 
@@ -712,13 +909,15 @@ The file provider for the base YAML file.
 
 </details>
 
-### `overrides`
+### `overrides` (required)
 
 One or more file providers for the YAML files to merge on top of the base file, in order.
 
 </details>
 
 ## GraphOS offline license
+
+`kind: offline_graphos_license`
 
 An offline license for a graph, fetched from the GraphOS API.
 
@@ -734,13 +933,15 @@ Using this file provider requires the `APOLLO_KEY` environment variable to be se
 <details>
 <summary>Fields</summary>
 
-### `graph_id`
+### `graph_id` (required)
 
 The ID of the graph to fetch an offline license for.
 
 </details>
 
 ## Relative dir
+
+`kind: relative_dir`
 
 A directory of files referenced by its path relative to the containing config file. The environment
 variable will be set to the path of the directory itself. All files within that directory will need
@@ -764,17 +965,19 @@ which case the files are pulled from the same repository.
 <details>
 <summary>Fields</summary>
 
-### `path`
-
-The path to the directory, relative to the containing config file.
-
-### `files`
+### `files` (required)
 
 The paths of the files to include, relative to `path`.
+
+### `path` (required)
+
+The path to the directory, relative to the containing config file.
 
 </details>
 
 ## Relative path
+
+`kind: relative_path`
 
 A file referenced by its path relative to the containing config file.
 
@@ -791,13 +994,15 @@ which case the file is pulled from the same repository.
 <details>
 <summary>Fields</summary>
 
-### `path`
+### `path` (required)
 
 The path to the file, relative to the containing config file.
 
 </details>
 
 ## Required file
+
+`kind: required`
 
 A placeholder for a file that must be provided by whoever uses your config file, such as a test plan
 using your scenario or environment. If the placeholder has not been overridden with another file
@@ -814,13 +1019,15 @@ provide.
 <details>
 <summary>Fields</summary>
 
-### `message`
+### `message` (required)
 
 The error message to report if this file has not been provided.
 
 </details>
 
 ## Router download script
+
+`kind: router_download_script`
 
 A POSIX shell script that downloads a specific version of the Apollo Router when run.
 
@@ -834,13 +1041,15 @@ A POSIX shell script that downloads a specific version of the Apollo Router when
 <details>
 <summary>Fields</summary>
 
-### `version`
+### `version` (required)
 
 The version of the Apollo Router to download, such as `"v2.6.0"`.
 
 </details>
 
 ## Templated file
+
+`kind: templated`
 
 A file whose contents are specified inline within your config file, with any `${variable}` patterns
 replaced by the value of the matching templating variable for the current run.
@@ -856,7 +1065,7 @@ replaced by the value of the matching templating variable for the current run.
 <details>
 <summary>Fields</summary>
 
-### `content`
+### `content` (required)
 
 The text to write out as the contents of the generated file, which may contain `${variable}`
 patterns.
