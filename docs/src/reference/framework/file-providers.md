@@ -50,16 +50,16 @@ set.
 <details>
 <summary>Fields</summary>
 
+### `git_ref` (required)
+
+The git reference of the Router repository to build: a full or partial commit hash, a branch name or
+a tag.
+
 ### `features`
 
 A comma separated list of cargo features to build the Router with.
 
 Defaults to `"default"` if unset.
-
-### `git_ref` (required)
-
-The git reference of the Router repository to build: a full or partial commit hash, a branch name or
-a tag.
 
 ### `profile`
 
@@ -247,13 +247,13 @@ The command to be run
 <details>
 <summary>Fields</summary>
 
-#### `args`
-
-Arguments to the command
-
 #### `name` (required)
 
 The name of the command to run
+
+#### `args`
+
+Arguments to the command
 
 </details>
 
@@ -331,12 +331,6 @@ Using this file provider requires the `GITHUB_TOKEN` environment variable to be 
 
 The paths of the files to include, relative to `path`.
 
-### `git_ref`
-
-The git reference to pull the files from: a full or partial commit hash, a branch name or a tag.
-
-Defaults to the repository's default branch if unset.
-
 ### `org` (required)
 
 The GitHub organization that owns the repository.
@@ -348,6 +342,12 @@ The path to the directory from the root of the repository.
 ### `repo` (required)
 
 The name of the repository containing the directory.
+
+### `git_ref`
+
+The git reference to pull the files from: a full or partial commit hash, a branch name or a tag.
+
+Defaults to the repository's default branch if unset.
 
 </details>
 
@@ -374,12 +374,6 @@ Using this file provider requires the `GITHUB_TOKEN` environment variable to be 
 <details>
 <summary>Fields</summary>
 
-### `git_ref`
-
-The git reference to pull the file from: a full or partial commit hash, a branch name or a tag.
-
-Defaults to the repository's default branch if unset.
-
 ### `org` (required)
 
 The GitHub organization that owns the repository.
@@ -391,6 +385,12 @@ The path to the file from the root of the repository.
 ### `repo` (required)
 
 The name of the repository containing the file.
+
+### `git_ref`
+
+The git reference to pull the file from: a full or partial commit hash, a branch name or a tag.
+
+Defaults to the repository's default branch if unset.
 
 </details>
 

@@ -128,13 +128,15 @@ where
         required: &[&str],
         header: &str,
     ) -> Result<()> {
-        for (name, prop) in properties.iter() {
+        let mut fields: Vec<_> = properties
+            .iter()
+            .map(|(name, prop)| (required.contains(&name.as_str()), name, prop))
+            .collect();
+        fields.sort_by_key(|&(is_required, name, _)| (!is_required, name));
+
+        for (is_required, name, prop) in fields.into_iter() {
             if let Some(docs) = description(prop) {
-                let tag = if required.contains(&name.as_str()) {
-                    " (required)"
-                } else {
-                    ""
-                };
+                let tag = if is_required { " (required)" } else { "" };
                 writeln!(self.out, "{header} `{name}`{tag}\n")?;
                 writeln!(self.out, "{docs}\n")?;
             }
@@ -393,6 +395,33 @@ mod tests {
 
         assert!(out.contains("### `url` (required)\n"), "{out}");
         assert!(out.contains("### `retries`\n"), "{out}");
+    }
+
+    #[test]
+    fn render_lists_required_fields_before_optional_fields_alphabetically() {
+        let out = render_providers(json!({
+            "Remote": {
+                "title": "Remote file",
+                "type": "object",
+                "properties": {
+                    "a_opt": { "type": "string", "description": "Optional a." },
+                    "b_req": { "type": "string", "description": "Required b." },
+                    "c_opt": { "type": "string", "description": "Optional c." },
+                    "d_req": { "type": "string", "description": "Required d." },
+                },
+                "required": ["d_req", "b_req"],
+            },
+        }));
+
+        let fields = [
+            "`b_req` (required)",
+            "`d_req` (required)",
+            "`a_opt`",
+            "`c_opt`",
+        ]
+        .map(|field| out.find(field).unwrap_or_else(|| panic!("{field} missing")));
+
+        assert!(fields.is_sorted(), "{out}");
     }
 
     #[test]
