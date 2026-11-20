@@ -158,6 +158,33 @@ fn ttsf(foo: Field<String>) -> Box<TemplateTypes> {
     Box::new(TemplateTypes::SingleField(SingleField { foo }))
 }
 
+#[derive(Debug, Template)]
+struct GenericStruct<T> {
+    foo: T,
+    bar: Vec<T>,
+}
+
+fn gs(foo: Field<String>, bar: Field<String>) -> Box<GenericStruct<SingleField>> {
+    Box::new(GenericStruct {
+        foo: SingleField { foo },
+        bar: vec![SingleField { foo: bar }],
+    })
+}
+
+#[derive(Debug, Template)]
+enum GenericEnum<T> {
+    Inner(GenericStruct<T>),
+    #[allow(dead_code)]
+    Unit,
+}
+
+fn ge(foo: Field<String>, bar: Field<String>) -> Box<GenericEnum<Field<String>>> {
+    Box::new(GenericEnum::Inner(GenericStruct {
+        foo,
+        bar: vec![bar],
+    }))
+}
+
 #[test_case(sinf(p("foo")), &["foo"]; "single_field_field_required")]
 #[test_case(sinf(r("foo")), &[]; "single_field_no_fields_required")]
 #[test_case(ntf("foo", "bar"), &[]; "no_templatable_fields_no_fields_required")]
@@ -179,6 +206,11 @@ fn ttsf(foo: Field<String>) -> Box<TemplateTypes> {
 #[test_case(ttf(r("foo")), &[]; "field_in_enum_is_not_required")]
 #[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum_field_is_required")]
 #[test_case(ttsf(r("foo")), &[]; "struct_in_enum_no_field_is_required")]
+#[test_case(gs(p("foo"), p("bar")), &["foo", "bar"]; "generic_struct_all_fields_required")]
+#[test_case(gs(r("foo"), p("bar")), &["bar"]; "generic_struct_single_field_required")]
+#[test_case(gs(r("foo"), r("bar")), &[]; "generic_struct_no_fields_required")]
+#[test_case(ge(p("foo"), p("bar")), &["foo", "bar"]; "generic_enum_all_fields_required")]
+#[test_case(ge(r("foo"), r("bar")), &[]; "generic_enum_no_fields_required")]
 #[test]
 fn required_variables(t: Box<dyn Template>, expected: &[&str]) {
     let res = t.required_variables();
@@ -211,6 +243,8 @@ macro_rules! template_context {
 #[test_case(mns(p("inner")), &["inner"]; "nested_inner_structs")]
 #[test_case(ttf(p("foo")), &["foo"]; "field_in_enum")]
 #[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum")]
+#[test_case(gs(p("foo"), p("bar")), &["foo", "bar"]; "generic_struct")]
+#[test_case(ge(p("foo"), p("bar")), &["foo", "bar"]; "generic_enum")]
 #[test]
 fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
     let template_ctx = template_context!(variables);
@@ -231,6 +265,8 @@ fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
 #[test_case(mns(p("inner")); "nested_inner_structs")]
 #[test_case(ttf(p("foo")); "field_in_enum")]
 #[test_case(ttsf(p("foo")); "struct_in_enum")]
+#[test_case(gs(p("foo"), p("bar")); "generic_struct")]
+#[test_case(ge(p("foo"), p("bar")); "generic_enum")]
 #[test]
 fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
     let template_ctx = template_context!(["unused"]);

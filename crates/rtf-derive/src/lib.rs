@@ -4,13 +4,13 @@ use darling::{
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{Ident, Result, parse_macro_input};
+use syn::{Generics, Ident, Result, parse_macro_input, parse_quote};
 
 #[proc_macro_derive(Template, attributes(template))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input);
 
-    let (ident, required_variables, validate_context, try_template) =
+    let (ident, mut generics, required_variables, validate_context, try_template) =
         match InputMeta::from_derive_input(&input) {
             Ok(meta) => match meta.into_token_streams() {
                 Ok(parts) => parts,
@@ -19,8 +19,16 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             Err(err) => return err.write_errors().into(),
         };
 
+    for param in generics.type_params_mut() {
+        param
+            .bounds
+            .push(parse_quote!(::rtf_config::templating::Template));
+    }
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
     quote! {
-        impl ::rtf_config::templating::Template for #ident {
+        impl #impl_generics ::rtf_config::templating::Template for #ident #ty_generics #where_clause {
             fn required_variables(&self) -> ::std::vec::Vec<String> {
                 #required_variables
             }
@@ -51,12 +59,15 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[derive(Debug, FromDeriveInput)]
 struct InputMeta {
     ident: Ident,
+    generics: Generics,
     data: ast::Data<EnumMeta, FieldMeta>,
 }
 
 impl InputMeta {
     // All fields that weren't marked as skipped
-    fn into_token_streams(self) -> Result<(Ident, TokenStream, TokenStream, TokenStream)> {
+    fn into_token_streams(
+        self,
+    ) -> Result<(Ident, Generics, TokenStream, TokenStream, TokenStream)> {
         let (required_variables, validate_context, try_template) = match self.data {
             ast::Data::Struct(s) => struct_token_streams(s.fields),
 
@@ -72,6 +83,7 @@ impl InputMeta {
 
         Ok((
             self.ident,
+            self.generics,
             required_variables,
             validate_context,
             try_template,
