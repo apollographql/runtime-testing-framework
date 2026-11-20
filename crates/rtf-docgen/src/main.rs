@@ -1,268 +1,503 @@
+//! Generator for the file provider reference page in the docsite using from JSON schema for
+//! the [FileProvider] enum.
 use anyhow::{Result, anyhow, bail};
-use convert_case::{Boundary, Case, Casing};
-use rustdoc_types::{Attribute, Crate, Id, Item, ItemEnum, StructKind, Type, VariantKind};
-use std::{collections::HashMap, env, fs};
+use rtf_config::providers::file::FileProvider;
+use schemars::generate::SchemaSettings;
+use serde_json::{Map, Value};
+use std::io::{self, stdout};
 
-fn main() -> Result<()> {
-    let path = env::args()
-        .nth(1)
-        .ok_or_else(|| anyhow!("no rustdoc JSON file path provided"))?;
+const PAGE_TITLE: &str = "File Providers";
+const DEFS_PREFIX: &str = "#/$defs/";
+/// Prefix of the schema names given to `Field<T>`, which are documented as plain values.
+const TEMPLATABLE_PREFIX: &str = "Templatable ";
 
-    let krate: Crate = serde_json::from_slice(&fs::read(path)?)?;
-    let writer = DocWriter::new(krate.index)?;
+fn main() -> anyhow::Result<()> {
+    let schema = SchemaSettings::default()
+        .into_generator()
+        .into_root_schema_for::<FileProvider>()
+        .to_value();
 
-    println!("# File Providers\n");
-    writer.write_table_of_contents()?;
-    writer.write_file_provider_docs()
+    let mut writer = DocWriter::new(&schema, stdout())?;
+
+    writer.write_page()
 }
 
-struct DocWriter {
-    fp_ids: Vec<Id>,
-    index: HashMap<Id, Item>,
+struct DocWriter<'a, W>
+where
+    W: io::Write,
+{
+    defs: &'a Map<String, Value>,
+    providers: Vec<Provider<'a>>,
+    visiting: Vec<&'a str>,
+    out: W,
 }
 
-impl DocWriter {
-    fn new(index: HashMap<Id, Item>) -> Result<Self> {
-        let (_, fp_item) = index
+impl<'a, W> DocWriter<'a, W>
+where
+    W: io::Write,
+{
+    fn new(root: &'a Value, out: W) -> Result<Self> {
+        let defs = root
+            .get("$defs")
+            .and_then(Value::as_object)
+            .ok_or_else(|| anyhow!("the FileProvider schema should contain $defs"))?;
+        let variants = root
+            .get("oneOf")
+            .and_then(Value::as_array)
+            .ok_or_else(|| anyhow!("the FileProvider schema should be a oneOf of its variants"))?;
+
+        let providers = variants
             .iter()
-            .find(|(_, item)| {
-                item.name
-                    .as_ref()
-                    .is_some_and(|name| name == "FileProvider")
-            })
-            .ok_or_else(|| anyhow!("Could not find the FileProvider enum in rustdoc output"))?;
+            .map(|variant| Provider::try_new(variant, defs))
+            .collect::<Result<_>>()?;
 
-        let fp_ids = match &fp_item.inner {
-            ItemEnum::Enum(enum_declaration) => enum_declaration
-                .variants
-                .iter()
-                .filter_map(|variant_id| index.get(variant_id))
-                .filter_map(|variant_item| match &variant_item.inner {
-                    ItemEnum::Variant(variant) => match &variant.kind {
-                        VariantKind::Tuple(ids) => ids.first().and_then(|opt| opt.as_ref()),
-                        _ => None,
-                    },
-                    _ => None,
-                })
-                .filter_map(|inner_id| index.get(inner_id))
-                .filter_map(|inner_item| match &inner_item.inner {
-                    ItemEnum::StructField(Type::ResolvedPath(path)) => Some(path.id),
-                    _ => None,
-                })
-                .collect(),
-
-            it => bail!("FileProvider should be an Enum, found {:?}", it.item_kind()),
-        };
-
-        Ok(Self { fp_ids, index })
+        Ok(Self {
+            defs,
+            providers,
+            visiting: Vec::new(),
+            out,
+        })
     }
 
-    /// Writes the table of contents for all the File Providers that will be documented on this page.
-    ///
-    /// Expects that File Providers will follow the documentation convention of starting their rustdoc
-    /// comments with a line in the form of `# {human readable name}`.
-    fn write_table_of_contents(&self) -> Result<()> {
-        println!("Available file providers:\n");
+    fn write_page(&mut self) -> Result<()> {
+        writeln!(self.out, "<!-- diataxis-type: reference -->\n")?;
+        writeln!(self.out, "# {PAGE_TITLE}\n")?;
+        writeln!(self.out, "Available file providers:\n")?;
 
-        for variant in self.fp_ids.iter() {
-            let item = self.lookup_item(variant)?;
-            println!("{}", self.generate_toc_link(item)?);
+        for provider in self.providers.iter() {
+            writeln!(self.out, "{}", toc_link(provider.title))?;
+        }
+
+        writeln!(self.out)?;
+
+        for p in self.providers.clone() {
+            self.write_provider_section(p)?;
         }
 
         Ok(())
     }
 
-    /// Writes the top-level documentation for each file provider and recursively documents their fields.
-    fn write_file_provider_docs(&self) -> Result<()> {
-        let header = "#";
-
-        for id in self.fp_ids.iter() {
-            if let Some(item) = self.index.get(id) {
-                if let Ok(docs) = item_docs(item) {
-                    println!("{header}{docs}\n");
-                }
-
-                self.document_item_content(&item.inner, &format!("{header}#"))?
-            }
+    fn write_provider_section(
+        &mut self,
+        Provider {
+            kind,
+            def_name,
+            title,
+            def,
+        }: Provider<'a>,
+    ) -> anyhow::Result<()> {
+        writeln!(self.out, "## {title}\n")?;
+        writeln!(self.out, "`kind: {kind}`\n")?;
+        if let Some(description) = description(def) {
+            writeln!(self.out, "{description}\n")?;
         }
+
+        self.visiting.push(def_name);
+        self.document_content(def, "##")?;
+        self.visiting.pop();
 
         Ok(())
     }
 
-    fn lookup_item(&self, id: &Id) -> Result<&Item> {
-        self.index
-            .get(id)
-            .ok_or_else(|| anyhow!("FileProvider variant missing data in the doc index"))
-    }
-
-    fn generate_toc_link(&self, fp_item: &Item) -> Result<String> {
-        let title = item_docs(fp_item)?
-            .lines()
-            .next()
-            .ok_or_else(|| anyhow!("File Provider variants must have a documentation header"))?
-            .replace("# ", "");
-
-        let kebab_title = title
-            .set_boundaries(&[Boundary::Space])
-            .to_case(Case::Kebab);
-
-        Ok(format!("- [{title}](#{kebab_title})"))
-    }
-
-    /// Writes out the documentation for a struct's fields or an enum's variants
-    fn document_item_content(&self, item: &ItemEnum, header: &str) -> Result<()> {
-        match item {
-            ItemEnum::Struct(inner_struct) => {
-                if let StructKind::Plain {
-                    fields,
-                    has_stripped_fields: _,
-                } = &inner_struct.kind
-                {
-                    if fields.iter().any(|inner_id| {
-                        self.lookup_item(inner_id)
-                            .ok()
-                            .and_then(|inner_item| inner_item.docs.as_ref())
-                            .is_some()
-                    }) {
-                        println!("<details>");
-                        println!("<summary>Fields</summary>\n");
-                        self.document_inner_fields(fields, &format!("{header}#"))?;
-                        println!("</details>\n");
-                    } else {
-                        self.document_inner_fields(fields, header)?;
-                    };
-                }
-            }
-
-            ItemEnum::Enum(inner_enum) => {
-                self.document_inner_variants(&inner_enum.variants, header)?
-            }
-
-            _ => (),
-        }
-
-        Ok(())
-    }
-
-    fn document_inner_fields(&self, inner_fields: &[Id], header: &str) -> Result<()> {
-        for inner_id in inner_fields.iter() {
-            let inner_item = self.lookup_item(inner_id)?;
-            let name = item_name(inner_item)?;
-
-            let is_flattened = inner_item
-                .attrs
-                .contains(&Attribute::Other("#[serde(flatten)]".to_owned()));
-
-            // Don't write the docs if this was a flattened item whose target will be documented via
-            // recursion below, or if it had no docs
-            if let Some(inner_docs) = &inner_item.docs
-                && !(is_flattened && self.flattened_field_recurses(inner_item))
-            {
-                println!("{header} `{name}`\n");
-                println!("{inner_docs}\n");
-            };
-
-            if let ItemEnum::StructField(Type::ResolvedPath(resolved)) = &inner_item.inner {
-                // If we recurse back to a reference to a file provider, just provide a TOC link to it and don't
-                // re-document it.
-                if self.fp_ids.contains(&resolved.id) {
-                    let fp_item = self.lookup_item(&resolved.id)?;
-                    println!("{}", self.generate_toc_link(fp_item)?);
-                    continue;
-                }
-
-                if let Ok(fp_item) = self.lookup_item(&resolved.id)
-                    && self.is_not_field_or_untagged_enum_variant(fp_item)
-                {
-                    self.document_item_content(&fp_item.inner, header)?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn document_inner_variants(&self, inner_variants: &Vec<Id>, header: &str) -> Result<()> {
-        println!("<details>");
-        println!("<summary>Variants</summary>\n");
-
-        let mut tuple_variants = Vec::new();
-        for inner_id in inner_variants {
-            let inner_item = self.lookup_item(inner_id)?;
-            let name = item_name(inner_item)?;
-
-            // Tuple variants are written out as maps in the YAML and should be documented
-            // as their full list of supported values after the list of named variants
-            if let ItemEnum::Variant(variant) = &inner_item.inner
-                && let VariantKind::Tuple(meta_items) = &variant.kind
-            {
-                tuple_variants.push((inner_item, meta_items));
+    fn document_content(&mut self, schema: &'a Value, header: &str) -> Result<()> {
+        if let Some(properties) = schema.get("properties").and_then(Value::as_object)
+            && !properties.is_empty()
+        {
+            let required = required_fields(schema);
+            if properties.values().any(|prop| description(prop).is_some()) {
+                writeln!(self.out, "<details>")?;
+                writeln!(self.out, "<summary>Fields</summary>\n")?;
+                self.document_fields(properties, &required, &format!("{header}#"))?;
+                writeln!(self.out, "</details>\n")?;
             } else {
-                print!("- `{}`", name.to_case(Case::Snake));
-                if let Some(inner_docs) = &inner_item.docs {
-                    print!(": {}", inner_docs.replace("\n", "  "));
-                }
-
-                println!();
+                self.document_fields(properties, &required, header)?;
             }
         }
 
-        println!("\n");
-
-        for (tuple_variant, meta_items) in tuple_variants.into_iter() {
-            let name = item_name(tuple_variant)?;
-            if let Some(inner_docs) = &tuple_variant.docs {
-                println!("{header}# `{}`\n", name.to_case(Case::Snake));
-                println!("{}", inner_docs);
-            }
-            self.document_inner_fields(
-                &meta_items.iter().filter_map(|x| *x).collect::<Vec<_>>(),
-                &format!("{header}#"),
-            )?;
+        // Untagged enums (anyOf) are an implementation detail that we don't document
+        if let Some(variants) = schema.get("oneOf").and_then(Value::as_array) {
+            self.document_variants(variants, header)?;
         }
-
-        println!("</details>\n");
 
         Ok(())
     }
 
-    /// Returns `true` if documenting a flattened field's [ResolvedPath][Type::ResolvedPath] target
-    /// would recurse into further documentation (a TOC link or a nested struct/enum). Flattened
-    /// fields that don't resolve to anything documentable (e.g. a `HashMap`) have no replacement
-    /// content, so their own doc comment must still be written out.
-    fn flattened_field_recurses(&self, inner_item: &Item) -> bool {
-        let resolved = match &inner_item.inner {
-            ItemEnum::StructField(Type::ResolvedPath(resolved)) => resolved,
-            _ => return false,
-        };
+    fn document_fields(
+        &mut self,
+        properties: &'a Map<String, Value>,
+        required: &[&str],
+        header: &str,
+    ) -> Result<()> {
+        let mut fields: Vec<_> = properties
+            .iter()
+            .map(|(name, prop)| (required.contains(&name.as_str()), name, prop))
+            .collect();
+        fields.sort_by_key(|&(is_required, name, _)| (!is_required, name));
 
-        self.fp_ids.contains(&resolved.id)
-            || self
-                .lookup_item(&resolved.id)
-                .is_ok_and(|item| self.is_not_field_or_untagged_enum_variant(item))
+        for (is_required, name, prop) in fields.into_iter() {
+            if let Some(docs) = description(prop) {
+                let tag = if is_required { " (required)" } else { "" };
+                writeln!(self.out, "{header} `{name}`{tag}\n")?;
+                writeln!(self.out, "{docs}\n")?;
+            }
+
+            self.document_field_type(prop, header)?;
+        }
+
+        Ok(())
     }
 
-    // Whether or not this item is:
-    //   - not a Field (those should be considered the same as external primitives)
-    //   - not an untagged enum variant (an implementation detail that doesn't need to be exposed)
-    fn is_not_field_or_untagged_enum_variant(&self, fp_item: &Item) -> bool {
-        fp_item.name.as_deref().is_some_and(|meta_name| {
-            meta_name != "Field"
-                && !fp_item
-                    .attrs
-                    .contains(&Attribute::Other("#[serde(untagged)]".to_owned()))
+    /// Documents the type behind a field, if it refers to a definition worth documenting.
+    fn document_field_type(&mut self, schema: &'a Value, header: &str) -> Result<()> {
+        let reference = match referenced_def(schema) {
+            Some(reference) => reference,
+            None => return Ok(()),
+        };
+        let (def_name, def) = lookup_def(self.defs, reference)?;
+
+        if def_name.starts_with(TEMPLATABLE_PREFIX) || self.visiting.contains(&def_name) {
+            return Ok(());
+        }
+
+        if let Some(provider) = self.providers.iter().find(|p| p.def_name == def_name) {
+            writeln!(self.out, "{}", toc_link(provider.title))?;
+            return Ok(());
+        }
+
+        self.visiting.push(def_name);
+        self.document_content(def, header)?;
+        self.visiting.pop();
+
+        Ok(())
+    }
+
+    fn document_variants(&mut self, variants: &'a [Value], header: &str) -> Result<()> {
+        writeln!(self.out, "<details>")?;
+        writeln!(self.out, "<summary>Variants</summary>\n")?;
+
+        let mut providers = Vec::new();
+        let mut struct_variants = Vec::new();
+
+        for variant in variants.iter() {
+            if let Some((_, reference)) = tagged_variant(variant) {
+                let (def_name, _) = lookup_def(self.defs, reference)?;
+                let provider = self
+                    .providers
+                    .iter()
+                    .find(|p| p.def_name == def_name)
+                    .ok_or_else(|| anyhow!("{def_name} is not a FileProvider variant"))?;
+                providers.push(provider.title);
+            } else if let Some(value) = variant.get("const").and_then(Value::as_str) {
+                write!(self.out, "- `{value}`")?;
+                if let Some(docs) = description(variant) {
+                    write!(self.out, ": {}", docs.replace('\n', "  "))?;
+                }
+                writeln!(self.out)?;
+            } else if let Some((name, inner)) = single_key_variant(variant) {
+                struct_variants.push((variant, name, inner));
+            } else {
+                bail!("unsupported enum variant schema: {variant}");
+            }
+        }
+
+        if providers.len() == self.providers.len() {
+            writeln!(self.out, "- Any [file provider]({})", anchor(PAGE_TITLE))?;
+        } else {
+            for title in providers.iter() {
+                writeln!(self.out, "{}", toc_link(title))?;
+            }
+        }
+        writeln!(self.out, "\n")?;
+
+        for (variant, name, inner) in struct_variants.iter() {
+            writeln!(self.out, "{header}# `{name}`\n")?;
+            if let Some(docs) = description(variant) {
+                writeln!(self.out, "{docs}\n")?;
+            }
+            self.document_field_type(inner, &format!("{header}#"))?;
+        }
+
+        writeln!(self.out, "</details>\n")?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Provider<'a> {
+    kind: &'a str,
+    def_name: &'a str,
+    title: &'a str,
+    def: &'a Value,
+}
+
+impl<'a> Provider<'a> {
+    fn try_new(variant: &'a Value, defs: &'a Map<String, Value>) -> anyhow::Result<Self> {
+        let (kind, reference) = tagged_variant(variant)
+            .ok_or_else(|| anyhow!("FileProvider variants must wrap a struct: {variant}"))?;
+        let (def_name, def) = lookup_def(defs, reference)?;
+        let title = def
+            .get("title")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow!("{def_name} docs must start with a `# Title` line"))?;
+
+        Ok(Self {
+            kind,
+            def_name,
+            title,
+            def,
         })
     }
 }
 
-fn item_docs(item: &Item) -> Result<&String> {
-    item.docs
-        .as_ref()
-        .ok_or_else(|| anyhow!("File Provider variants must be documented"))
+fn lookup_def<'a>(defs: &'a Map<String, Value>, reference: &str) -> Result<(&'a str, &'a Value)> {
+    let name = reference.replace("%20", " ");
+
+    defs.get_key_value(&name)
+        .map(|(name, def)| (name.as_str(), def))
+        .ok_or_else(|| anyhow!("missing schema definition for {name}"))
 }
 
-fn item_name(item: &Item) -> Result<&String> {
-    item.name
-        .as_ref()
-        .ok_or_else(|| anyhow!("File Provider variants must be named"))
+fn description(schema: &Value) -> Option<&str> {
+    schema.get("description").and_then(Value::as_str)
+}
+
+fn required_fields(schema: &Value) -> Vec<&str> {
+    schema
+        .get("required")
+        .and_then(Value::as_array)
+        .map(|names| names.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default()
+}
+
+fn tagged_variant(variant: &Value) -> Option<(&str, &str)> {
+    let kind = variant.pointer("/properties/kind/const")?.as_str()?;
+
+    Some((kind, referenced_def(variant)?))
+}
+
+fn single_key_variant(variant: &Value) -> Option<(&str, &Value)> {
+    let properties = variant.get("properties")?.as_object()?;
+    if properties.len() != 1 {
+        return None;
+    }
+
+    properties.iter().next().map(|(k, v)| (k.as_str(), v))
+}
+
+/// The name of the definition a field refers to, looking through optional values and lists.
+fn referenced_def(schema: &Value) -> Option<&str> {
+    if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
+        return reference.strip_prefix(DEFS_PREFIX);
+    }
+
+    if let Some([inner]) = schema
+        .get("allOf")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+    {
+        return referenced_def(inner);
+    }
+
+    if let Some(options) = schema.get("anyOf").and_then(Value::as_array)
+        && let [a, b] = options.as_slice()
+    {
+        let is_null = |v: &Value| v.get("type").and_then(Value::as_str) == Some("null");
+        return match (is_null(a), is_null(b)) {
+            (false, true) => referenced_def(a),
+            (true, false) => referenced_def(b),
+            _ => None,
+        };
+    }
+
+    schema.get("items").and_then(referenced_def)
+}
+
+fn toc_link(title: &str) -> String {
+    format!("- [{title}]({})", anchor(title))
+}
+
+/// The anchor mdBook generates for a heading.
+fn anchor(title: &str) -> String {
+    let id: String = title
+        .chars()
+        .filter_map(|c| match c {
+            ' ' => Some('-'),
+            c if c.is_alphanumeric() || c == '-' || c == '_' => Some(c.to_ascii_lowercase()),
+            _ => None,
+        })
+        .collect();
+
+    format!("#{id}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn provider_variant(kind: &str, def_name: &str) -> Value {
+        json!({
+            "type": "object",
+            "$ref": format!("{DEFS_PREFIX}{def_name}"),
+            "properties": { "kind": { "type": "string", "const": kind } },
+            "required": ["kind"],
+        })
+    }
+
+    fn render_providers(defs: Value) -> String {
+        let variants: Vec<_> = defs
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter(|(_, def)| def.get("title").is_some())
+            .map(|(name, _)| provider_variant(&name.to_lowercase(), name))
+            .collect();
+
+        let schema = json!({ "oneOf": variants, "$defs": defs });
+        let mut writer = DocWriter::new(&schema, Vec::new()).unwrap();
+        writer.write_page().unwrap();
+
+        String::from_utf8(writer.out).unwrap()
+    }
+
+    #[test]
+    fn render_writes_toc_kind_and_description() {
+        let out = render_providers(json!({
+            "Remote": {
+                "title": "Remote file",
+                "description": "A file somewhere else.",
+                "type": "object",
+                "properties": {},
+            },
+        }));
+
+        assert!(out.contains("- [Remote file](#remote-file)\n"), "{out}");
+        assert!(
+            out.contains("## Remote file\n\n`kind: remote`\n\nA file somewhere else.\n"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn render_tags_required_fields() {
+        let out = render_providers(json!({
+            "Remote": {
+                "title": "Remote file",
+                "type": "object",
+                "properties": {
+                    "url": { "type": "string", "description": "Where to find it." },
+                    "retries": { "type": "integer", "description": "How often to retry." },
+                },
+                "required": ["url"],
+            },
+        }));
+
+        assert!(out.contains("### `url` (required)\n"), "{out}");
+        assert!(out.contains("### `retries`\n"), "{out}");
+    }
+
+    #[test]
+    fn render_lists_required_fields_before_optional_fields_alphabetically() {
+        let out = render_providers(json!({
+            "Remote": {
+                "title": "Remote file",
+                "type": "object",
+                "properties": {
+                    "a_opt": { "type": "string", "description": "Optional a." },
+                    "b_req": { "type": "string", "description": "Required b." },
+                    "c_opt": { "type": "string", "description": "Optional c." },
+                    "d_req": { "type": "string", "description": "Required d." },
+                },
+                "required": ["d_req", "b_req"],
+            },
+        }));
+
+        let fields = [
+            "`b_req` (required)",
+            "`d_req` (required)",
+            "`a_opt`",
+            "`c_opt`",
+        ]
+        .map(|field| out.find(field).unwrap_or_else(|| panic!("{field} missing")));
+
+        assert!(fields.is_sorted(), "{out}");
+    }
+
+    #[test]
+    fn render_links_to_nested_file_providers() {
+        let out = render_providers(json!({
+            "Remote": {
+                "title": "Remote file",
+                "type": "object",
+                "properties": {},
+            },
+            "Wrapper": {
+                "title": "Wrapper",
+                "type": "object",
+                "properties": {
+                    "inner": {
+                        "description": "The wrapped provider.",
+                        "allOf": [{ "$ref": "#/$defs/Remote" }],
+                    },
+                },
+            },
+        }));
+
+        assert!(
+            out.contains("### `inner`\n\nThe wrapped provider.\n\n- [Remote file](#remote-file)\n"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn render_documents_optional_enum_variants() {
+        let out = render_providers(json!({
+            "Remote": {
+                "title": "Remote file",
+                "type": "object",
+                "properties": {
+                    "format": {
+                        "description": "The format to use.",
+                        "anyOf": [{ "$ref": "#/$defs/Format" }, { "type": "null" }],
+                    },
+                },
+            },
+            "Format": {
+                "oneOf": [
+                    { "type": "string", "const": "json", "description": "JSON\noutput." },
+                    {
+                        "type": "object",
+                        "description": "A custom format.",
+                        "properties": { "custom": { "type": "string" } },
+                        "required": ["custom"],
+                    },
+                ],
+            },
+        }));
+
+        assert!(out.contains("- `json`: JSON  output.\n"), "{out}");
+        assert!(out.contains("#### `custom`\n\nA custom format.\n"), "{out}");
+    }
+
+    #[test]
+    fn render_skips_templatable_fields() {
+        let out = render_providers(json!({
+            "Remote": {
+                "title": "Remote file",
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "description": "Where to find it.",
+                        "allOf": [{ "$ref": "#/$defs/Templatable%20string" }],
+                    },
+                },
+            },
+            "Templatable string": {
+                "oneOf": [{ "type": "string", "pattern": "^x$" }, { "type": "string" }],
+            },
+        }));
+
+        assert!(!out.contains("Variants"), "{out}");
+    }
 }
