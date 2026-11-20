@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["item_docs","item_name","main"],"struct":["DocWriter"]};
+window.SIDEBAR_ITEMS = {"constant":["DEFS_PREFIX","PAGE_TITLE","TEMPLATABLE_PREFIX"],"fn":["anchor","description","lookup_def","main","referenced_def","required_fields","single_key_variant","tagged_variant","toc_link"],"struct":["DocWriter","Provider"]};
