@@ -270,23 +270,38 @@ impl Inline for CommandProvider {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        _cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
+            if matches!(self, CommandProvider::Inline(_)) {
+                return Ok(());
+            }
+
+            let key = ProviderCacheKey::new(&*self);
+            if let Some(cached) = cache.get(&key) {
+                match cached.clone() {
+                    InlinedProvider::File(f) => *self = CommandProvider::Inline(f),
+                    InlinedProvider::Dir(_) => unreachable!("no dir producing providers"),
+                }
+
+                return Ok(());
+            }
+
             match (&mut *self, mode) {
                 (CommandProvider::RelativePath(inner), _) => {
-                    *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                    Ok(())
+                    let fp = inner.try_into_inline_file(ctx).await?;
+                    cache.insert(key, InlinedProvider::File(fp.clone()));
+                    *self = CommandProvider::Inline(fp);
                 }
-                (_, InlineMode::RelativeFiles) => Ok(()),
-                (CommandProvider::Inline(_), InlineMode::All) => Ok(()),
+
                 (CommandProvider::Required(inner), InlineMode::All) => {
-                    *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                    Ok(())
+                    inner.try_into_inline_file(ctx).await?; // this will error
                 }
+
+                (CommandProvider::Inline(_), _) | (_, InlineMode::RelativeFiles) => return Ok(()),
             }
+
+            Ok(())
         })
     }
 }
