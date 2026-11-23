@@ -78,8 +78,8 @@
 <a href=#78 id=78 data-nosnippet>78</a>                    name: nfp.name.clone(),
 <a href=#79 id=79 data-nosnippet>79</a>                })<span class="question-mark">?</span>;
 <a href=#80 id=80 data-nosnippet>80</a>
-<a href=#81 id=81 data-nosnippet>81</a>            <span class="comment">// When labeled services are present, the overlay bind-mounts the resolved providers_dir
-<a href=#82 id=82 data-nosnippet>82</a>            // at PROVIDERS_CONTAINER_PATH inside the container. Remap file provider env vars from
+<a href=#81 id=81 data-nosnippet>81</a>            <span class="comment">// When labeled services are present, the overlay bind-mounts each resolved provider at
+<a href=#82 id=82 data-nosnippet>82</a>            // PROVIDERS_CONTAINER_PATH/&lt;name&gt; inside the container. Remap file provider env vars from
 <a href=#83 id=83 data-nosnippet>83</a>            // their host paths (returned by all_env_vars) to the container paths so that ${VAR}
 <a href=#84 id=84 data-nosnippet>84</a>            // references in manifest files expand to the correct in-container location.
 <a href=#85 id=85 data-nosnippet>85</a>            //
