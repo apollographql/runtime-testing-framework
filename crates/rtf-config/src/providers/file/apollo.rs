@@ -171,10 +171,7 @@ impl GraphosSubgraphs {
             .subgraphs
             .clone()
             .into_iter()
-            .map(|sg| DirFile {
-                path: dir.join(sg.name).with_extension("graphql"),
-                content: sg.sdl,
-            })
+            .map(|sg| DirFile::new(dir.join(sg.name).with_extension("graphql"), sg.sdl))
             .collect();
 
         contents
@@ -1125,9 +1122,7 @@ mod tests {
     fn canned_ops_by_id(graph_ref: &str) -> FileProvider {
         FileProvider::GraphosCannedOpsById(GraphosCannedOpsById {
             graph_ref: Field::Resolved(graph_ref.to_string()),
-            operations: TextFileProvider::Inline(InlineFile {
-                content: String::new(),
-            }),
+            operations: TextFileProvider::Inline(InlineFile::new("")),
         })
     }
 
@@ -1571,14 +1566,8 @@ mod tests {
         let base_path = Path::new("subgraphs");
 
         let expected_content: Vec<DirFile> = vec![
-            DirFile {
-                path: base_path.join("foo.graphql"),
-                content: subgraph_foo().to_string(),
-            },
-            DirFile {
-                path: base_path.join("bar.graphql"),
-                content: subgraph_bar().to_string(),
-            },
+            DirFile::new(base_path.join("foo.graphql"), subgraph_foo()),
+            DirFile::new(base_path.join("bar.graphql"), subgraph_bar()),
         ];
 
         let res = subgraphs.content_from_details(details, base_path);
@@ -1737,9 +1726,7 @@ mod tests {
             .await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
-        let expected_inline_provider = FileProvider::Inline(InlineFile {
-            content: expected_content.to_string(),
-        });
+        let expected_inline_provider = FileProvider::Inline(InlineFile::new(expected_content));
         assert_eq!(
             provider, expected_inline_provider,
             "expected inline file provider with router download script content"
@@ -1774,9 +1761,7 @@ mod tests {
             .await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
-        let expected_inline_provider = FileProvider::Inline(InlineFile {
-            content: expected_content.to_string(),
-        });
+        let expected_inline_provider = FileProvider::Inline(InlineFile::new(expected_content));
         assert_eq!(
             provider, expected_inline_provider,
             "expected inline file provider with build script content"

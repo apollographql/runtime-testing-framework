@@ -52,7 +52,7 @@ pub(crate) trait AsUtf8FileContent:
         async move {
             let content = self.try_get_file_content(ctx).await?;
 
-            Ok(InlineFile { content })
+            Ok(InlineFile::new(content))
         }
     }
 }
@@ -87,10 +87,10 @@ where
     where
         P: AsRef<Path> + Send,
     {
-        Ok(vec![DirFile {
-            path: target.as_ref().to_path_buf(),
-            content: self.try_get_file_content(ctx).await?,
-        }])
+        Ok(vec![DirFile::new(
+            target.as_ref(),
+            self.try_get_file_content(ctx).await?,
+        )])
     }
 
     async fn try_into_inline_file_provider(
@@ -133,7 +133,7 @@ pub(crate) trait ResolveFileContent:
         async move {
             let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
 
-            Ok(InlineDir { files })
+            Ok(InlineDir::new(files))
         }
     }
 }
@@ -525,6 +525,14 @@ pub struct InlineFile {
     pub content: String,
 }
 
+impl InlineFile {
+    pub fn new(content: impl Into<String>) -> Self {
+        Self {
+            content: content.into(),
+        }
+    }
+}
+
 impl AsUtf8FileContent for InlineFile {
     async fn try_get_file_content(
         &self,
@@ -585,6 +593,14 @@ pub struct InlineDir {
     pub files: Vec<DirFile>,
 }
 
+impl InlineDir {
+    pub fn new(files: impl IntoIterator<Item = DirFile>) -> Self {
+        Self {
+            files: files.into_iter().collect(),
+        }
+    }
+}
+
 impl ResolveAndWrite for InlineDir {
     async fn resolve_and_write<P>(
         &self,
@@ -642,6 +658,15 @@ pub struct DirFile {
 
     /// The text to write out as the contents of the generated file.
     pub content: String,
+}
+
+impl DirFile {
+    pub fn new(path: impl Into<PathBuf>, content: impl Into<String>) -> Self {
+        Self {
+            path: path.into(),
+            content: content.into(),
+        }
+    }
 }
 
 /// # Relative path
@@ -902,10 +927,10 @@ impl ResolveFileContent for RelativeDir {
             let source_path = rel_file.path.as_resolved();
             let dest_fname = source_path.strip_prefix(&dir_prefix).unwrap_or(source_path);
             let path = target.as_ref().join(dest_fname);
-            contents.push(DirFile {
+            contents.push(DirFile::new(
                 path,
-                content: rel_file.try_get_file_content(ctx).await?,
-            });
+                rel_file.try_get_file_content(ctx).await?,
+            ));
         }
 
         Ok(contents)
@@ -1095,7 +1120,7 @@ mod tests {
     use indoc::indoc;
     use predicates::path;
     use simple_test_case::test_case;
-    use std::{path::PathBuf, str::FromStr};
+    use std::path::PathBuf;
 
     macro_rules! template_context {
         ($slice:expr) => {{
@@ -1484,9 +1509,7 @@ mod tests {
         let nfp = NamedFileProvider {
             name: "../inline.txt".to_string(),
             env_var: "INLINE".to_string(),
-            provider: FileProvider::Inline(InlineFile {
-                content: "content".to_string(),
-            }),
+            provider: FileProvider::Inline(InlineFile::new("content")),
         };
 
         let res = nfp.try_check(&mut vec!["path".to_string()], &Context::new());
@@ -1498,9 +1521,7 @@ mod tests {
 
     #[test]
     fn inline_file_check_success() {
-        let inline = InlineFile {
-            content: "some content".to_string(),
-        };
+        let inline = InlineFile::new("some content");
 
         let ctx = Context::new();
 
@@ -1510,12 +1531,7 @@ mod tests {
 
     #[test]
     fn inline_dir_check_success() {
-        let inline = InlineDir {
-            files: vec![DirFile {
-                path: PathBuf::from_str("path/to/file.txt").unwrap(),
-                content: "file content".to_string(),
-            }],
-        };
+        let inline = InlineDir::new([DirFile::new("path/to/file.txt", "file content")]);
 
         let ctx = Context::new();
 
@@ -1525,22 +1541,11 @@ mod tests {
 
     #[test]
     fn inline_dir_check_invalid_relative_path_errors() {
-        let inline = InlineDir {
-            files: vec![
-                DirFile {
-                    path: PathBuf::from_str("./file.txt").unwrap(),
-                    content: "file content".to_string(),
-                },
-                DirFile {
-                    path: PathBuf::from_str("../file.txt").unwrap(),
-                    content: "file content".to_string(),
-                },
-                DirFile {
-                    path: PathBuf::from_str("/file.txt").unwrap(),
-                    content: "file content".to_string(),
-                },
-            ],
-        };
+        let inline = InlineDir::new([
+            DirFile::new("./file.txt", "file content"),
+            DirFile::new("../file.txt", "file content"),
+            DirFile::new("/file.txt", "file content"),
+        ]);
         let ctx = Context::new();
 
         assert_check_errors(
@@ -1733,9 +1738,7 @@ mod tests {
 
         let mut ctx = Context::new();
         let expected_content = "some content";
-        let inline = FileProvider::Inline(InlineFile {
-            content: expected_content.to_string(),
-        });
+        let inline = FileProvider::Inline(InlineFile::new(expected_content));
 
         assert_resolve_and_write_success(inline, &target, &mut ctx, expected_content).await;
     }
@@ -1753,22 +1756,11 @@ mod tests {
         let file3_content = "file3 content";
 
         let mut ctx = Context::new();
-        let inline_dir = FileProvider::InlineDir(InlineDir {
-            files: vec![
-                DirFile {
-                    path: PathBuf::from_str(file1_path).unwrap(),
-                    content: file1_content.to_string(),
-                },
-                DirFile {
-                    path: PathBuf::from_str(file2_path).unwrap(),
-                    content: file2_content.to_string(),
-                },
-                DirFile {
-                    path: PathBuf::from_str(file3_path).unwrap(),
-                    content: file3_content.to_string(),
-                },
-            ],
-        });
+        let inline_dir = FileProvider::InlineDir(InlineDir::new([
+            DirFile::new(file1_path, file1_content),
+            DirFile::new(file2_path, file2_content),
+            DirFile::new(file3_path, file3_content),
+        ]));
 
         let res = inline_dir.resolve_and_write(&target, &mut ctx).await;
         assert!(
@@ -2056,9 +2048,7 @@ mod tests {
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(
             file_provider,
-            FileProvider::Inline(InlineFile {
-                content: file_content.to_string(),
-            }),
+            FileProvider::Inline(InlineFile::new(file_content)),
             "Expected file provider to be inlined"
         );
     }
@@ -2088,9 +2078,7 @@ mod tests {
             "Expected inline_relative_path_provider to succeed, got {result:?}"
         );
         // Assert that the result is an inline file provider with the same contents as the original relative path provider
-        let expected_inline_file_provider = FileProvider::Inline(InlineFile {
-            content: file_content.to_string(),
-        });
+        let expected_inline_file_provider = FileProvider::Inline(InlineFile::new(file_content));
         assert_eq!(
             expected_inline_file_provider, file_provider,
             "Expected inline_relative_path_provider to update the file provider to an inline file provider with the same contents as the original relative path provider"
@@ -2101,9 +2089,7 @@ mod tests {
     async fn file_provider_inline_all_relative_paths_succeeds_for_inline_file() {
         let ctx = Context::new();
         let file_content = "example file content";
-        let mut file_provider = FileProvider::Inline(InlineFile {
-            content: file_content.to_string(),
-        });
+        let mut file_provider = FileProvider::Inline(InlineFile::new(file_content));
         let expected_file_provider = file_provider.clone();
 
         let result = file_provider
@@ -2189,9 +2175,7 @@ mod tests {
 
         let provider = FileProvider::GraphosCannedOpsById(apollo::GraphosCannedOpsById {
             graph_ref: Field::Resolved("graph@variant".to_string()),
-            operations: utility::TextFileProvider::Inline(InlineFile {
-                content: "OPERATION_ID_1".to_string(),
-            }),
+            operations: utility::TextFileProvider::Inline(InlineFile::new("OPERATION_ID_1")),
         });
         let mut files = HashMap::new();
 
@@ -2244,9 +2228,7 @@ mod tests {
         let inner = CommandSection {
             command: CommandSpec {
                 name: "script.sh".to_string(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: "echo hi".to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new("echo hi")),
                 args: vec![],
             },
             env_vars: HashMap::new(),
@@ -2265,9 +2247,7 @@ mod tests {
     #[tokio::test]
     async fn file_provider_extract_non_extractable_unchanged() {
         let ctx = MockContext::with_http_client(&[]);
-        let provider = FileProvider::Inline(InlineFile {
-            content: "inline content".to_string(),
-        });
+        let provider = FileProvider::Inline(InlineFile::new("inline content"));
         let mut files = HashMap::new();
 
         let res = provider.try_extract_relative_files(&mut files, &ctx).await;

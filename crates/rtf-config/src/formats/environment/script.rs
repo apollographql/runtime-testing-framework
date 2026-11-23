@@ -377,9 +377,7 @@ pub(crate) mod tests {
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 
-        let expected_inline = CommandProvider::Inline(InlineFile {
-            content: file_content.to_string(),
-        });
+        let expected_inline = CommandProvider::Inline(InlineFile::new(file_content));
         let script = match &environment.execution {
             EnvironmentExecution::Script(script) => script,
             _ => panic!("Expected EnvironmentExecution::Script variant"),

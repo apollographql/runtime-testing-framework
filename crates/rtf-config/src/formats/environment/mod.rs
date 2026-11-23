@@ -328,9 +328,9 @@ pub(crate) mod test_helpers {
     pub(crate) fn named_compose_file(name: &str) -> NamedManifestFileProvider {
         NamedManifestFileProvider {
             name: name.to_string(),
-            provider: ManifestFileProvider::Inline(InlineFile {
-                content: format!("# {name}\nservices: {{}}"),
-            }),
+            provider: ManifestFileProvider::Inline(InlineFile::new(format!(
+                "# {name}\nservices: {{}}"
+            ))),
         }
     }
 

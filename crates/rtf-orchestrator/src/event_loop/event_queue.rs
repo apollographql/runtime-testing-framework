@@ -758,7 +758,7 @@ mod tests {
             .keys()
             .map(|&key| {
                 let content = format!("content for {key:?}");
-                (key, InlinedProvider::File(InlineFile { content }))
+                (key, InlinedProvider::File(InlineFile::new(content)))
             })
             .collect();
         *ctx_executions_per_file_provider.lock().await = executions_per_file_provider;

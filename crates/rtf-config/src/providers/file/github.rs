@@ -182,10 +182,7 @@ impl ResolveFileContent for GithubDir {
             let content = client
                 .string_file_content(org, repo, &format!("{dir_path}/{fname}"), git_ref)
                 .await?;
-            contents.push(DirFile {
-                path: target.as_ref().join(fname),
-                content,
-            });
+            contents.push(DirFile::new(target.as_ref().join(fname), content));
         }
 
         Ok(contents)
@@ -239,7 +236,7 @@ mod tests {
         },
     };
     use assert_fs::{TempDir, fixture::PathChild};
-    use std::{collections::HashMap, path::PathBuf};
+    use std::collections::HashMap;
 
     fn github_file() -> GithubFile {
         GithubFile {
@@ -287,9 +284,7 @@ mod tests {
     #[tokio::test]
     async fn github_file_inline_all_files_success() {
         let expected_content = "some content";
-        let expected_inline_provider = FileProvider::Inline(InlineFile {
-            content: expected_content.to_string(),
-        });
+        let expected_inline_provider = FileProvider::Inline(InlineFile::new(expected_content));
 
         let ctx = MockContext::with_github_client(&[("org/repo/path", expected_content)]);
         let mut github_file = FileProvider::GithubFile(github_file());
@@ -379,18 +374,10 @@ mod tests {
 
     #[tokio::test]
     async fn github_dir_inline_all_files_success() {
-        let expected_inline_provider = FileProvider::InlineDir(InlineDir {
-            files: vec![
-                DirFile {
-                    path: PathBuf::from("nested/two.txt"),
-                    content: "world".to_string(),
-                },
-                DirFile {
-                    path: PathBuf::from("one.txt"),
-                    content: "hello".to_string(),
-                },
-            ],
-        });
+        let expected_inline_provider = FileProvider::InlineDir(InlineDir::new([
+            DirFile::new("nested/two.txt", "world"),
+            DirFile::new("one.txt", "hello"),
+        ]));
 
         let ctx = MockContext::with_github_client(&[
             ("org/repo/path/one.txt?ref=some-ref", "hello"),

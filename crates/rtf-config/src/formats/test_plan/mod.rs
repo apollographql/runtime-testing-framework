@@ -1293,18 +1293,16 @@ mod tests {
             command: CommandSpec {
                 name: "scenario.sh".to_string(),
                 args: Vec::new(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: "#!/usr/bin/env sh\necho \"Hello, World!\"\n".to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new(
+                    "#!/usr/bin/env sh\necho \"Hello, World!\"\n",
+                )),
             },
             ..CommandSection::empty()
         });
         let expected_env_files = vec![NamedFileProvider {
             name: "file.txt".to_string(),
             env_var: "FILE".to_string(),
-            provider: FileProvider::Inline(InlineFile {
-                content: "some inline text\n".to_string(),
-            }),
+            provider: FileProvider::Inline(InlineFile::new("some inline text\n")),
         }];
 
         let ctx = Context::new();
