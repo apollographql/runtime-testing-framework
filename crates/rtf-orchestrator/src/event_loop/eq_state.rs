@@ -9,10 +9,11 @@ use crate::{
     resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
 };
+use rtf_config::formats::{DockerScenario, EnvironmentConfig, ScenarioConfig};
 use rtf_orchestrator_shared::{
     OutputCollectionResponse,
     event_queue::{ClusterClaimSummary, EventQueueSnapshot},
-    test_plan::OrchestratorTestPlan,
+    test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
 };
 use sqlx::PgConnection;
 use std::{
@@ -232,13 +233,13 @@ impl EventQueueState {
     pub(crate) async fn resolve_environment_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<String> {
+    ) -> resolver::Result<EnvironmentConfig<OrchestratorEnvironment>> {
         self.with_shared(|shared| {
             shared
                 .executions
                 .get(&ex.uuid())
                 .and_then(|e| e.resolved_config.as_ref())
-                .map(|c| c.env_yaml.clone())
+                .map(|c| c.environment_config.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
         .await
@@ -247,13 +248,13 @@ impl EventQueueState {
     pub(crate) async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<String> {
+    ) -> resolver::Result<ScenarioConfig<DockerScenario>> {
         self.with_shared(|shared| {
             shared
                 .executions
                 .get(&ex.uuid())
                 .and_then(|e| e.resolved_config.as_ref())
-                .map(|c| c.scenario_yaml.clone())
+                .map(|c| c.scenario_config.clone())
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))
         })
         .await

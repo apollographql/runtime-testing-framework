@@ -4,6 +4,7 @@ use crate::{
     resolver::{self, ResolverError},
     state::UserType,
 };
+use rtf_config::formats::{DockerScenario, EnvironmentConfig, ScenarioConfig};
 use rtf_orchestrator_shared::{
     OutputCollectionResponse,
     test_plan::{OrchestratorEnvironment, OrchestratorTestPlan},
@@ -145,12 +146,11 @@ pub(super) struct ExecutionState {
 /// inserted and evicted as a unit.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct ResolvedExecutionConfig {
-    pub(super) env_yaml: String,
-    pub(super) scenario_yaml: String,
+    pub(super) environment_config: EnvironmentConfig<OrchestratorEnvironment>,
+    pub(super) scenario_config: ScenarioConfig<DockerScenario>,
     pub(super) output_collection: OutputCollectionResponse,
     pub(super) docker_image: String,
     pub(super) docker_command: String,
-    pub(super) environment: OrchestratorEnvironment,
 }
 
 pub(super) struct SharedSnapshotState {

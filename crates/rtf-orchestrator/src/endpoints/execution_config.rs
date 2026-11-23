@@ -1,5 +1,8 @@
 //! Fetch RTF config sections required for running a given [TestExecution] by its UUID.
-use crate::{Error, Result, conn, db::TestExecution, endpoints::BearerToken, state::ServerState};
+use crate::{
+    Error, Result, conn, db::TestExecution, endpoints::BearerToken, resolver::ResolverError,
+    state::ServerState,
+};
 use axum::{
     Json,
     extract::{Path, State},
@@ -18,7 +21,9 @@ pub async fn env_handler(
     };
 
     auth.verify(ex.token())?;
-    let yaml = eq_state.resolve_environment_for_execution(&ex).await?;
+    let environment = eq_state.resolve_environment_for_execution(&ex).await?;
+    let yaml = yaml_serde::to_string(&environment)
+        .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
 
     Ok(yaml)
 }
@@ -34,7 +39,9 @@ pub async fn scenario_handler(
     };
 
     auth.verify(ex.token())?;
-    let yaml = eq_state.resolve_scenario_for_execution(&ex).await?;
+    let scenario = eq_state.resolve_scenario_for_execution(&ex).await?;
+    let yaml = yaml_serde::to_string(&scenario)
+        .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
 
     Ok(yaml)
 }
