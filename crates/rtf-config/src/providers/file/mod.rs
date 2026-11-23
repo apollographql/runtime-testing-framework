@@ -19,6 +19,7 @@ use std::{
     path::{Component, Path, PathBuf},
     pin::Pin,
     str::FromStr,
+    sync::Arc,
 };
 
 pub mod apollo;
@@ -155,7 +156,7 @@ where
             if let Some(parent) = file.path.parent() {
                 ctx.create_dir_all(parent)?;
             }
-            ctx.write(file.path, file.content)?;
+            ctx.write(file.path, file.content.as_bytes())?;
         }
 
         Ok(())
@@ -522,11 +523,11 @@ enum_impl_file_provider!(
 pub struct InlineFile {
     /// The text to write out as the contents of the generated file.
     #[template(skip)]
-    pub content: String,
+    pub content: Arc<str>,
 }
 
 impl InlineFile {
-    pub fn new(content: impl Into<String>) -> Self {
+    pub fn new(content: impl Into<Arc<str>>) -> Self {
         Self {
             content: content.into(),
         }
@@ -538,7 +539,7 @@ impl AsUtf8FileContent for InlineFile {
         &self,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        Ok(self.content.clone())
+        Ok(self.content.to_string())
     }
 }
 
@@ -617,7 +618,7 @@ impl ResolveAndWrite for InlineDir {
                 // nested the path is within the directory, it gets created.
                 // If it already exists then this is a no op
                 ctx.create_dir_all(parent)?;
-                ctx.write(&abs_path, &file.content)?;
+                ctx.write(&abs_path, file.content.as_bytes())?;
             }
         }
 
@@ -657,11 +658,11 @@ pub struct DirFile {
     pub path: PathBuf,
 
     /// The text to write out as the contents of the generated file.
-    pub content: String,
+    pub content: Arc<str>,
 }
 
 impl DirFile {
-    pub fn new(path: impl Into<PathBuf>, content: impl Into<String>) -> Self {
+    pub fn new(path: impl Into<PathBuf>, content: impl Into<Arc<str>>) -> Self {
         Self {
             path: path.into(),
             content: content.into(),
@@ -2051,6 +2052,45 @@ mod tests {
             FileProvider::Inline(InlineFile::new(file_content)),
             "Expected file provider to be inlined"
         );
+    }
+
+    #[tokio::test]
+    async fn inline_cache_hits_share_content() {
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", "content");
+
+        let mut ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(Sources::with_custom_providers(
+            src.clone(),
+            None,
+            None,
+            Default::default(),
+            Default::default(),
+        ));
+
+        let mut cache = HashMap::new();
+        let mut first =
+            FileProvider::RelativePath(relative_file("file.txt", StableSource::TestPlan));
+        let mut second = first.clone();
+
+        first
+            .try_inline(InlineMode::All, &ctx, &mut cache)
+            .await
+            .unwrap();
+        second
+            .try_inline(InlineMode::All, &ctx, &mut cache)
+            .await
+            .unwrap();
+
+        match (first, second) {
+            (FileProvider::Inline(a), FileProvider::Inline(b)) => {
+                assert!(
+                    Arc::ptr_eq(&a.content, &b.content),
+                    "content should be shared"
+                );
+            }
+            other => panic!("expected both providers to be inlined, got {other:?}"),
+        }
     }
 
     #[tokio::test]
