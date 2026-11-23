@@ -1201,9 +1201,7 @@ mod tests {
 
         assert_eq!(
             command_provider,
-            CommandProvider::Inline(InlineFile {
-                content: file_content.to_string(),
-            }),
+            CommandProvider::Inline(InlineFile::new(file_content)),
             "Expected command provider to be inlined"
         );
     }
@@ -1284,9 +1282,7 @@ mod tests {
             file_providers: vec![NamedFileProvider {
                 name: "my_file".to_string(),
                 env_var: "MY_FILE".to_string(),
-                provider: FileProvider::Inline(InlineFile {
-                    content: "content".to_string(),
-                }),
+                provider: FileProvider::Inline(InlineFile::new("content")),
             }],
             output_collection: OutputCollection {
                 prometheus: Vec::new(),
@@ -1313,9 +1309,7 @@ mod tests {
             file_providers: vec![NamedFileProvider {
                 name: "my_file".to_string(),
                 env_var: "SHARED_VAR".to_string(),
-                provider: FileProvider::Inline(InlineFile {
-                    content: "content".to_string(),
-                }),
+                provider: FileProvider::Inline(InlineFile::new("content")),
             }],
             output_collection: OutputCollection {
                 prometheus: Vec::new(),
@@ -1343,16 +1337,12 @@ mod tests {
                 NamedFileProvider {
                     name: "my_file".to_string(),
                     env_var: "MY_FILE_1".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "content".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("content")),
                 },
                 NamedFileProvider {
                     name: "my_file".to_string(),
                     env_var: "MY_FILE_2".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "content".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("content")),
                 },
             ],
             output_collection: OutputCollection {

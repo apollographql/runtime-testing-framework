@@ -205,12 +205,7 @@ impl ProvisioningHandle {
 
         let image = test_plan.scenario.execution.docker_image();
         let command = test_plan.scenario.execution.command();
-        let environment = test_plan.environment.execution.clone();
 
-        let env_yaml = yaml_serde::to_string(&test_plan.environment)
-            .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
-        let scenario_yaml = yaml_serde::to_string(&test_plan.scenario)
-            .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
         let execution_variables = serde_json::to_string_pretty(&test_plan.variables)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
 
@@ -250,12 +245,11 @@ impl ProvisioningHandle {
                 .ok_or(ResolverError::UnknownExecution(ex.uuid()))?;
 
             exec.resolved_config = Some(ResolvedExecutionConfig {
-                env_yaml,
-                scenario_yaml,
+                environment_config: test_plan.environment,
+                scenario_config: test_plan.scenario,
                 output_collection,
                 docker_image: image,
                 docker_command: command,
-                environment,
             });
 
             Ok(())

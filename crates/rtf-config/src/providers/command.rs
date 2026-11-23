@@ -75,9 +75,7 @@ impl CommandSection {
         CommandSection {
             command: CommandSpec {
                 name: Default::default(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: "content".to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new("content")),
                 args: Default::default(),
             },
             env_vars: Default::default(),
@@ -272,23 +270,38 @@ impl Inline for CommandProvider {
         &'a mut self,
         mode: InlineMode,
         ctx: &'a impl ResolutionContext,
-        _cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
+        cache: &'a mut HashMap<ProviderCacheKey, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
+            if matches!(self, CommandProvider::Inline(_)) {
+                return Ok(());
+            }
+
+            let key = ProviderCacheKey::new(&*self);
+            if let Some(cached) = cache.get(&key) {
+                match cached.clone() {
+                    InlinedProvider::File(f) => *self = CommandProvider::Inline(f),
+                    InlinedProvider::Dir(_) => unreachable!("no dir producing providers"),
+                }
+
+                return Ok(());
+            }
+
             match (&mut *self, mode) {
                 (CommandProvider::RelativePath(inner), _) => {
-                    *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                    Ok(())
+                    let fp = inner.try_into_inline_file(ctx).await?;
+                    cache.insert(key, InlinedProvider::File(fp.clone()));
+                    *self = CommandProvider::Inline(fp);
                 }
-                (_, InlineMode::RelativeFiles) => Ok(()),
-                (CommandProvider::Inline(_), InlineMode::All) => Ok(()),
+
                 (CommandProvider::Required(inner), InlineMode::All) => {
-                    *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                    Ok(())
+                    inner.try_into_inline_file(ctx).await?; // this will error
                 }
+
+                (CommandProvider::Inline(_), _) | (_, InlineMode::RelativeFiles) => return Ok(()),
             }
+
+            Ok(())
         })
     }
 }
@@ -323,9 +336,7 @@ pub(crate) mod test_helpers {
             command: CommandSpec {
                 name: "name".to_string(),
                 args: Vec::new(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: "some content".to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new("some content")),
             },
             ..CommandSection::empty()
         }
@@ -426,9 +437,7 @@ mod tests {
         let command = CommandSpec {
             name: "name".to_string(),
             args: Vec::new(),
-            command_provider: CommandProvider::Inline(InlineFile {
-                content: "some content".to_string(),
-            }),
+            command_provider: CommandProvider::Inline(InlineFile::new("some content")),
         };
 
         let ctx = Context::new();
@@ -516,16 +525,12 @@ mod tests {
                 NamedFileProvider {
                     name: "same-name.txt".to_string(),
                     env_var: "A".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "first".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("first")),
                 },
                 NamedFileProvider {
                     name: "same-name.txt".to_string(),
                     env_var: "B".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "second".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("second")),
                 },
             ],
             ..CommandSection::empty()
@@ -550,9 +555,7 @@ mod tests {
             file_providers: vec![NamedFileProvider {
                 name: "inline".to_string(),
                 env_var: "A".to_string(),
-                provider: FileProvider::Inline(InlineFile {
-                    content: "some content".to_string(),
-                }),
+                provider: FileProvider::Inline(InlineFile::new("some content")),
             }],
             ..CommandSection::empty()
         };
@@ -581,9 +584,7 @@ mod tests {
                 NamedFileProvider {
                     name: "inline".to_string(),
                     env_var: "A".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "some content".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("some content")),
                 },
                 NamedFileProvider {
                     name: "required".to_string(),
@@ -768,9 +769,7 @@ mod tests {
         CommandSection {
             command: CommandSpec {
                 name: "example.sh".to_string(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: "command".to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new("command")),
                 args: Vec::new(),
             },
             env_vars: [
@@ -785,16 +784,12 @@ mod tests {
                 NamedFileProvider {
                     name: "fp1.txt".to_string(),
                     env_var: "FP1".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "foo".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("foo")),
                 },
                 NamedFileProvider {
                     name: "fp2.txt".to_string(),
                     env_var: "FP2".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "bar".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("bar")),
                 },
             ],
         }
@@ -904,9 +899,7 @@ mod tests {
             // See the implementation of MockCommandContext::run_command_blocking
             command: CommandSpec {
                 name: "example.sh".to_string(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: "command".to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new("command")),
                 args,
             },
             env_vars: HashMap::new(),
@@ -961,9 +954,7 @@ mod tests {
         );
         assert_eq!(
             command_provider,
-            CommandProvider::Inline(InlineFile {
-                content: file_content.to_string(),
-            })
+            CommandProvider::Inline(InlineFile::new(file_content))
         );
     }
 
@@ -972,9 +963,7 @@ mod tests {
      {
         let ctx = Context::new();
         let file_content = "example file content";
-        let mut command_provider = CommandProvider::Inline(InlineFile {
-            content: file_content.to_string(),
-        });
+        let mut command_provider = CommandProvider::Inline(InlineFile::new(file_content));
         let expected_command_provider = command_provider.clone();
 
         let result = command_provider
@@ -1002,9 +991,7 @@ mod tests {
             Default::default(),
         ));
 
-        let inline_file_provider = FileProvider::Inline(InlineFile {
-            content: file_content.to_string(),
-        });
+        let inline_file_provider = FileProvider::Inline(InlineFile::new(file_content));
 
         let mut command_section = CommandSection {
             command: CommandSpec {
@@ -1044,9 +1031,7 @@ mod tests {
         let expected = CommandSection {
             command: CommandSpec {
                 name: "example.sh".to_string(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: file_content.to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new(file_content)),
                 args: Vec::new(),
             },
             env_vars: HashMap::new(),
@@ -1082,9 +1067,7 @@ mod tests {
             Default::default(),
         ));
 
-        let inline_file_provider = FileProvider::Inline(InlineFile {
-            content: file_content.to_string(),
-        });
+        let inline_file_provider = FileProvider::Inline(InlineFile::new(file_content));
 
         let mut command_section = CommandSection {
             command: CommandSpec {
@@ -1124,9 +1107,7 @@ mod tests {
         let expected = CommandSection {
             command: CommandSpec {
                 name: "example.sh".to_string(),
-                command_provider: CommandProvider::Inline(InlineFile {
-                    content: file_content.to_string(),
-                }),
+                command_provider: CommandProvider::Inline(InlineFile::new(file_content)),
                 args: Vec::new(),
             },
             env_vars: HashMap::new(),
@@ -1179,9 +1160,7 @@ mod tests {
     #[tokio::test]
     async fn command_provider_extract_inline_unchanged() {
         let ctx = Context::new();
-        let provider = CommandProvider::Inline(InlineFile {
-            content: "echo hello".to_string(),
-        });
+        let provider = CommandProvider::Inline(InlineFile::new("echo hello"));
         let mut files = HashMap::new();
 
         let res = provider.try_extract_relative_files(&mut files, &ctx).await;

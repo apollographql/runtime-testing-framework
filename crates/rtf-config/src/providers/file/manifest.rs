@@ -356,9 +356,7 @@ mod tests {
     fn named_compose_file_provider_check_error_name_path_invalid() {
         let nfp = NamedManifestFileProvider {
             name: "../inline.yaml".to_string(),
-            provider: ManifestFileProvider::Inline(InlineFile {
-                content: "content".to_string(),
-            }),
+            provider: ManifestFileProvider::Inline(InlineFile::new("content")),
         };
 
         let res = nfp.try_check(&mut vec!["path".to_string()], &Context::new());
@@ -372,18 +370,10 @@ mod tests {
     fn inline_dir_compose_file_provider_check_succeeds() {
         let nfp = NamedManifestFileProvider {
             name: "compose-dir".to_string(),
-            provider: ManifestFileProvider::InlineDir(InlineDir {
-                files: vec![
-                    DirFile {
-                        path: PathBuf::from("base.yaml"),
-                        content: "content".to_string(),
-                    },
-                    DirFile {
-                        path: PathBuf::from("overlay.yaml"),
-                        content: "content".to_string(),
-                    },
-                ],
-            }),
+            provider: ManifestFileProvider::InlineDir(InlineDir::new([
+                DirFile::new("base.yaml", "content"),
+                DirFile::new("overlay.yaml", "content"),
+            ])),
         };
 
         let res = nfp.try_check(&mut Vec::new(), &Context::new());
@@ -440,9 +430,7 @@ mod tests {
 
     #[tokio::test]
     async fn compose_file_provider_extract_inline_unchanged() {
-        let provider = ManifestFileProvider::Inline(InlineFile {
-            content: "services: {}".to_string(),
-        });
+        let provider = ManifestFileProvider::Inline(InlineFile::new("services: {}"));
         let ctx = MockContext::with_http_client(&[]);
         let mut files = HashMap::new();
 

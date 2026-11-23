@@ -123,9 +123,9 @@ mod tests {
     fn named_k8s_resource(name: &str) -> NamedManifestFileProvider {
         NamedManifestFileProvider {
             name: name.to_string(),
-            provider: ManifestFileProvider::Inline(InlineFile {
-                content: format!("# {name}\nkind: Deployment"),
-            }),
+            provider: ManifestFileProvider::Inline(InlineFile::new(format!(
+                "# {name}\nkind: Deployment"
+            ))),
         }
     }
 
@@ -192,9 +192,7 @@ mod tests {
 
         let expected_inline_resource = NamedManifestFileProvider {
             name: "resource.yaml".to_string(),
-            provider: ManifestFileProvider::Inline(InlineFile {
-                content: "example file content".to_string(),
-            }),
+            provider: ManifestFileProvider::Inline(InlineFile::new("example file content")),
         };
 
         assert_eq!(
@@ -207,9 +205,7 @@ mod tests {
     fn check_k8s_success() {
         let environment = empty_k8s_environment_config(vec![NamedManifestFileProvider {
             name: "resource.yaml".to_string(),
-            provider: ManifestFileProvider::Inline(InlineFile {
-                content: "content".to_string(),
-            }),
+            provider: ManifestFileProvider::Inline(InlineFile::new("content")),
         }]);
 
         let ctx = Context::new();

@@ -697,16 +697,12 @@ pub(crate) mod tests {
 
         let expected_inline_compose_file = NamedManifestFileProvider {
             name: "compose.yaml".to_string(),
-            provider: ManifestFileProvider::Inline(InlineFile {
-                content: "example file content".to_string(),
-            }),
+            provider: ManifestFileProvider::Inline(InlineFile::new("example file content")),
         };
         let expected_inline_file = NamedFileProvider {
             name: "file.txt".to_string(),
             env_var: "FILE".to_string(),
-            provider: FileProvider::Inline(InlineFile {
-                content: "example file content".to_string(),
-            }),
+            provider: FileProvider::Inline(InlineFile::new("example file content")),
         };
 
         let compose = match &environment.execution {
@@ -732,17 +728,13 @@ pub(crate) mod tests {
                     project_name: None,
                     compose_files: vec![NamedManifestFileProvider {
                         name: "compose.yaml".to_string(),
-                        provider: ManifestFileProvider::Inline(InlineFile {
-                            content: "content".to_string(),
-                        }),
+                        provider: ManifestFileProvider::Inline(InlineFile::new("content")),
                     }],
                 },
                 file_providers: vec![NamedFileProvider {
                     name: "file.txt".to_string(),
                     env_var: "FILE".to_string(),
-                    provider: FileProvider::Inline(InlineFile {
-                        content: "content".to_string(),
-                    }),
+                    provider: FileProvider::Inline(InlineFile::new("content")),
                 }],
                 env_vars: HashMap::new(),
                 output_collection: OutputCollection {
@@ -912,9 +904,7 @@ pub(crate) mod tests {
 
     #[test]
     fn docker_compose_all_env_vars_includes_file_providers_and_explicit_vars() {
-        let file_provider = FileProvider::Inline(InlineFile {
-            content: "file content".to_string(),
-        });
+        let file_provider = FileProvider::Inline(InlineFile::new("file content"));
 
         let mut explicit_env_vars = HashMap::new();
         explicit_env_vars.insert(
@@ -990,18 +980,10 @@ pub(crate) mod tests {
         let overlay_file = tmp.child("overlay.yaml");
         overlay_file.write_str("version: '3'").unwrap();
 
-        let inline_dir = InlineDir {
-            files: vec![
-                DirFile {
-                    path: base_file.path().to_path_buf(),
-                    content: "version: '3'".to_string(),
-                },
-                DirFile {
-                    path: overlay_file.path().to_path_buf(),
-                    content: "version: '3'".to_string(),
-                },
-            ],
-        };
+        let inline_dir = InlineDir::new([
+            DirFile::new(base_file.path(), "version: '3'"),
+            DirFile::new(overlay_file.path(), "version: '3'"),
+        ]);
 
         let docker_compose = DockerComposeEnvironment {
             resources: ComposeResources {
@@ -1191,9 +1173,7 @@ pub(crate) mod tests {
 
     #[test]
     fn build_env_vars_uses_host_paths_without_labeled_services() {
-        let file_provider = FileProvider::Inline(InlineFile {
-            content: "file content".to_string(),
-        });
+        let file_provider = FileProvider::Inline(InlineFile::new("file content"));
 
         let docker_compose = DockerComposeEnvironment {
             resources: ComposeResources {
@@ -1232,9 +1212,7 @@ pub(crate) mod tests {
 
     #[test]
     fn build_env_vars_uses_container_paths_with_labeled_services() {
-        let file_provider = FileProvider::Inline(InlineFile {
-            content: "file content".to_string(),
-        });
+        let file_provider = FileProvider::Inline(InlineFile::new("file content"));
 
         let docker_compose = DockerComposeEnvironment {
             resources: ComposeResources {
@@ -1273,12 +1251,8 @@ pub(crate) mod tests {
 
     #[test]
     fn build_env_vars_uses_container_paths_for_all_file_providers_when_labeled() {
-        let file_provider_1 = FileProvider::Inline(InlineFile {
-            content: "content 1".to_string(),
-        });
-        let file_provider_2 = FileProvider::Inline(InlineFile {
-            content: "content 2".to_string(),
-        });
+        let file_provider_1 = FileProvider::Inline(InlineFile::new("content 1"));
+        let file_provider_2 = FileProvider::Inline(InlineFile::new("content 2"));
 
         let docker_compose = DockerComposeEnvironment {
             resources: ComposeResources {
@@ -1439,9 +1413,7 @@ pub(crate) mod tests {
 
     #[test]
     fn build_env_vars_error_when_file_provider_path_unknown() {
-        let file_provider = FileProvider::Inline(InlineFile {
-            content: "file content".to_string(),
-        });
+        let file_provider = FileProvider::Inline(InlineFile::new("file content"));
 
         let docker_compose = DockerComposeEnvironment {
             resources: ComposeResources {

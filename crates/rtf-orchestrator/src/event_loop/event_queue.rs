@@ -267,7 +267,7 @@ impl EventQueue {
                 .executions
                 .get(&ex_id)
                 .and_then(|e| e.resolved_config.as_ref())
-                .map(|c| c.environment.clone())
+                .map(|c| c.environment_config.execution.clone())
         })
         .await
     }
@@ -605,7 +605,7 @@ mod tests {
         },
     };
     use rtf_config::{
-        formats::NullEnvironment,
+        formats::{EnvironmentConfig, NullEnvironment},
         inlining::{InlinedProvider, ProviderCacheKey},
         providers::file::InlineFile,
     };
@@ -758,7 +758,7 @@ mod tests {
             .keys()
             .map(|&key| {
                 let content = format!("content for {key:?}");
-                (key, InlinedProvider::File(InlineFile { content }))
+                (key, InlinedProvider::File(InlineFile::new(content)))
             })
             .collect();
         *ctx_executions_per_file_provider.lock().await = executions_per_file_provider;
@@ -1125,7 +1125,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_cache_config_stores_yaml_and_docker_details() {
+    async fn resolve_and_cache_config_stores_config_and_docker_details() {
         let cfg = Config::for_test();
         let (eq, ph, _, _) = EventQueue::new(&cfg.workload_clusters);
 
@@ -1162,10 +1162,14 @@ mod tests {
                 .and_then(|e| e.resolved_config.as_ref())
                 .expect("execution config should be cached");
 
-            assert!(!cached.env_yaml.is_empty(), "env YAML should be cached");
-            assert!(
-                !cached.scenario_yaml.is_empty(),
-                "scenario YAML should be cached"
+            let stub = stub_test_plan();
+            assert_eq!(
+                cached.environment_config, stub.environment,
+                "environment config should be cached"
+            );
+            assert_eq!(
+                cached.scenario_config, stub.scenario,
+                "scenario config should be cached"
             );
             assert!(
                 !cached.docker_image.is_empty(),
@@ -1176,10 +1180,10 @@ mod tests {
                 "scenario docker command should be cached"
             );
             assert_matches!(
-                cached.environment,
+                cached.environment_config.execution,
                 OrchestratorEnvironment::DockerCompose(_),
                 "expected the typed environment to be cached, got {:?}",
-                cached.environment
+                cached.environment_config.execution
             );
         })
         .await;
@@ -1225,10 +1229,10 @@ mod tests {
                 .expect("execution config should be cached");
 
             assert_matches!(
-                cached.environment,
+                cached.environment_config.execution,
                 OrchestratorEnvironment::Null(_),
                 "expected a null environment to be cached, got {:?}",
-                cached.environment
+                cached.environment_config.execution
             );
             assert!(
                 cached.output_collection.prometheus.environment.is_empty(),
@@ -1255,8 +1259,13 @@ mod tests {
                 ExecutionState {
                     run_uuid: Uuid::new_v4(),
                     resolved_config: Some(ResolvedExecutionConfig {
-                        env_yaml: "yaml".to_string(),
-                        scenario_yaml: "yaml".to_string(),
+                        environment_config: EnvironmentConfig {
+                            execution: OrchestratorEnvironment::Null(NullEnvironment {
+                                skip: true,
+                            }),
+                            ..stub_test_plan().environment
+                        },
+                        scenario_config: stub_test_plan().scenario,
                         output_collection: OutputCollectionResponse {
                             execution_variables: String::new(),
                             prometheus: PrometheusQueries {
@@ -1266,7 +1275,6 @@ mod tests {
                         },
                         docker_image: "image".to_string(),
                         docker_command: "command".to_string(),
-                        environment: OrchestratorEnvironment::Null(NullEnvironment { skip: true }),
                     }),
                 },
             );
@@ -1291,8 +1299,8 @@ mod tests {
             shared.register_execution(ex_id, run_uuid);
             shared.executions.get_mut(&ex_id).unwrap().resolved_config =
                 Some(ResolvedExecutionConfig {
-                    env_yaml: "yaml".to_string(),
-                    scenario_yaml: "yaml".to_string(),
+                    environment_config: stub_test_plan().environment,
+                    scenario_config: stub_test_plan().scenario,
                     output_collection: OutputCollectionResponse {
                         execution_variables: String::new(),
                         prometheus: PrometheusQueries {
@@ -1302,7 +1310,6 @@ mod tests {
                     },
                     docker_image: "image".to_string(),
                     docker_command: "command".to_string(),
-                    environment: OrchestratorEnvironment::Null(NullEnvironment { skip: true }),
                 });
         })
         .await;

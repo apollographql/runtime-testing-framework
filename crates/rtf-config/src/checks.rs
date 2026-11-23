@@ -407,18 +407,16 @@ mod tests {
         NamedFileProvider {
             name: name.to_string(),
             env_var: env_var.to_string(),
-            provider: FileProvider::Inline(InlineFile {
-                content: content.to_string(),
-            }),
+            provider: FileProvider::Inline(InlineFile::new(content)),
         }
     }
 
     fn ncfp(name: &str) -> NamedManifestFileProvider {
         NamedManifestFileProvider {
             name: name.to_string(),
-            provider: ManifestFileProvider::Inline(InlineFile {
-                content: format!("# {name}\nservices: {{}}"),
-            }),
+            provider: ManifestFileProvider::Inline(InlineFile::new(format!(
+                "# {name}\nservices: {{}}"
+            ))),
         }
     }
 
@@ -610,7 +608,7 @@ mod tests {
     )]
     #[test_case(
         DedupArray::Ncfp(&mut vec![
-            NamedManifestFileProvider { name: "a".to_string(), provider: ManifestFileProvider::Inline(InlineFile { content: "original".to_string() }) },
+            NamedManifestFileProvider { name: "a".to_string(), provider: ManifestFileProvider::Inline(InlineFile::new("original")) },
             ncfp("b"),
             ncfp("a"),
         ]),
