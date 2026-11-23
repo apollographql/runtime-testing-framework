@@ -1,0 +1,18 @@
+name: docker-compose-environment-with-label-matrix
+description: |
+  Run a docker compose environment with a file-providers labeled service across multiple matrix
+  variants. The file providers don't vary between variants, so later variants reuse the files
+  written by the first.
+
+matrix:
+  message: ["hello, world!", "hello, sailor!"]
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml

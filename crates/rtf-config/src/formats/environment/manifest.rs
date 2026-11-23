@@ -78,8 +78,8 @@ impl<M: ValidateEnvironment> ManifestEnvironment<M> {
                     name: nfp.name.clone(),
                 })?;
 
-            // When labeled services are present, the overlay bind-mounts the resolved providers_dir
-            // at PROVIDERS_CONTAINER_PATH inside the container. Remap file provider env vars from
+            // When labeled services are present, the overlay bind-mounts each resolved provider at
+            // PROVIDERS_CONTAINER_PATH/<name> inside the container. Remap file provider env vars from
             // their host paths (returned by all_env_vars) to the container paths so that ${VAR}
             // references in manifest files expand to the correct in-container location.
             //

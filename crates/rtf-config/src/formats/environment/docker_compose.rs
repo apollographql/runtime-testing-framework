@@ -152,6 +152,26 @@ impl DockerComposeEnvironment {
         Ok(("docker", args))
     }
 
+    /// Host paths of each file provider's output paired with its name.
+    ///
+    /// Paths come from the provider cache rather than this run's providers directory because
+    /// providers already resolved by an earlier matrix variant aren't written again.
+    fn file_provider_mounts(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<(PathBuf, &str)>> {
+        self.file_providers
+            .iter()
+            .map(|nfp| {
+                ctx.known_provider_output_path(Provider::File { fp: &nfp.provider })
+                    .map(|path| (path, nfp.name.as_str()))
+                    .ok_or(providers::Error::MissingProviderOutput {
+                        name: nfp.name.clone(),
+                    })
+            })
+            .collect()
+    }
+
     /// Categorise docker compose services based on how they accesses file provider output.
     pub fn file_provider_services(
         &self,
@@ -194,7 +214,8 @@ impl RunEnvironment for DockerComposeEnvironment {
         let mut compose_overrides = Vec::new();
 
         if fps.has_labeled_services() && !self.file_providers.is_empty() {
-            let override_content = fps.local_file_providers_overlay(&env_providers_dir);
+            let override_content =
+                fps.local_file_providers_overlay(&self.file_provider_mounts(ctx)?);
             let override_path = out_dir.join("file-providers-override.yaml");
             ctx.write(&override_path, override_content)?;
 
@@ -357,18 +378,21 @@ impl FileProviderServices {
         Some(())
     }
 
-    /// Build a compose override that bind-mounts the resolved providers directory at
-    /// `/providers` inside each labeled service and remaps file-provider env vars to
-    /// their container-side paths.
-    fn local_file_providers_overlay(&self, providers_host_path: &Path) -> String {
+    /// Build a compose override that bind-mounts each `(host_path, name)` file provider output at
+    /// `/providers/<name>` inside each labeled service.
+    fn local_file_providers_overlay(&self, mounts: &[(PathBuf, &str)]) -> String {
         let mut labeled_services: Vec<&String> = self.labeled.iter().collect();
         labeled_services.sort();
 
-        let volume = format!(
-            "{}:{}",
-            providers_host_path.display(),
-            PROVIDERS_CONTAINER_PATH
-        );
+        let volumes: Vec<Value> = mounts
+            .iter()
+            .map(|(host_path, name)| {
+                Value::String(format!(
+                    "{}:{PROVIDERS_CONTAINER_PATH}/{name}",
+                    host_path.display()
+                ))
+            })
+            .collect();
 
         let mut services_map = Mapping::new();
 
@@ -377,7 +401,7 @@ impl FileProviderServices {
 
             service_override_config.insert(
                 Value::String("volumes".into()),
-                Value::Sequence(vec![Value::String(volume.clone())]),
+                Value::Sequence(volumes.clone()),
             );
 
             services_map.insert(
@@ -1119,15 +1143,22 @@ pub(crate) mod tests {
             labeled: HashSet::from(["svc".to_string()]),
             ..Default::default()
         };
-        let p = Path::new("/out/providers/setup_providers");
-        let out = fps.local_file_providers_overlay(p);
+        let mounts = [
+            (PathBuf::from("/out/nested_1/setup_providers/a.py"), "a.py"),
+            (
+                PathBuf::from("/out/nested_2/setup_providers/b.txt"),
+                "b.txt",
+            ),
+        ];
+        let out = fps.local_file_providers_overlay(&mounts);
 
         let expected = indoc!(
             r#"
             services:
               svc:
                 volumes:
-                - /out/providers/setup_providers:/providers
+                - /out/nested_1/setup_providers/a.py:/providers/a.py
+                - /out/nested_2/setup_providers/b.txt:/providers/b.txt
             "#
         );
 
@@ -1140,18 +1171,18 @@ pub(crate) mod tests {
             labeled: HashSet::from(["svc-a".to_string(), "svc-b".to_string()]),
             ..Default::default()
         };
-        let p = Path::new("/out/providers/setup_providers");
-        let out = fps.local_file_providers_overlay(p);
+        let mounts = [(PathBuf::from("/out/setup_providers/a.py"), "a.py")];
+        let out = fps.local_file_providers_overlay(&mounts);
 
         let expected = indoc!(
             r#"
             services:
               svc-a:
                 volumes:
-                - /out/providers/setup_providers:/providers
+                - /out/setup_providers/a.py:/providers/a.py
               svc-b:
                 volumes:
-                - /out/providers/setup_providers:/providers
+                - /out/setup_providers/a.py:/providers/a.py
             "#
         );
 
