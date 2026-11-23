@@ -205,204 +205,198 @@
 <a href=#205 id=205 data-nosnippet>205</a>
 <a href=#206 id=206 data-nosnippet>206</a>        <span class="kw">let </span>image = test_plan.scenario.execution.docker_image();
 <a href=#207 id=207 data-nosnippet>207</a>        <span class="kw">let </span>command = test_plan.scenario.execution.command();
-<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">let </span>environment = test_plan.environment.execution.clone();
-<a href=#209 id=209 data-nosnippet>209</a>
-<a href=#210 id=210 data-nosnippet>210</a>        <span class="kw">let </span>env_yaml = yaml_serde::to_string(<span class="kw-2">&amp;</span>test_plan.environment)
-<a href=#211 id=211 data-nosnippet>211</a>            .map_err(|e| ResolverError::Serialisation(e.to_string()))<span class="question-mark">?</span>;
-<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">let </span>scenario_yaml = yaml_serde::to_string(<span class="kw-2">&amp;</span>test_plan.scenario)
-<a href=#213 id=213 data-nosnippet>213</a>            .map_err(|e| ResolverError::Serialisation(e.to_string()))<span class="question-mark">?</span>;
-<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">let </span>execution_variables = serde_json::to_string_pretty(<span class="kw-2">&amp;</span>test_plan.variables)
-<a href=#215 id=215 data-nosnippet>215</a>            .map_err(|e| ResolverError::Serialisation(e.to_string()))<span class="question-mark">?</span>;
-<a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">let </span>env_prom_queries = test_plan
-<a href=#218 id=218 data-nosnippet>218</a>            .environment
-<a href=#219 id=219 data-nosnippet>219</a>            .execution
-<a href=#220 id=220 data-nosnippet>220</a>            .prometheus_queries()
-<a href=#221 id=221 data-nosnippet>221</a>            .iter()
-<a href=#222 id=222 data-nosnippet>222</a>            .map(|q| {
-<a href=#223 id=223 data-nosnippet>223</a>                q.with_namespace_label_filter(<span class="kw-2">&amp;</span>ex.uuid().to_string())
-<a href=#224 id=224 data-nosnippet>224</a>                    .expect(<span class="string">"promql query should have been validated by try_check"</span>)
-<a href=#225 id=225 data-nosnippet>225</a>            })
-<a href=#226 id=226 data-nosnippet>226</a>            .collect();
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>scenario_prom_queries = test_plan
-<a href=#228 id=228 data-nosnippet>228</a>            .scenario
-<a href=#229 id=229 data-nosnippet>229</a>            .execution
-<a href=#230 id=230 data-nosnippet>230</a>            .output_collection
-<a href=#231 id=231 data-nosnippet>231</a>            .prometheus
-<a href=#232 id=232 data-nosnippet>232</a>            .iter()
-<a href=#233 id=233 data-nosnippet>233</a>            .map(|q| {
-<a href=#234 id=234 data-nosnippet>234</a>                q.with_namespace_label_filter(<span class="kw-2">&amp;</span>ex.uuid().to_string())
-<a href=#235 id=235 data-nosnippet>235</a>                    .expect(<span class="string">"promql query should have been validated by try_check"</span>)
-<a href=#236 id=236 data-nosnippet>236</a>            })
-<a href=#237 id=237 data-nosnippet>237</a>            .collect();
-<a href=#238 id=238 data-nosnippet>238</a>        <span class="kw">let </span>output_collection = OutputCollectionResponse {
-<a href=#239 id=239 data-nosnippet>239</a>            execution_variables,
-<a href=#240 id=240 data-nosnippet>240</a>            prometheus: PrometheusQueries {
-<a href=#241 id=241 data-nosnippet>241</a>                environment: env_prom_queries,
-<a href=#242 id=242 data-nosnippet>242</a>                scenario: scenario_prom_queries,
-<a href=#243 id=243 data-nosnippet>243</a>            },
-<a href=#244 id=244 data-nosnippet>244</a>        };
-<a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="self">self</span>.with_shared(|shared| {
-<a href=#247 id=247 data-nosnippet>247</a>            <span class="kw">let </span>exec = shared
-<a href=#248 id=248 data-nosnippet>248</a>                .executions
-<a href=#249 id=249 data-nosnippet>249</a>                .get_mut(<span class="kw-2">&amp;</span>ex.uuid())
-<a href=#250 id=250 data-nosnippet>250</a>                .ok_or(ResolverError::UnknownExecution(ex.uuid()))<span class="question-mark">?</span>;
-<a href=#251 id=251 data-nosnippet>251</a>
-<a href=#252 id=252 data-nosnippet>252</a>            exec.resolved_config = <span class="prelude-val">Some</span>(ResolvedExecutionConfig {
-<a href=#253 id=253 data-nosnippet>253</a>                env_yaml,
-<a href=#254 id=254 data-nosnippet>254</a>                scenario_yaml,
-<a href=#255 id=255 data-nosnippet>255</a>                output_collection,
-<a href=#256 id=256 data-nosnippet>256</a>                docker_image: image,
-<a href=#257 id=257 data-nosnippet>257</a>                docker_command: command,
-<a href=#258 id=258 data-nosnippet>258</a>                environment,
-<a href=#259 id=259 data-nosnippet>259</a>            });
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>            <span class="prelude-val">Ok</span>(())
-<a href=#262 id=262 data-nosnippet>262</a>        })
-<a href=#263 id=263 data-nosnippet>263</a>        .<span class="kw">await
-<a href=#264 id=264 data-nosnippet>264</a>    </span>}
-<a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>    <span class="doccomment">/// Send an event to the event loop.
-<a href=#267 id=267 data-nosnippet>267</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>send_event(
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#269 id=269 data-nosnippet>269</a>        ex: TestExecution,
-<a href=#270 id=270 data-nosnippet>270</a>        cluster: ClusterId,
-<a href=#271 id=271 data-nosnippet>271</a>        data: EventData,
-<a href=#272 id=272 data-nosnippet>272</a>    ) -&gt; resolver::Result&lt;()&gt; {
-<a href=#273 id=273 data-nosnippet>273</a>        <span class="self">self</span>.tx
-<a href=#274 id=274 data-nosnippet>274</a>            .send(QueueEvent::Other(Event::new(ex, cluster, data)))
-<a href=#275 id=275 data-nosnippet>275</a>            .map_err(|<span class="kw">_</span>| ResolverError::EventChannelClosed)
-<a href=#276 id=276 data-nosnippet>276</a>    }
-<a href=#277 id=277 data-nosnippet>277</a>
-<a href=#278 id=278 data-nosnippet>278</a>    <span class="doccomment">/// Return `n` queued execution claims back to the shared state.
-<a href=#279 id=279 data-nosnippet>279</a>    ///
-<a href=#280 id=280 data-nosnippet>280</a>    /// # Safety
-<a href=#281 id=281 data-nosnippet>281</a>    /// The caller must pass an `n` that matches the number of unused claims they previously
-<a href=#282 id=282 data-nosnippet>282</a>    /// obtained from `try_reserve_pending_executions`.
-<a href=#283 id=283 data-nosnippet>283</a>    </span><span class="kw">pub async unsafe fn </span>release_pending_execution_claim(<span class="kw-2">&amp;</span><span class="self">self</span>, n: usize) {
-<a href=#284 id=284 data-nosnippet>284</a>        <span class="kw">let </span><span class="kw-2">mut </span>shared = <span class="self">self</span>.shared.lock().<span class="kw">await</span>;
-<a href=#285 id=285 data-nosnippet>285</a>        shared.n_queued -= n;
-<a href=#286 id=286 data-nosnippet>286</a>    }
-<a href=#287 id=287 data-nosnippet>287</a>}
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a><span class="attr">#[cfg(test)]
-<a href=#290 id=290 data-nosnippet>290</a></span><span class="kw">mod </span>tests {
-<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">use crate</span>::{
-<a href=#293 id=293 data-nosnippet>293</a>        config::{Config, DEFAULT_POOL, WorkloadClusters},
-<a href=#294 id=294 data-nosnippet>294</a>        db::MockUpdateHandle,
-<a href=#295 id=295 data-nosnippet>295</a>        event_loop::{EventQueue, tests::stub_test_plan},
-<a href=#296 id=296 data-nosnippet>296</a>    };
-<a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">use </span>rtf_orchestrator_shared::payload::SourceKeyedArrayMap;
-<a href=#298 id=298 data-nosnippet>298</a>    <span class="kw">use </span>std::{assert_matches, collections::HashMap};
-<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">use </span>tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
-<a href=#300 id=300 data-nosnippet>300</a>
-<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">fn </span>empty_source_map&lt;T&gt;() -&gt; SourceKeyedArrayMap&lt;T&gt; {
-<a href=#302 id=302 data-nosnippet>302</a>        SourceKeyedArrayMap {
-<a href=#303 id=303 data-nosnippet>303</a>            keys: <span class="macro">vec!</span>[],
-<a href=#304 id=304 data-nosnippet>304</a>            data: <span class="macro">vec!</span>[],
-<a href=#305 id=305 data-nosnippet>305</a>        }
-<a href=#306 id=306 data-nosnippet>306</a>    }
-<a href=#307 id=307 data-nosnippet>307</a>
-<a href=#308 id=308 data-nosnippet>308</a>    <span class="kw">async fn </span>cache_stub_run(h: <span class="kw-2">&amp;</span>ProvisioningHandle, run_uuid: Uuid) {
-<a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">let </span>ctx = OrchestratorContext::new_from_inlined_files(
-<a href=#310 id=310 data-nosnippet>310</a>            <span class="kw-2">&amp;</span>Config::for_test(),
-<a href=#311 id=311 data-nosnippet>311</a>            empty_source_map(),
-<a href=#312 id=312 data-nosnippet>312</a>            empty_source_map(),
-<a href=#313 id=313 data-nosnippet>313</a>            HashMap::new(),
-<a href=#314 id=314 data-nosnippet>314</a>        );
-<a href=#315 id=315 data-nosnippet>315</a>        h.cache_for_test_run(
-<a href=#316 id=316 data-nosnippet>316</a>            run_uuid,
-<a href=#317 id=317 data-nosnippet>317</a>            UserType::Unknown,
-<a href=#318 id=318 data-nosnippet>318</a>            Default::default(),
-<a href=#319 id=319 data-nosnippet>319</a>            <span class="bool-val">false</span>,
-<a href=#320 id=320 data-nosnippet>320</a>            ctx,
-<a href=#321 id=321 data-nosnippet>321</a>            stub_test_plan(),
-<a href=#322 id=322 data-nosnippet>322</a>        )
-<a href=#323 id=323 data-nosnippet>323</a>        .<span class="kw">await</span>;
-<a href=#324 id=324 data-nosnippet>324</a>    }
-<a href=#325 id=325 data-nosnippet>325</a>
-<a href=#326 id=326 data-nosnippet>326</a>    <span class="kw">fn </span>test_prov_handle() -&gt; (ProvisioningHandle, UnboundedReceiver&lt;QueueEvent&gt;) {
-<a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">let </span>cfg = WorkloadClusters::for_test();
-<a href=#328 id=328 data-nosnippet>328</a>        <span class="kw">let </span>shared = Arc::new(Mutex::new(Shared {
-<a href=#329 id=329 data-nosnippet>329</a>            runs: HashMap::new(),
-<a href=#330 id=330 data-nosnippet>330</a>            executions: HashMap::new(),
-<a href=#331 id=331 data-nosnippet>331</a>            max_queued_executions: cfg.max_queued_executions,
-<a href=#332 id=332 data-nosnippet>332</a>            n_queued: <span class="number">0</span>,
-<a href=#333 id=333 data-nosnippet>333</a>        }));
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">let </span>(tx, rx) = unbounded_channel();
-<a href=#335 id=335 data-nosnippet>335</a>        <span class="kw">let </span>h = ProvisioningHandle::new(shared, tx);
-<a href=#336 id=336 data-nosnippet>336</a>
-<a href=#337 id=337 data-nosnippet>337</a>        (h, rx)
-<a href=#338 id=338 data-nosnippet>338</a>    }
-<a href=#339 id=339 data-nosnippet>339</a>
-<a href=#340 id=340 data-nosnippet>340</a>    <span class="attr">#[tokio::test]
-<a href=#341 id=341 data-nosnippet>341</a>    </span><span class="kw">async fn </span>request_provisioning_happy_path() {
-<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">let </span>(h, <span class="kw-2">mut </span>rx) = test_prov_handle();
-<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">let </span>tr = TestRun::create_stub(<span class="number">1</span>, <span class="string">"test"</span>);
-<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">let </span><span class="kw-2">mut </span>mock = MockUpdateHandle::with_run(tr.clone());
-<a href=#345 id=345 data-nosnippet>345</a>        cache_stub_run(<span class="kw-2">&amp;</span>h, tr.uuid()).<span class="kw">await</span>;
-<a href=#346 id=346 data-nosnippet>346</a>        h.shared.lock().<span class="kw">await</span>.n_queued = <span class="number">1</span>;
-<a href=#347 id=347 data-nosnippet>347</a>
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let </span>res = h
-<a href=#349 id=349 data-nosnippet>349</a>            .request_provisioning(<span class="kw-2">&amp;</span>tr, <span class="string">"test"</span>, <span class="number">0</span>, DEFAULT_POOL, <span class="kw-2">&amp;mut </span>mock)
-<a href=#350 id=350 data-nosnippet>350</a>            .<span class="kw">await</span>;
-<a href=#351 id=351 data-nosnippet>351</a>
-<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">let </span>ex_uuid = mock.test_executions[<span class="number">0</span>].uuid();
-<a href=#353 id=353 data-nosnippet>353</a>        <span class="macro">assert_matches!</span>(
-<a href=#354 id=354 data-nosnippet>354</a>            res,
-<a href=#355 id=355 data-nosnippet>355</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(id)) <span class="kw">if </span>id == ex_uuid,
-<a href=#356 id=356 data-nosnippet>356</a>            <span class="string">"should have submitted the execution: {res:?}"
-<a href=#357 id=357 data-nosnippet>357</a>        </span>);
-<a href=#358 id=358 data-nosnippet>358</a>
-<a href=#359 id=359 data-nosnippet>359</a>        h.with_shared(|shared| {
-<a href=#360 id=360 data-nosnippet>360</a>            <span class="macro">assert_eq!</span>(shared.n_queued, <span class="number">0</span>, <span class="string">"n_queued should have been decremented"</span>)
-<a href=#361 id=361 data-nosnippet>361</a>        })
-<a href=#362 id=362 data-nosnippet>362</a>        .<span class="kw">await</span>;
-<a href=#363 id=363 data-nosnippet>363</a>
-<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">let </span>event = rx.try_recv().expect(<span class="string">"event should have been sent"</span>);
-<a href=#365 id=365 data-nosnippet>365</a>
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="macro">assert_matches!</span>(
-<a href=#367 id=367 data-nosnippet>367</a>            event,
-<a href=#368 id=368 data-nosnippet>368</a>            QueueEvent::Provision(pool, PendingProvision { test_execution, run_uuid, requires_dedicated: <span class="bool-val">false</span>, initiated_by_user: UserType::Unknown })
-<a href=#369 id=369 data-nosnippet>369</a>                <span class="kw">if </span>pool == DEFAULT_POOL
-<a href=#370 id=370 data-nosnippet>370</a>                    &amp;&amp; test_execution.uuid() == ex_uuid
-<a href=#371 id=371 data-nosnippet>371</a>                    &amp;&amp; run_uuid == tr.uuid()
-<a href=#372 id=372 data-nosnippet>372</a>        );
-<a href=#373 id=373 data-nosnippet>373</a>    }
-<a href=#374 id=374 data-nosnippet>374</a>
-<a href=#375 id=375 data-nosnippet>375</a>    <span class="attr">#[tokio::test]
-<a href=#376 id=376 data-nosnippet>376</a>    </span><span class="kw">async fn </span>request_provisioning_returns_error_when_channel_is_closed() {
-<a href=#377 id=377 data-nosnippet>377</a>        <span class="kw">let </span>(h, rx) = test_prov_handle();
-<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">let </span>tr = TestRun::create_stub(<span class="number">1</span>, <span class="string">"test"</span>);
-<a href=#379 id=379 data-nosnippet>379</a>        <span class="kw">let </span><span class="kw-2">mut </span>mock = MockUpdateHandle::with_run(tr.clone());
-<a href=#380 id=380 data-nosnippet>380</a>        cache_stub_run(<span class="kw-2">&amp;</span>h, tr.uuid()).<span class="kw">await</span>;
-<a href=#381 id=381 data-nosnippet>381</a>        h.shared.lock().<span class="kw">await</span>.n_queued = <span class="number">1</span>;
-<a href=#382 id=382 data-nosnippet>382</a>        drop(rx);
-<a href=#383 id=383 data-nosnippet>383</a>
-<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">let </span>res = h
-<a href=#385 id=385 data-nosnippet>385</a>            .request_provisioning(<span class="kw-2">&amp;</span>tr, <span class="string">"test"</span>, <span class="number">0</span>, DEFAULT_POOL, <span class="kw-2">&amp;mut </span>mock)
-<a href=#386 id=386 data-nosnippet>386</a>            .<span class="kw">await</span>;
-<a href=#387 id=387 data-nosnippet>387</a>
-<a href=#388 id=388 data-nosnippet>388</a>        <span class="macro">assert_matches!</span>(
-<a href=#389 id=389 data-nosnippet>389</a>            res,
-<a href=#390 id=390 data-nosnippet>390</a>            <span class="prelude-val">Err</span>(<span class="kw">crate</span>::Error::Resolve(ResolverError::EventChannelClosed)),
-<a href=#391 id=391 data-nosnippet>391</a>            <span class="string">"should have failed to send event"
-<a href=#392 id=392 data-nosnippet>392</a>        </span>);
-<a href=#393 id=393 data-nosnippet>393</a>    }
-<a href=#394 id=394 data-nosnippet>394</a>
-<a href=#395 id=395 data-nosnippet>395</a>    <span class="attr">#[tokio::test]
-<a href=#396 id=396 data-nosnippet>396</a>    #[should_panic(expected = <span class="string">"request_provisioning called with n_queued == 0"</span>)]
-<a href=#397 id=397 data-nosnippet>397</a>    </span><span class="kw">async fn </span>request_provisioning_panics_when_n_queued_is_zero() {
-<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">let </span>(<span class="kw">_</span>, h, <span class="kw">_</span>, <span class="kw">_</span>) = EventQueue::new(<span class="kw-2">&amp;</span>WorkloadClusters::for_test());
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">let </span>tr = TestRun::create_stub(<span class="number">1</span>, <span class="string">"test"</span>);
-<a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">let </span><span class="kw-2">mut </span>mock = MockUpdateHandle::with_run(tr.clone());
-<a href=#401 id=401 data-nosnippet>401</a>        cache_stub_run(<span class="kw-2">&amp;</span>h, tr.uuid()).<span class="kw">await</span>;
-<a href=#402 id=402 data-nosnippet>402</a>
-<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">_ </span>= h
-<a href=#404 id=404 data-nosnippet>404</a>            .request_provisioning(<span class="kw-2">&amp;</span>tr, <span class="string">"test"</span>, <span class="number">0</span>, DEFAULT_POOL, <span class="kw-2">&amp;mut </span>mock)
-<a href=#405 id=405 data-nosnippet>405</a>            .<span class="kw">await</span>;
-<a href=#406 id=406 data-nosnippet>406</a>    }
-<a href=#407 id=407 data-nosnippet>407</a>}
+<a href=#208 id=208 data-nosnippet>208</a>
+<a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">let </span>execution_variables = serde_json::to_string_pretty(<span class="kw-2">&amp;</span>test_plan.variables)
+<a href=#210 id=210 data-nosnippet>210</a>            .map_err(|e| ResolverError::Serialisation(e.to_string()))<span class="question-mark">?</span>;
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">let </span>env_prom_queries = test_plan
+<a href=#213 id=213 data-nosnippet>213</a>            .environment
+<a href=#214 id=214 data-nosnippet>214</a>            .execution
+<a href=#215 id=215 data-nosnippet>215</a>            .prometheus_queries()
+<a href=#216 id=216 data-nosnippet>216</a>            .iter()
+<a href=#217 id=217 data-nosnippet>217</a>            .map(|q| {
+<a href=#218 id=218 data-nosnippet>218</a>                q.with_namespace_label_filter(<span class="kw-2">&amp;</span>ex.uuid().to_string())
+<a href=#219 id=219 data-nosnippet>219</a>                    .expect(<span class="string">"promql query should have been validated by try_check"</span>)
+<a href=#220 id=220 data-nosnippet>220</a>            })
+<a href=#221 id=221 data-nosnippet>221</a>            .collect();
+<a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">let </span>scenario_prom_queries = test_plan
+<a href=#223 id=223 data-nosnippet>223</a>            .scenario
+<a href=#224 id=224 data-nosnippet>224</a>            .execution
+<a href=#225 id=225 data-nosnippet>225</a>            .output_collection
+<a href=#226 id=226 data-nosnippet>226</a>            .prometheus
+<a href=#227 id=227 data-nosnippet>227</a>            .iter()
+<a href=#228 id=228 data-nosnippet>228</a>            .map(|q| {
+<a href=#229 id=229 data-nosnippet>229</a>                q.with_namespace_label_filter(<span class="kw-2">&amp;</span>ex.uuid().to_string())
+<a href=#230 id=230 data-nosnippet>230</a>                    .expect(<span class="string">"promql query should have been validated by try_check"</span>)
+<a href=#231 id=231 data-nosnippet>231</a>            })
+<a href=#232 id=232 data-nosnippet>232</a>            .collect();
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span>output_collection = OutputCollectionResponse {
+<a href=#234 id=234 data-nosnippet>234</a>            execution_variables,
+<a href=#235 id=235 data-nosnippet>235</a>            prometheus: PrometheusQueries {
+<a href=#236 id=236 data-nosnippet>236</a>                environment: env_prom_queries,
+<a href=#237 id=237 data-nosnippet>237</a>                scenario: scenario_prom_queries,
+<a href=#238 id=238 data-nosnippet>238</a>            },
+<a href=#239 id=239 data-nosnippet>239</a>        };
+<a href=#240 id=240 data-nosnippet>240</a>
+<a href=#241 id=241 data-nosnippet>241</a>        <span class="self">self</span>.with_shared(|shared| {
+<a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">let </span>exec = shared
+<a href=#243 id=243 data-nosnippet>243</a>                .executions
+<a href=#244 id=244 data-nosnippet>244</a>                .get_mut(<span class="kw-2">&amp;</span>ex.uuid())
+<a href=#245 id=245 data-nosnippet>245</a>                .ok_or(ResolverError::UnknownExecution(ex.uuid()))<span class="question-mark">?</span>;
+<a href=#246 id=246 data-nosnippet>246</a>
+<a href=#247 id=247 data-nosnippet>247</a>            exec.resolved_config = <span class="prelude-val">Some</span>(ResolvedExecutionConfig {
+<a href=#248 id=248 data-nosnippet>248</a>                environment_config: test_plan.environment,
+<a href=#249 id=249 data-nosnippet>249</a>                scenario_config: test_plan.scenario,
+<a href=#250 id=250 data-nosnippet>250</a>                output_collection,
+<a href=#251 id=251 data-nosnippet>251</a>                docker_image: image,
+<a href=#252 id=252 data-nosnippet>252</a>                docker_command: command,
+<a href=#253 id=253 data-nosnippet>253</a>            });
+<a href=#254 id=254 data-nosnippet>254</a>
+<a href=#255 id=255 data-nosnippet>255</a>            <span class="prelude-val">Ok</span>(())
+<a href=#256 id=256 data-nosnippet>256</a>        })
+<a href=#257 id=257 data-nosnippet>257</a>        .<span class="kw">await
+<a href=#258 id=258 data-nosnippet>258</a>    </span>}
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="doccomment">/// Send an event to the event loop.
+<a href=#261 id=261 data-nosnippet>261</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>send_event(
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#263 id=263 data-nosnippet>263</a>        ex: TestExecution,
+<a href=#264 id=264 data-nosnippet>264</a>        cluster: ClusterId,
+<a href=#265 id=265 data-nosnippet>265</a>        data: EventData,
+<a href=#266 id=266 data-nosnippet>266</a>    ) -&gt; resolver::Result&lt;()&gt; {
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="self">self</span>.tx
+<a href=#268 id=268 data-nosnippet>268</a>            .send(QueueEvent::Other(Event::new(ex, cluster, data)))
+<a href=#269 id=269 data-nosnippet>269</a>            .map_err(|<span class="kw">_</span>| ResolverError::EventChannelClosed)
+<a href=#270 id=270 data-nosnippet>270</a>    }
+<a href=#271 id=271 data-nosnippet>271</a>
+<a href=#272 id=272 data-nosnippet>272</a>    <span class="doccomment">/// Return `n` queued execution claims back to the shared state.
+<a href=#273 id=273 data-nosnippet>273</a>    ///
+<a href=#274 id=274 data-nosnippet>274</a>    /// # Safety
+<a href=#275 id=275 data-nosnippet>275</a>    /// The caller must pass an `n` that matches the number of unused claims they previously
+<a href=#276 id=276 data-nosnippet>276</a>    /// obtained from `try_reserve_pending_executions`.
+<a href=#277 id=277 data-nosnippet>277</a>    </span><span class="kw">pub async unsafe fn </span>release_pending_execution_claim(<span class="kw-2">&amp;</span><span class="self">self</span>, n: usize) {
+<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">let </span><span class="kw-2">mut </span>shared = <span class="self">self</span>.shared.lock().<span class="kw">await</span>;
+<a href=#279 id=279 data-nosnippet>279</a>        shared.n_queued -= n;
+<a href=#280 id=280 data-nosnippet>280</a>    }
+<a href=#281 id=281 data-nosnippet>281</a>}
+<a href=#282 id=282 data-nosnippet>282</a>
+<a href=#283 id=283 data-nosnippet>283</a><span class="attr">#[cfg(test)]
+<a href=#284 id=284 data-nosnippet>284</a></span><span class="kw">mod </span>tests {
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#286 id=286 data-nosnippet>286</a>    <span class="kw">use crate</span>::{
+<a href=#287 id=287 data-nosnippet>287</a>        config::{Config, DEFAULT_POOL, WorkloadClusters},
+<a href=#288 id=288 data-nosnippet>288</a>        db::MockUpdateHandle,
+<a href=#289 id=289 data-nosnippet>289</a>        event_loop::{EventQueue, tests::stub_test_plan},
+<a href=#290 id=290 data-nosnippet>290</a>    };
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">use </span>rtf_orchestrator_shared::payload::SourceKeyedArrayMap;
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">use </span>std::{assert_matches, collections::HashMap};
+<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">use </span>tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
+<a href=#294 id=294 data-nosnippet>294</a>
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="kw">fn </span>empty_source_map&lt;T&gt;() -&gt; SourceKeyedArrayMap&lt;T&gt; {
+<a href=#296 id=296 data-nosnippet>296</a>        SourceKeyedArrayMap {
+<a href=#297 id=297 data-nosnippet>297</a>            keys: <span class="macro">vec!</span>[],
+<a href=#298 id=298 data-nosnippet>298</a>            data: <span class="macro">vec!</span>[],
+<a href=#299 id=299 data-nosnippet>299</a>        }
+<a href=#300 id=300 data-nosnippet>300</a>    }
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a>    <span class="kw">async fn </span>cache_stub_run(h: <span class="kw-2">&amp;</span>ProvisioningHandle, run_uuid: Uuid) {
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>ctx = OrchestratorContext::new_from_inlined_files(
+<a href=#304 id=304 data-nosnippet>304</a>            <span class="kw-2">&amp;</span>Config::for_test(),
+<a href=#305 id=305 data-nosnippet>305</a>            empty_source_map(),
+<a href=#306 id=306 data-nosnippet>306</a>            empty_source_map(),
+<a href=#307 id=307 data-nosnippet>307</a>            HashMap::new(),
+<a href=#308 id=308 data-nosnippet>308</a>        );
+<a href=#309 id=309 data-nosnippet>309</a>        h.cache_for_test_run(
+<a href=#310 id=310 data-nosnippet>310</a>            run_uuid,
+<a href=#311 id=311 data-nosnippet>311</a>            UserType::Unknown,
+<a href=#312 id=312 data-nosnippet>312</a>            Default::default(),
+<a href=#313 id=313 data-nosnippet>313</a>            <span class="bool-val">false</span>,
+<a href=#314 id=314 data-nosnippet>314</a>            ctx,
+<a href=#315 id=315 data-nosnippet>315</a>            stub_test_plan(),
+<a href=#316 id=316 data-nosnippet>316</a>        )
+<a href=#317 id=317 data-nosnippet>317</a>        .<span class="kw">await</span>;
+<a href=#318 id=318 data-nosnippet>318</a>    }
+<a href=#319 id=319 data-nosnippet>319</a>
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">fn </span>test_prov_handle() -&gt; (ProvisioningHandle, UnboundedReceiver&lt;QueueEvent&gt;) {
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>cfg = WorkloadClusters::for_test();
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>shared = Arc::new(Mutex::new(Shared {
+<a href=#323 id=323 data-nosnippet>323</a>            runs: HashMap::new(),
+<a href=#324 id=324 data-nosnippet>324</a>            executions: HashMap::new(),
+<a href=#325 id=325 data-nosnippet>325</a>            max_queued_executions: cfg.max_queued_executions,
+<a href=#326 id=326 data-nosnippet>326</a>            n_queued: <span class="number">0</span>,
+<a href=#327 id=327 data-nosnippet>327</a>        }));
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="kw">let </span>(tx, rx) = unbounded_channel();
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">let </span>h = ProvisioningHandle::new(shared, tx);
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a>        (h, rx)
+<a href=#332 id=332 data-nosnippet>332</a>    }
+<a href=#333 id=333 data-nosnippet>333</a>
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="attr">#[tokio::test]
+<a href=#335 id=335 data-nosnippet>335</a>    </span><span class="kw">async fn </span>request_provisioning_happy_path() {
+<a href=#336 id=336 data-nosnippet>336</a>        <span class="kw">let </span>(h, <span class="kw-2">mut </span>rx) = test_prov_handle();
+<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">let </span>tr = TestRun::create_stub(<span class="number">1</span>, <span class="string">"test"</span>);
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span><span class="kw-2">mut </span>mock = MockUpdateHandle::with_run(tr.clone());
+<a href=#339 id=339 data-nosnippet>339</a>        cache_stub_run(<span class="kw-2">&amp;</span>h, tr.uuid()).<span class="kw">await</span>;
+<a href=#340 id=340 data-nosnippet>340</a>        h.shared.lock().<span class="kw">await</span>.n_queued = <span class="number">1</span>;
+<a href=#341 id=341 data-nosnippet>341</a>
+<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">let </span>res = h
+<a href=#343 id=343 data-nosnippet>343</a>            .request_provisioning(<span class="kw-2">&amp;</span>tr, <span class="string">"test"</span>, <span class="number">0</span>, DEFAULT_POOL, <span class="kw-2">&amp;mut </span>mock)
+<a href=#344 id=344 data-nosnippet>344</a>            .<span class="kw">await</span>;
+<a href=#345 id=345 data-nosnippet>345</a>
+<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span>ex_uuid = mock.test_executions[<span class="number">0</span>].uuid();
+<a href=#347 id=347 data-nosnippet>347</a>        <span class="macro">assert_matches!</span>(
+<a href=#348 id=348 data-nosnippet>348</a>            res,
+<a href=#349 id=349 data-nosnippet>349</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(id)) <span class="kw">if </span>id == ex_uuid,
+<a href=#350 id=350 data-nosnippet>350</a>            <span class="string">"should have submitted the execution: {res:?}"
+<a href=#351 id=351 data-nosnippet>351</a>        </span>);
+<a href=#352 id=352 data-nosnippet>352</a>
+<a href=#353 id=353 data-nosnippet>353</a>        h.with_shared(|shared| {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="macro">assert_eq!</span>(shared.n_queued, <span class="number">0</span>, <span class="string">"n_queued should have been decremented"</span>)
+<a href=#355 id=355 data-nosnippet>355</a>        })
+<a href=#356 id=356 data-nosnippet>356</a>        .<span class="kw">await</span>;
+<a href=#357 id=357 data-nosnippet>357</a>
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>event = rx.try_recv().expect(<span class="string">"event should have been sent"</span>);
+<a href=#359 id=359 data-nosnippet>359</a>
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="macro">assert_matches!</span>(
+<a href=#361 id=361 data-nosnippet>361</a>            event,
+<a href=#362 id=362 data-nosnippet>362</a>            QueueEvent::Provision(pool, PendingProvision { test_execution, run_uuid, requires_dedicated: <span class="bool-val">false</span>, initiated_by_user: UserType::Unknown })
+<a href=#363 id=363 data-nosnippet>363</a>                <span class="kw">if </span>pool == DEFAULT_POOL
+<a href=#364 id=364 data-nosnippet>364</a>                    &amp;&amp; test_execution.uuid() == ex_uuid
+<a href=#365 id=365 data-nosnippet>365</a>                    &amp;&amp; run_uuid == tr.uuid()
+<a href=#366 id=366 data-nosnippet>366</a>        );
+<a href=#367 id=367 data-nosnippet>367</a>    }
+<a href=#368 id=368 data-nosnippet>368</a>
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="attr">#[tokio::test]
+<a href=#370 id=370 data-nosnippet>370</a>    </span><span class="kw">async fn </span>request_provisioning_returns_error_when_channel_is_closed() {
+<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">let </span>(h, rx) = test_prov_handle();
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let </span>tr = TestRun::create_stub(<span class="number">1</span>, <span class="string">"test"</span>);
+<a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">let </span><span class="kw-2">mut </span>mock = MockUpdateHandle::with_run(tr.clone());
+<a href=#374 id=374 data-nosnippet>374</a>        cache_stub_run(<span class="kw-2">&amp;</span>h, tr.uuid()).<span class="kw">await</span>;
+<a href=#375 id=375 data-nosnippet>375</a>        h.shared.lock().<span class="kw">await</span>.n_queued = <span class="number">1</span>;
+<a href=#376 id=376 data-nosnippet>376</a>        drop(rx);
+<a href=#377 id=377 data-nosnippet>377</a>
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">let </span>res = h
+<a href=#379 id=379 data-nosnippet>379</a>            .request_provisioning(<span class="kw-2">&amp;</span>tr, <span class="string">"test"</span>, <span class="number">0</span>, DEFAULT_POOL, <span class="kw-2">&amp;mut </span>mock)
+<a href=#380 id=380 data-nosnippet>380</a>            .<span class="kw">await</span>;
+<a href=#381 id=381 data-nosnippet>381</a>
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="macro">assert_matches!</span>(
+<a href=#383 id=383 data-nosnippet>383</a>            res,
+<a href=#384 id=384 data-nosnippet>384</a>            <span class="prelude-val">Err</span>(<span class="kw">crate</span>::Error::Resolve(ResolverError::EventChannelClosed)),
+<a href=#385 id=385 data-nosnippet>385</a>            <span class="string">"should have failed to send event"
+<a href=#386 id=386 data-nosnippet>386</a>        </span>);
+<a href=#387 id=387 data-nosnippet>387</a>    }
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a>    <span class="attr">#[tokio::test]
+<a href=#390 id=390 data-nosnippet>390</a>    #[should_panic(expected = <span class="string">"request_provisioning called with n_queued == 0"</span>)]
+<a href=#391 id=391 data-nosnippet>391</a>    </span><span class="kw">async fn </span>request_provisioning_panics_when_n_queued_is_zero() {
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>(<span class="kw">_</span>, h, <span class="kw">_</span>, <span class="kw">_</span>) = EventQueue::new(<span class="kw-2">&amp;</span>WorkloadClusters::for_test());
+<a href=#393 id=393 data-nosnippet>393</a>        <span class="kw">let </span>tr = TestRun::create_stub(<span class="number">1</span>, <span class="string">"test"</span>);
+<a href=#394 id=394 data-nosnippet>394</a>        <span class="kw">let </span><span class="kw-2">mut </span>mock = MockUpdateHandle::with_run(tr.clone());
+<a href=#395 id=395 data-nosnippet>395</a>        cache_stub_run(<span class="kw-2">&amp;</span>h, tr.uuid()).<span class="kw">await</span>;
+<a href=#396 id=396 data-nosnippet>396</a>
+<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">_ </span>= h
+<a href=#398 id=398 data-nosnippet>398</a>            .request_provisioning(<span class="kw-2">&amp;</span>tr, <span class="string">"test"</span>, <span class="number">0</span>, DEFAULT_POOL, <span class="kw-2">&amp;mut </span>mock)
+<a href=#399 id=399 data-nosnippet>399</a>            .<span class="kw">await</span>;
+<a href=#400 id=400 data-nosnippet>400</a>    }
+<a href=#401 id=401 data-nosnippet>401</a>}
 </code></pre></div></section></main></body></html>
