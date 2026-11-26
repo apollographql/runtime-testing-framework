@@ -7,6 +7,7 @@ use rtf_config::{
     formats::{self, ManifestSummary, Matrix},
     templating::{self, Scalar, Template, TemplateContext},
 };
+use rtf_core::variables::VariableOverride;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -115,6 +116,8 @@ pub struct TestPlanDetails {
     pub matrix: MatrixSummary,
     pub environment: Option<EnvironmentSummary>,
     pub history: TestPlanHistory,
+    #[serde(default)]
+    pub registered_variables: BTreeMap<String, HashMap<String, VariableOverride>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

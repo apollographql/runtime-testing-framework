@@ -56,6 +56,7 @@ pub async fn remote_run_known(
     let payload = TriggerPayload::KnownTestPlanUuid(KnownTestPlanUuidPayload {
         test_plan_uuid,
         git_ref,
+        registered_variables: None,
         variables: (!flat.is_empty()).then_some(flat),
     });
 

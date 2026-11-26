@@ -411,6 +411,7 @@ mod tests {
                 Vec::new(),
             ))),
             history: TestPlanHistory::default(),
+            registered_variables: Default::default(),
         }
     }
 

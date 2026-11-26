@@ -832,6 +832,7 @@ pub(crate) mod mocks {
                 },
             )),
             history: TestPlanHistory::default(),
+            registered_variables: Default::default(),
         }
     }
 

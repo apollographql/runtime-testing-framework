@@ -48,6 +48,7 @@ pub async fn ci_run_known(
         TriggerPayload::KnownTestPlanUuid(KnownTestPlanUuidPayload {
             test_plan_uuid,
             git_ref,
+            registered_variables: None,
             variables: (!flat.is_empty()).then_some(flat),
         }),
         poll_interval_seconds,

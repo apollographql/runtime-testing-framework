@@ -250,6 +250,7 @@ impl KnownTestPlanTriggerForm {
         Ok(KnownTestPlanUuidPayload {
             test_plan_uuid: uuid,
             git_ref,
+            registered_variables: None,
             variables,
         })
     }

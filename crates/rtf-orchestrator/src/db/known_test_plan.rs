@@ -3,15 +3,23 @@ use crate::{
     db::{self, PoolId, Queryable, Result},
     state::{KnownUser, UserType},
 };
+use rtf_core::variables::VariableOverride;
 use rtf_orchestrator_shared::{
     known_test_plan::{KnownTestPlanSummary, Role as SharedRole, UpdateKnownTestPlanRequest},
     workload_config::WorkloadConfigPatch,
 };
 use serde_json::Value;
 use sqlx::{Connection, PgConnection, Postgres, QueryBuilder};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use tracing::warn;
 use uuid::Uuid;
+
+fn parse_variables(name: &str, data: Value) -> Result<HashMap<String, VariableOverride>> {
+    serde_json::from_value(data).map_err(|error| db::Error::MalformedVariables {
+        name: name.to_string(),
+        error,
+    })
+}
 
 /// A Test Plan registered with the orchestrator, identifiable by UUID or name so it can be
 /// triggered (and its runs queried) without the caller needing to know its GitHub location.
@@ -438,11 +446,12 @@ impl KnownTestPlan {
     pub async fn add_variables(
         &self,
         name: &str,
-        data: &Value,
+        variables: &HashMap<String, VariableOverride>,
         conn: &mut PgConnection,
     ) -> Result<()> {
+        let data = serde_json::to_value(variables).expect("variables to serialize");
         let mut tx = conn.begin().await?;
-        let variables_id = db::upsert_variables(data, &mut tx).await?;
+        let variables_id = db::upsert_variables(&data, &mut tx).await?;
 
         sqlx::query(
             r#"
@@ -475,7 +484,10 @@ impl KnownTestPlan {
         Ok(res.rows_affected() > 0)
     }
 
-    pub async fn all_variables(&self, conn: &mut PgConnection) -> Result<BTreeMap<String, Value>> {
+    pub async fn all_variables(
+        &self,
+        conn: &mut PgConnection,
+    ) -> Result<BTreeMap<String, HashMap<String, VariableOverride>>> {
         let rows: Vec<(String, Value)> = sqlx::query_as(
             r#"
                 SELECT
@@ -492,14 +504,19 @@ impl KnownTestPlan {
         .fetch_all(conn)
         .await?;
 
-        Ok(rows.into_iter().collect())
+        rows.into_iter()
+            .map(|(name, data)| {
+                let variables = parse_variables(&name, data)?;
+                Ok((name, variables))
+            })
+            .collect()
     }
 
     pub async fn variables_by_name(
         &self,
         name: &str,
         conn: &mut PgConnection,
-    ) -> Result<Option<Value>> {
+    ) -> Result<Option<HashMap<String, VariableOverride>>> {
         let row: Option<(Value,)> = sqlx::query_as(
             r#"
                 SELECT
@@ -517,7 +534,7 @@ impl KnownTestPlan {
         .fetch_optional(conn)
         .await?;
 
-        Ok(row.map(|(data,)| data))
+        row.map(|(data,)| parse_variables(name, data)).transpose()
     }
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<KnownTestPlanSummary> {
@@ -1196,13 +1213,17 @@ mod tests {
         Ok(())
     }
 
+    fn as_vars(value: Value) -> HashMap<String, VariableOverride> {
+        serde_json::from_value(value).unwrap()
+    }
+
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn all_variables_agrees_with_by_name() -> Result<()> {
         let c = conn!();
         let plan = register_plan(c).await?;
-        let vars_1 = json!({ "graph_ref": "a@current" });
-        let vars_2 = json!({ "tier": [1, 2] });
+        let vars_1 = as_vars(json!({ "graph_ref": "a@current" }));
+        let vars_2 = as_vars(json!({ "tier": [1, 2] }));
 
         plan.add_variables("vars_1", &vars_1, c).await?;
         plan.add_variables("vars_2", &vars_2, c).await?;
@@ -1232,8 +1253,8 @@ mod tests {
     async fn registered_variables_can_be_overwritten() -> Result<()> {
         let c = conn!();
         let plan = register_plan(c).await?;
-        let original = json!({ "graph_ref": "original@current" });
-        let updated = json!({ "graph_ref": "updated@current" });
+        let original = as_vars(json!({ "graph_ref": "original@current" }));
+        let updated = as_vars(json!({ "graph_ref": "updated@current" }));
 
         assert_eq!(plan.variables_by_name("vars", c).await?.as_ref(), None);
 
@@ -1257,7 +1278,7 @@ mod tests {
     async fn registered_variables_can_be_removed() -> Result<()> {
         let c = conn!();
         let plan = register_plan(c).await?;
-        let vars = json!({ "foo": 1 });
+        let vars = as_vars(json!({ "foo": 1 }));
 
         assert_eq!(plan.variables_by_name("vars", c).await?.as_ref(), None);
 
