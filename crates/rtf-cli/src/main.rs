@@ -198,8 +198,9 @@ async fn main() {
                 RemoteSubcommand::RunKnown {
                     test_plan_id,
                     git_ref,
+                    registered_vars,
                 },
-        } => remote_run_known(test_plan_id, git_ref, variables.into()).await,
+        } => remote_run_known(test_plan_id, git_ref, registered_vars, variables.into()).await,
 
         Command::Remote {
             subcommand:
@@ -225,12 +226,14 @@ async fn main() {
                 RemoteSubcommand::CiRunKnown {
                     test_plan_id,
                     git_ref,
+                    registered_vars,
                     poll_interval_seconds,
                 },
         } => {
             ci_run_known(
                 test_plan_id,
                 git_ref,
+                registered_vars,
                 poll_interval_seconds,
                 variables.into(),
             )
