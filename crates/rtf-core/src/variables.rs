@@ -275,6 +275,30 @@ impl ParsedVariables {
     }
 }
 
+/// Merge `overrides` into `base` with the same precedence rules used for merging
+/// overrides into a TestPlan:
+///   - entries in `overrides` replace entries in `base` with the same key
+///   - a compound group in `overrides` removes scalar and array entries in
+///     `base` for its member keys
+pub fn merge_variable_maps(
+    mut base: HashMap<String, VariableOverride>,
+    overrides: HashMap<String, VariableOverride>,
+) -> HashMap<String, VariableOverride> {
+    for entries in overrides.values() {
+        if let VariableOverride::Compound(entries) = entries {
+            for member in entries.iter().take(1).flat_map(|e| e.keys()) {
+                if !matches!(base.get(member), Some(VariableOverride::Compound(_))) {
+                    base.remove(member);
+                }
+            }
+        }
+    }
+
+    base.extend(overrides);
+
+    base
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -711,6 +735,39 @@ mod tests {
             flat.get("dupe"),
             Some(&VariableOverride::Scalar(Scalar::from(99)))
         );
+    }
+
+    #[test_case(
+        variables_json!({ "keep": "base", "scalar_to_array": "base", "array_to_scalar": [1, 2], "group": [{"a": 1, "b": 2}], }),
+        variables_json!({ "scalar_to_array": [3, 4], "array_to_scalar": 5, "group": [{"a": 6, "b": 7}], "new": true, }),
+        variables_json!({ "keep": "base", "scalar_to_array": [3, 4], "array_to_scalar": 5, "group": [{"a": 6, "b": 7}], "new": true, });
+        "overrides replace base entries of any kind"
+    )]
+    #[test_case(
+        variables_json!({ "region": ["us-east-1", "eu-west-1"], "tier": "free", "other": "kept", }),
+        variables_json!({ "geo": [{"region": "us-east-1", "tier": "enterprise"}] }),
+        variables_json!({ "geo": [{"region": "us-east-1", "tier": "enterprise"}], "other": "kept", });
+        "compound override removes base member keys"
+    )]
+    #[test_case(
+        variables_json!({ "region": "us-east-1" }),
+        variables_json!({ "region": ["us-east-1", "eu-west-1"], "geo": [{"region": "us-east-1"}], }),
+        variables_json!({ "region": ["us-east-1", "eu-west-1"], "geo": [{"region": "us-east-1"}], });
+        "compound override keeps member keys also in overrides"
+    )]
+    #[test_case(
+        variables_json!({ "subjects": [{"setup_subject": "world", "scenario_subject": "sailor"}] }),
+        variables_json!({ "subjects": [], "setup_subject": "fish" }),
+        variables_json!({ "subjects": [], "setup_subject": "fish" });
+        "empty array override replaces a base compound group"
+    )]
+    #[test]
+    fn merge_variable_maps_uses_correct_precedence(
+        base: HashMap<String, VariableOverride>,
+        overrides: HashMap<String, VariableOverride>,
+        expected: HashMap<String, VariableOverride>,
+    ) {
+        assert_eq!(merge_variable_maps(base, overrides), expected);
     }
 
     #[test]
