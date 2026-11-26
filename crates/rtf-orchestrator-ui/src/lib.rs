@@ -56,6 +56,14 @@ where
             post(test_plan_detail::post_trigger::<C>),
         )
         .route(
+            "/ui/test-plan/{uuid}/variables",
+            post(test_plan_detail::post_save_variables::<C>),
+        )
+        .route(
+            "/ui/test-plan/{uuid}/variables/delete",
+            post(test_plan_detail::post_delete_variables::<C>),
+        )
+        .route(
             "/ui/test-plan/{uuid}/edit",
             post(test_plan_edit::post_edit::<C>),
         )
