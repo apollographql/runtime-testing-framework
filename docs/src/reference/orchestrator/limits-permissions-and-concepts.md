@@ -28,15 +28,16 @@ Test Plan you are viewing.
 
 ## Permissions
 
-| Action                                   | Admin | Owner | Can trigger | User                       | Automation User                    |
-| ---------------------------------------- | ----- | ----- | ----------- | -------------------------- | ---------------------------------- |
-| Trigger an unregistered Test Plan        | Yes   | Yes   | Yes         | Yes                        | Not supported                      |
-| Trigger a Known Test Plan                | Yes   | Yes   | Yes         | Unless triggers restricted | Unless automated triggers disabled |
-| Register a Known Test Plan               | Yes   | No    | No          | No                         | No                                 |
-| Edit a Known Test Plan                   | Yes   | Yes¹  | No          | No                         | No                                 |
-| Add or remove owners                     | Yes   | No    | No          | No                         | No                                 |
-| Cancel a run                             | Yes   | Yes²  | Own runs    | Own runs                   | No                                 |
-| View runs, executions, output, and plans | Yes   | Yes   | Yes         | Yes                        | Yes                                |
+| Action                                               | Admin | Owner | Can trigger | User                       | Automation User                    |
+| ---------------------------------------------------- | ----- | ----- | ----------- | -------------------------- | ---------------------------------- |
+| Trigger an unregistered Test Plan                    | Yes   | Yes   | Yes         | Yes                        | Not supported                      |
+| Trigger a Known Test Plan                            | Yes   | Yes   | Yes         | Unless triggers restricted | Unless automated triggers disabled |
+| Register a Known Test Plan                           | Yes   | No    | No          | No                         | No                                 |
+| Edit a Known Test Plan                               | Yes   | Yes¹  | No          | No                         | No                                 |
+| Add or remove owners                                 | Yes   | No    | No          | No                         | No                                 |
+| Create, update, or delete [Registered Variables][10] | Yes   | Yes   | No          | No                         | No                                 |
+| Cancel a run                                         | Yes   | Yes²  | Own runs    | Own runs                   | No                                 |
+| View runs, executions, output, and plans             | Yes   | Yes   | Yes         | Yes                        | Yes                                |
 
 1. Except the pinned Workload Pool, the Dedicated Cluster setting, and owners.
 2. Runs of Known Test Plans they own, and runs they started.
@@ -109,3 +110,4 @@ you need to keep before then.
 [7]: ../glossary.md#known-test-plan
 [8]: ../glossary.md#workload-pool
 [9]: https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/runtime-testing-framework/gcs.tf
+[10]: ../glossary.md#registered-variables
