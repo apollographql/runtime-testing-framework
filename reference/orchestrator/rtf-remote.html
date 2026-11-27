@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-515a271a.js";
+            window.path_to_searchindex_js = "../../searchindex-7aee11e5.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -211,8 +211,8 @@ summarizes each subcommand. For every flag, see the <a href="../cli-help.html">C
 <tbody>
 <tr><td><code>run</code></td><td><code>&lt;test-plan-path&gt;</code> <code>[--github]</code> <code>[--ref &lt;ref&gt;]</code></td><td>Triggers a Test Run. Prints the Test Run ID and a UI link.</td></tr>
 <tr><td><code>ci-run</code></td><td><code>&lt;test-plan-path&gt;</code> <code>[--github]</code> <code>[--ref &lt;ref&gt;]</code> <code>[--poll-interval-seconds &lt;n&gt;]</code></td><td>Triggers a Test Run and polls until it completes.</td></tr>
-<tr><td><code>run-known</code></td><td><code>&lt;test-plan-uuid&gt;</code> <code>[--ref &lt;ref&gt;]</code></td><td>Triggers a <a href="../glossary.html#known-test-plan">Known Test Plan</a>. Prints the Test Run ID and a UI link.</td></tr>
-<tr><td><code>ci-run-known</code></td><td><code>&lt;test-plan-uuid&gt;</code> <code>[--ref &lt;ref&gt;]</code> <code>[--poll-interval-seconds &lt;n&gt;]</code></td><td>Triggers a Known Test Plan and polls until it completes.</td></tr>
+<tr><td><code>run-known</code></td><td><code>&lt;test-plan-uuid&gt;</code> <code>[--ref &lt;ref&gt;]</code> <code>[--registered-vars &lt;name&gt;]</code></td><td>Triggers a <a href="../glossary.html#known-test-plan">Known Test Plan</a>. Prints the Test Run ID and a UI link.</td></tr>
+<tr><td><code>ci-run-known</code></td><td><code>&lt;test-plan-uuid&gt;</code> <code>[--ref &lt;ref&gt;]</code> <code>[--registered-vars &lt;name&gt;]</code> <code>[--poll-interval-seconds &lt;n&gt;]</code></td><td>Triggers a Known Test Plan and polls until it completes.</td></tr>
 <tr><td><code>prepare</code></td><td><code>&lt;test-plan-path&gt;</code> <code>[--github]</code> <code>[--ref &lt;ref&gt;]</code></td><td>Writes the <a href="../glossary.html#trigger-payload">Trigger Payload</a> for a Test Plan to stdout.</td></tr>
 </tbody>
 </table>
@@ -222,6 +222,15 @@ summarizes each subcommand. For every flag, see the <a href="../cli-help.html">C
 <li><code>--github</code> reads <code>&lt;test-plan-path&gt;</code> as <code>&lt;org&gt;/&lt;repo&gt;/&lt;path&gt;</code> and fetches the Test Plan from GitHub
 on the local machine before submitting it.</li>
 <li>For <code>run-known</code> and <code>ci-run-known</code>, <code>--ref</code> overrides the Known Test Plan’s default branch.</li>
+<li>For <code>run-known</code> and <code>ci-run-known</code>, <code>--registered-vars &lt;name&gt;</code> uses the named
+<a href="../glossary.html#registered-variables">Registered Variables</a> of the Known Test Plan as the base for the run’s variables:
+<ul>
+<li>Variables set with <code>--var</code> and <code>--vars</code> replace registered variables with the same name.</li>
+<li>Setting a compound dimension with <code>--var</code> or <code>--vars</code> also removes any registered values for the
+variables in that dimension.</li>
+<li>The run is rejected if the Known Test Plan has no Registered Variables with that name.</li>
+</ul>
+</li>
 <li><code>--poll-interval-seconds</code> defaults to <code>10</code>.</li>
 <li>Runs triggered with <code>run</code> and <code>ci-run</code> always execute in the default <a href="../glossary.html#workload-pool">Workload Pool</a>.</li>
 </ul>

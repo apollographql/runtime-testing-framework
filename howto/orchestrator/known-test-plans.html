@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-515a271a.js";
+            window.path_to_searchindex_js = "../../searchindex-7aee11e5.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -245,15 +245,29 @@ Cluster can only be done by an Admin. To request these changes, start a conversa
 <a href="https://apollograph.slack.com/archives/C08UBLUD19C">#proj-runtime-testing-framework</a>. See <a href="../../reference/orchestrator/internal-processes.html">Orchestrator internal processes</a> for other changes
 that need an Admin.</p>
 <p>See <a href="../../reference/orchestrator/known-test-plan-configuration.html">Known Test Plan configuration</a> for details of each setting.</p>
+<h2 id="registering-variables-for-your-known-test-plan"><a class="header" href="#registering-variables-for-your-known-test-plan">Registering variables for your Known Test Plan</a></h2>
+<p>The Orchestrator allows owners to save sets of standard trigger variables against Known Test Plans
+as <a href="../../reference/glossary.html#registered-variables">Registered Variables</a>. Registered Variables are visible to everyone who can view the Known
+Test Plan, and can be used as the starting point for a run from the Orchestrator UI, the <code>rtf</code> CLI,
+and CI.</p>
+<p>To register a new variable set, set up the trigger form on the Known Test Plan’s page with the
+values you want and select <strong>Register variables…</strong>. See <a href="orchestrator-ui.html#using-registered-variables">Using Registered Variables</a> for how to
+update and delete them.</p>
+<p>Only owners and Admins are able to create, update, or delete Registered Variables.</p>
 <h2 id="triggering-your-known-test-plan"><a class="header" href="#triggering-your-known-test-plan">Triggering your Known Test Plan</a></h2>
 <p>The simplest way to trigger a run is from the <strong>Trigger a run</strong> section of the Known Test Plan’s
-page in the Orchestrator UI. From there you can either trigger a run using the current variable
-values, or use <strong>Customize ref &amp; variables</strong> to run from a different branch, tag, or commit and to
-override individual Trigger Variables.</p>
+page in the Orchestrator UI. From there you can trigger a run using the Test Plan’s default variable
+values, start from a set of Registered Variables, run from a different branch, tag, or commit, and
+override individual Trigger Variables. See <a href="orchestrator-ui.html#triggering-a-run">Triggering a run</a> for details.</p>
 <p>To trigger a run from a script or an agent, use the <code>rtf</code> CLI:</p>
 <pre><code class="language-bash">rtf remote run-known &lt;test-plan-uuid&gt;
 rtf remote ci-run-known &lt;test-plan-uuid&gt; --ref &lt;git-ref&gt; --var &lt;key&gt;=&lt;value&gt;
+rtf remote ci-run-known &lt;test-plan-uuid&gt; --registered-vars &lt;name&gt; --var &lt;key&gt;=&lt;value&gt;
 </code></pre>
+<p>The <code>--registered-vars</code> flag uses the named Registered Variables as the base for the run, with any
+variables provided using <code>--var</code> or <code>--vars</code> taking precedence. Registered Variables are looked up
+when the run is triggered, so the run always uses their latest values. See <a href="../../reference/orchestrator/rtf-remote.html#triggering-runs">Using <code>rtf remote</code></a>
+for how the two are combined.</p>
 <p>The UUID of your Known Test Plan is the final segment of the URL of its page in the Orchestrator UI.
 To trigger your Known Test Plan from CI, see <a href="getting-set-up.html#running-from-ci">Running from CI</a>.</p>
 

@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-515a271a.js";
+            window.path_to_searchindex_js = "../searchindex-7aee11e5.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4d4c8e60.js"></script>
@@ -222,6 +222,10 @@ Custom Providers generate file(s) using the arguments provided.</p>
 File Providers range from being completely general purpose (e.g. pulling an arbitrary file from
 GitHub) to generating data specific to the Test Plan being resolved (e.g. generating valid GraphQL
 operations to run against the supergraph under test).</p>
+<h2 id="registered-variables"><a class="header" href="#registered-variables">Registered Variables</a></h2>
+<p>A named set of Trigger Variables stored against a Known Test Plan on the RTF Orchestrator Service.
+Registered Variables can be used as the starting point for a Test Run, from the Orchestrator UI or
+with <code>--registered-vars</code>, so that common variable configurations don’t need to be recreated by hand.</p>
 <h2 id="rtf"><a class="header" href="#rtf">RTF</a></h2>
 <p>May refer to either the Runtime Testing Framework as a whole or the <code>rtf</code> CLI which is used to
 resolve and run Test Plans.</p>

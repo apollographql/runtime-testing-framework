@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-515a271a.js";
+            window.path_to_searchindex_js = "../../searchindex-7aee11e5.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4d4c8e60.js"></script>
@@ -285,9 +285,13 @@ repository needs to be set up to authenticate with the Orchestrator. See
       - uses: apollographql/release-tooling/rtf-orchestrator-run-known@&lt;commit-sha&gt;
         with:
           test_plan_id: &lt;test-plan-uuid&gt;
-          git_ref: &lt;git-ref&gt;     # optional
-          vars_file: vars.json   # optional
+          git_ref: &lt;git-ref&gt;              # optional
+          registered_variables: &lt;name&gt;    # optional
+          vars_file: vars.json            # optional
 </code></pre>
+<p>If <code>registered_variables</code> is set, the run starts from the named <a href="../../reference/glossary.html#registered-variables">Registered Variables</a> of the
+Known Test Plan, with any variables in <code>vars_file</code> taking precedence. This lets you keep the
+variables for your CI runs in the Orchestrator alongside those used when triggering from the UI.</p>
 <h2 id="using-private-docker-images-in-test-plans"><a class="header" href="#using-private-docker-images-in-test-plans">Using private Docker images in Test Plans</a></h2>
 <p>Public Docker images should be usable in Test Plans without any further setup. Images that are not
 public must be published to Apollo’s internal Docker registry first. See
