@@ -60,6 +60,12 @@ pub enum Error {
     #[error("the stored workload config patch for this known test plan is malformed: {0}")]
     MalformedWorkloadConfigPatch(serde_json::Error),
 
+    #[error("the stored variables {name:?} for this known test plan are malformed: {error}")]
+    MalformedVariables {
+        name: String,
+        error: serde_json::Error,
+    },
+
     #[error("FAILED status updates must include an exit code")]
     MissingExitCode,
 }

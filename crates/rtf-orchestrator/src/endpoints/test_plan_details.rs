@@ -7,7 +7,7 @@ use crate::{
     Error, Result,
     config::{Config, DEFAULT_POOL},
     conn,
-    db::{KnownTestPlan, PoolId},
+    db::KnownTestPlan,
 };
 use axum::{
     Json,
@@ -20,10 +20,11 @@ use rtf_integrations::github::Client as _;
 use rtf_orchestrator_shared::{
     test_plan::OrchestratorTestPlan,
     test_plan_details::{
-        EnvironmentSummary, MatrixSummary, TestPlanDetails, TestPlanDetailsParams, TestPlanHistory,
-        TestPlanSource, TestPlanVariable,
+        EnvironmentSummary, MatrixSummary, TestPlanDetails, TestPlanDetailsParams, TestPlanSource,
+        TestPlanVariable,
     },
 };
+use sqlx::PgConnection;
 use uuid::Uuid;
 
 pub async fn handler(
@@ -37,33 +38,20 @@ pub async fn handler(
             identifier: uuid.to_string(),
         })?;
 
-    let history = known
-        .test_plan_history(params.history_window(Utc::now()), conn)
-        .await?;
-    let pool = known
-        .pinned_workload_pool()
-        .unwrap_or_else(|| DEFAULT_POOL.clone());
+    let details = build_details(&known, params, Config::get().server_context(), conn!()).await?;
 
-    build_details(
-        &known,
-        params.git_ref,
-        pool,
-        history,
-        Config::get().server_context(),
-    )
-    .await
-    .map(Json)
+    Ok(Json(details))
 }
 
 async fn build_details(
     known: &KnownTestPlan,
-    git_ref: Option<String>,
-    pool: PoolId,
-    history: TestPlanHistory,
+    params: TestPlanDetailsParams,
     ctx: impl ResolutionContext,
+    conn: &mut PgConnection,
 ) -> Result<TestPlanDetails> {
     // Resolving the ref up front pins every file we go on to read to a single commit, rather than
     // racing a branch that could move mid-request.
+    let git_ref = params.git_ref.clone();
     let sha = ctx
         .github_client()
         .expect("to have a github client")
@@ -71,8 +59,15 @@ async fn build_details(
         .await?;
 
     let mut details = build_details_without_history(known, git_ref, sha, ctx).await?;
-    details.pool = pool.to_string();
-    details.history = history;
+
+    details.pool = known
+        .pinned_workload_pool()
+        .unwrap_or_else(|| DEFAULT_POOL.clone())
+        .to_string();
+    details.history = known
+        .test_plan_history(params.history_window(Utc::now()), conn)
+        .await?;
+    details.registered_variables = known.all_variables(conn).await?;
 
     Ok(details)
 }
@@ -127,6 +122,7 @@ async fn build_details_without_history(
         // set from DB state in build_details
         pool: Default::default(),
         history: Default::default(),
+        registered_variables: Default::default(),
     })
 }
 

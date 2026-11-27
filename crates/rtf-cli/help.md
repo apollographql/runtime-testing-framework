@@ -453,6 +453,7 @@ The output of this command will be the test run id and a link to the RTF UI to v
 ###### **Options:**
 
 * `--ref <GIT_REF>` — Optional git ref to run the test plan from, overriding the ref registered for the known test plan
+* `--registered-vars <REGISTERED_VARS>` — Optional name of variables registered against the known test plan to use as a base for any variables provided with --var and --vars
 
 
 
@@ -503,6 +504,7 @@ Exit codes: 0 if the run succeeded, 1 if it failed, and 2 if it was unrunnable o
 ###### **Options:**
 
 * `--ref <GIT_REF>` — Optional git ref to run the test plan from, overriding the ref registered for the known test plan
+* `--registered-vars <REGISTERED_VARS>` — Optional name of variables registered against the known test plan to use as a base for any variables provided with --var and --vars
 * `--poll-interval-seconds <POLL_INTERVAL_SECONDS>` — Number of seconds to wait between polls for the status of the test run
 
   Default value: `10`

@@ -84,5 +84,10 @@
       "max_secs": 0,
       "total": 0
     }
+  },
+  "registered_variables": {
+    "perf-graph": {
+      "graph_ref": "my-graph@current"
+    }
   }
 }

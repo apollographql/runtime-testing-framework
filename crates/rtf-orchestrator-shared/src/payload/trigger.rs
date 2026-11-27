@@ -45,6 +45,8 @@ pub struct KnownTestPlanUuidPayload {
     #[serde(default, rename = "ref")]
     pub git_ref: Option<String>,
     #[serde(default)]
+    pub registered_variables: Option<String>,
+    #[serde(default)]
     pub variables: Option<HashMap<String, VariableOverride>>,
 }
 
@@ -54,6 +56,8 @@ pub struct KnownTestPlanNamePayload {
     /// Overrides the registered test plan's default branch, if supplied.
     #[serde(default, rename = "ref")]
     pub git_ref: Option<String>,
+    #[serde(default)]
+    pub registered_variables: Option<String>,
     #[serde(default)]
     pub variables: Option<HashMap<String, VariableOverride>>,
 }

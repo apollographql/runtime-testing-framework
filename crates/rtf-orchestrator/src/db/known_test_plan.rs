@@ -3,15 +3,23 @@ use crate::{
     db::{self, PoolId, Queryable, Result},
     state::{KnownUser, UserType},
 };
+use rtf_core::variables::VariableOverride;
 use rtf_orchestrator_shared::{
     known_test_plan::{KnownTestPlanSummary, Role as SharedRole, UpdateKnownTestPlanRequest},
     workload_config::WorkloadConfigPatch,
 };
 use serde_json::Value;
 use sqlx::{Connection, PgConnection, Postgres, QueryBuilder};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use tracing::warn;
 use uuid::Uuid;
+
+fn parse_variables(name: &str, data: Value) -> Result<HashMap<String, VariableOverride>> {
+    serde_json::from_value(data).map_err(|error| db::Error::MalformedVariables {
+        name: name.to_string(),
+        error,
+    })
+}
 
 /// A Test Plan registered with the orchestrator, identifiable by UUID or name so it can be
 /// triggered (and its runs queried) without the caller needing to know its GitHub location.
@@ -435,6 +443,100 @@ impl KnownTestPlan {
         Ok(rows.into_iter().collect())
     }
 
+    pub async fn add_variables(
+        &self,
+        name: &str,
+        variables: &HashMap<String, VariableOverride>,
+        conn: &mut PgConnection,
+    ) -> Result<()> {
+        let data = serde_json::to_value(variables).expect("variables to serialize");
+        let mut tx = conn.begin().await?;
+        let variables_id = db::upsert_variables(&data, &mut tx).await?;
+
+        sqlx::query(
+            r#"
+                INSERT INTO known_test_plan_variables (known_test_plan_id, name, variables_id)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (known_test_plan_id, name)
+                  DO UPDATE SET variables_id = EXCLUDED.variables_id;
+                "#,
+        )
+        .bind(self.id())
+        .bind(name)
+        .bind(variables_id)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(())
+    }
+
+    pub async fn remove_variables(&self, name: &str, conn: &mut PgConnection) -> Result<bool> {
+        let res = sqlx::query(
+            "DELETE FROM known_test_plan_variables WHERE known_test_plan_id = $1 AND name = $2;",
+        )
+        .bind(self.id())
+        .bind(name)
+        .execute(conn)
+        .await?;
+
+        Ok(res.rows_affected() > 0)
+    }
+
+    pub async fn all_variables(
+        &self,
+        conn: &mut PgConnection,
+    ) -> Result<BTreeMap<String, HashMap<String, VariableOverride>>> {
+        let rows: Vec<(String, Value)> = sqlx::query_as(
+            r#"
+                SELECT
+                  ktpv.name, v.data
+                FROM
+                  known_test_plan_variables AS ktpv
+                JOIN variables AS v
+                  ON v.id = ktpv.variables_id
+                WHERE
+                  ktpv.known_test_plan_id = $1;
+                "#,
+        )
+        .bind(self.id())
+        .fetch_all(conn)
+        .await?;
+
+        rows.into_iter()
+            .map(|(name, data)| {
+                let variables = parse_variables(&name, data)?;
+                Ok((name, variables))
+            })
+            .collect()
+    }
+
+    pub async fn variables_by_name(
+        &self,
+        name: &str,
+        conn: &mut PgConnection,
+    ) -> Result<Option<HashMap<String, VariableOverride>>> {
+        let row: Option<(Value,)> = sqlx::query_as(
+            r#"
+                SELECT
+                  v.data
+                FROM
+                  known_test_plan_variables AS ktpv
+                JOIN variables AS v
+                  ON v.id = ktpv.variables_id
+                WHERE
+                  ktpv.known_test_plan_id = $1 AND ktpv.name = $2;
+                "#,
+        )
+        .bind(self.id())
+        .bind(name)
+        .fetch_optional(conn)
+        .await?;
+
+        row.map(|(data,)| parse_variables(name, data)).transpose()
+    }
+
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<KnownTestPlanSummary> {
         let workload_config_patch = self.workload_config_patch().unwrap_or_else(|e| {
             warn!(plan = %self.uuid, "{e}");
@@ -574,6 +676,7 @@ impl KnownTestPlanFilter {
 mod tests {
     use super::*;
     use crate::{config::DEFAULT_POOL, conn, db::TestRun};
+    use serde_json::json;
     use simple_test_case::test_case;
     use std::assert_matches;
     use uuid::Uuid;
@@ -584,6 +687,10 @@ mod tests {
 
     fn unique(label: &str) -> String {
         format!("{label}-{}", Uuid::new_v4())
+    }
+
+    async fn register_plan(c: &mut PgConnection) -> Result<KnownTestPlan> {
+        KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c).await
     }
 
     fn plan_with_stored_patch(workload_config_patch: Option<Value>) -> KnownTestPlan {
@@ -725,9 +832,7 @@ mod tests {
     #[tokio::test]
     async fn link_persists_the_git_sha() -> Result<()> {
         let c = conn!();
-        let known =
-            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
-                .await?;
+        let known = register_plan(c).await?;
         let tr = TestRun::init_unknown_initiator(&unique("run"), None, &DEFAULT_POOL, c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), Some("abc123"), c).await?;
@@ -743,9 +848,7 @@ mod tests {
     #[tokio::test]
     async fn link_allows_a_null_git_sha() -> Result<()> {
         let c = conn!();
-        let known =
-            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
-                .await?;
+        let known = register_plan(c).await?;
         let tr = TestRun::init_unknown_initiator(&unique("run"), None, &DEFAULT_POOL, c).await?;
 
         let link = KnownTestPlanRun::link(known.id(), tr.id(), None, c).await?;
@@ -845,9 +948,7 @@ mod tests {
         expected: &[(&str, Role)],
     ) -> Result<()> {
         let c = conn!();
-        let plan =
-            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
-                .await?;
+        let plan = register_plan(c).await?;
 
         // Set initial users
         let plan = plan
@@ -880,19 +981,18 @@ mod tests {
         req: UpdateKnownTestPlanRequest,
     ) -> crate::Result<KnownTestPlan> {
         let c = conn!();
-        let plan =
-            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
-                .await
-                .expect("failed to create known test plan")
-                .update(
-                    update_users_req(&[
-                        (OWNER, Some(SharedRole::Owner)),
-                        (TRIGGER, Some(SharedRole::CanTrigger)),
-                    ]),
-                    c,
-                )
-                .await
-                .expect("failed to set initial owners");
+        let plan = register_plan(c)
+            .await
+            .expect("failed to create known test plan")
+            .update(
+                update_users_req(&[
+                    (OWNER, Some(SharedRole::Owner)),
+                    (TRIGGER, Some(SharedRole::CanTrigger)),
+                ]),
+                c,
+            )
+            .await
+            .expect("failed to set initial owners");
 
         plan.validate_and_update(
             &user,
@@ -1062,13 +1162,12 @@ mod tests {
         req.restrict_triggers = Some(restrict_triggers);
         req.restrict_automated_triggers = Some(restrict_automated_triggers);
 
-        let plan =
-            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
-                .await
-                .expect("failed to create known test plan")
-                .update(req, c)
-                .await
-                .expect("failed to configure known test plan");
+        let plan = register_plan(c)
+            .await
+            .expect("failed to create known test plan")
+            .update(req, c)
+            .await
+            .expect("failed to configure known test plan");
 
         let can_trigger = plan.user_can_trigger(&user, c).await.unwrap();
 
@@ -1082,9 +1181,7 @@ mod tests {
     async fn try_into_summary_includes_associated_users() -> Result<()> {
         let c = conn!();
         let (owner, trigger) = (unique("owner"), unique("trigger"));
-        let plan =
-            KnownTestPlan::register(&unique("plan"), None, "org", "repo", &unique("path"), c)
-                .await?;
+        let plan = register_plan(c).await?;
         let plan = plan
             .update(
                 UpdateKnownTestPlanRequest {
@@ -1112,6 +1209,87 @@ mod tests {
                 (trigger, SharedRole::CanTrigger)
             ])
         );
+
+        Ok(())
+    }
+
+    fn as_vars(value: Value) -> HashMap<String, VariableOverride> {
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn all_variables_agrees_with_by_name() -> Result<()> {
+        let c = conn!();
+        let plan = register_plan(c).await?;
+        let vars_1 = as_vars(json!({ "graph_ref": "a@current" }));
+        let vars_2 = as_vars(json!({ "tier": [1, 2] }));
+
+        plan.add_variables("vars_1", &vars_1, c).await?;
+        plan.add_variables("vars_2", &vars_2, c).await?;
+
+        assert_eq!(
+            plan.variables_by_name("vars_1", c).await?.as_ref(),
+            Some(&vars_1)
+        );
+        assert_eq!(
+            plan.variables_by_name("vars_2", c).await?.as_ref(),
+            Some(&vars_2)
+        );
+
+        assert_eq!(
+            plan.all_variables(c).await?,
+            BTreeMap::from([
+                ("vars_1".to_string(), vars_1),
+                ("vars_2".to_string(), vars_2)
+            ])
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn registered_variables_can_be_overwritten() -> Result<()> {
+        let c = conn!();
+        let plan = register_plan(c).await?;
+        let original = as_vars(json!({ "graph_ref": "original@current" }));
+        let updated = as_vars(json!({ "graph_ref": "updated@current" }));
+
+        assert_eq!(plan.variables_by_name("vars", c).await?.as_ref(), None);
+
+        plan.add_variables("vars", &original, c).await?;
+        assert_eq!(
+            plan.variables_by_name("vars", c).await?.as_ref(),
+            Some(&original)
+        );
+
+        plan.add_variables("vars", &updated, c).await?;
+        assert_eq!(
+            plan.variables_by_name("vars", c).await?.as_ref(),
+            Some(&updated)
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn registered_variables_can_be_removed() -> Result<()> {
+        let c = conn!();
+        let plan = register_plan(c).await?;
+        let vars = as_vars(json!({ "foo": 1 }));
+
+        assert_eq!(plan.variables_by_name("vars", c).await?.as_ref(), None);
+
+        plan.add_variables("vars", &vars, c).await?;
+        assert_eq!(
+            plan.variables_by_name("vars", c).await?.as_ref(),
+            Some(&vars)
+        );
+
+        assert!(plan.remove_variables("vars", c).await?);
+        assert_eq!(plan.variables_by_name("vars", c).await?.as_ref(), None);
 
         Ok(())
     }

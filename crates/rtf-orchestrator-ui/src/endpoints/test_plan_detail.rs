@@ -1,5 +1,5 @@
 use crate::{
-    endpoints::{SelectedTemplate, parse_trigger_ref_and_variables, to_response},
+    endpoints::{SelectedTemplate, TriggerVariables, parse_trigger_ref_and_variables, to_response},
     orchestrator::{self, Client, OrchestratorClient},
     templates::{ErrorTemplate, TestPlanDetailTemplate, TestPlanNotFoundTemplate},
     view::{KnownTestPlanRowView, RunListView, TestPlanDetailsView, TestPlanEditView, ViewerBadge},
@@ -17,6 +17,7 @@ use rtf_orchestrator_shared::{
     test_plan_details::{DEFAULT_DAYS, DEFAULT_DAYS_BACK, TestPlanDetails, TestPlanDetailsParams},
     whoami::WhoAmIResponse,
 };
+use serde::Deserialize;
 use tracing::error;
 use url::form_urlencoded;
 use uuid::Uuid;
@@ -25,7 +26,7 @@ const DEFAULT_LIMIT: i64 = 20;
 
 /// `trigger_variables`/`trigger_error` are only set by [`redirect_with_trigger_error`]. `trigger_ref`
 /// is also the ref that details are resolved for, and must be carried through to the trigger form.
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct TestPlanDetailParams {
     offset: Option<i64>,
     #[serde(default, rename = "trigger_ref")]
@@ -231,7 +232,7 @@ fn select_template(
     }))
 }
 
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct KnownTestPlanTriggerForm {
     #[serde(rename = "ref")]
     git_ref: String,
@@ -250,6 +251,7 @@ impl KnownTestPlanTriggerForm {
         Ok(KnownTestPlanUuidPayload {
             test_plan_uuid: uuid,
             git_ref,
+            registered_variables: None,
             variables,
         })
     }
@@ -279,6 +281,69 @@ pub async fn post_trigger<C: Client>(
             redirect_with_trigger_error(uuid, &form, &message)
         }
     }
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct RegisteredVariablesForm {
+    name: String,
+    #[serde(default)]
+    variables: String,
+}
+
+pub async fn post_save_variables<C: Client>(
+    OrchestratorClient(client): OrchestratorClient<C>,
+    Path(uuid): Path<Uuid>,
+    Form(form): Form<RegisteredVariablesForm>,
+) -> Response {
+    let name = form.name.trim();
+    if name.is_empty() {
+        return redirect_with_variables_error(uuid, "Variables need a name to be saved");
+    }
+
+    let vars: TriggerVariables = match serde_json::from_str(&form.variables) {
+        Ok(vars) => vars,
+        Err(e) => {
+            return redirect_with_variables_error(
+                uuid,
+                &format!("Variables must be a JSON object: {e}"),
+            );
+        }
+    };
+
+    let res = client.put_registered_variables(uuid, name, &vars).await;
+
+    redirect_after_registered_variables_update(uuid, res)
+}
+
+pub async fn post_delete_variables<C: Client>(
+    OrchestratorClient(client): OrchestratorClient<C>,
+    Path(uuid): Path<Uuid>,
+    Form(form): Form<RegisteredVariablesForm>,
+) -> Response {
+    let res = client.delete_registered_variables(uuid, &form.name).await;
+
+    redirect_after_registered_variables_update(uuid, res)
+}
+
+fn redirect_after_registered_variables_update(
+    uuid: Uuid,
+    res: Result<(), orchestrator::Error>,
+) -> Response {
+    match res {
+        Ok(_) => Redirect::to(&format!("/ui/test-plan/{uuid}")).into_response(),
+        Err(error) => {
+            error!(%error, %uuid, "failed to update registered variables from the orchestrator");
+            let message = match &error {
+                orchestrator::Error::RegisteredVariables { message, .. } => message.clone(),
+                e => format!("Unable to update registered variables: {e}"),
+            };
+            redirect_with_variables_error(uuid, &message)
+        }
+    }
+}
+
+fn redirect_with_variables_error(uuid: Uuid, message: &str) -> Response {
+    redirect_with_trigger_error(uuid, &KnownTestPlanTriggerForm::default(), message)
 }
 
 fn redirect_with_trigger_error(
@@ -313,6 +378,7 @@ mod tests {
     use axum::http::header::LOCATION;
     use reqwest::StatusCode;
     use rtf_orchestrator_shared::status::Status;
+    use simple_test_case::test_case;
     use std::assert_matches;
 
     fn ok_results(uuid: Uuid) -> TestPlanDetailResults {
@@ -589,5 +655,69 @@ mod tests {
             resp.headers().get(LOCATION).unwrap(),
             &format!("/ui/run/{run_id}")
         );
+    }
+
+    fn mock_client() -> OrchestratorClient<MockClient> {
+        OrchestratorClient(MockClient::with_test_run(
+            Uuid::from_u128(2),
+            Uuid::from_u128(3),
+            Status::Running,
+        ))
+    }
+
+    fn location(resp: &Response) -> String {
+        resp.headers()
+            .get(LOCATION)
+            .expect("redirect should carry a Location header")
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
+
+    #[test_case("   ", r#"{"a": 1}"#; "blank name")]
+    #[test_case("vars", "not json"; "invalid variables")]
+    #[tokio::test]
+    async fn post_save_variables_redirects_with_an_error_for_an_invalid_form(
+        name: &str,
+        variables: &str,
+    ) {
+        let uuid = Uuid::from_u128(1);
+        let resp = post_save_variables(
+            mock_client(),
+            Path(uuid),
+            Form(RegisteredVariablesForm {
+                name: name.to_owned(),
+                variables: variables.to_owned(),
+            }),
+        )
+        .await;
+
+        assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+        assert!(location(&resp).contains("trigger_error="));
+    }
+
+    fn vars_form() -> RegisteredVariablesForm {
+        RegisteredVariablesForm {
+            name: "vars".to_owned(),
+            variables: r#"{"a":1}"#.to_owned(),
+        }
+    }
+
+    #[tokio::test]
+    async fn post_save_variables_redirects_to_the_test_plan_on_success() {
+        let uuid = Uuid::from_u128(1);
+        let resp = post_save_variables(mock_client(), Path(uuid), Form(vars_form())).await;
+
+        assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+        assert_eq!(location(&resp), format!("/ui/test-plan/{uuid}"));
+    }
+
+    #[tokio::test]
+    async fn post_delete_variables_redirects_to_the_test_plan_on_success() {
+        let uuid = Uuid::from_u128(1);
+        let resp = post_delete_variables(mock_client(), Path(uuid), Form(vars_form())).await;
+
+        assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+        assert_eq!(location(&resp), format!("/ui/test-plan/{uuid}"));
     }
 }

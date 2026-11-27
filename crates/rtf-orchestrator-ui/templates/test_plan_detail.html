@@ -243,7 +243,37 @@
 
 <div x-data="triggerForm">
 <section class="card" id="trigger-section">
-    <form method="get" action="/ui/test-plan/{{ plan.uuid }}" class="ref-row">
+    <div class="registered-bar">
+        <label for="registered-variables"><strong>Start from</strong></label>
+        <select id="registered-variables" x-effect="$el.value = registeredName" @change="selectRegistered($event)">
+            <option value="">Test plan defaults</option>
+            {% if !d.registered_variables.is_empty() %}
+            <optgroup label="Registered variables">
+                {% for name in d.registered_variables.keys() %}
+                <option value="{{ name }}">{{ name }}</option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
+        </select>
+        <span x-show="registeredModified" x-cloak>
+            <span class="pill pill--modified">modified</span>
+            <button type="button" class="link" @click="loadRegistered(registeredName)">reset</button>
+        </span>
+        <span class="spacer"></span>
+        {% if edit.is_some() %}
+        <form method="post" action="/ui/test-plan/{{ plan.uuid }}/variables" x-show="registeredName && registeredModified" x-cloak @submit="confirmUpdate($event)">
+            <input type="hidden" name="name" :value="registeredName" />
+            <input type="hidden" name="variables" :value="overridesJson || '{}'" />
+            <button type="submit" class="secondary" :disabled="rawPending" x-text="`Update “${registeredName}”`"></button>
+        </form>
+        <button type="button" class="secondary" :disabled="rawPending" @click="openSave()">Register variables&hellip;</button>
+        {% else %}
+        <span class="muted">Only owners and admins can register variables</span>
+        {% endif %}
+        <button type="button" class="icon" title="Manage registered variables" @click="$refs.manageDialog.showModal()">&#9881; Manage</button>
+    </div>
+
+    <form method="get" action="/ui/test-plan/{{ plan.uuid }}" class="ref-row" style="margin-top:0.9rem">
         <input type="hidden" name="days_back" value="{{ days_back }}" />
         <input type="hidden" name="days" value="{{ days }}" />
         <label for="ref-preview"><strong>Ref</strong></label>
@@ -251,6 +281,7 @@
         <button type="submit" class="secondary">Load ref</button>
         <span class="muted">Branch, tag or SHA (defaults to the default branch). Variables and defaults below come from this ref.</span>
     </form>
+
 
     <p class="warn-box" style="margin:0.75rem 0 0" x-show="loadError" x-cloak>The submitted variables couldn't be loaded into the form. They're kept unchanged in <strong>Raw variables JSON</strong> below.</p>
 
@@ -503,6 +534,60 @@
         </table>
     </div>
     <div class="dialog-actions"><button type="button" class="secondary" @click="$refs.variantsDialog.close()">Close</button></div>
+</dialog>
+
+{% if edit.is_some() %}
+<dialog x-ref="saveDialog">
+    <form method="post" action="/ui/test-plan/{{ plan.uuid }}/variables" @submit="confirmSave($event)">
+        <h3>Register variables</h3>
+        <p class="muted">Registered variables are shared with everyone who can view this test plan. Only owners and admins can create or change them.</p>
+        <p>
+            <label for="save-name"><strong>Name</strong></label><br>
+            <input id="save-name" name="name" type="text" x-ref="saveName" x-model="saveName" placeholder="e.g. Peak load ramp" size="40" />
+        </p>
+        <p>
+            <label for="save-json"><strong>Variables</strong></label><br>
+            <textarea id="save-json" name="variables" rows="6" readonly :value="overridesJson || '{}'"></textarea>
+        </p>
+        <div class="dialog-actions">
+            <button type="button" class="secondary" @click="$refs.saveDialog.close()">Cancel</button>
+            <button type="submit" class="primary" :disabled="!saveName.trim()">Register</button>
+        </div>
+    </form>
+</dialog>
+{% endif %}
+
+<dialog x-ref="manageDialog">
+    <h3>Registered variables</h3>
+    {% if d.registered_variables.is_empty() %}
+    <p class="muted">No variables have been registered for this test plan.</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for name in d.registered_variables.keys() %}
+            <tr>
+                <td><strong>{{ name }}</strong></td>
+                <td style="white-space:nowrap">
+                    <button type="button" class="small" data-name="{{ name }}" @click="$refs.manageDialog.close(); selectRegistered(null, $el.dataset.name)">Load</button>
+                    {% if edit.is_some() %}
+                    <form method="post" action="/ui/test-plan/{{ plan.uuid }}/variables/delete" style="display:inline" @submit="confirmDelete($event, $el.elements.name.value)">
+                        <input type="hidden" name="name" value="{{ name }}" />
+                        <button type="submit" class="small text-danger">Delete</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    <div class="dialog-actions"><button type="button" class="secondary" @click="$refs.manageDialog.close()">Close</button></div>
 </dialog>
 
 <div class="toast" :class="toastShow && 'show'" role="status" aria-live="polite" x-text="toastMessage"></div>

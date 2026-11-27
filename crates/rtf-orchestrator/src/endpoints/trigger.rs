@@ -9,6 +9,7 @@ use crate::{
     state::{ServerState, TestRunWithPayload, UserType},
 };
 use axum::{Json, extract::State, http::HeaderMap};
+use rtf_core::variables::{VariableOverride, merge_variable_maps};
 use rtf_orchestrator_shared::{
     payload::{GitHubPayload, PreparedPayload, TriggerPayload},
     summary::TestRunSummary,
@@ -16,6 +17,7 @@ use rtf_orchestrator_shared::{
 };
 use serde_json::Value;
 use sqlx::PgConnection;
+use std::collections::HashMap;
 use tracing::{debug, info};
 
 pub async fn handler(
@@ -179,51 +181,24 @@ impl PayloadWithMeta<PreparedOrGitHub> {
         user: &UserType,
         conn: &mut PgConnection,
     ) -> Result<Self, Error> {
-        let from_known = |known: KnownTestPlan, git_ref: Option<String>, variables| {
-            let pinned_pool = known.pinned_workload_pool();
-            let pool = pinned_pool.clone().unwrap_or_else(|| DEFAULT_POOL.clone());
-            let workload_config_patch = known.workload_config_patch()?;
-            let requires_dedicated_cluster = known.requires_dedicated_cluster();
-            let known_link = KnownTestPlanLink {
-                known_test_plan_id: known.id(),
-                git_sha: git_ref.clone(),
-            };
-            let payload = GitHubPayload {
-                org: known.org().to_owned(),
-                repo: known.repo().to_owned(),
-                path: known.path().to_owned(),
-                git_ref,
-                variables,
-            };
-
-            Ok::<_, Error>(Self {
-                pool,
-                pinned_pool,
-                workload_config_patch,
-                requires_dedicated_cluster,
-                payload: PreparedOrGitHub::GitHub(payload),
-                link: Some(known_link),
-            })
-        };
-
-        Ok(match trigger_payload {
-            TriggerPayload::Prepared(payload) => Self {
+        match trigger_payload {
+            TriggerPayload::Prepared(payload) => Ok(Self {
                 pool: DEFAULT_POOL.clone(),
                 pinned_pool: None,
                 workload_config_patch: Default::default(),
                 requires_dedicated_cluster: false,
                 link: None,
                 payload: PreparedOrGitHub::Prepared(payload),
-            },
+            }),
 
-            TriggerPayload::GitHub(payload) => Self {
+            TriggerPayload::GitHub(payload) => Ok(Self {
                 pool: DEFAULT_POOL.clone(),
                 pinned_pool: None,
                 workload_config_patch: Default::default(),
                 requires_dedicated_cluster: false,
                 link: None,
                 payload: PreparedOrGitHub::GitHub(payload),
-            },
+            }),
 
             TriggerPayload::KnownTestPlanUuid(kp) => {
                 info!("attempting to look up a known test plan by UUID");
@@ -237,7 +212,14 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                     return Err(Error::Unauthorized);
                 }
 
-                from_known(known, kp.git_ref, kp.variables)?
+                Self::from_known(
+                    known,
+                    kp.git_ref,
+                    kp.variables,
+                    kp.registered_variables,
+                    conn,
+                )
+                .await
             }
 
             TriggerPayload::KnownTestPlanName(kp) => {
@@ -252,8 +234,58 @@ impl PayloadWithMeta<PreparedOrGitHub> {
                     return Err(Error::Unauthorized);
                 }
 
-                from_known(known, kp.git_ref, kp.variables)?
+                Self::from_known(
+                    known,
+                    kp.git_ref,
+                    kp.variables,
+                    kp.registered_variables,
+                    conn,
+                )
+                .await
             }
+        }
+    }
+
+    async fn from_known(
+        known: KnownTestPlan,
+        git_ref: Option<String>,
+        mut variables: Option<HashMap<String, VariableOverride>>,
+        registered_variables: Option<String>,
+        conn: &mut PgConnection,
+    ) -> Result<Self, Error> {
+        let pinned_pool = known.pinned_workload_pool();
+        let pool = pinned_pool.clone().unwrap_or_else(|| DEFAULT_POOL.clone());
+        let workload_config_patch = known.workload_config_patch()?;
+        let requires_dedicated_cluster = known.requires_dedicated_cluster();
+        let known_link = KnownTestPlanLink {
+            known_test_plan_id: known.id(),
+            git_sha: git_ref.clone(),
+        };
+
+        if let Some(name) = registered_variables {
+            let base = known
+                .variables_by_name(&name, conn)
+                .await?
+                .ok_or(Error::UnknownRegisteredVariables { name })?;
+
+            variables = Some(merge_variable_maps(base, variables.unwrap_or_default()));
+        }
+
+        let payload = GitHubPayload {
+            org: known.org().to_owned(),
+            repo: known.repo().to_owned(),
+            path: known.path().to_owned(),
+            git_ref,
+            variables,
+        };
+
+        Ok(Self {
+            pool,
+            pinned_pool,
+            workload_config_patch,
+            requires_dedicated_cluster,
+            payload: PreparedOrGitHub::GitHub(payload),
+            link: Some(known_link),
         })
     }
 

@@ -8,7 +8,7 @@
 //
 // Loaded as a module ahead of the deferred alpine.min.js, so the component is registered before
 // Alpine starts.
-import { clone, coerce, createModel, fmt, parseOverrides, short } from "./trigger-model.js";
+import { clone, coerce, createModel, fmt, parseOverrides, sameJSON, short } from "./trigger-model.js";
 
 const dataEl = document.getElementById("test-plan-details-data");
 if (dataEl) init(JSON.parse(dataEl.textContent));
@@ -47,6 +47,11 @@ function init(data) {
                 rawPending: false,
                 jsonError: "",
                 loadError: false,
+                // The registered variables the form was loaded from ("" for the test plan defaults),
+                // and the overrides they produced, so that edits can be flagged as modified.
+                registeredName: "",
+                registeredBaseline: {},
+                saveName: "",
                 toastMessage: "",
                 toastShow: false,
                 variants: { total: 0, subtitle: "", cols: [], rows: [] },
@@ -86,6 +91,7 @@ function init(data) {
                     return p;
                 },
                 get canTrigger() { return !forbidden && this.total > 0 && !this.problems.length; },
+                get registeredModified() { return !sameJSON(toOverrides(this), this.registeredBaseline); },
                 get pickerItems() {
                     const q = this.pickerQuery.toLowerCase();
                     return data.variables.filter((v) => !this.selected.includes(v.name)
@@ -223,6 +229,60 @@ function init(data) {
                         this.jsonError = `Invalid JSON: ${err.message}`;
                     }
                 },
+
+                // --- registered variables ---
+                selectRegistered(event, name = event.target.value) {
+                    if (this.registeredModified && !confirm("Discard your unsaved changes to the form?")) {
+                        if (event) event.target.value = this.registeredName;
+                        return;
+                    }
+                    this.loadRegistered(name);
+                    if (name && this.registeredName === name) this.toast(`Loaded “${name}”`);
+                },
+                // Registered variables are loaded via the raw JSON so that invalid variables are handled exactly as
+                // if they had been pasted in by hand.
+                loadRegistered(name) {
+                    if (!name) {
+                        Object.assign(this, freshState());
+                        this.rawPending = false;
+                        this.loadError = false;
+                        this.jsonError = "";
+                        this.registeredName = "";
+                        this.registeredBaseline = {};
+                        return;
+                    }
+                    const variables = data.registered_variables[name];
+                    if (!variables) return;
+                    this.rawText = JSON.stringify(variables, null, 2);
+                    this.rawPending = true;
+                    this.applyJson();
+                    if (this.rawPending) {
+                        this.loadError = true;
+                        return;
+                    }
+                    this.registeredName = name;
+                    this.registeredBaseline = toOverrides(this);
+                },
+                openSave() {
+                    this.saveName = "";
+                    this.$refs.saveDialog.showModal();
+                    this.$nextTick(() => this.$refs.saveName.focus());
+                },
+                confirmSave(event) {
+                    const name = this.saveName.trim();
+                    if (name in data.registered_variables && !confirm(`Overwrite “${name}” with the current form? Everyone using these registered variables will get the new values.`)) {
+                        event.preventDefault();
+                    }
+                },
+                confirmUpdate(event) {
+                    if (!confirm(`Overwrite “${this.registeredName}” with the current form? Everyone using these registered variables will get the new values.`)) {
+                        event.preventDefault();
+                    }
+                },
+                confirmDelete(event, name) {
+                    if (!confirm(`Delete the registered variables “${name}” for everyone?`)) event.preventDefault();
+                },
+
                 showVariants() {
                     const { cols, rows } = variantsOf(this);
                     const total = this.total;

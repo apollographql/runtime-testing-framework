@@ -787,6 +787,22 @@ button:disabled {
     border: 1px solid var(--color-border-primary);
 }
 
+.pill--modified {
+    background: var(--status-unrunnable-bg);
+    color: var(--status-unrunnable-text);
+}
+
+.registered-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.registered-bar .spacer {
+    flex: 1;
+}
+
 .tag {
     font-size: 0.72rem;
     padding: 0 0.4rem;

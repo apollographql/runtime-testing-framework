@@ -45,6 +45,7 @@ fn ui_run_url(base_url: &Url, id: Uuid) -> anyhow::Result<Url> {
 pub async fn remote_run_known(
     test_plan_uuid: Uuid,
     git_ref: Option<String>,
+    registered_variables: Option<String>,
     variables: Variables,
 ) -> anyhow::Result<()> {
     println!("Triggering test run for test plan with ID={test_plan_uuid}...");
@@ -56,6 +57,7 @@ pub async fn remote_run_known(
     let payload = TriggerPayload::KnownTestPlanUuid(KnownTestPlanUuidPayload {
         test_plan_uuid,
         git_ref,
+        registered_variables,
         variables: (!flat.is_empty()).then_some(flat),
     });
 

@@ -1,5 +1,4 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
-use crate::gcs::GCSClient;
 use axum::{
     Extension, Router,
     extract::DefaultBodyLimit,
@@ -29,6 +28,7 @@ pub use error::{Error, Result};
 use config::Config;
 use db::pool::check_db_conn;
 use event_loop::EventQueue;
+use gcs::GCSClient;
 use state::{ServerState, UserClassifier};
 
 pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
@@ -86,6 +86,11 @@ fn build_routes(
         .route(
             "/admin/test-plan/{uuid}",
             put(admin::update_known_test_plan::handler),
+        )
+        .route(
+            "/admin/test-plan/{uuid}/variables/{name}",
+            put(admin::known_test_plan_variables::put_handler)
+                .delete(admin::known_test_plan_variables::delete_handler),
         )
         .route("/cluster-summary", get(cluster_summary::handler))
         .route("/event-queue-snapshot", get(event_queue_snapshot::handler))

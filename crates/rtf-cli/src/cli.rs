@@ -389,6 +389,11 @@ pub enum RemoteSubcommand {
         /// known test plan
         #[arg(long = "ref")]
         git_ref: Option<String>,
+
+        /// Optional name of variables registered against the known test plan to use as a base
+        /// for any variables provided with --var and --vars
+        #[arg(long)]
+        registered_vars: Option<String>,
     },
 
     /// Trigger a test run using the Orchestrator and poll for the result.
@@ -434,6 +439,11 @@ pub enum RemoteSubcommand {
         /// known test plan
         #[arg(long = "ref")]
         git_ref: Option<String>,
+
+        /// Optional name of variables registered against the known test plan to use as a base
+        /// for any variables provided with --var and --vars
+        #[arg(long)]
+        registered_vars: Option<String>,
 
         /// Number of seconds to wait between polls for the status of the test run
         #[arg(long, default_value = "10")]

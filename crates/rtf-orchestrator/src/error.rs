@@ -97,6 +97,9 @@ pub enum Error {
     #[error("{id} is not a known test execution ID")]
     UnknownTestExecution { id: Uuid },
 
+    #[error("'{name}' is not a known variable set for this test plan")]
+    UnknownRegisteredVariables { name: String },
+
     #[error("{identifier} is not a registered test plan")]
     UnknownTestPlan { identifier: String },
 
@@ -165,6 +168,11 @@ impl IntoResponse for Error {
             Self::UnknownTestRun { id } => (
                 StatusCode::NOT_FOUND,
                 Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
+            ),
+
+            Self::UnknownRegisteredVariables { name } => (
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "NOT_FOUND", "name": name, "message": msg })),
             ),
 
             Self::UnknownTestPlan { identifier } => (

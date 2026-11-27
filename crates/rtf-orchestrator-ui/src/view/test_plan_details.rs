@@ -1,11 +1,12 @@
 use chrono::{DateTime, Duration, Utc};
 use rtf_config::templating::Scalar;
+use rtf_core::variables::VariableOverride;
 use rtf_orchestrator_shared::test_plan_details::{
     ConfigSection, EnvironmentSummary, ManifestEntry, TestPlanDetails, TestPlanHistory,
     TestPlanVariable, VariableValue,
 };
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use url::form_urlencoded;
 use uuid::Uuid;
 
@@ -107,12 +108,14 @@ impl EnvironmentDetailView {
 }
 
 pub type CompoundGroups = BTreeMap<String, Vec<BTreeMap<String, Scalar>>>;
+pub type RegisteredVariables = BTreeMap<String, HashMap<String, VariableOverride>>;
 
 #[derive(Debug, Serialize)]
 pub struct TestPlanDetailsJsData<'a> {
     pub variables: &'a [TriggerVariableView],
     pub compound_groups: &'a CompoundGroups,
     pub history: &'a TestPlanHistory,
+    pub registered_variables: &'a RegisteredVariables,
 }
 
 #[derive(Debug)]
@@ -130,6 +133,7 @@ pub struct TestPlanDetailsView {
     pub history_from_label: String,
     pub history_to_label: String,
     pub sampled_runs: u64,
+    pub registered_variables: RegisteredVariables,
     days_back: u32,
     days: u32,
     history: TestPlanHistory,
@@ -201,6 +205,7 @@ impl TestPlanDetailsView {
                 .iter()
                 .map(TriggerVariableView::new)
                 .collect(),
+            registered_variables: details.registered_variables,
             days_back,
             days,
             history,
@@ -212,6 +217,7 @@ impl TestPlanDetailsView {
             variables: &self.variables,
             compound_groups: &self.compound_groups,
             history: &self.history,
+            registered_variables: &self.registered_variables,
         }
     }
 
@@ -411,6 +417,7 @@ mod tests {
                 Vec::new(),
             ))),
             history: TestPlanHistory::default(),
+            registered_variables: Default::default(),
         }
     }
 

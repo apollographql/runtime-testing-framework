@@ -1,6 +1,4 @@
 //! Request handlers for the orchestrator axum server
-#[cfg(doc)]
-use crate::state::UserClassifier;
 use crate::{
     Error,
     state::{ServerState, UserType},
@@ -28,7 +26,7 @@ pub mod test_plan_details;
 pub mod trigger;
 pub mod whoami;
 
-/// Axum extractor that only admits callers [UserClassifier::identify_user] resolves to
+/// Axum extractor that only admits callers that `identify_user` resolves to
 /// [UserType::Admin], rejecting everyone else with [Error::Unauthorized].
 pub struct AdminUser(pub String);
 

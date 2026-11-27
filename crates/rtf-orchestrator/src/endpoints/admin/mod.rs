@@ -6,6 +6,7 @@ use axum::{Extension, http::StatusCode};
 use std::str::FromStr;
 use tracing_subscriber::{EnvFilter, Registry, reload::Handle};
 
+pub mod known_test_plan_variables;
 pub mod purge_queue;
 pub mod register_known_test_plan;
 pub mod update_known_test_plan;

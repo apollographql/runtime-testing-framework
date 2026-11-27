@@ -5,6 +5,7 @@ use axum::{
 use cached::cached;
 use chrono::{DateTime, Utc};
 use reqwest::{Method, RequestBuilder, StatusCode, Url, header::LOCATION, redirect::Policy};
+use rtf_core::variables::VariableOverride;
 use rtf_orchestrator_shared::{
     PurgeRequest,
     cluster_summary::ClusterSummaryResponse,
@@ -18,7 +19,7 @@ use rtf_orchestrator_shared::{
     test_plan_details::{TestPlanDetails, TestPlanDetailsParams},
     whoami::WhoAmIResponse,
 };
-use std::convert::Infallible;
+use std::{collections::HashMap, convert::Infallible};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -93,6 +94,15 @@ pub enum Error {
 
     #[error("orchestrator returned {status} updating known test plan id {uuid}: {message}")]
     UpdateKnownTestPlan {
+        status: StatusCode,
+        uuid: Uuid,
+        message: String,
+    },
+
+    #[error(
+        "orchestrator returned {status} updating registered variables for known test plan id {uuid}: {message}"
+    )]
+    RegisteredVariables {
         status: StatusCode,
         uuid: Uuid,
         message: String,
@@ -189,6 +199,19 @@ pub trait Client: Send + Sync + Clone + 'static {
         uuid: Uuid,
         req: &UpdateKnownTestPlanRequest,
     ) -> impl Future<Output = Result<KnownTestPlanSummary, Error>> + Send;
+
+    fn put_registered_variables(
+        &self,
+        uuid: Uuid,
+        name: &str,
+        vars: &HashMap<String, VariableOverride>,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
+
+    fn delete_registered_variables(
+        &self,
+        uuid: Uuid,
+        name: &str,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn cancel_run(&self, id: Uuid) -> impl Future<Output = Result<TestRunSummary, Error>> + Send;
 }
@@ -480,6 +503,25 @@ impl Client for HttpClient {
         })
     }
 
+    async fn put_registered_variables(
+        &self,
+        uuid: Uuid,
+        name: &str,
+        vars: &HashMap<String, VariableOverride>,
+    ) -> Result<(), Error> {
+        let url = registered_variables_url(&self.orchestrator_url, uuid, name);
+        let resp = self.request(Method::PUT, url).json(vars).send().await?;
+
+        handle_registered_variables_change(uuid, resp).await
+    }
+
+    async fn delete_registered_variables(&self, uuid: Uuid, name: &str) -> Result<(), Error> {
+        let url = registered_variables_url(&self.orchestrator_url, uuid, name);
+        let response = self.request(Method::DELETE, url).send().await?;
+
+        handle_registered_variables_change(uuid, response).await
+    }
+
     async fn cancel_run(&self, id: Uuid) -> Result<TestRunSummary, Error> {
         let url = self
             .orchestrator_url
@@ -560,10 +602,28 @@ async fn evict_test_plan_details(uuid: Uuid) {
         .retain(|(id, ..), _| *id != uuid);
 }
 
-async fn error_message(response: reqwest::Response) -> String {
-    let status = response.status();
+async fn handle_registered_variables_change(
+    uuid: Uuid,
+    resp: reqwest::Response,
+) -> Result<(), Error> {
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(Error::RegisteredVariables {
+            status,
+            uuid,
+            message: error_message(resp).await,
+        });
+    }
 
-    return response
+    evict_test_plan_details(uuid).await;
+
+    Ok(())
+}
+
+async fn error_message(resp: reqwest::Response) -> String {
+    let status = resp.status();
+
+    return resp
         .json::<ErrorBody>()
         .await
         .map(|body| body.message)
@@ -605,6 +665,18 @@ fn test_plan_details_url(base_url: &Url, uuid: Uuid) -> Url {
     base_url
         .join(&format!("/test-plan/{uuid}/details"))
         .expect("base url should be valid")
+}
+
+fn registered_variables_url(base_url: &Url, uuid: Uuid, name: &str) -> Url {
+    let mut url = base_url
+        .join(&format!("/admin/test-plan/{uuid}/variables"))
+        .expect("base url should be valid");
+    // pushing `name` as a path segment so that it is percent-encoded.
+    url.path_segments_mut()
+        .expect("base url should be valid")
+        .push(name);
+
+    url
 }
 
 pub(crate) mod mocks {
@@ -832,6 +904,13 @@ pub(crate) mod mocks {
                 },
             )),
             history: TestPlanHistory::default(),
+            registered_variables: BTreeMap::from([(
+                "perf-graph".to_owned(),
+                HashMap::from([(
+                    "graph_ref".to_owned(),
+                    VariableOverride::Scalar(Scalar::from("my-graph@current")),
+                )]),
+            )]),
         }
     }
 
@@ -1178,6 +1257,19 @@ pub(crate) mod mocks {
             _req: &UpdateKnownTestPlanRequest,
         ) -> Result<KnownTestPlanSummary, Error> {
             Ok(sample_known_test_plan(uuid))
+        }
+
+        async fn put_registered_variables(
+            &self,
+            _uuid: Uuid,
+            _name: &str,
+            _vars: &HashMap<String, VariableOverride>,
+        ) -> Result<(), Error> {
+            Ok(())
+        }
+
+        async fn delete_registered_variables(&self, _uuid: Uuid, _name: &str) -> Result<(), Error> {
+            Ok(())
         }
 
         async fn cancel_run(&self, id: Uuid) -> Result<TestRunSummary, Error> {
