@@ -262,12 +262,24 @@ impl ParsedVariables {
 
             variables_from_test_plan.remove(&k);
             compound_from_test_plan.remove(&k);
+            for dimension in compound_from_test_plan.values_mut() {
+                for vars in dimension.iter_mut() {
+                    vars.remove(&k);
+                }
+            }
+
             dimensions_from_test_plan.insert(k.clone(), dim);
         }
 
         for (k, v) in self.variables.into_iter() {
             dimensions_from_test_plan.remove(&k);
             compound_from_test_plan.remove(&k);
+            for dimension in compound_from_test_plan.values_mut() {
+                for vars in dimension.iter_mut() {
+                    vars.remove(&k);
+                }
+            }
+
             variables_from_test_plan.insert(k.clone(), v);
         }
 
@@ -408,6 +420,51 @@ mod tests {
 
         assert_eq!(&final_variables, &["bar", "baz"]);
         assert_eq!(&final_matrix_dimensions, &["foo"]);
+    }
+
+    #[test]
+    fn overrides_remove_conflicting_existing_keys_from_compound_dimensions() {
+        let from_cli = Variables {
+            var: vec!["var_1=X".to_string()],
+            vars: Some(PathBuf::from("my-variables.json")),
+        };
+
+        let parsed = from_cli
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({ "var_2": ["Y", "Z"] }),
+            )))
+            .unwrap();
+
+        let mut variables = HashMap::new();
+        let mut dimensions = HashMap::new();
+        let mut compound: HashMap<String, Vec<HashMap<String, Scalar>>> = HashMap::from([(
+            "compound_1".to_string(),
+            vec![
+                variables_map!("var_1" => "A", "var_2" => "B", "var_3" => "C"),
+                variables_map!("var_1" => "D", "var_2" => "E", "var_3" => "F"),
+            ],
+        )]);
+
+        parsed
+            .merge_inner(&mut variables, &mut dimensions, &mut compound)
+            .unwrap();
+
+        assert_eq!(variables, variables_map!("var_1" => "X"));
+        assert_eq!(
+            dimensions,
+            HashMap::from([("var_2".into(), vec!["Y".into(), "Z".into()])])
+        );
+        assert_eq!(
+            compound,
+            HashMap::from([(
+                "compound_1".to_string(),
+                vec![
+                    variables_map!("var_3" => "C"),
+                    variables_map!("var_3" => "F"),
+                ],
+            )])
+        );
     }
 
     #[test]
