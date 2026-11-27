@@ -8,6 +8,7 @@ use axum::{
     response::{IntoResponse, Json, Response},
 };
 use rtf_config::formats;
+use rtf_core::variables;
 use rtf_integrations::github;
 use rtf_orchestrator_shared::{
     payload::PrepareError, test_plan_details::EnvironmentSummaryError, workload_config,
@@ -28,6 +29,9 @@ pub enum Error {
 
     #[error(transparent)]
     GitHub(#[from] github::Error),
+
+    #[error("invalid variables: {0}")]
+    InvalidVariables(#[from] variables::Error),
 
     #[error("invalid workload config: {0}")]
     InvalidWorkloadConfig(#[from] workload_config::Error),
@@ -121,6 +125,7 @@ impl IntoResponse for Error {
             | Self::InvalidFileProviderUsage { .. }
             | Self::UnknownWorkloadPool { .. }
             | Self::DedicatedClusterNotSupported { .. }
+            | Self::InvalidVariables(_)
             | Self::InvalidWorkloadConfig(_)
             | Self::NodeLabelsRequireDedicatedCluster
             | Self::NodeLabelsRequirePinnedPool

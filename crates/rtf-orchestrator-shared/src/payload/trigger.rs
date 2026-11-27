@@ -76,7 +76,7 @@ impl GitHubPayload {
         )
         .await?;
 
-        let variables = ParsedVariables::from_flat(self.variables.unwrap_or_default());
+        let variables = ParsedVariables::from_flat(self.variables.unwrap_or_default())?;
 
         PreparedPayload::prepare(test_plan, sources, variables, None, ctx).await
     }
