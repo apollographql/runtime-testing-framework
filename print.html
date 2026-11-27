@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-fc61d182.js";
+            window.path_to_searchindex_js = "searchindex-515a271a.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-4d4c8e60.js"></script>
@@ -7091,6 +7091,7 @@ the <code>RR</code> backlog to track it.</p>
 <h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
 <ul>
 <li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to run the test plan from, overriding the ref registered for the known test plan</li>
+<li><code>--registered-vars &lt;REGISTERED_VARS&gt;</code> — Optional name of variables registered against the known test plan to use as a base for any variables provided with –var and –vars</li>
 </ul>
 <h2 id="rtf-remote-ci-run"><a class="header" href="#rtf-remote-ci-run"><code>rtf remote ci-run</code></a></h2>
 <p>Trigger a test run using the Orchestrator and poll for the result.</p>
@@ -7132,6 +7133,9 @@ the <code>RR</code> backlog to track it.</p>
 <ul>
 <li>
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to run the test plan from, overriding the ref registered for the known test plan</p>
+</li>
+<li>
+<p><code>--registered-vars &lt;REGISTERED_VARS&gt;</code> — Optional name of variables registered against the known test plan to use as a base for any variables provided with –var and –vars</p>
 </li>
 <li>
 <p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code> — Number of seconds to wait between polls for the status of the test run</p>

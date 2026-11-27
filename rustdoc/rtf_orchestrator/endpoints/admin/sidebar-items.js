@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_logging_filter_handler","set_logging_filter_handler"],"mod":["purge_queue","register_known_test_plan","update_known_test_plan"]};
+window.SIDEBAR_ITEMS = {"fn":["get_logging_filter_handler","set_logging_filter_handler"],"mod":["known_test_plan_variables","purge_queue","register_known_test_plan","update_known_test_plan"]};

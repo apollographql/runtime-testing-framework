@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error","VariableOverride"],"struct":["ParsedVariables","Variables"],"type":["Result"]};
+window.SIDEBAR_ITEMS = {"enum":["Error","VariableOverride"],"fn":["merge_variable_maps"],"struct":["ParsedVariables","Variables"],"type":["Result"]};
