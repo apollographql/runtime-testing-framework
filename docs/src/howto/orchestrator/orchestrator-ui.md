@@ -66,10 +66,47 @@ Plan's trigger form, pre-filled with the variables from the original run.
 
 ## Triggering a run
 
-To trigger a Known Test Plan, open its page and either select **Trigger _N_ executions** to run with
-the current variable values, or expand **Customize ref & variables** to run from a different branch,
-tag, or commit and to override individual Trigger Variables. If you aren't permitted to trigger the
-Known Test Plan, the page lists its owners for you to contact.
+To trigger a Known Test Plan, open its page and use the **Trigger a run** section. The form starts
+from the Test Plan's default variable values on the repository's default branch. If you aren't
+permitted to trigger the Known Test Plan, the page lists its owners for you to contact.
+
+To run from a different branch, tag, or commit, enter it under **Ref** and select **Load ref**. The
+variables and defaults shown in the form are then read from that ref, so any variables that only
+exist on your branch are available to change.
+
+To override a Trigger Variable, select **+ Change a variable** and pick it from the list. Adding
+several values for a variable runs it as a matrix dimension, and **Compound dimensions** let you
+list combinations of variables that should vary together. Every variable that you have changed is
+shown under **Changed variables**, and the remainder are listed under **Using test plan defaults**.
+
+The variables that will be submitted are shown under **Raw variables JSON**. This can be edited
+directly, which is useful for pasting in variables from elsewhere: select **Apply JSON to form** to
+load them into the form.
+
+Once you are happy with the form, select **Preview executions** to check the Test Executions that
+will be run, and then **Trigger _N_ executions** to start the run.
+
+### Using Registered Variables
+
+If the Known Test Plan has [Registered Variables][7], select them from **Start from** to load them
+into the form. You can then make further changes before triggering the run: while the form differs
+from the Registered Variables a **modified** marker is shown, and selecting **reset** restores the
+registered values. A run triggered from the UI uses the values in the form at the time it was
+triggered, so later changes to the Registered Variables don't affect it.
+
+**Manage** lists every set of Registered Variables for the Known Test Plan, and lets you load any of
+them into the form.
+
+Owners and Admins are also able to modify Registered Variables:
+
+- To save the current form as new Registered Variables, select **Register variables…** and give them
+  a name.
+- To change existing Registered Variables, load them using **Start from**, make your changes, and
+  select **Update "_name_"**.
+- To delete Registered Variables, select **Delete** next to them in **Manage**.
+
+Changes to Registered Variables apply to everyone using the Known Test Plan, so the UI asks you to
+confirm before overwriting or deleting them.
 
 To trigger a Test Plan that hasn't been registered, select **Trigger from GitHub** and provide the
 organization, repository, and path to the `test-plan.yaml`, along with an optional Git ref and any
@@ -90,3 +127,4 @@ See [Registering and managing Known Test Plans][3] for what each setting does.
 [4]: ../../reference/glossary.md#workload-pool
 [5]: ../../reference/glossary.md#dedicated-cluster
 [6]: ../../reference/orchestrator/limits-permissions-and-concepts.md#output-storage
+[7]: ../../reference/glossary.md#registered-variables

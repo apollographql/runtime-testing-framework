@@ -137,9 +137,14 @@ jobs:
       - uses: apollographql/release-tooling/rtf-orchestrator-run-known@<commit-sha>
         with:
           test_plan_id: <test-plan-uuid>
-          git_ref: <git-ref>     # optional
-          vars_file: vars.json   # optional
+          git_ref: <git-ref>              # optional
+          registered_variables: <name>    # optional
+          vars_file: vars.json            # optional
 ```
+
+If `registered_variables` is set, the run starts from the named [Registered Variables][16] of the
+Known Test Plan, with any variables in `vars_file` taking precedence. This lets you keep the
+variables for your CI runs in the Orchestrator alongside those used when triggering from the UI.
 
 ## Using private Docker images in Test Plans
 
@@ -210,3 +215,4 @@ else you will need to request that an Admin cancel the run. See
 [13]: ../../reference/glossary.md#dedicated-cluster
 [14]: ../../reference/glossary.md#automation-user
 [15]: ../../reference/orchestrator/workload-pools.md
+[16]: ../../reference/glossary.md#registered-variables

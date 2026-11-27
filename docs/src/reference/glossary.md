@@ -65,6 +65,12 @@ File Providers range from being completely general purpose (e.g. pulling an arbi
 GitHub) to generating data specific to the Test Plan being resolved (e.g. generating valid GraphQL
 operations to run against the supergraph under test).
 
+## Registered Variables
+
+A named set of Trigger Variables stored against a Known Test Plan on the RTF Orchestrator Service.
+Registered Variables can be used as the starting point for a Test Run, from the Orchestrator UI or
+with `--registered-vars`, so that common variable configurations don't need to be recreated by hand.
+
 ## RTF
 
 May refer to either the Runtime Testing Framework as a whole or the `rtf` CLI which is used to

@@ -68,19 +68,38 @@ that need an Admin.
 
 See [Known Test Plan configuration][5] for details of each setting.
 
+## Registering variables for your Known Test Plan
+
+The Orchestrator allows owners to save sets of standard trigger variables against Known Test Plans
+as [Registered Variables][10]. Registered Variables are visible to everyone who can view the Known
+Test Plan, and can be used as the starting point for a run from the Orchestrator UI, the `rtf` CLI,
+and CI.
+
+To register a new variable set, set up the trigger form on the Known Test Plan's page with the
+values you want and select **Register variables…**. See [Using Registered Variables][11] for how to
+update and delete them.
+
+Only owners and Admins are able to create, update, or delete Registered Variables.
+
 ## Triggering your Known Test Plan
 
 The simplest way to trigger a run is from the **Trigger a run** section of the Known Test Plan's
-page in the Orchestrator UI. From there you can either trigger a run using the current variable
-values, or use **Customize ref & variables** to run from a different branch, tag, or commit and to
-override individual Trigger Variables.
+page in the Orchestrator UI. From there you can trigger a run using the Test Plan's default variable
+values, start from a set of Registered Variables, run from a different branch, tag, or commit, and
+override individual Trigger Variables. See [Triggering a run][12] for details.
 
 To trigger a run from a script or an agent, use the `rtf` CLI:
 
 ```bash
 rtf remote run-known <test-plan-uuid>
 rtf remote ci-run-known <test-plan-uuid> --ref <git-ref> --var <key>=<value>
+rtf remote ci-run-known <test-plan-uuid> --registered-vars <name> --var <key>=<value>
 ```
+
+The `--registered-vars` flag uses the named Registered Variables as the base for the run, with any
+variables provided using `--var` or `--vars` taking precedence. Registered Variables are looked up
+when the run is triggered, so the run always uses their latest values. See [Using `rtf remote`][13]
+for how the two are combined.
 
 The UUID of your Known Test Plan is the final segment of the URL of its page in the Orchestrator UI.
 To trigger your Known Test Plan from CI, see [Running from CI][6].
@@ -95,3 +114,7 @@ To trigger your Known Test Plan from CI, see [Running from CI][6].
 [7]: ../../reference/glossary.md#workload-pool
 [8]: ../../reference/glossary.md#trigger-variables
 [9]: ../../reference/glossary.md#dedicated-cluster
+[10]: ../../reference/glossary.md#registered-variables
+[11]: orchestrator-ui.md#using-registered-variables
+[12]: orchestrator-ui.md#triggering-a-run
+[13]: ../../reference/orchestrator/rtf-remote.md#triggering-runs

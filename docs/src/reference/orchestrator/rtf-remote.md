@@ -25,18 +25,24 @@ On first use, the CLI opens a browser window to complete sign-in and caches the 
 
 ## Triggering runs
 
-| Subcommand     | Arguments                                                                       | Description                                                            |
-| -------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `run`          | `<test-plan-path>` `[--github]` `[--ref <ref>]`                                 | Triggers a Test Run. Prints the Test Run ID and a UI link.             |
-| `ci-run`       | `<test-plan-path>` `[--github]` `[--ref <ref>]` `[--poll-interval-seconds <n>]` | Triggers a Test Run and polls until it completes.                      |
-| `run-known`    | `<test-plan-uuid>` `[--ref <ref>]`                                              | Triggers a [Known Test Plan][9]. Prints the Test Run ID and a UI link. |
-| `ci-run-known` | `<test-plan-uuid>` `[--ref <ref>]` `[--poll-interval-seconds <n>]`              | Triggers a Known Test Plan and polls until it completes.               |
-| `prepare`      | `<test-plan-path>` `[--github]` `[--ref <ref>]`                                 | Writes the [Trigger Payload][10] for a Test Plan to stdout.            |
+| Subcommand     | Arguments                                                                                       | Description                                                            |
+| -------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `run`          | `<test-plan-path>` `[--github]` `[--ref <ref>]`                                                 | Triggers a Test Run. Prints the Test Run ID and a UI link.             |
+| `ci-run`       | `<test-plan-path>` `[--github]` `[--ref <ref>]` `[--poll-interval-seconds <n>]`                 | Triggers a Test Run and polls until it completes.                      |
+| `run-known`    | `<test-plan-uuid>` `[--ref <ref>]` `[--registered-vars <name>]`                                 | Triggers a [Known Test Plan][9]. Prints the Test Run ID and a UI link. |
+| `ci-run-known` | `<test-plan-uuid>` `[--ref <ref>]` `[--registered-vars <name>]` `[--poll-interval-seconds <n>]` | Triggers a Known Test Plan and polls until it completes.               |
+| `prepare`      | `<test-plan-path>` `[--github]` `[--ref <ref>]`                                                 | Writes the [Trigger Payload][10] for a Test Plan to stdout.            |
 
 - `--var <key>=<value>` and `--vars <file.json>` set Test Plan variables for these subcommands.
 - `--github` reads `<test-plan-path>` as `<org>/<repo>/<path>` and fetches the Test Plan from GitHub
   on the local machine before submitting it.
 - For `run-known` and `ci-run-known`, `--ref` overrides the Known Test Plan's default branch.
+- For `run-known` and `ci-run-known`, `--registered-vars <name>` uses the named
+  [Registered Variables][14] of the Known Test Plan as the base for the run's variables:
+  - Variables set with `--var` and `--vars` replace registered variables with the same name.
+  - Setting a compound dimension with `--var` or `--vars` also removes any registered values for the
+    variables in that dimension.
+  - The run is rejected if the Known Test Plan has no Registered Variables with that name.
 - `--poll-interval-seconds` defaults to `10`.
 - Runs triggered with `run` and `ci-run` always execute in the default [Workload Pool][11].
 
@@ -104,3 +110,4 @@ See [Limits, permissions, and concepts][5] for who is able to cancel a run.
 [11]: ../glossary.md#workload-pool
 [12]: ../glossary.md#test-run-summary
 [13]: limits-permissions-and-concepts.md#output-storage
+[14]: ../glossary.md#registered-variables
