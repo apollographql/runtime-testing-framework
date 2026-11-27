@@ -3,7 +3,7 @@
 //! Only admins and owners of the test plan are permitted to modify its registered variables.
 use crate::{Error, Result, conn, db::KnownTestPlan, state::KnownUser};
 use axum::{Json, extract::Path, http::StatusCode};
-use rtf_core::variables::VariableOverride;
+use rtf_core::variables::{VariableOverride, validate_keys};
 use sqlx::PgConnection;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -15,6 +15,7 @@ pub async fn put_handler(
 ) -> Result<StatusCode> {
     let conn = conn!();
     let ktp = test_plan_if_allowed(&user, uuid, conn).await?;
+    validate_keys(&variables)?;
     ktp.add_variables(&name, &variables, conn).await?;
 
     Ok(StatusCode::NO_CONTENT)

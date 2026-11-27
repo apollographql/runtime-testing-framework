@@ -8,6 +8,9 @@ use std::{collections::HashMap, io, path::PathBuf};
 /// An error that can be encountered when parsing runtime overrides to RTF templating variables.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("conflicting variable names: {0:?}")]
+    ConflictingKeys(Vec<String>),
+
     #[error("could not read variables file")]
     ReadFile(#[from] io::Error),
 
@@ -92,6 +95,8 @@ impl Variables {
         // --vars variables read from a file can be individual variables, matrix dimensions, or
         // compound matrix dimension groups
         if let Some((source, from_variables)) = variable_json_data {
+            validate_keys(&from_variables)?;
+
             for (k, v) in from_variables.into_iter() {
                 match v {
                     VariableOverride::Scalar(s) => {
@@ -168,7 +173,9 @@ impl ParsedVariables {
     /// Construct a new [ParsedVariables] from an explicit map without setting any variable
     /// sources. Any relative paths specified within `flat` will be resolved relative to the
     /// location of the test plan.
-    pub fn from_flat(flat: HashMap<String, VariableOverride>) -> Self {
+    pub fn from_flat(flat: HashMap<String, VariableOverride>) -> Result<Self> {
+        validate_keys(&flat)?;
+
         let mut vars = Self::default();
 
         for (k, v) in flat.into_iter() {
@@ -187,7 +194,7 @@ impl ParsedVariables {
             }
         }
 
-        vars
+        Ok(vars)
     }
 
     /// Reconstruct the flat map of runtime overrides — scalars, matrix-dimension arrays, and
@@ -285,6 +292,33 @@ impl ParsedVariables {
 
         Ok(self.variable_sources)
     }
+}
+
+pub fn validate_keys(vars: &HashMap<String, VariableOverride>) -> Result<()> {
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+
+    for (k, v) in vars.iter() {
+        *counts.entry(k.as_str()).or_default() += 1;
+        if let VariableOverride::Compound(entries) = v {
+            for member in entries.iter().take(1).flat_map(|e| e.keys()) {
+                *counts.entry(member.as_str()).or_default() += 1;
+            }
+        }
+    }
+
+    let mut conflicts: Vec<String> = counts
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(k, _)| k.to_string())
+        .collect();
+
+    if conflicts.is_empty() {
+        return Ok(());
+    }
+
+    conflicts.sort_unstable();
+
+    Err(Error::ConflictingKeys(conflicts))
 }
 
 /// Merge `overrides` into `base` with the same precedence rules used for merging
@@ -540,33 +574,6 @@ mod tests {
     }
 
     #[test]
-    fn compound_override_keeps_member_keys_also_overridden_as_dimensions() {
-        let mut variables = HashMap::default();
-        let mut dimensions = HashMap::default();
-        let mut compound = HashMap::default();
-
-        let from_cli = Variables {
-            var: vec![],
-            vars: Some(PathBuf::from("my-variables.json")),
-        };
-        let parsed = from_cli
-            .parse_inner(Some((
-                StableSource::VariablesFile,
-                variables_json!({
-                    "region": ["us-east-1", "eu-west-1"],
-                    "geo": [{"region": "us-east-1"}]
-                }),
-            )))
-            .unwrap();
-        parsed
-            .merge_inner(&mut variables, &mut dimensions, &mut compound)
-            .unwrap();
-
-        assert!(dimensions.contains_key("region"));
-        assert!(compound.contains_key("geo"));
-    }
-
-    #[test]
     fn parse_inner_records_variable_source_for_scalar_override() {
         let from_cli = Variables {
             var: vec![],
@@ -654,7 +661,7 @@ mod tests {
             ),
         ]);
 
-        let parsed = ParsedVariables::from_flat(flat);
+        let parsed = ParsedVariables::from_flat(flat).unwrap();
 
         assert!(parsed.variable_sources.is_empty());
     }
@@ -728,6 +735,35 @@ mod tests {
             variables.get("scenario_subject"),
             Some(&Scalar::from("chips"))
         );
+    }
+
+    #[test_case(
+        variables_json!({ "region": "us-east-1", "geo": [{"region": "us-east-1"}] }),
+        &["region"];
+        "scalar and compound member"
+    )]
+    #[test_case(
+        variables_json!({ "region": ["us-east-1"], "geo": [{"region": "us-east-1"}] }),
+        &["region"];
+        "array and compound member"
+    )]
+    #[test_case(
+        variables_json!({ "a": [{"region": "us-east-1"}], "b": [{"region": "eu-west-1"}] }),
+        &["region"];
+        "member shared by two compound groups"
+    )]
+    #[test_case(
+        variables_json!({ "geo": [{"tier": "free"}], "other": [{"geo": "eu"}] }),
+        &["geo"];
+        "compound name and compound member"
+    )]
+    #[test]
+    fn validate_keys_reports_conflicts(json: HashMap<String, VariableOverride>, expected: &[&str]) {
+        match validate_keys(&json) {
+            Ok(_) => assert!(expected.is_empty(), "expected conflicts for {expected:?}"),
+            Err(Error::ConflictingKeys(keys)) => assert_eq!(keys, expected),
+            Err(e) => panic!("unexpected error: {e}"),
+        }
     }
 
     #[test_case("bar should have an equals before variable"; "no equals")]
